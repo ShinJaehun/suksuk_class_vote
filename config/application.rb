@@ -23,5 +23,14 @@ module SuksukClassVote
     #
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
+    config.generators do |generators|
+      generators.test_framework :rspec,
+        view_specs: false,
+        helper_specs: false,
+        routing_specs: false,
+        request_specs: true
+      generators.fixture_replacement :factory_bot, dir: "spec/factories"
+      generators.system_tests nil
+    end
   end
 end

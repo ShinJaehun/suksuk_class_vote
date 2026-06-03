@@ -61,10 +61,13 @@
 현재 상태:
 
 - Rails 앱 생성
-- PostgreSQL 사용 예정
+- PostgreSQL 사용
 - Tailwind CSS 사용 예정
 - 도메인 모델 미구현
-- 인증/권한 미구현
+- Devise 기반 `User` 인증 구조 추가
+- `User` role enum 추가: `teacher`, `admin`
+- Pundit 기본 설치
+- RSpec 테스트 환경 추가
 - 투표 흐름 미구현
 - 문서 기반 설계 정리 중
 
