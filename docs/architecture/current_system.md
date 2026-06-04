@@ -69,6 +69,7 @@
 - `User` role enum 추가: `teacher`, `admin`
 - 개발용 admin seed 추가: `admin@example.com`
 - 로그인 후 역할별 placeholder dashboard 추가
+- admin의 교사 계정 목록/생성 기능 추가
 - Pundit 기본 설치
 - RSpec 테스트 환경 추가
 - 투표 흐름 미구현
@@ -131,6 +132,7 @@
 2. 인증/역할 기본 구조
    - 교사 계정은 공개 가입이 아니라 admin 관리 기능에서 생성하는 방향
    - 로그인 후 admin/teacher별 placeholder dashboard 제공
+   - admin은 교사 계정 목록 조회와 생성 가능
 3. 투표자 그룹 등록
 4. 학생 명단 bulk import
 5. 학급 선거 생성

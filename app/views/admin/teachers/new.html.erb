@@ -1,0 +1,33 @@
+<h1>교사 계정 추가</h1>
+
+<% if @teacher.errors.any? %>
+  <ul>
+    <% @teacher.errors.full_messages.each do |message| %>
+      <li><%= message %></li>
+    <% end %>
+  </ul>
+<% end %>
+
+<%= form_with model: @teacher, url: admin_teachers_path do |form| %>
+  <div>
+    <%= form.label :name, "이름" %>
+    <%= form.text_field :name %>
+  </div>
+
+  <div>
+    <%= form.label :email, "이메일" %>
+    <%= form.email_field :email %>
+  </div>
+
+  <div>
+    <%= form.label :password, "비밀번호" %>
+    <%= form.password_field :password %>
+  </div>
+
+  <div>
+    <%= form.label :password_confirmation, "비밀번호 확인" %>
+    <%= form.password_field :password_confirmation %>
+  </div>
+
+  <%= form.submit "교사 계정 생성" %>
+<% end %>

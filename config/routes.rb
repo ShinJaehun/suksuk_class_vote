@@ -1,6 +1,11 @@
 Rails.application.routes.draw do
   devise_for :users
   resource :dashboard, only: :show
+
+  namespace :admin do
+    resources :teachers, only: %i[index new create]
+  end
+
   root "dashboards#show"
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html

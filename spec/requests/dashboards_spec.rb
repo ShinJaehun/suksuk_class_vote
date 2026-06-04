@@ -26,6 +26,8 @@ RSpec.describe "Dashboards", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("쑥쑥교실투표 관리자 홈")
+      expect(response.body).to include("교사 계정 관리")
+      expect(response.body).to include(admin_teachers_path)
     end
   end
 
@@ -37,6 +39,7 @@ RSpec.describe "Dashboards", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("쑥쑥교실투표 교사 홈")
+      expect(response.body).not_to include("교사 계정 관리")
     end
 
     it "shows a delete sign out button to signed-in users" do
