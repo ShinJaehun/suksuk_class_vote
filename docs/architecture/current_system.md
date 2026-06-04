@@ -65,7 +65,9 @@
 - Tailwind CSS 사용 예정
 - 도메인 모델 미구현
 - Devise 기반 `User` 인증 구조 추가
+- Devise `registerable` 미사용: 교사 공개 회원가입 없음
 - `User` role enum 추가: `teacher`, `admin`
+- 개발용 admin seed 추가: `admin@example.com`
 - Pundit 기본 설치
 - RSpec 테스트 환경 추가
 - 투표 흐름 미구현
@@ -126,6 +128,7 @@
 
 1. 프로젝트 문서 기반 정리
 2. 인증/역할 기본 구조
+   - 교사 계정은 공개 가입이 아니라 admin 관리 기능에서 생성하는 방향
 3. 투표자 그룹 등록
 4. 학생 명단 bulk import
 5. 학급 선거 생성

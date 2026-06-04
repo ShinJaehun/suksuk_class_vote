@@ -1,6 +1,12 @@
 require "rails_helper"
 
 RSpec.describe User, type: :model do
+  describe "devise modules" do
+    it "does not allow public registration" do
+      expect(described_class.devise_modules).not_to include(:registerable)
+    end
+  end
+
   describe "roles" do
     it "defines teacher and admin roles only" do
       expect(described_class.roles).to eq({ "teacher" => 0, "admin" => 10 })
