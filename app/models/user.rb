@@ -7,6 +7,7 @@ class User < ApplicationRecord
   enum :role, { teacher: 0, admin: 10 }
 
   has_many :voter_groups, dependent: :destroy
+  has_many :elections, dependent: :destroy
 
   validates :name, presence: true
   validates :role, presence: true

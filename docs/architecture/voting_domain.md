@@ -4,8 +4,8 @@
 
 이 문서는 `쑥쑥교실투표`의 투표 도메인 모델 관계를 구현 전에 정리하기 위한 architecture 문서다.
 
-현재 구현된 모델은 `VoterGroup`과 `VoterSlot`뿐이다.
-`Election`, `Candidate`, `PollingStation`, `VoteSession`, `Tally`, 선거용 명단 snapshot 모델은 아직 구현하지 않았으며, 실제 모델명과 컬럼은 후속 설계에서 확정한다.
+현재 구현된 모델은 `VoterGroup`, `VoterSlot`, `Election`이다.
+`Candidate`, `PollingStation`, `VoteSession`, `Tally`, 선거용 명단 snapshot 모델은 아직 구현하지 않았으며, 실제 모델명과 컬럼은 후속 설계에서 확정한다.
 
 ---
 
@@ -53,6 +53,28 @@
 
 빈 명단으로 선거를 만들면 후보 등록, 투표 진행, 종료 조건이 모두 애매해지므로 선거 생성 단계에서 막는 쪽이 안전하다.
 
+현재 구현은 학생이 1명 이상 등록된 `VoterGroup`만 선거 생성에 사용할 수 있다.
+
+---
+
+## 현재 구현된 선거 모델
+
+### Election
+
+`Election`은 교사가 만든 선거 단위다.
+
+현재 구현 상태:
+
+- `title`을 가진다.
+- 생성한 `User`를 가진다.
+- 원본 `VoterGroup`을 연결한다.
+- 상태는 `draft`만 사용한다.
+- index/new/create/show만 구현되어 있다.
+- 후보자 등록, 선거 시작, 투표 진행, 결과 집계는 아직 구현하지 않았다.
+
+`Election` 생성 시점에는 선거용 명단 snapshot을 만들지 않는다.
+선거 시작 시점에 snapshot을 만드는 방향을 후속 작업에서 구현한다.
+
 ---
 
 ## 원본 참조와 snapshot 정책
@@ -71,15 +93,9 @@
 
 - `VoterGroup`은 원본 명단으로 유지
 - `Election` 생성 시 `VoterGroup`을 선택
-- `Election` 생성 시점 또는 시작 시점에 선거용 투표자 snapshot 생성 검토
+- `Election` 생성 시점에는 원본 `VoterGroup`만 연결
+- `Election` 시작 시점에 선거용 투표자 snapshot 생성 검토
 - `PollingStation`과 투표 진행 상태는 원본 `VoterSlot`이 아니라 선거용 snapshot row를 기준으로 삼는 방향을 우선 검토
-
-snapshot 생성 시점은 아직 확정하지 않는다.
-
-검토 기준:
-
-- 생성 시점 snapshot: 선거 생성 이후 원본 명단 변경이 선거에 영향을 주지 않음
-- 시작 시점 snapshot: 선거 시작 전까지 원본 명단 정리 여지를 더 줄 수 있음
 
 실제 snapshot 모델명, 컬럼, `Election`과의 association은 `Election` 모델 설계 때 확정한다.
 
@@ -133,7 +149,6 @@ snapshot을 사용하지 않고 원본을 직접 참조한다면, 선거 생성 
 
 다음 모델은 아직 구현하지 않는다.
 
-- `Election`
 - `Candidate`
 - `PollingStation`
 - `VoteSession`
@@ -142,8 +157,7 @@ snapshot을 사용하지 않고 원본을 직접 참조한다면, 선거 생성 
 
 다음 구현 전에 결정할 항목:
 
-- `Election` 최소 컬럼과 상태
-- `Election`이 선택한 원본 `VoterGroup`을 어떻게 기록할지
-- 선거용 명단 snapshot 생성 시점
+- `Election` 시작 상태 전이
+- 선거용 명단 snapshot 모델명과 생성 방식
 - snapshot row의 이름과 출석번호 보존 방식
-- 빈 `VoterGroup`을 선거 생성에서 막는 validation 위치
+- 후보자 모델과 선거 시작 전 후보 수정 제한

@@ -1,0 +1,17 @@
+<h1><%= @election.title %></h1>
+
+<p><%= link_to "선거 목록으로 돌아가기", elections_path %></p>
+
+<dl>
+  <dt>상태</dt>
+  <dd><%= @election.status %></dd>
+
+  <dt>투표자 그룹</dt>
+  <dd><%= @election.voter_group.name %></dd>
+
+  <dt>학생 수</dt>
+  <dd><%= @election.voter_group.voter_slots.count %>명</dd>
+</dl>
+
+<p>후보자 등록은 다음 작업에서 구현 예정입니다.</p>
+<p>선거 시작과 명단 snapshot은 후속 작업에서 구현 예정입니다.</p>

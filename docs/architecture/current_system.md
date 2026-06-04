@@ -75,6 +75,10 @@
 - 투표자 그룹 상세 화면에서 `VoterSlot` 1명 추가 기능 추가
 - `VoterSlot` 학생 이름 수정/삭제 기능 추가
 - 학생 수 기반 bulk 입력으로 `VoterSlot` 여러 명 추가 기능 추가
+- `Election` 최소 모델 추가
+- 선거 index/new/create/show 추가
+- 선거 생성 시 학생이 등록된 `VoterGroup` 선택 기능 추가
+- 후보자, 선거 시작, 선거용 명단 snapshot 미구현
 - Pundit 기본 설치
 - RSpec 테스트 환경 추가
 - 투표 흐름 미구현
@@ -149,6 +153,8 @@
 4. 학생 명단 bulk import
    - HWP/Excel 붙여넣기 import는 후속 기능
 5. 학급 선거 생성
+   - 최소 draft 선거 생성 구현
+   - 선거용 명단 snapshot은 선거 시작 시점 생성 방향으로 후속 구현
 6. 후보자 등록
 7. 투표 진행 상태 모델링
 8. 교사용 진행 화면

@@ -30,6 +30,8 @@ RSpec.describe "Dashboards", type: :request do
       expect(response.body).to include(admin_teachers_path)
       expect(response.body).to include("투표자 그룹 관리")
       expect(response.body).to include(voter_groups_path)
+      expect(response.body).to include("선거 관리")
+      expect(response.body).to include(elections_path)
     end
   end
 
@@ -44,6 +46,8 @@ RSpec.describe "Dashboards", type: :request do
       expect(response.body).not_to include("교사 계정 관리")
       expect(response.body).to include("투표자 그룹 관리")
       expect(response.body).to include(voter_groups_path)
+      expect(response.body).to include("선거 관리")
+      expect(response.body).to include(elections_path)
     end
 
     it "shows a delete sign out button to signed-in users" do

@@ -1,0 +1,19 @@
+<h1>선거</h1>
+
+<p><%= link_to "새 선거 만들기", new_election_path %></p>
+
+<% if @elections.any? %>
+  <ul>
+    <% @elections.each do |election| %>
+      <li>
+        <%= election.title %>
+        - <%= election.status %>
+        - <%= election.voter_group.name %>
+        - 학생 <%= election.voter_group.voter_slots.size %>명
+        - <%= link_to "상세", election_path(election) %>
+      </li>
+    <% end %>
+  </ul>
+<% else %>
+  <p>아직 만든 선거가 없습니다.</p>
+<% end %>
