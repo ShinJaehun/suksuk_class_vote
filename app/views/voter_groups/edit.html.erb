@@ -1,0 +1,21 @@
+<h1>투표자 그룹 수정</h1>
+
+<% if @voter_group.errors.any? %>
+  <h2>투표자 그룹을 수정할 수 없습니다.</h2>
+  <ul>
+    <% @voter_group.errors.full_messages.each do |message| %>
+      <li><%= message %></li>
+    <% end %>
+  </ul>
+<% end %>
+
+<%= form_with model: @voter_group do |form| %>
+  <div>
+    <%= form.label :name, "이름" %>
+    <%= form.text_field :name %>
+  </div>
+
+  <%= form.submit "저장" %>
+<% end %>
+
+<p><%= link_to "투표자 그룹으로 돌아가기", voter_group_path(@voter_group) %></p>

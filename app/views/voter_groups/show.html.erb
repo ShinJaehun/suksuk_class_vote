@@ -1,6 +1,10 @@
 <h1><%= @voter_group.name %></h1>
 
 <p><%= link_to "투표자 그룹 목록으로 돌아가기", voter_groups_path %></p>
+<p>
+  <%= link_to "투표자 그룹 수정", edit_voter_group_path(@voter_group) %>
+  <%= button_to "투표자 그룹 삭제", voter_group_path(@voter_group), method: :delete %>
+</p>
 
 <h2>학생 명단</h2>
 

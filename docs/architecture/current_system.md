@@ -71,7 +71,7 @@
 - 로그인 후 역할별 placeholder dashboard 추가
 - admin의 교사 계정 목록/생성 기능 추가
 - `VoterGroup` / `VoterSlot` 모델 기반 추가
-- 투표자 그룹 index/new/create/show 추가
+- 투표자 그룹 index/new/create/show/edit/update/destroy 추가
 - 투표자 그룹 상세 화면에서 `VoterSlot` 1명 추가 기능 추가
 - `VoterSlot` 학생 이름 수정/삭제 기능 추가
 - 학생 수 기반 bulk 입력으로 `VoterSlot` 여러 명 추가 기능 추가
@@ -139,7 +139,7 @@
    - 로그인 후 admin/teacher별 placeholder dashboard 제공
    - admin은 교사 계정 목록 조회와 생성 가능
 3. 투표자 그룹 등록
-   - 투표자 그룹 기본 CRUD 중 index/new/create/show 구현
+   - 투표자 그룹 기본 CRUD 중 index/new/create/show/edit/update/destroy 구현
    - 학생 1명 추가 구현
    - 학생 이름 수정/삭제 구현
    - 학생 수 입력 후 이름 입력칸을 만드는 bulk 추가 구현

@@ -53,4 +53,50 @@ RSpec.describe VoterGroupPolicy do
       expect(described_class.new(admin, voter_group)).to be_show
     end
   end
+
+  describe "#update?" do
+    it "allows teachers to update their own voter group" do
+      teacher = create(:user)
+      voter_group = create(:voter_group, user: teacher)
+
+      expect(described_class.new(teacher, voter_group)).to be_update
+    end
+
+    it "does not allow teachers to update another teacher's voter group" do
+      teacher = create(:user)
+      voter_group = create(:voter_group)
+
+      expect(described_class.new(teacher, voter_group)).not_to be_update
+    end
+
+    it "allows admins to update another teacher's voter group" do
+      admin = create(:user, :admin)
+      voter_group = create(:voter_group)
+
+      expect(described_class.new(admin, voter_group)).to be_update
+    end
+  end
+
+  describe "#destroy?" do
+    it "allows teachers to destroy their own voter group" do
+      teacher = create(:user)
+      voter_group = create(:voter_group, user: teacher)
+
+      expect(described_class.new(teacher, voter_group)).to be_destroy
+    end
+
+    it "does not allow teachers to destroy another teacher's voter group" do
+      teacher = create(:user)
+      voter_group = create(:voter_group)
+
+      expect(described_class.new(teacher, voter_group)).not_to be_destroy
+    end
+
+    it "allows admins to destroy another teacher's voter group" do
+      admin = create(:user, :admin)
+      voter_group = create(:voter_group)
+
+      expect(described_class.new(admin, voter_group)).to be_destroy
+    end
+  end
 end

@@ -1,6 +1,6 @@
 class VoterGroupsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_voter_group, only: :show
+  before_action :set_voter_group, only: %i[show edit update destroy]
 
   def index
     @voter_groups = policy_scope(VoterGroup).includes(:voter_slots).order(:name)
@@ -8,6 +8,10 @@ class VoterGroupsController < ApplicationController
   end
 
   def show
+    authorize @voter_group
+  end
+
+  def edit
     authorize @voter_group
   end
 
@@ -25,6 +29,23 @@ class VoterGroupsController < ApplicationController
     else
       render :new, status: :unprocessable_entity
     end
+  end
+
+  def update
+    authorize @voter_group
+
+    if @voter_group.update(voter_group_params)
+      redirect_to @voter_group, notice: "투표자 그룹을 수정했습니다."
+    else
+      render :edit, status: :unprocessable_entity
+    end
+  end
+
+  def destroy
+    authorize @voter_group
+    @voter_group.destroy!
+
+    redirect_to voter_groups_path, notice: "투표자 그룹을 삭제했습니다."
   end
 
   private
