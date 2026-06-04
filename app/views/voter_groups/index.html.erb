@@ -1,0 +1,13 @@
+<h1>투표자 그룹</h1>
+
+<p><%= link_to "새 투표자 그룹 만들기", new_voter_group_path %></p>
+
+<ul>
+  <% @voter_groups.each do |voter_group| %>
+    <li>
+      <%= voter_group.name %>
+      - 학생 <%= voter_group.voter_slots.size %>명
+      - <%= link_to "상세", voter_group_path(voter_group) %>
+    </li>
+  <% end %>
+</ul>

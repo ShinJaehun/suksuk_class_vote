@@ -1,0 +1,22 @@
+<h1><%= @voter_group.name %></h1>
+
+<p><%= link_to "투표자 그룹 목록으로 돌아가기", voter_groups_path %></p>
+
+<h2>학생 명단</h2>
+
+<% if @voter_group.voter_slots.any? %>
+  <ol>
+    <% @voter_group.voter_slots.order(:number).each do |voter_slot| %>
+      <li><%= voter_slot.number %>번 <%= voter_slot.name %></li>
+    <% end %>
+  </ol>
+<% else %>
+  <p>아직 등록된 학생이 없습니다.</p>
+<% end %>
+
+<p>
+  <button type="button" disabled>학생 1명 추가</button>
+  <button type="button" disabled>여러 명 추가</button>
+</p>
+
+<p>학생 추가 기능은 다음 작업에서 구현 예정입니다.</p>

@@ -1,0 +1,21 @@
+<h1>새 투표자 그룹 만들기</h1>
+
+<% if @voter_group.errors.any? %>
+  <h2>투표자 그룹을 만들 수 없습니다.</h2>
+  <ul>
+    <% @voter_group.errors.full_messages.each do |message| %>
+      <li><%= message %></li>
+    <% end %>
+  </ul>
+<% end %>
+
+<%= form_with model: @voter_group do |form| %>
+  <div>
+    <%= form.label :name, "이름" %>
+    <%= form.text_field :name %>
+  </div>
+
+  <%= form.submit "투표자 그룹 만들기" %>
+<% end %>
+
+<p><%= link_to "목록으로 돌아가기", voter_groups_path %></p>

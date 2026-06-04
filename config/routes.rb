@@ -1,6 +1,7 @@
 Rails.application.routes.draw do
   devise_for :users
   resource :dashboard, only: :show
+  resources :voter_groups, only: %i[index show new create]
 
   namespace :admin do
     resources :teachers, only: %i[index new create]
