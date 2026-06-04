@@ -1,6 +1,7 @@
 <h1>교사 계정 추가</h1>
 
 <% if @teacher.errors.any? %>
+  <h2>교사 계정을 생성할 수 없습니다.</h2>
   <ul>
     <% @teacher.errors.full_messages.each do |message| %>
       <li><%= message %></li>
@@ -31,3 +32,5 @@
 
   <%= form.submit "교사 계정 생성" %>
 <% end %>
+
+<p><%= link_to "교사 계정 목록으로 돌아가기", admin_teachers_path %></p>

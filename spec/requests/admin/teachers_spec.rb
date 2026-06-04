@@ -41,6 +41,7 @@ RSpec.describe "Admin teachers", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("교사 계정 추가")
       expect(response.body).to include("교사 계정 생성")
+      expect(response.body).to include("교사 계정 목록으로 돌아가기")
     end
   end
 
@@ -60,6 +61,27 @@ RSpec.describe "Admin teachers", type: :request do
       end.not_to change(User, :count)
 
       expect(response).to redirect_to(dashboard_path)
+    end
+
+    it "shows validation errors without creating a teacher" do
+      sign_in create(:user, :admin)
+
+      expect do
+        post admin_teachers_path, params: {
+          user: {
+            name: "입력 유지 교사",
+            email: "invalid-teacher@example.com",
+            password: "password123!",
+            password_confirmation: "different-password"
+          }
+        }
+      end.not_to change(User, :count)
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include("교사 계정을 생성할 수 없습니다.")
+      expect(response.body).to include("입력 유지 교사")
+      expect(response.body).to include("invalid-teacher@example.com")
+      expect(response.body).to include("교사 계정 목록으로 돌아가기")
     end
 
     it "allows admins to create teacher accounts" do
