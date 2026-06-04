@@ -1,0 +1,23 @@
+<h1>학생 1명 추가</h1>
+
+<p><%= link_to "투표자 그룹으로 돌아가기", voter_group_path(@voter_group) %></p>
+
+<% if @voter_slot.errors.any? %>
+  <h2>학생을 추가할 수 없습니다.</h2>
+  <ul>
+    <% @voter_slot.errors.full_messages.each do |message| %>
+      <li><%= message %></li>
+    <% end %>
+  </ul>
+<% end %>
+
+<p><%= @voter_slot.number %>번 학생을 추가합니다.</p>
+
+<%= form_with model: [@voter_group, @voter_slot] do |form| %>
+  <div>
+    <%= form.label :name, "이름" %>
+    <%= form.text_field :name %>
+  </div>
+
+  <%= form.submit "학생 추가" %>
+<% end %>

@@ -69,8 +69,9 @@ RSpec.describe "Voter groups", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("학생 1명 추가")
+      expect(response.body).to include(new_voter_group_voter_slot_path(voter_group))
       expect(response.body).to include("여러 명 추가")
-      expect(response.body).to include("다음 작업에서 구현 예정")
+      expect(response.body).to include(new_voter_group_bulk_voter_slots_path(voter_group))
     end
   end
 end
