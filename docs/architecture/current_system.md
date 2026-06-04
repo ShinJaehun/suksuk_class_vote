@@ -103,10 +103,13 @@
   - DB source of truth
   - 트랜잭션 기반 집계 원칙
 
-추후 추가 예정:
-
 - `docs/architecture/voting_domain.md`
-  - Election, VoterGroup, PollingStation, VoterSlot, Candidate, Tally 등 도메인 구조
+  - VoterGroup 원본 명단
+  - 선거 생성 시 VoterGroup 선택 정책
+  - 선거용 명단 snapshot 검토 방향
+  - Election, PollingStation 등 후속 도메인 구조 초안
+
+추후 추가 예정:
 
 - `docs/architecture/privacy_and_tally.md`
   - 출석번호 진행 상태와 투표 결과 분리

@@ -174,6 +174,7 @@ dashboard는 역할별 진입점만 제공한다.
 ---
 
 VoterGroup은 현재 원본 명단으로 취급한다.
+Election 생성 시 teacher는 본인 VoterGroup 중 하나를 선택하는 흐름을 우선한다.
 실제 Election/PollingStation 단계에서 원본 명단을 그대로 참조할지, 선거용 snapshot을 만들지는 아직 결정하지 않는다.
 투표 시작 뒤에는 출석번호와 이름이 투표 진행 상태와 연결되므로 투표자 그룹과 학생 명단 수정을 금지하는 방향으로 둔다.
 
