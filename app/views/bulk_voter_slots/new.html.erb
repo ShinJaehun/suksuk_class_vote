@@ -1,0 +1,36 @@
+<h1>여러 명 추가</h1>
+
+<p><%= link_to "투표자 그룹으로 돌아가기", voter_group_path(@voter_group) %></p>
+
+<% if @errors.present? %>
+  <h2>학생 명단을 저장할 수 없습니다.</h2>
+  <ul>
+    <% @errors.each do |message| %>
+      <li><%= message %></li>
+    <% end %>
+  </ul>
+<% end %>
+
+<% if @count.blank? %>
+  <%= form_with url: new_voter_group_bulk_voter_slots_path(@voter_group), method: :get do |form| %>
+    <div>
+      <%= form.label :count, "추가할 학생 수" %>
+      <%= form.number_field :count, min: 1, max: BulkVoterSlotsController::MAX_COUNT %>
+    </div>
+
+    <%= form.submit "입력칸 만들기" %>
+  <% end %>
+<% else %>
+  <%= form_with url: voter_group_bulk_voter_slots_path(@voter_group) do |form| %>
+    <% start_number = @voter_group.voter_slots.maximum(:number).to_i + 1 %>
+
+    <% @count.times do |index| %>
+      <div>
+        <%= label_tag "bulk_voter_slots_names_#{index}", "#{start_number + index}번" %>
+        <%= text_field_tag "bulk_voter_slots[names][]", @names&.[](index), id: "bulk_voter_slots_names_#{index}" %>
+      </div>
+    <% end %>
+
+    <%= form.submit "학생 명단 저장" %>
+  <% end %>
+<% end %>
