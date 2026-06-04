@@ -96,4 +96,134 @@ RSpec.describe "Voter slots", type: :request do
       expect(response.body).to include("학생을 추가할 수 없습니다.")
     end
   end
+
+  describe "GET /voter_groups/:voter_group_id/voter_slots/:id/edit" do
+    it "redirects guests to sign in" do
+      voter_slot = create(:voter_slot)
+
+      get edit_voter_group_voter_slot_path(voter_slot.voter_group, voter_slot)
+
+      expect(response).to redirect_to(new_user_session_path)
+    end
+
+    it "allows teachers to edit voter slots in their own voter group" do
+      teacher = create(:user)
+      voter_group = create(:voter_group, user: teacher)
+      voter_slot = create(:voter_slot, voter_group: voter_group, number: 1, name: "수정 전")
+      sign_in teacher
+
+      get edit_voter_group_voter_slot_path(voter_group, voter_slot)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("학생 이름 수정")
+      expect(response.body).to include("1번 학생입니다.")
+      expect(response.body).to include("수정 전")
+    end
+
+    it "does not allow teachers to edit another teacher's voter slot" do
+      sign_in create(:user)
+      voter_slot = create(:voter_slot)
+
+      get edit_voter_group_voter_slot_path(voter_slot.voter_group, voter_slot)
+
+      expect(response).to redirect_to(dashboard_path)
+      expect(flash[:alert]).to eq("접근 권한이 없습니다.")
+    end
+
+    it "allows admins to edit another teacher's voter slot" do
+      sign_in create(:user, :admin)
+      voter_slot = create(:voter_slot)
+
+      get edit_voter_group_voter_slot_path(voter_slot.voter_group, voter_slot)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("학생 이름 수정")
+    end
+  end
+
+  describe "PATCH /voter_groups/:voter_group_id/voter_slots/:id" do
+    it "updates a voter slot name without changing its number" do
+      teacher = create(:user)
+      voter_group = create(:voter_group, user: teacher)
+      voter_slot = create(:voter_slot, voter_group: voter_group, number: 3, name: "수정 전")
+      sign_in teacher
+
+      patch voter_group_voter_slot_path(voter_group, voter_slot), params: {
+        voter_slot: {
+          name: "수정 후",
+          number: 1
+        }
+      }
+
+      voter_slot.reload
+      expect(voter_slot.name).to eq("수정 후")
+      expect(voter_slot.number).to eq(3)
+      expect(response).to redirect_to(voter_group_path(voter_group))
+    end
+
+    it "does not update a voter slot with a blank name" do
+      teacher = create(:user)
+      voter_group = create(:voter_group, user: teacher)
+      voter_slot = create(:voter_slot, voter_group: voter_group, name: "수정 전")
+      sign_in teacher
+
+      patch voter_group_voter_slot_path(voter_group, voter_slot), params: {
+        voter_slot: {
+          name: ""
+        }
+      }
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include("학생 정보를 수정할 수 없습니다.")
+      expect(voter_slot.reload.name).to eq("수정 전")
+    end
+  end
+
+  describe "DELETE /voter_groups/:voter_group_id/voter_slots/:id" do
+    it "allows teachers to delete their own voter slot" do
+      teacher = create(:user)
+      voter_group = create(:voter_group, user: teacher)
+      voter_slot = create(:voter_slot, voter_group: voter_group)
+      sign_in teacher
+
+      expect do
+        delete voter_group_voter_slot_path(voter_group, voter_slot)
+      end.to change(VoterSlot, :count).by(-1)
+
+      expect(response).to redirect_to(voter_group_path(voter_group))
+    end
+
+    it "does not allow teachers to delete another teacher's voter slot" do
+      sign_in create(:user)
+      voter_slot = create(:voter_slot)
+
+      expect do
+        delete voter_group_voter_slot_path(voter_slot.voter_group, voter_slot)
+      end.not_to change(VoterSlot, :count)
+
+      expect(response).to redirect_to(dashboard_path)
+    end
+
+    it "allows admins to delete another teacher's voter slot" do
+      sign_in create(:user, :admin)
+      voter_slot = create(:voter_slot)
+
+      expect do
+        delete voter_group_voter_slot_path(voter_slot.voter_group, voter_slot)
+      end.to change(VoterSlot, :count).by(-1)
+    end
+
+    it "does not renumber remaining voter slots after deletion" do
+      teacher = create(:user)
+      voter_group = create(:voter_group, user: teacher)
+      create(:voter_slot, voter_group: voter_group, number: 1, name: "1번")
+      deleted_slot = create(:voter_slot, voter_group: voter_group, number: 2, name: "2번")
+      create(:voter_slot, voter_group: voter_group, number: 3, name: "3번")
+      sign_in teacher
+
+      delete voter_group_voter_slot_path(voter_group, deleted_slot)
+
+      expect(voter_group.voter_slots.order(:number).pluck(:number)).to eq([1, 3])
+    end
+  end
 end

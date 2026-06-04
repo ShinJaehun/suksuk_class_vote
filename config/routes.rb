@@ -2,7 +2,7 @@ Rails.application.routes.draw do
   devise_for :users
   resource :dashboard, only: :show
   resources :voter_groups, only: %i[index show new create] do
-    resources :voter_slots, only: %i[new create]
+    resources :voter_slots, only: %i[new create edit update destroy]
     resource :bulk_voter_slots, only: %i[new create], controller: "bulk_voter_slots"
   end
 

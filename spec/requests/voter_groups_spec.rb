@@ -63,6 +63,7 @@ RSpec.describe "Voter groups", type: :request do
     it "shows student entry placeholders" do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)
+      voter_slot = create(:voter_slot, voter_group: voter_group)
       sign_in teacher
 
       get voter_group_path(voter_group)
@@ -72,6 +73,10 @@ RSpec.describe "Voter groups", type: :request do
       expect(response.body).to include(new_voter_group_voter_slot_path(voter_group))
       expect(response.body).to include("여러 명 추가")
       expect(response.body).to include(new_voter_group_bulk_voter_slots_path(voter_group))
+      expect(response.body).to include("수정")
+      expect(response.body).to include(edit_voter_group_voter_slot_path(voter_group, voter_slot))
+      expect(response.body).to include("삭제")
+      expect(response.body).to include(voter_group_voter_slot_path(voter_group, voter_slot))
     end
   end
 end

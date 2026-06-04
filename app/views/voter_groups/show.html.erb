@@ -7,7 +7,11 @@
 <% if @voter_group.voter_slots.any? %>
   <ol>
     <% @voter_group.voter_slots.order(:number).each do |voter_slot| %>
-      <li><%= voter_slot.number %>번 <%= voter_slot.name %></li>
+      <li>
+        <%= voter_slot.number %>번 <%= voter_slot.name %>
+        <%= link_to "수정", edit_voter_group_voter_slot_path(@voter_group, voter_slot) %>
+        <%= button_to "삭제", voter_group_voter_slot_path(@voter_group, voter_slot), method: :delete %>
+      </li>
     <% end %>
   </ol>
 <% else %>
