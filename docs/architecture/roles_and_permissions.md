@@ -141,6 +141,18 @@
 
 ---
 
+### Dashboard
+
+현재 dashboard는 브라우저 smoke를 위한 placeholder 화면이다.
+
+| 리소스/액션 |  admin | teacher | guest | 비고                     |
+| ------ | -----: | ------: | ----: | ---------------------- |
+| 홈 조회   |     가능 |      가능 |    불가 | 로그인 후 역할별 placeholder 표시 |
+
+admin 관리 기능과 teacher 업무 기능은 아직 구현하지 않는다.
+
+---
+
 ### VoterGroup
 
 투표자 그룹은 교사가 관리하는 학생 명단 묶음이다.

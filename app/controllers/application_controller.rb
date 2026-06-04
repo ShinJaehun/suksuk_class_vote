@@ -6,4 +6,10 @@ class ApplicationController < ActionController::Base
 
   # Changes to the importmap will invalidate the etag for HTML responses
   stale_when_importmap_changes
+
+  private
+
+  def after_sign_in_path_for(_resource)
+    dashboard_path
+  end
 end
