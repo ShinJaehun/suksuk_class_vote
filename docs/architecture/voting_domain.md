@@ -189,7 +189,7 @@ draft -> in_progress -> closed
 - `Election` 시작 시점에 원본 `VoterGroup`의 `VoterSlot`들을 복사해 선거용 투표자 snapshot 생성
 - 시작 버튼을 누른 순간의 명단을 선거용 명단으로 고정
 - 이후 원본 `VoterGroup`이 바뀌어도 이미 시작된 `Election`에는 영향을 주지 않음
-- `PollingStation`과 투표 진행 상태는 원본 `VoterSlot`이 아니라 선거용 snapshot row를 기준으로 삼는 방향을 우선 검토
+- `PollingStation`과 투표 진행 상태는 원본 `VoterSlot`이 아니라 선거용 snapshot row를 기준으로 삼음
 
 ### ElectionVoter snapshot 모델
 
@@ -389,7 +389,7 @@ snapshot 모델명, 컬럼, `Election`과의 association은 구현되어 있다.
 
 ### 권장 방향
 
-초기 MVP에서는 `PollingStation`을 우선 검토한다.
+초기 MVP에서는 `PollingStation`을 투표 진행 상태 모델로 사용한다.
 
 권장 이유:
 
@@ -400,37 +400,82 @@ snapshot 모델명, 컬럼, `Election`과의 association은 구현되어 있다.
 `VoteSession`은 학생 투표 화면과 제출 흐름이 복잡해질 때 후속으로 검토한다.
 예를 들어 signed token, open session, 제출 중복 방지, 화면 새로고침 복구가 필요해지는 시점에 별도 모델로 도입할 수 있다.
 
-### PollingStation 책임 초안
+### PollingStation 최종 구조 초안
 
 `PollingStation`은 아직 구현하지 않는다.
+다만 초기 MVP의 투표 진행 상태 모델명은 `PollingStation`으로 확정한다.
 
-후속 구현에서 검토할 책임:
+의미:
 
-- `Election`에 속한다.
-- 초기 학급 MVP에서는 `Election`당 하나만 존재한다.
-- 현재 투표 순서 또는 current index를 관리한다.
+- 하나의 `Election`을 실제로 진행하는 투표소 또는 진행 상태 컨테이너다.
+- 초기 학급 선거 MVP에서는 `Election` 1개당 `PollingStation` 1개를 둔다.
+- 전교 선거 확장 시에는 한 `Election`에 여러 학급별 `PollingStation`을 둘 수 있다.
+
+책임:
+
+- 특정 `Election`의 투표 진행 상태를 나타낸다.
 - 현재 투표 중인 `ElectionVoter`를 가리킨다.
 - 새로고침, 재로그인, PC 재부팅 후에도 현재 투표 순서를 복구할 수 있게 한다.
 - teacher가 다음 학생으로 진행할 수 있게 한다.
-- 이미 투표 완료된 학생을 중복 투표시키지 않게 한다.
+- `ElectionVoter` snapshot 명단을 기준으로 진행한다.
+- 원본 `VoterGroup` 또는 `VoterSlot`을 직접 참조하지 않는다.
 
-컬럼 후보:
+비책임:
 
-- `election:references, null: false`
-- `current_election_voter:references, nullable, foreign_key to election_voters`
-- `status:integer, default: 0`
+- 실제 후보자 선택 결과를 저장하지 않는다.
+- 후보자별 득표수를 저장하지 않는다.
+- 개별 학생이 어떤 후보를 선택했는지 저장하지 않는다.
+- 최종 집계 계산을 담당하지 않는다.
+- 익명 vote record를 저장하지 않는다.
+
+후속 구현 컬럼 초안:
+
+- `election:references, null: false, foreign_key: true`
+- `current_election_voter:references, null: true, foreign_key to election_voters`
+- `status:integer, null: false, default: 0`
 - `started_at:datetime`
 - `closed_at:datetime`
 
-상태 후보:
+DB index:
 
-- `ready`
-- `active`
-- `closed`
+- `[election_id]` unique
 
-다만 `Election` 자체도 `draft`, `in_progress`, `closed` 상태를 가진다.
-초기 구현에서는 `Election.status`를 선거 전체 상태의 기준으로 삼고, `PollingStation`은 `current_election_voter_id` 중심으로 단순화하는 방향도 가능하다.
-이 중복 여부는 실제 모델 추가 직전에 결정한다.
+이유:
+
+- 초기 MVP에서는 `Election` 1개당 `PollingStation` 1개다.
+- `current_election_voter_id`는 현재 위치 복구 기준이다.
+- `started_at`과 `closed_at`은 진행 시간 기록과 후속 감사에 도움이 된다.
+
+status:
+
+```text
+active: 0
+closed: 10
+```
+
+`ready` 상태는 두지 않는다.
+
+이유:
+
+- `Election`이 이미 `draft`, `in_progress`, `closed` 상태를 가진다.
+- `PollingStation`은 `Election`이 `in_progress`가 된 뒤 생성 또는 초기화된다.
+- 따라서 `PollingStation`은 `active`부터 시작하면 충분하다.
+- `PollingStation.closed`는 `Election.closed`와 함께 맞춰지는 후속 종료 기능에서 다룬다.
+
+### PollingStation 생성 시점
+
+후속 구현에서는 `Election` start 성공 시 `PollingStation`을 함께 생성한다.
+
+흐름:
+
+1. `Elections::Start` transaction 안에서 `ElectionVoter` snapshot 생성
+2. `Election` 상태를 `in_progress`로 변경
+3. `PollingStation` 생성
+4. `current_election_voter`를 첫 번째 `ElectionVoter`로 설정
+
+이 작업은 아직 구현하지 않는다.
+다음 구현에서 `Elections::Start` service에 `PollingStation` 생성 책임을 함께 둘지, 별도 service로 분리할지 검토한다.
+우선은 `Elections::Start` 안에서 snapshot, 상태 변경, `PollingStation` 생성을 같은 transaction으로 처리하는 방향을 기준으로 둔다.
 
 ### ElectionVoter별 진행 상태 위치
 
@@ -451,9 +496,22 @@ snapshot 모델명, 컬럼, `Election`과의 association은 구현되어 있다.
 
 권장:
 
-- 다음 구현 전 한 번 더 판단한다.
-- 다만 고정 명단과 진행 상태를 분리한다는 원칙은 유지한다.
-- 현재 `ElectionVoter`에는 진행 상태 컬럼을 추가하지 않는다.
+- `ElectionVoter` 자체에는 진행 상태를 넣지 않는다.
+- `PollingStation`은 `current_election_voter_id`만 가진다.
+- 완료된 학생 목록은 실제 투표 제출, receipt, tally 설계에서 확정한다.
+- 이번 `PollingStation`은 현재 위치 복구를 담당하고, 완료 여부 모델은 다음 투표 제출 설계에서 결정한다.
+- 고정 명단과 진행 상태를 분리한다는 원칙은 유지한다.
+
+### 다음 학생 진행 정책 초안
+
+후속 구현에서 teacher가 “다음 학생”을 누르면 다음 흐름을 검토한다.
+
+- 현재 `current_election_voter`를 기준으로 다음 number의 `ElectionVoter`를 찾는다.
+- 다음 `ElectionVoter`가 있으면 `PollingStation.current_election_voter`로 설정한다.
+- 다음 `ElectionVoter`가 없으면 모든 학생 투표가 끝난 상태로 보고 종료/집계 단계로 넘어갈 수 있다.
+
+단, 실제 완료 여부를 확인하지 않고 단순히 number만 넘기는 것은 위험할 수 있다.
+따라서 투표 제출 모델 구현 때 완료 여부, 미참여, 기권 처리와 함께 다시 검증한다.
 
 ### 실제 투표 결과 모델 후보
 
@@ -498,6 +556,9 @@ snapshot 모델명, 컬럼, `Election`과의 association은 구현되어 있다.
 - 다음 투표할 학생
 
 복구 기준은 원본 `VoterGroup`이 아니라 `ElectionVoter` snapshot과 투표 진행 상태 모델이어야 한다.
+초기 MVP에서는 `PollingStation.current_election_voter_id`가 현재 위치 복구의 1차 기준이다.
+`current_election_voter`가 있으면 해당 학생 위치로 복구한다.
+`current_election_voter`가 없으면 첫 번째 `ElectionVoter` 또는 다음 미완료 `ElectionVoter`를 계산하는 방향을 검토한다.
 
 ---
 
@@ -558,17 +619,16 @@ snapshot을 사용하지 않고 원본을 직접 참조한다면, 선거 생성 
 - 후보자 1명 선거의 처리 방식
 - `ballot_mode`를 선거 시작 구현 전에 추가할지 여부
 - 선거 시작 후 후보 수정 제한의 예외 정책
-- `PollingStation` 상태 컬럼을 둘지, `Election.status`와 current pointer만 사용할지 여부
-- `ElectionVoter`별 진행 상태를 별도 모델로 둘지 여부
+- 완료된 학생 목록 또는 receipt를 어떤 모델로 둘지 여부
 - 실제 투표 결과를 집계 count 중심으로 둘지, 익명 기록을 함께 둘지 여부
 
 다음 구현 순서:
 
-1. `PollingStation` 또는 진행 상태 모델 최종 결정
-2. 진행 상태 모델 추가
-3. `Election` start 후 `PollingStation` 생성 또는 초기화
-4. 교사용 진행 화면 추가
-5. 학생 투표 화면 추가
-6. 투표 제출 transaction 구현
-7. 중단 복구/중복 제출 방지 spec 추가
+1. `PollingStation` 모델 추가
+2. `Elections::Start`에서 `PollingStation` 생성
+3. `Election` show에 `PollingStation` 상태 표시
+4. 교사용 진행 화면 초안
+5. 다음 학생 진행 action
+6. 투표 제출 모델/transaction 설계
+7. 중복 제출 방지 spec
 8. 결과 집계 화면 추가

@@ -88,6 +88,7 @@
 - Pundit 기본 설치
 - RSpec 테스트 환경 추가
 - 투표 진행 상태 모델링 문서화
+- `PollingStation`을 초기 MVP 투표 진행 상태 모델명으로 문서 확정
 - 투표 흐름 미구현
 - 문서 기반 설계 정리 중
 
@@ -178,7 +179,9 @@
 8. 투표 진행 상태 모델링
    - 문서화됨: `ElectionVoter`는 고정 명단으로 유지
    - 문서화됨: 진행 상태와 실제 투표 결과 분리
-   - 문서화됨: `PollingStation` 우선 검토, `VoteSession` 후속 검토
+   - 문서화됨: `PollingStation`을 초기 MVP 진행 상태 모델명으로 확정
+   - 문서화됨: `PollingStation.current_election_voter_id`를 현재 위치 복구 기준으로 사용
+   - 문서화됨: `VoteSession`은 학생 화면/토큰/제출 세션이 복잡해질 때 후속 검토
 9. 교사용 진행 화면
 10. 학생 투표 화면
 11. 트랜잭션 기반 투표 제출

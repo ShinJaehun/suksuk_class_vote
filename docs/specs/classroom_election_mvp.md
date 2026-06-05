@@ -235,7 +235,7 @@ draft -> in_progress -> closed
 
 초기 `ElectionVoter`에는 진행 상태 `status`를 두지 않는다.
 `ElectionVoter`는 고정된 선거용 명단이며, 실제 투표 결과도 저장하지 않는다.
-투표 진행 상태는 `PollingStation`을 우선 검토한다.
+투표 진행 상태는 `PollingStation`을 기준으로 설계한다.
 `VoteSession`은 학생 투표 제출 흐름이 복잡해질 때 후속 검토한다.
 
 선거 시작 로직은 `Elections::Start` service로 분리되어 있다.
@@ -261,6 +261,9 @@ end
 투표 진행 화면과 상태 모델은 아직 구현하지 않았다.
 선거 시작 이후 다음 단계는 원본 `VoterGroup`이 아니라 `ElectionVoter` snapshot을 기준으로 진행 상태를 모델링하는 것이다.
 진행 상태 모델은 현재 투표 중인 학생, 완료된 학생, 다음 투표할 학생을 서버 DB 기준으로 복구할 수 있어야 한다.
+초기 MVP의 진행 상태 모델명은 `PollingStation`으로 확정한다.
+초기 MVP에서는 `Election` 1개당 `PollingStation` 1개를 둔다.
+`PollingStation.current_election_voter_id`가 현재 투표 위치 복구 기준이다.
 
 교사용 진행 화면에는 다음 정보가 표시된다.
 
@@ -281,14 +284,19 @@ end
 
 초기 MVP에서는 한 번에 한 명의 학생만 투표할 수 있다.
 
-진행 상태 모델 후보:
+진행 상태 모델 기준:
 
-- `PollingStation`: 초기 MVP에서 우선 검토한다.
+- `PollingStation`: 초기 MVP 진행 상태 모델로 사용한다.
 - `VoteSession`: 학생 투표 제출 흐름이 복잡해질 때 후속 검토한다.
-- 별도 `ElectionVoterProgress` 또는 `PollingSlot`: 고정 명단과 진행 상태를 분리해야 할 때 검토한다.
+- `ElectionVoterProgress` 또는 `PollingSlot`: 이번 단계에서는 만들지 않는다.
 
 진행 상태와 실제 투표 결과는 분리한다.
 교사용 진행 화면은 “누가 대기/투표 중/완료인지”를 보여주지만, 누가 어떤 후보를 선택했는지를 직접 연결하면 안 된다.
+`ElectionVoter`에는 진행 상태를 넣지 않는다.
+완료된 학생 목록, receipt, tally는 투표 제출 설계에서 확정한다.
+
+후속 구현에서 선거 시작이 성공하면 `Elections::Start` transaction 안에서 `PollingStation`도 함께 생성하는 방향을 기준으로 둔다.
+이때 `current_election_voter`는 첫 번째 `ElectionVoter`로 설정한다.
 
 ---
 

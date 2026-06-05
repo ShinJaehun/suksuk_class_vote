@@ -55,7 +55,7 @@
 
 ## 상태 모델 초안
 
-최종 모델명은 구현 과정에서 바뀔 수 있지만, 초기 개념은 다음과 같다.
+초기 MVP의 투표 진행 상태 모델명은 `PollingStation`으로 확정한다.
 
 현재 구현된 `ElectionVoter`는 선거용 고정 명단이다.
 `ElectionVoter`는 실제 투표 결과나 출석번호 진행 상태를 저장하지 않는다.
@@ -64,23 +64,38 @@
 ### PollingStation
 
 학급 선거가 실제로 진행되는 투표소다.
-초기 MVP에서는 투표 진행 상태 모델로 `PollingStation`을 우선 검토한다.
+초기 MVP에서는 `Election` 1개당 `PollingStation` 1개를 둔다.
+`PollingStation.current_election_voter_id`는 현재 투표 위치 복구의 기준이다.
 
-예상 상태:
+후속 구현 컬럼 초안:
 
-- `ready`
-  - 투표 시작 전
+- `election:references, null: false, foreign_key: true`
+- `current_election_voter:references, null: true, foreign_key to election_voters`
+- `status:integer, null: false, default: 0`
+- `started_at:datetime`
+- `closed_at:datetime`
 
-- `in_progress`
-  - 투표 진행 중
+DB index:
 
-- `closed`
-  - 투표 종료
+- `[election_id]` unique
+
+상태:
+
+- `active: 0`
+- `closed: 10`
+
+`ready` 상태는 두지 않는다.
+`Election`이 이미 `draft` 상태를 가지며, `PollingStation`은 `Election`이 `in_progress`가 된 뒤 생성된다.
+
+`PollingStation`은 원본 `VoterGroup` 또는 `VoterSlot`을 직접 참조하지 않는다.
+복구와 진행은 `ElectionVoter` snapshot을 기준으로 한다.
 
 ### ElectionVoter 진행 상태
 
 출석번호별 투표 진행 상태다.
-다만 이 상태를 `ElectionVoter` 자체에 둘지, 별도 `ElectionVoterProgress` 또는 `PollingSlot` 같은 row로 둘지는 후속 구현 전에 결정한다.
+이번 `PollingStation` 구조에서는 이 상태를 `ElectionVoter` 자체에 넣지 않는다.
+`PollingStation`은 `current_election_voter_id`만 가진다.
+완료된 학생 목록과 receipt는 투표 제출 설계에서 확정한다.
 원칙은 고정 명단과 진행 상태를 분리하는 것이다.
 
 예상 상태:
@@ -130,8 +145,8 @@
 기대 동작:
 
 - 서버는 polling station 상태를 다시 읽는다.
-- 현재 `voting` 상태인 `ElectionVoter` 진행 row가 있거나 `PollingStation.current_election_voter_id`가 있으면 해당 위치를 보여준다.
-- 없으면 다음 `waiting` 상태 또는 다음 순번의 `ElectionVoter`를 안내한다.
+- `PollingStation.current_election_voter_id`가 있으면 해당 위치를 보여준다.
+- 없으면 첫 번째 `ElectionVoter` 또는 다음 미완료 `ElectionVoter`를 계산하는 방향을 검토한다.
 
 ---
 
@@ -165,7 +180,7 @@ VoteSession: open
 
 - 교사가 다시 로그인한다.
 - 시스템은 DB에서 진행 중인 polling station을 찾는다.
-- `voting` 상태의 `ElectionVoter` 진행 row 또는 current pointer와 open vote session이 있으면 해당 학생의 투표를 이어간다.
+- `PollingStation.current_election_voter_id`가 있으면 해당 학생의 투표 위치로 복구한다.
 
 ---
 
@@ -177,8 +192,8 @@ VoteSession: open
 
 기대 동작:
 
-- 교사가 다시 로그인하면 본인의 진행 중인 투표소 목록을 보여준다.
-- 진행 중인 투표소를 선택하면 현재 voter slot 위치로 복구한다.
+- 교사가 다시 로그인하면 본인의 진행 중인 선거 또는 투표소 목록을 보여준다.
+- 진행 중인 투표소를 선택하면 `PollingStation.current_election_voter_id` 기준으로 현재 학생 위치를 복구한다.
 
 ---
 
@@ -255,8 +270,8 @@ Tally: 변화 없음
 투표 제출 시 함께 처리되어야 하는 작업:
 
 1. vote session이 open 상태인지 확인
-2. 현재 투표 대상 `ElectionVoter` 또는 진행 row가 voting 상태인지 확인
-3. polling station이 in_progress 상태인지 확인
+2. 현재 투표 대상 `ElectionVoter`가 `PollingStation.current_election_voter_id`와 일치하는지 확인
+3. polling station이 active 상태인지 확인
 4. 후보가 해당 선거에 속하는지 확인
 5. 후보별 tally 증가
 6. `ElectionVoter` 진행 상태를 completed로 변경
@@ -312,9 +327,12 @@ Tally: 변화 없음
   - `[election_id, number]` unique
   - `[election_id, source_voter_slot_id]` unique
 
-- 진행 상태 모델
-  - 한 polling station 안에서 `ElectionVoter` 중복 금지
-  - 한 polling station 안에서 voting 상태 중복 방지
+- `polling_stations`
+  - `[election_id]` unique
+  - `current_election_voter_id` foreign key to `election_voters`
+
+- 완료 receipt 또는 제출 모델
+  - 같은 `ElectionVoter` 완료 처리 중복 방지
 
 - `vote_sessions`
   - open 상태 session 중복 방지

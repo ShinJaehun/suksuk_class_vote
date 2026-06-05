@@ -49,6 +49,10 @@
 하지만 실제 표를 저장하는 모델이 `election_voter_id`와 `candidate_id`를 직접 함께 저장하면 누가 누구에게 투표했는지 연결될 수 있다.
 이 구조는 비밀투표 원칙에 맞지 않을 수 있으므로 신중히 피하거나, 별도의 정책 결정과 감사 목적을 명확히 해야 한다.
 
+`PollingStation`은 초기 MVP의 투표 진행 상태 모델이다.
+`PollingStation`은 현재 투표 위치 복구를 위해 `current_election_voter_id`를 저장하지만, 후보 선택 결과나 득표수, 익명 vote record는 저장하지 않는다.
+즉 `PollingStation`은 “지금 누구 차례인가”를 다루고, “그 학생이 누구에게 투표했는가”를 다루지 않는다.
+
 ---
 
 ## 위험한 설계
