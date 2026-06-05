@@ -1,6 +1,6 @@
 class ElectionsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_election, only: :show
+  before_action :set_election, only: %i[show start]
 
   def index
     @elections = policy_scope(Election).includes(voter_group: :voter_slots).order(created_at: :desc)
@@ -9,6 +9,18 @@ class ElectionsController < ApplicationController
 
   def show
     authorize @election
+  end
+
+  def start
+    authorize @election, :start?
+
+    result = Elections::Start.new(@election).call
+
+    if result.success?
+      redirect_to @election, notice: "선거를 시작했습니다."
+    else
+      redirect_to @election, alert: result.error_message
+    end
   end
 
   def new

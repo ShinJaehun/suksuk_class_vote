@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_05_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_05_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -22,6 +22,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_05_010000) do
     t.datetime "updated_at", null: false
     t.index ["election_id", "number"], name: "index_candidates_on_election_id_and_number", unique: true
     t.index ["election_id"], name: "index_candidates_on_election_id"
+  end
+
+  create_table "election_voters", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "election_id", null: false
+    t.string "name", null: false
+    t.integer "number", null: false
+    t.bigint "source_voter_slot_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["election_id", "number"], name: "index_election_voters_on_election_id_and_number", unique: true
+    t.index ["election_id", "source_voter_slot_id"], name: "index_election_voters_on_election_id_and_source_voter_slot_id", unique: true
+    t.index ["election_id"], name: "index_election_voters_on_election_id"
+    t.index ["source_voter_slot_id"], name: "index_election_voters_on_source_voter_slot_id"
   end
 
   create_table "elections", force: :cascade do |t|
@@ -68,6 +81,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_05_010000) do
   end
 
   add_foreign_key "candidates", "elections"
+  add_foreign_key "election_voters", "elections"
+  add_foreign_key "election_voters", "voter_slots", column: "source_voter_slot_id"
   add_foreign_key "elections", "users"
   add_foreign_key "elections", "voter_groups"
   add_foreign_key "voter_groups", "users"

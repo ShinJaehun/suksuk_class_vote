@@ -100,7 +100,7 @@ admin의 상세 관리 기능은 별도 문서에서 다룬다.
 이번 단계에서는 선거 생성 시점에 원본 투표자 그룹만 연결한다.
 선거용 명단 snapshot은 선거 시작 시점에 만드는 방향으로 후속 구현한다.
 선거용 명단 snapshot 모델명은 `ElectionVoter`로 확정한다.
-다만 모델과 migration은 아직 구현하지 않았다.
+현재 `ElectionVoter` 모델과 migration은 구현되어 있으며, 선거 시작 시점에 원본 명단을 snapshot한다.
 
 투표가 시작된 뒤에는 해당 선거의 투표자 명단을 수정하지 않는다.
 
@@ -171,13 +171,14 @@ admin의 상세 관리 기능은 별도 문서에서 다룬다.
 - `uncontested`: 1명 후보 무투표 당선
 - `approval`: 1명 후보 찬성/반대 투표
 
-현재 이 정책은 검토 항목이며, 아직 구현 전이다.
+현재 구현은 후보자 2명 이상인 일반 경쟁 투표만 선거 시작을 허용한다.
+후보자 1명은 무투표 당선/찬반 투표 정책 결정 후 지원 예정으로 남겨둔다.
 
 ---
 
 ## 선거 시작
 
-선거 시작 기능은 아직 구현하지 않았다.
+선거 시작 기능은 후보자 2명 이상 일반 경쟁 투표에 한해 구현되어 있다.
 
 후속 구현에서 교사가 선거를 시작하면 `Election`은 준비 중 상태에서 투표 진행 상태로 전이한다.
 
@@ -190,24 +191,16 @@ draft -> in_progress -> closed
 초기 MVP에서는 별도 `ready` 상태 없이 `draft`에서 바로 `in_progress`로 시작해도 된다.
 다만 시작 전에 후보자와 명단 조건을 검증한다.
 
-선거 시작 전 검증 조건 초안:
+선거 시작 전 검증 조건:
 
 - `Election`이 `draft` 상태일 것
 - 연결된 투표자 그룹에 학생 명단이 1명 이상 있을 것
-- 후보자가 1명 이상 있을 것
+- 후보자가 2명 이상 있을 것
 - 후보자 이름이 모두 유효할 것
 - 선거용 명단 snapshot이 아직 생성되지 않았을 것
 
-단, 후보자가 1명인 경우에는 일반 경쟁 투표로 시작할지, 무투표 당선으로 처리할지, 찬성/반대 투표로 진행할지 후속 정책 결정이 필요하다.
-
-초기 start 구현 전 결정 사항:
-
-- 1안: 후보자 2명 이상만 start 허용
-- 2안: `ballot_mode`를 먼저 추가한 뒤 후보자 1명 분기를 처리
-- 3안: 후보자 1명은 start하지 않고 무투표 당선 처리 별도 흐름으로 보류
-
-이번 문서에서는 최종 구현안을 강제하지 않는다.
-다음 구현 전에 후보자 1명 정책과 `ballot_mode` 도입 여부를 결정한다.
+후보자가 1명인 경우에는 일반 경쟁 투표로 시작하지 않는다.
+현재는 무투표 당선/찬반 투표 정책 결정 후 지원 예정이라는 안내를 제공하고, 후속 정책 결정 대상으로 남긴다.
 
 선거 시작 시 명단 snapshot 생성 방향:
 
@@ -233,7 +226,7 @@ draft -> in_progress -> closed
 - 선거에 연결된 snapshot 명단 수정도 금지한다.
 - 원본 투표자 그룹 변경은 이미 시작된 선거의 투표 대상에 영향을 주지 않는다.
 
-`ElectionVoter` 컬럼 초안:
+`ElectionVoter` 컬럼:
 
 - `election_id`
 - `source_voter_slot_id`
@@ -243,7 +236,7 @@ draft -> in_progress -> closed
 초기 `ElectionVoter`에는 진행 상태 `status`를 두지 않는다.
 투표 진행 상태는 `PollingStation` 또는 `VoteSession` 설계에서 다시 검토한다.
 
-선거 시작 로직은 후속 구현에서 `Elections::Start` service로 분리한다.
+선거 시작 로직은 `Elections::Start` service로 분리되어 있다.
 controller는 권한 확인과 결과 처리에 집중하고, snapshot 생성과 상태 전이는 service가 담당한다.
 
 start route 위치 초안:
@@ -255,7 +248,7 @@ resources :elections, only: %i[index show new create] do
 end
 ```
 
-이 route, action, button은 아직 구현하지 않는다.
+이 route, action, button은 구현되어 있다.
 
 ---
 

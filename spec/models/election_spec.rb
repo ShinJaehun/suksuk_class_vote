@@ -57,5 +57,12 @@ RSpec.describe Election, type: :model do
 
       expect(election).to be_draft
     end
+
+    it "supports in progress and closed statuses" do
+      election = build(:election, status: :in_progress)
+
+      expect(election).to be_in_progress
+      expect(Election.statuses).to include("closed" => 20)
+    end
   end
 end

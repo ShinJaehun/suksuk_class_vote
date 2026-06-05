@@ -130,7 +130,8 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include("아직 등록된 후보자가 없습니다.")
       expect(response.body).to include("후보자 추가")
       expect(response.body).to include(new_election_candidate_path(election))
-      expect(response.body).to include("선거 시작과 명단 snapshot은 후속 작업에서 구현 예정입니다.")
+      expect(response.body).to include("선거 시작")
+      expect(response.body).to include("아직 생성된 선거용 명단이 없습니다.")
     end
 
     it "shows candidates" do
@@ -144,7 +145,99 @@ RSpec.describe "Elections", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("1번")
       expect(response.body).to include("김민준")
-      expect(response.body).to include("선거 시작과 명단 snapshot은 후속 작업에서 구현 예정입니다.")
+      expect(response.body).to include("선거 시작")
     end
+  end
+
+  describe "POST /elections/:id/start" do
+    it "redirects guests to sign in" do
+      election = create(:election)
+
+      post start_election_path(election)
+
+      expect(response).to redirect_to(new_user_session_path)
+    end
+
+    it "allows teachers to start their own election with at least two candidates" do
+      teacher = create(:user)
+      election = create_startable_election(user: teacher)
+      sign_in teacher
+
+      expect do
+        post start_election_path(election)
+      end.to change(ElectionVoter, :count).by(2)
+
+      expect(response).to redirect_to(election_path(election))
+      expect(flash[:notice]).to eq("선거를 시작했습니다.")
+      expect(election.reload).to be_in_progress
+    end
+
+    it "does not allow teachers to start another teacher's election" do
+      teacher = create(:user)
+      election = create_startable_election
+      sign_in teacher
+
+      expect do
+        post start_election_path(election)
+      end.not_to change(ElectionVoter, :count)
+
+      expect(response).to redirect_to(dashboard_path)
+      expect(flash[:alert]).to eq("접근 권한이 없습니다.")
+      expect(election.reload).to be_draft
+    end
+
+    it "allows admins to start another teacher's election" do
+      admin = create(:user, :admin)
+      election = create_startable_election
+      sign_in admin
+
+      expect do
+        post start_election_path(election)
+      end.to change(ElectionVoter, :count).by(2)
+
+      expect(response).to redirect_to(election_path(election))
+      expect(election.reload).to be_in_progress
+    end
+
+    it "fails with an alert when there is one candidate" do
+      teacher = create(:user)
+      election = create(:election, user: teacher)
+      create(:candidate, election: election)
+      sign_in teacher
+
+      expect do
+        post start_election_path(election)
+      end.not_to change(ElectionVoter, :count)
+
+      expect(response).to redirect_to(election_path(election))
+      expect(flash[:alert]).to include("무투표 당선/찬반 투표 정책 결정 후 지원 예정")
+      expect(election.reload).to be_draft
+    end
+
+    it "shows in progress status and election voters after start" do
+      teacher = create(:user)
+      election = create_startable_election(user: teacher)
+      sign_in teacher
+
+      post start_election_path(election)
+      get election_path(election)
+
+      expect(response.body).to include("in_progress")
+      expect(response.body).to include("선거가 진행 중입니다.")
+      expect(response.body).to include("선거용 명단")
+      expect(response.body).to include("김민준")
+      expect(response.body).to include("이서연")
+      expect(response.body).not_to include("후보자 추가")
+    end
+  end
+
+  def create_startable_election(user: create(:user))
+    voter_group = create(:voter_group, user: user)
+    create(:voter_slot, voter_group: voter_group, number: 1, name: "김민준")
+    create(:voter_slot, voter_group: voter_group, number: 2, name: "이서연")
+    election = create(:election, user: user, voter_group: voter_group)
+    create(:candidate, election: election, number: 1)
+    create(:candidate, election: election, number: 2)
+    election
   end
 end

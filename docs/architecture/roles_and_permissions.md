@@ -175,8 +175,8 @@ dashboard는 역할별 진입점만 제공한다.
 
 VoterGroup은 현재 원본 명단으로 취급한다.
 Election 생성 시 teacher는 본인 VoterGroup 중 하나를 선택하는 흐름을 우선한다.
-선거 시작 시점에는 원본 명단을 선거용 snapshot으로 복사하는 방향을 우선한다.
-다만 snapshot 모델과 생성 로직은 아직 구현 전이다.
+선거 시작 시점에는 원본 명단을 선거용 snapshot으로 복사한다.
+snapshot 모델과 생성 로직은 `ElectionVoter`와 `Elections::Start`로 구현되어 있다.
 투표 시작 뒤에는 출석번호와 이름이 투표 진행 상태와 연결되므로 투표자 그룹과 학생 명단 수정을 금지하는 방향으로 둔다.
 
 ---
@@ -192,7 +192,7 @@ Election 생성 시 teacher는 본인 VoterGroup 중 하나를 선택하는 흐�
 | 생성     |    가능 |       가능 |    불가 | `new/create` 구현, teacher는 본인 voter group 기준 |
 | 수정     |    가능 | 본인 것만 가능 |    불가 | 후보자 관리는 `ElectionPolicy#update?` 기준 |
 | 삭제     |    가능 | 본인 것만 가능 |    불가 | policy 초안만 있음, controller 미구현 |
-| 시작     | 전체 가능 | 본인 것만 가능 |    불가 | 아직 구현 전, 상태 전이/snapshot guard 필요 |
+| 시작     | 전체 가능 | 본인 것만 가능 |    불가 | `start` 구현, 후보자 2명 이상 일반 경쟁 투표만 지원 |
 | 종료     |    가능 | 본인 것만 가능 |    불가 | 완료/미참여 상태 검증 필요            |
 | 결과 확인  | 전체 가능 | 본인 것만 가능 |    불가 | 종료 후 가능                    |
 
@@ -203,7 +203,9 @@ Election 시작 권한 초안:
 * `guest`는 선거를 시작할 수 없다.
 
 단, 선거 시작 action과 policy 메서드는 아직 구현 전이다.
-후속 구현에서는 권한 확인과 함께 `draft` 상태, 후보자, 명단, snapshot 중복 생성 여부를 검증해야 한다.
+현재 `ElectionPolicy#start?`와 `ElectionsController#start`가 구현되어 있다.
+권한 확인 뒤 `Elections::Start`가 `draft` 상태, 후보자 수, 명단 존재, snapshot 중복 생성 여부를 검증한다.
+후보자 1명 선거는 무투표 당선/찬반 투표 정책 결정 후 지원 예정 안내로 시작을 막는다.
 
 ---
 
@@ -222,7 +224,7 @@ Election 시작 권한 초안:
 현재 구현은 별도 `CandidatePolicy`를 두지 않고 후보자 관리를 선거 수정 권한으로 보아 `ElectionPolicy#update?`를 사용한다.
 후보자는 nested route로만 관리하며, 공개 후보자 index/show는 없다.
 선거 시작 뒤에는 후보자 추가/수정/삭제를 금지하는 방향이다.
-이 제한은 현재 `draft` 상태 기준 guard만 구현되어 있으며, 실제 시작 상태와 예외 정책은 아직 구현 전이다.
+이 제한은 `draft` 상태 기준 guard로 구현되어 있으며, `in_progress` 이후 후보자 추가/수정/삭제 요청은 선거 상세로 redirect된다.
 
 선거 시작 뒤 투표자 명단 제한 방향:
 

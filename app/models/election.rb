@@ -2,8 +2,9 @@ class Election < ApplicationRecord
   belongs_to :user
   belongs_to :voter_group
   has_many :candidates, dependent: :destroy
+  has_many :election_voters, dependent: :destroy
 
-  enum :status, { draft: 0 }
+  enum :status, { draft: 0, in_progress: 10, closed: 20 }
 
   validates :title, presence: true
   validates :user, presence: true

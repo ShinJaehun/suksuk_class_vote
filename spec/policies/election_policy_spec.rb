@@ -71,4 +71,33 @@ RSpec.describe ElectionPolicy do
       expect(described_class.new(nil, Election)).not_to be_create
     end
   end
+
+  describe "#start?" do
+    it "allows admins to start another teacher's election" do
+      admin = create(:user, :admin)
+      election = create(:election)
+
+      expect(described_class.new(admin, election)).to be_start
+    end
+
+    it "allows teachers to start their own election" do
+      teacher = create(:user)
+      election = create(:election, user: teacher)
+
+      expect(described_class.new(teacher, election)).to be_start
+    end
+
+    it "does not allow teachers to start another teacher's election" do
+      teacher = create(:user)
+      election = create(:election)
+
+      expect(described_class.new(teacher, election)).not_to be_start
+    end
+
+    it "does not allow guests to start elections" do
+      election = create(:election)
+
+      expect(described_class.new(nil, election)).not_to be_start
+    end
+  end
 end

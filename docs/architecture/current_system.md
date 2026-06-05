@@ -80,9 +80,11 @@
 - 선거 생성 시 학생이 등록된 `VoterGroup` 선택 기능 추가
 - `Candidate` 최소 모델 추가
 - draft 상태 선거의 후보자 new/create/edit/update/destroy 추가
-- 선거 시작, 선거용 명단 snapshot 미구현
 - 선거 시작 조건과 선거용 명단 snapshot 정책 문서화
-- `ElectionVoter` snapshot 모델과 `Elections::Start` service 책임 문서화
+- `Election` status enum을 `draft`, `in_progress`, `closed`로 확장
+- `ElectionVoter` snapshot 모델 추가
+- 후보자 2명 이상 일반 경쟁 투표에 한해 선거 시작 기능 추가
+- `Elections::Start` service로 선거용 명단 snapshot 생성과 `in_progress` 상태 전이를 transaction 처리
 - Pundit 기본 설치
 - RSpec 테스트 환경 추가
 - 투표 흐름 미구현
@@ -167,12 +169,13 @@
    - draft 선거에서 후보자 이름 등록/수정/삭제 구현
    - 후보자 번호는 선거 안에서 자동 부여하며 삭제 후 재정렬하지 않음
 7. 선거 시작 조건과 선거용 명단 snapshot 구현
-   - `Election` enum을 `draft`, `in_progress`, `closed`로 확장
-   - `ElectionVoter` 모델 추가
-   - `Elections::Start` service 추가
-   - 시작 전 후보자/명단 조건 검증
-   - 선거 시작 시점에 snapshot 생성
-   - snapshot 생성과 상태 변경을 transaction으로 처리
+   - 구현됨: `Election` enum을 `draft`, `in_progress`, `closed`로 확장
+   - 구현됨: `ElectionVoter` 모델 추가
+   - 구현됨: `Elections::Start` service 추가
+   - 구현됨: 후보자 2명 이상 일반 경쟁 투표 start 조건 검증
+   - 구현됨: 선거 시작 시점에 snapshot 생성
+   - 구현됨: snapshot 생성과 상태 변경을 transaction으로 처리
+   - 후보자 1명 무투표 당선/찬반 투표 정책은 후속 결정
 8. 투표 진행 상태 모델링
 9. 교사용 진행 화면
 10. 학생 투표 화면

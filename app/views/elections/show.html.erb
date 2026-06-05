@@ -15,7 +15,9 @@
 
 <h2>후보자</h2>
 
-<p><%= link_to "후보자 추가", new_election_candidate_path(@election) %></p>
+<% if @election.draft? %>
+  <p><%= link_to "후보자 추가", new_election_candidate_path(@election) %></p>
+<% end %>
 
 <% if @election.candidates.any? %>
   <table>
@@ -32,8 +34,12 @@
           <td><%= candidate.number %>번</td>
           <td><%= candidate.name %></td>
           <td>
-            <%= link_to "수정", edit_election_candidate_path(@election, candidate) %>
-            <%= button_to "삭제", election_candidate_path(@election, candidate), method: :delete %>
+            <% if @election.draft? %>
+              <%= link_to "수정", edit_election_candidate_path(@election, candidate) %>
+              <%= button_to "삭제", election_candidate_path(@election, candidate), method: :delete %>
+            <% else %>
+              후보자 관리가 종료되었습니다.
+            <% end %>
           </td>
         </tr>
       <% end %>
@@ -43,4 +49,34 @@
   <p>아직 등록된 후보자가 없습니다.</p>
 <% end %>
 
-<p>선거 시작과 명단 snapshot은 후속 작업에서 구현 예정입니다.</p>
+<h2>선거 진행</h2>
+
+<% if @election.draft? %>
+  <%= button_to "선거 시작", start_election_path(@election), method: :post %>
+  <% unless @election.election_voters.exists? %>
+    <p>아직 생성된 선거용 명단이 없습니다.</p>
+  <% end %>
+<% elsif @election.in_progress? %>
+  <p>선거가 진행 중입니다.</p>
+<% end %>
+
+<% if @election.election_voters.exists? %>
+  <h2>선거용 명단</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>번호</th>
+        <th>이름</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @election.election_voters.order(:number).each do |election_voter| %>
+        <tr>
+          <td><%= election_voter.number %>번</td>
+          <td><%= election_voter.name %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>

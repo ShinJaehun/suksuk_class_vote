@@ -15,6 +15,10 @@ class ElectionPolicy < ApplicationPolicy
     admin? || owner?
   end
 
+  def start?
+    admin? || owner?
+  end
+
   def destroy?
     admin? || owner?
   end

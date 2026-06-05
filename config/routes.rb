@@ -2,6 +2,7 @@ Rails.application.routes.draw do
   devise_for :users
   resource :dashboard, only: :show
   resources :elections, only: %i[index show new create] do
+    post :start, on: :member
     resources :candidates, only: %i[new create edit update destroy]
   end
   resources :voter_groups, only: %i[index show new create edit update destroy] do
