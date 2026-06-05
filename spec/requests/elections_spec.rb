@@ -119,7 +119,7 @@ RSpec.describe "Elections", type: :request do
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
     end
 
-    it "shows follow-up notices for candidates and snapshots" do
+    it "shows an empty candidate notice and a candidate add link" do
       teacher = create(:user)
       election = create(:election, user: teacher)
       sign_in teacher
@@ -127,7 +127,23 @@ RSpec.describe "Elections", type: :request do
       get election_path(election)
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("후보자 등록은 다음 작업에서 구현 예정입니다.")
+      expect(response.body).to include("아직 등록된 후보자가 없습니다.")
+      expect(response.body).to include("후보자 추가")
+      expect(response.body).to include(new_election_candidate_path(election))
+      expect(response.body).to include("선거 시작과 명단 snapshot은 후속 작업에서 구현 예정입니다.")
+    end
+
+    it "shows candidates" do
+      teacher = create(:user)
+      election = create(:election, user: teacher)
+      create(:candidate, election: election, number: 1, name: "김민준")
+      sign_in teacher
+
+      get election_path(election)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("1번")
+      expect(response.body).to include("김민준")
       expect(response.body).to include("선거 시작과 명단 snapshot은 후속 작업에서 구현 예정입니다.")
     end
   end

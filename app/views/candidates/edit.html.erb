@@ -1,0 +1,23 @@
+<h1>후보자 수정</h1>
+
+<p><%= link_to "선거로 돌아가기", election_path(@election) %></p>
+
+<% if @candidate.errors.any? %>
+  <h2>후보자를 수정할 수 없습니다.</h2>
+  <ul>
+    <% @candidate.errors.full_messages.each do |message| %>
+      <li><%= message %></li>
+    <% end %>
+  </ul>
+<% end %>
+
+<p><%= @candidate.number %>번 후보입니다.</p>
+
+<%= form_with model: [@election, @candidate] do |form| %>
+  <div>
+    <%= form.label :name, "이름" %>
+    <%= form.text_field :name %>
+  </div>
+
+  <%= form.submit "저장" %>
+<% end %>

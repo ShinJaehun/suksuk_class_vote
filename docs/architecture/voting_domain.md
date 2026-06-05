@@ -4,8 +4,8 @@
 
 이 문서는 `쑥쑥교실투표`의 투표 도메인 모델 관계를 구현 전에 정리하기 위한 architecture 문서다.
 
-현재 구현된 모델은 `VoterGroup`, `VoterSlot`, `Election`이다.
-`Candidate`, `PollingStation`, `VoteSession`, `Tally`, 선거용 명단 snapshot 모델은 아직 구현하지 않았으며, 실제 모델명과 컬럼은 후속 설계에서 확정한다.
+현재 구현된 모델은 `VoterGroup`, `VoterSlot`, `Election`, `Candidate`이다.
+`PollingStation`, `VoteSession`, `Tally`, 선거용 명단 snapshot 모델은 아직 구현하지 않았으며, 실제 모델명과 컬럼은 후속 설계에서 확정한다.
 
 ---
 
@@ -70,10 +70,26 @@
 - 원본 `VoterGroup`을 연결한다.
 - 상태는 `draft`만 사용한다.
 - index/new/create/show만 구현되어 있다.
-- 후보자 등록, 선거 시작, 투표 진행, 결과 집계는 아직 구현하지 않았다.
+- 후보자 등록/수정/삭제는 nested `Candidate` 흐름으로 구현되어 있다.
+- 선거 시작, 투표 진행, 결과 집계는 아직 구현하지 않았다.
 
 `Election` 생성 시점에는 선거용 명단 snapshot을 만들지 않는다.
 선거 시작 시점에 snapshot을 만드는 방향을 후속 작업에서 구현한다.
+
+### Candidate
+
+`Candidate`는 특정 `Election`에 속한 후보자다.
+
+현재 구현 상태:
+
+- `Election`에 속한다.
+- 후보자 이름과 선거 안의 후보 번호를 가진다.
+- 후보자 이름은 필수다.
+- 후보 번호는 같은 선거 안에서 중복될 수 없다.
+- 후보 번호는 서버에서 자동 부여하며, 삭제 후 재정렬하지 않는다.
+- draft 상태 선거에서만 후보자 추가/수정/삭제가 가능하도록 controller guard를 둔다.
+
+후보자 사진, 출석번호 연계, 선거 시작 후 수정 예외 처리는 아직 구현하지 않는다.
 
 ---
 
@@ -149,7 +165,6 @@ snapshot을 사용하지 않고 원본을 직접 참조한다면, 선거 생성 
 
 다음 모델은 아직 구현하지 않는다.
 
-- `Candidate`
 - `PollingStation`
 - `VoteSession`
 - `Tally`
@@ -160,4 +175,4 @@ snapshot을 사용하지 않고 원본을 직접 참조한다면, 선거 생성 
 - `Election` 시작 상태 전이
 - 선거용 명단 snapshot 모델명과 생성 방식
 - snapshot row의 이름과 출석번호 보존 방식
-- 후보자 모델과 선거 시작 전 후보 수정 제한
+- 선거 시작 후 후보 수정 제한의 예외 정책

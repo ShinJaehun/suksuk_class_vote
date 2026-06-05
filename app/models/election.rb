@@ -1,6 +1,7 @@
 class Election < ApplicationRecord
   belongs_to :user
   belongs_to :voter_group
+  has_many :candidates, dependent: :destroy
 
   enum :status, { draft: 0 }
 
