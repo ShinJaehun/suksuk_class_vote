@@ -82,6 +82,7 @@
 - draft 상태 선거의 후보자 new/create/edit/update/destroy 추가
 - 선거 시작, 선거용 명단 snapshot 미구현
 - 선거 시작 조건과 선거용 명단 snapshot 정책 문서화
+- `ElectionVoter` snapshot 모델과 `Elections::Start` service 책임 문서화
 - Pundit 기본 설치
 - RSpec 테스트 환경 추가
 - 투표 흐름 미구현
@@ -114,6 +115,8 @@
   - VoterGroup 원본 명단
   - 선거 생성 시 VoterGroup 선택 정책
   - 선거 시작 조건 초안
+  - `ElectionVoter` snapshot 모델 설계
+  - `Elections::Start` service 책임 설계
   - 선거용 명단 snapshot 생성 시점과 무결성 원칙
   - Election, PollingStation 등 후속 도메인 구조 초안
 
@@ -164,6 +167,9 @@
    - draft 선거에서 후보자 이름 등록/수정/삭제 구현
    - 후보자 번호는 선거 안에서 자동 부여하며 삭제 후 재정렬하지 않음
 7. 선거 시작 조건과 선거용 명단 snapshot 구현
+   - `Election` enum을 `draft`, `in_progress`, `closed`로 확장
+   - `ElectionVoter` 모델 추가
+   - `Elections::Start` service 추가
    - 시작 전 후보자/명단 조건 검증
    - 선거 시작 시점에 snapshot 생성
    - snapshot 생성과 상태 변경을 transaction으로 처리

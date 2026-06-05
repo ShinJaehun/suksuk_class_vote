@@ -5,7 +5,8 @@
 이 문서는 `쑥쑥교실투표`의 투표 도메인 모델 관계를 구현 전에 정리하기 위한 architecture 문서다.
 
 현재 구현된 모델은 `VoterGroup`, `VoterSlot`, `Election`, `Candidate`이다.
-`PollingStation`, `VoteSession`, `Tally`, 선거용 명단 snapshot 모델은 아직 구현하지 않았으며, 실제 모델명과 컬럼은 후속 설계에서 확정한다.
+`ElectionVoter`, `PollingStation`, `VoteSession`, `Tally`는 아직 구현하지 않았다.
+`ElectionVoter`는 선거용 명단 snapshot 모델명으로 후속 구현에서 사용한다.
 
 ---
 
@@ -76,7 +77,7 @@
 `Election` 생성 시점에는 선거용 명단 snapshot을 만들지 않는다.
 선거 시작 시점에 snapshot을 만드는 방향을 후속 작업에서 구현한다.
 
-### Election 상태 전이 초안
+### Election 상태 전이 설계
 
 현재 구현된 `Election` 상태는 `draft`뿐이다.
 
@@ -86,19 +87,28 @@
 - `draft` 상태에서는 선거 제목, `VoterGroup` 선택, 후보자 등록/수정/삭제가 가능하다.
 - 아직 선거 시작과 투표 시작은 구현하지 않았다.
 
-후속 상태 전이 초안:
+후속 구현에서는 `Election` enum을 다음처럼 확장하는 방향으로 한다.
+
+```text
+draft: 0
+in_progress: 10
+closed: 20
+```
+
+상태 전이:
 
 ```text
 draft -> in_progress -> closed
 ```
 
-검토 항목:
+설계 기준:
 
-- `ready` 상태를 별도로 둘지는 아직 결정하지 않는다.
-- 초기 MVP에서는 `draft`에서 바로 `in_progress`로 시작해도 된다.
-- 다만 `in_progress`로 전이하기 전에 후보자와 명단 조건을 반드시 검증한다.
+- `ready` 상태는 초기 MVP에서 두지 않는다.
+- 초기 MVP에서는 `draft`에서 바로 `in_progress`로 시작한다.
+- `in_progress`로 전이하기 전에 후보자와 명단 조건을 반드시 검증한다.
+- `closed`는 투표 종료/집계 단계에서 후속 구현한다.
 
-이 상태 전이는 아직 구현 전 초안이다.
+이 상태 전이는 아직 구현 전 설계다.
 
 ### Election 시작 조건 초안
 
@@ -134,6 +144,13 @@ draft -> in_progress -> closed
 
 컬럼명과 모드명은 아직 확정하지 않는다.
 초기 구현에서 어느 모드를 지원할지도 후속 설계에서 결정한다.
+
+후보자 1명 정책은 `ballot_mode` 없이 단순 시작 처리하지 않는다.
+다음 구현 전에 아래 선택지 중 하나를 결정한다.
+
+- 후보자 2명 이상만 start 허용
+- `ballot_mode`를 먼저 추가한 뒤 후보자 1명 분기를 처리
+- 후보자 1명은 start하지 않고 무투표 당선 별도 흐름으로 보류
 
 ### Candidate
 
@@ -174,17 +191,18 @@ draft -> in_progress -> closed
 - 이후 원본 `VoterGroup`이 바뀌어도 이미 시작된 `Election`에는 영향을 주지 않음
 - `PollingStation`과 투표 진행 상태는 원본 `VoterSlot`이 아니라 선거용 snapshot row를 기준으로 삼는 방향을 우선 검토
 
-### ElectionVoter snapshot 모델 초안
+### ElectionVoter snapshot 모델
 
 선거용 명단 snapshot 모델은 아직 구현하지 않았다.
 
-모델명 후보:
+후속 구현에서 선거용 명단 snapshot 모델명은 `ElectionVoter`로 확정한다.
 
-- `ElectionVoter`
-- `ElectionVoterSlot`
-- `ElectionVoterSnapshot`
+의미:
 
-권장 초안은 `ElectionVoter`이다.
+- `ElectionVoter`는 원본 `VoterSlot`의 복사본이다.
+- `ElectionVoter`는 선거 안에서 실제 투표 대상이 되는 학생 row다.
+- 학생 계정이 아니다.
+- 원본 `VoterSlot`이 수정되거나 삭제되어도 이미 시작된 `ElectionVoter`에는 영향을 주지 않는다.
 
 이유:
 
@@ -194,24 +212,74 @@ draft -> in_progress -> closed
 
 컬럼 초안:
 
-- `election_id`
-- `source_voter_slot_id`
-- `number`
-- `name`
-- `status`
+- `election:references, null: false, foreign_key: true`
+- `source_voter_slot:references, null: false, foreign_key to voter_slots`
+- `number:integer, null: false`
+- `name:string, null: false`
 
-`status` 후보:
+DB index:
 
-- `waiting`
-- `voting`
-- `voted`
-- `abstained`
+- `[election_id, number]` unique
+- `[election_id, source_voter_slot_id]` unique
 
-검토 항목:
+컬럼과 index 이유:
 
-- `status`는 아직 확정하지 않는다.
-- 투표 진행 상태를 `ElectionVoter`에 둘지, 별도 `PollingStation`/`VoteSession` 계층에 둘지는 후속 설계에서 결정한다.
-- 특정 `Election` 안에서 `ElectionVoter`의 `number`는 중복될 수 없어야 한다.
+- `number`는 선거 안의 투표 진행 순서를 고정한다.
+- `name`은 시작 시점의 이름을 보존한다.
+- `source_voter_slot_id`는 원본 명단 추적용이다.
+- 같은 원본 `VoterSlot`이 같은 `Election`에 중복 snapshot되면 안 된다.
+
+초기 `ElectionVoter`에는 `status`를 두지 않는다.
+
+이유:
+
+- 출석번호 진행 상태와 실제 투표 결과는 분리해야 한다.
+- 투표 진행 상태는 `PollingStation` 또는 `VoteSession` 설계에서 다룰 가능성이 크다.
+- `ElectionVoter`는 우선 고정된 선거용 투표자 명단 역할에 집중한다.
+
+후속 투표 진행 설계에서 `waiting`, `voting`, `voted`, `abstained` 같은 상태가 필요하면 다시 검토한다.
+
+### Elections::Start service 설계
+
+선거 시작 기능은 아직 구현하지 않았다.
+
+후속 구현에서 선거 시작 로직은 controller에 길게 두지 않고 service object로 분리한다.
+
+service 이름 후보:
+
+- `ElectionStarter`
+- `StartElection`
+- `Elections::Start`
+
+권장 이름은 `Elections::Start`이다.
+
+이유:
+
+- namespace를 통해 `Election` 관련 service임이 명확하다.
+- 나중에 `Elections::Close`, `Elections::Tally` 같은 흐름으로 확장하기 쉽다.
+
+`Elections::Start` 책임:
+
+- `Election`이 `draft` 상태인지 확인
+- 후보자가 있는지 확인
+- 후보자 수와 ballot mode 정책 확인
+- `voter_group`에 `voter_slots`가 있는지 확인
+- `election_voters` snapshot이 아직 없는지 확인
+- transaction 안에서 `ElectionVoter` snapshot 생성
+- transaction 안에서 `Election` 상태를 `in_progress`로 변경
+- 실패 시 전체 rollback
+- 성공/실패 결과를 controller가 처리할 수 있게 반환
+
+start action 위치 초안:
+
+```ruby
+resources :elections, only: %i[index show new create] do
+  post :start, on: :member
+  resources :candidates, only: %i[new create edit update destroy]
+end
+```
+
+이 route는 아직 구현하지 않는다.
 
 ### snapshot 생성 무결성 원칙
 
@@ -286,13 +354,20 @@ snapshot을 사용하지 않고 원본을 직접 참조한다면, 선거 생성 
 - `PollingStation`
 - `VoteSession`
 - `Tally`
-- 선거용 투표자 snapshot 모델
+- `ElectionVoter`
+- `Elections::Start`
 
 다음 구현 전에 결정할 항목:
 
-- `Election` 시작 상태 전이
-- 선거용 명단 snapshot 모델명과 생성 방식
-- snapshot row의 이름과 출석번호 보존 방식
-- 후보자 최소 수 정책
-- snapshot row의 상태 보관 위치
+- 후보자 1명 선거의 처리 방식
+- `ballot_mode`를 선거 시작 구현 전에 추가할지 여부
 - 선거 시작 후 후보 수정 제한의 예외 정책
+
+다음 구현 순서:
+
+1. `Election` enum 확장
+2. `ElectionVoter` 모델 추가
+3. `Elections::Start` service 추가
+4. `Election` start route/controller action 추가
+5. `Election` show에 시작 버튼 추가
+6. request/model/service spec으로 transaction과 중복 snapshot 방지 검증

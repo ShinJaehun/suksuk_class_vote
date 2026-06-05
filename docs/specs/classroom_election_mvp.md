@@ -99,7 +99,8 @@ admin의 상세 관리 기능은 별도 문서에서 다룬다.
 선거가 원본 투표자 그룹을 계속 직접 참조하면, 선거 생성 뒤 원본 명단 변경이 이미 만든 선거에 영향을 줄 수 있다.
 이번 단계에서는 선거 생성 시점에 원본 투표자 그룹만 연결한다.
 선거용 명단 snapshot은 선거 시작 시점에 만드는 방향으로 후속 구현한다.
-실제 snapshot 모델명과 구조는 선거 시작 기능 설계 때 확정한다.
+선거용 명단 snapshot 모델명은 `ElectionVoter`로 확정한다.
+다만 모델과 migration은 아직 구현하지 않았다.
 
 투표가 시작된 뒤에는 해당 선거의 투표자 명단을 수정하지 않는다.
 
@@ -199,6 +200,15 @@ draft -> in_progress -> closed
 
 단, 후보자가 1명인 경우에는 일반 경쟁 투표로 시작할지, 무투표 당선으로 처리할지, 찬성/반대 투표로 진행할지 후속 정책 결정이 필요하다.
 
+초기 start 구현 전 결정 사항:
+
+- 1안: 후보자 2명 이상만 start 허용
+- 2안: `ballot_mode`를 먼저 추가한 뒤 후보자 1명 분기를 처리
+- 3안: 후보자 1명은 start하지 않고 무투표 당선 처리 별도 흐름으로 보류
+
+이번 문서에서는 최종 구현안을 강제하지 않는다.
+다음 구현 전에 후보자 1명 정책과 `ballot_mode` 도입 여부를 결정한다.
+
 선거 시작 시 명단 snapshot 생성 방향:
 
 - 선거 생성 시점에는 snapshot을 만들지 않는다.
@@ -209,14 +219,43 @@ draft -> in_progress -> closed
 - snapshot 생성이나 상태 변경 중 하나라도 실패하면 선거 시작 전체가 실패해야 한다.
 - 이미 snapshot이 있으면 중복 생성하지 않아야 한다.
 
+사용자 기능 관점의 snapshot 흐름:
+
+- 교사가 선거 시작을 누른다.
+- 시스템은 시작 시점의 원본 학생 명단을 `ElectionVoter`로 복사한다.
+- 각 `ElectionVoter`에는 시작 시점의 출석번호와 이름이 보존된다.
+- 이후 교사가 원본 투표자 그룹을 수정하더라도 이미 시작된 선거의 투표 대상은 바뀌지 않는다.
+- 투표 진행 화면은 원본 `VoterSlot`이 아니라 `ElectionVoter` 명단을 기준으로 복구되어야 한다.
+
 선거 시작 뒤 제한 원칙:
 
 - 후보자 추가/수정/삭제를 금지한다.
 - 선거에 연결된 snapshot 명단 수정도 금지한다.
 - 원본 투표자 그룹 변경은 이미 시작된 선거의 투표 대상에 영향을 주지 않는다.
 
-snapshot 모델명과 컬럼은 아직 확정하지 않는다.
-권장 초안은 `ElectionVoter`이며, 실제 모델 생성은 다음 구현 작업에서 다룬다.
+`ElectionVoter` 컬럼 초안:
+
+- `election_id`
+- `source_voter_slot_id`
+- `number`
+- `name`
+
+초기 `ElectionVoter`에는 진행 상태 `status`를 두지 않는다.
+투표 진행 상태는 `PollingStation` 또는 `VoteSession` 설계에서 다시 검토한다.
+
+선거 시작 로직은 후속 구현에서 `Elections::Start` service로 분리한다.
+controller는 권한 확인과 결과 처리에 집중하고, snapshot 생성과 상태 전이는 service가 담당한다.
+
+start route 위치 초안:
+
+```ruby
+resources :elections, only: %i[index show new create] do
+  post :start, on: :member
+  resources :candidates, only: %i[new create edit update destroy]
+end
+```
+
+이 route, action, button은 아직 구현하지 않는다.
 
 ---
 
