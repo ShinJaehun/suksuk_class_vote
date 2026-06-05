@@ -87,6 +87,7 @@
 - `Elections::Start` service로 선거용 명단 snapshot 생성과 `in_progress` 상태 전이를 transaction 처리
 - Pundit 기본 설치
 - RSpec 테스트 환경 추가
+- 투표 진행 상태 모델링 문서화
 - 투표 흐름 미구현
 - 문서 기반 설계 정리 중
 
@@ -113,6 +114,11 @@
   - DB source of truth
   - 트랜잭션 기반 집계 원칙
 
+- `docs/architecture/privacy_and_tally.md`
+  - 출석번호 진행 상태와 실제 투표 결과 분리
+  - 비밀투표
+  - 집계 방향 후보
+
 - `docs/architecture/voting_domain.md`
   - VoterGroup 원본 명단
   - 선거 생성 시 VoterGroup 선택 정책
@@ -121,13 +127,6 @@
   - `Elections::Start` service 책임 설계
   - 선거용 명단 snapshot 생성 시점과 무결성 원칙
   - Election, PollingStation 등 후속 도메인 구조 초안
-
-추후 추가 예정:
-
-- `docs/architecture/privacy_and_tally.md`
-  - 출석번호 진행 상태와 투표 결과 분리
-  - 비밀투표
-  - 집계 원칙
 
 - `docs/architecture/roles_and_permissions.md`
   - admin/teacher/student 역할과 권한
@@ -177,6 +176,9 @@
    - 구현됨: snapshot 생성과 상태 변경을 transaction으로 처리
    - 후보자 1명 무투표 당선/찬반 투표 정책은 후속 결정
 8. 투표 진행 상태 모델링
+   - 문서화됨: `ElectionVoter`는 고정 명단으로 유지
+   - 문서화됨: 진행 상태와 실제 투표 결과 분리
+   - 문서화됨: `PollingStation` 우선 검토, `VoteSession` 후속 검토
 9. 교사용 진행 화면
 10. 학생 투표 화면
 11. 트랜잭션 기반 투표 제출

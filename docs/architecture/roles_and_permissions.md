@@ -202,7 +202,6 @@ Election 시작 권한 초안:
 * `teacher`는 본인이 만든 선거만 시작할 수 있다.
 * `guest`는 선거를 시작할 수 없다.
 
-단, 선거 시작 action과 policy 메서드는 아직 구현 전이다.
 현재 `ElectionPolicy#start?`와 `ElectionsController#start`가 구현되어 있다.
 권한 확인 뒤 `Elections::Start`가 `draft` 상태, 후보자 수, 명단 존재, snapshot 중복 생성 여부를 검증한다.
 후보자 1명 선거는 무투표 당선/찬반 투표 정책 결정 후 지원 예정 안내로 시작을 막는다.

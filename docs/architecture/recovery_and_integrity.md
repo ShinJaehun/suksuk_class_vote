@@ -23,6 +23,10 @@
 - 투표소가 진행 중인지 종료되었는지
 - 현재 열려 있는 투표 세션이 무엇인지
 
+선거가 시작된 뒤의 복구 기준은 원본 `VoterGroup`이 아니다.
+복구는 선거 시작 시점에 고정된 `ElectionVoter` snapshot과 후속 투표 진행 상태 모델을 기준으로 한다.
+원본 `VoterGroup`이나 `VoterSlot`이 변경되어도 이미 시작된 선거의 투표 순서와 투표 대상은 바뀌면 안 된다.
+
 ---
 
 ## 복구 목표
@@ -53,9 +57,14 @@
 
 최종 모델명은 구현 과정에서 바뀔 수 있지만, 초기 개념은 다음과 같다.
 
+현재 구현된 `ElectionVoter`는 선거용 고정 명단이다.
+`ElectionVoter`는 실제 투표 결과나 출석번호 진행 상태를 저장하지 않는다.
+후속 진행 상태 모델은 `ElectionVoter`를 참조해 현재 투표 위치와 완료 여부를 복구한다.
+
 ### PollingStation
 
 학급 선거가 실제로 진행되는 투표소다.
+초기 MVP에서는 투표 진행 상태 모델로 `PollingStation`을 우선 검토한다.
 
 예상 상태:
 
@@ -68,9 +77,11 @@
 - `closed`
   - 투표 종료
 
-### VoterSlot
+### ElectionVoter 진행 상태
 
 출석번호별 투표 진행 상태다.
+다만 이 상태를 `ElectionVoter` 자체에 둘지, 별도 `ElectionVoterProgress` 또는 `PollingSlot` 같은 row로 둘지는 후속 구현 전에 결정한다.
+원칙은 고정 명단과 진행 상태를 분리하는 것이다.
 
 예상 상태:
 
@@ -92,6 +103,8 @@
 ### VoteSession
 
 특정 voter slot에 대해 열린 1회용 투표 세션이다.
+학생 투표 화면과 제출 흐름이 복잡해질 때 후속 검토한다.
+초기 구현에서 반드시 먼저 만들 필요는 없다.
 
 예상 상태:
 
@@ -117,8 +130,8 @@
 기대 동작:
 
 - 서버는 polling station 상태를 다시 읽는다.
-- 현재 `voting` 상태인 voter slot이 있으면 해당 위치를 보여준다.
-- 없으면 다음 `waiting` voter slot을 안내한다.
+- 현재 `voting` 상태인 `ElectionVoter` 진행 row가 있거나 `PollingStation.current_election_voter_id`가 있으면 해당 위치를 보여준다.
+- 없으면 다음 `waiting` 상태 또는 다음 순번의 `ElectionVoter`를 안내한다.
 
 ---
 
@@ -131,13 +144,13 @@
 DB 상태:
 
 ```text
-VoterSlot: voting
+ElectionVoter progress: voting
 VoteSession: open
 ```
 
 기대 동작:
 
-- 같은 voter slot의 투표 화면으로 복구한다.
+- 같은 `ElectionVoter`의 투표 화면으로 복구한다.
 - 아직 제출 전이므로 다시 후보를 선택할 수 있다.
 
 ---
@@ -152,7 +165,7 @@ VoteSession: open
 
 - 교사가 다시 로그인한다.
 - 시스템은 DB에서 진행 중인 polling station을 찾는다.
-- `voting` 상태의 voter slot과 open vote session이 있으면 해당 학생의 투표를 이어간다.
+- `voting` 상태의 `ElectionVoter` 진행 row 또는 current pointer와 open vote session이 있으면 해당 학생의 투표를 이어간다.
 
 ---
 
@@ -181,26 +194,26 @@ VoteSession: open
 
 ```text
 VoteSession: submitted
-VoterSlot: completed
+ElectionVoter progress: completed
 Tally: 후보 득표 +1
 ```
 
 복구 시:
 
-- 해당 voter slot은 이미 완료 상태로 표시한다.
+- 해당 `ElectionVoter`는 이미 완료 상태로 표시한다.
 - 다시 투표시키지 않는다.
 
 #### 서버 트랜잭션 실패
 
 ```text
 VoteSession: open
-VoterSlot: voting
+ElectionVoter progress: voting
 Tally: 변화 없음
 ```
 
 복구 시:
 
-- 해당 voter slot의 투표를 다시 진행한다.
+- 해당 `ElectionVoter`의 투표를 다시 진행한다.
 
 중간 상태가 남으면 안 된다.
 
@@ -242,11 +255,11 @@ Tally: 변화 없음
 투표 제출 시 함께 처리되어야 하는 작업:
 
 1. vote session이 open 상태인지 확인
-2. voter slot이 voting 상태인지 확인
+2. 현재 투표 대상 `ElectionVoter` 또는 진행 row가 voting 상태인지 확인
 3. polling station이 in_progress 상태인지 확인
 4. 후보가 해당 선거에 속하는지 확인
 5. 후보별 tally 증가
-6. voter slot을 completed로 변경
+6. `ElectionVoter` 진행 상태를 completed로 변경
 7. vote session을 submitted로 변경
 8. submitted_at 기록
 
@@ -266,6 +279,8 @@ Tally: 변화 없음
 - submitted_at 존재 여부 확인
 - DB unique constraint 또는 lock
 - 트랜잭션 내부 재확인
+- 같은 `ElectionVoter`에 대한 완료 처리 중복 방지
+- 같은 제출 요청이 후보별 득표를 두 번 증가시키지 않도록 하는 DB 제약
 
 ---
 
@@ -275,7 +290,8 @@ Tally: 변화 없음
 
 고려할 방법:
 
-- polling station 또는 voter slot row lock
+- polling station 또는 진행 상태 row lock
+- `ElectionVoter` 진행 row lock
 - vote session row lock
 - transaction 내부에서 상태 재확인
 - DB unique index
@@ -283,7 +299,7 @@ Tally: 변화 없음
 예상 제약:
 
 - 한 polling station에 open vote session은 하나만 존재
-- 한 polling station에 voting voter slot은 하나만 존재
+- 한 polling station에 voting 상태의 `ElectionVoter` 진행 row는 하나만 존재
 - submitted vote session은 다시 submitted 처리 불가
 
 ---
@@ -292,9 +308,13 @@ Tally: 변화 없음
 
 구현 시 검토할 제약:
 
-- `voter_slots`
-  - `[polling_station_id, number]` unique
-  - 한 polling station 안에서 출석번호 중복 금지
+- `election_voters`
+  - `[election_id, number]` unique
+  - `[election_id, source_voter_slot_id]` unique
+
+- 진행 상태 모델
+  - 한 polling station 안에서 `ElectionVoter` 중복 금지
+  - 한 polling station 안에서 voting 상태 중복 방지
 
 - `vote_sessions`
   - open 상태 session 중복 방지
@@ -313,13 +333,13 @@ Tally: 변화 없음
 
 우선 테스트 대상:
 
-- 투표 중 새로고침해도 같은 voter slot으로 복구된다.
-- 교사 재로그인 후 진행 중인 voter slot으로 복구된다.
+- 투표 중 새로고침해도 같은 `ElectionVoter` 위치로 복구된다.
+- 교사 재로그인 후 진행 중인 `ElectionVoter` 위치로 복구된다.
 - open vote session은 한 투표소에 하나만 존재한다.
 - 같은 vote session을 두 번 제출해도 득표수는 한 번만 증가한다.
-- 제출 성공 시 voter slot 완료와 tally 증가가 함께 반영된다.
-- 제출 실패 시 voter slot 완료와 tally 증가가 모두 반영되지 않는다.
-- 완료된 voter slot은 다시 투표할 수 없다.
+- 제출 성공 시 `ElectionVoter` 진행 완료와 tally 증가가 함께 반영된다.
+- 제출 실패 시 `ElectionVoter` 진행 완료와 tally 증가가 모두 반영되지 않는다.
+- 완료된 `ElectionVoter`는 다시 투표할 수 없다.
 - 종료된 polling station에는 추가 투표를 할 수 없다.
 
 ---
