@@ -95,6 +95,7 @@
 - 투표 완료 기록과 후보별 count-only 집계 구조 문서화
 - `ElectionVoterParticipation`과 `CandidateTally` 최소 모델 추가
 - 선거 시작 성공 시 후보자별 `CandidateTally`를 0표로 생성
+- `Elections::SubmitVote` service 추가
 - 문서 기반 설계 정리 중
 
 ---

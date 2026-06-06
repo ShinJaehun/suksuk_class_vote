@@ -301,7 +301,8 @@ end
 
 현재 구현에서 선거 시작이 성공하면 `Elections::Start` transaction 안에서 `PollingStation`도 함께 생성한다.
 이때 `current_election_voter`는 첫 번째 `ElectionVoter`로 설정한다.
-다음 학생 진행, 투표 제출, 후보 선택, 득표수 집계는 아직 구현하지 않았다.
+현재 `Elections::SubmitVote` service는 현재 투표자의 투표 완료 기록과 후보별 tally 증가를 transaction으로 처리한다.
+다음 학생 진행, 투표 제출 UI, 후보 선택 UI는 아직 구현하지 않았다.
 
 다음 학생 진행은 현재 학생이 `completed`, `absent`, `abstained` 등 확정 상태가 된 뒤에만 허용한다.
 단순히 출석번호를 1 증가시키는 방식은 중복 제출, 새로고침, 뒤로가기, 미참여 처리 실패 상황에서 진행 위치와 완료 상태가 어긋날 수 있으므로 피한다.

@@ -304,7 +304,8 @@ Tally: 변화 없음
 `CandidateTally`는 후보별 총 득표수만 저장한다.
 학생 정보나 개별 투표자의 선택 결과를 저장하지 않는다.
 현재 구현에서는 `Elections::Start` 성공 시 후보자별 `CandidateTally`가 0표로 생성된다.
-투표 제출 service와 tally 증가 로직은 아직 구현하지 않았다.
+현재 `Elections::SubmitVote` service가 `CandidateTally` 증가와 `ElectionVoterParticipation` 생성을 하나의 transaction으로 처리한다.
+투표 제출 UI와 다음 학생 진행은 아직 구현하지 않았다.
 
 예상 컬럼:
 
