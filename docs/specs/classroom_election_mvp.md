@@ -304,6 +304,7 @@ end
 현재 `Elections::SubmitVote` service는 현재 투표자의 투표 완료 기록과 후보별 tally 증가를 transaction으로 처리한다.
 현재 선거 상세 화면에서 현재 투표자의 후보 선택 제출을 연결한다.
 현재 `Elections::AdvanceCurrentVoter` service와 선거 상세 화면의 다음 학생 진행 버튼으로 확정 상태인 현재 투표자에서 다음 `ElectionVoter`로 이동할 수 있다.
+현재 투표자를 미참여 또는 기권으로 확정 처리할 수 있으며, 이 처리는 후보별 tally를 증가시키지 않는다.
 현재 마지막 투표자 확정 뒤 교사가 선거를 종료할 수 있으며, 종료 후 후보별 count-only 결과를 확인할 수 있다.
 학생별 후보 선택은 표시하지 않는다.
 

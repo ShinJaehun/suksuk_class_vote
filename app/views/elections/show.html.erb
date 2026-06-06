@@ -62,8 +62,15 @@
     <% current_voter = @election.polling_station.current_election_voter %>
     <% if current_voter.present? %>
       <p>현재 투표자: <%= current_voter.number %>번 <%= current_voter.name %></p>
-      <% if current_voter.election_voter_participation.present? %>
-        <p>현재 투표자는 투표를 완료했습니다.</p>
+      <% participation = current_voter.election_voter_participation %>
+      <% if participation.present? %>
+        <% if participation.completed? %>
+          <p>현재 투표자는 투표를 완료했습니다.</p>
+        <% elsif participation.absent? %>
+          <p>현재 투표자는 미참여 처리되었습니다.</p>
+        <% elsif participation.abstained? %>
+          <p>현재 투표자는 기권 처리되었습니다.</p>
+        <% end %>
         <% next_voter = @election.election_voters.where("number > ?", current_voter.number).order(:number).first %>
         <% if next_voter.present? %>
           <%= button_to "다음 학생으로", advance_current_voter_election_path(@election), method: :post %>
@@ -78,6 +85,14 @@
                         method: :post,
                         params: { candidate_id: candidate.id } %>
         <% end %>
+        <%= button_to "미참여 처리",
+                      record_participation_outcome_election_path(@election),
+                      method: :post,
+                      params: { status: "absent" } %>
+        <%= button_to "기권 처리",
+                      record_participation_outcome_election_path(@election),
+                      method: :post,
+                      params: { status: "abstained" } %>
       <% end %>
     <% else %>
       <p>현재 투표자를 찾을 수 없습니다.</p>

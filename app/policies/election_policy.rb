@@ -23,6 +23,10 @@ class ElectionPolicy < ApplicationPolicy
     admin? || owner?
   end
 
+  def record_participation_outcome?
+    admin? || owner?
+  end
+
   def advance_current_voter?
     admin? || owner?
   end

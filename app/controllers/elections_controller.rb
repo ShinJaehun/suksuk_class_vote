@@ -1,6 +1,6 @@
 class ElectionsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_election, only: %i[show start submit_vote advance_current_voter close]
+  before_action :set_election, only: %i[show start submit_vote record_participation_outcome advance_current_voter close]
 
   def index
     @elections = policy_scope(Election).includes(voter_group: :voter_slots).order(created_at: :desc)
@@ -31,6 +31,18 @@ class ElectionsController < ApplicationController
 
     if result.success?
       redirect_to @election, notice: "투표가 제출되었습니다."
+    else
+      redirect_to @election, alert: result.error_message
+    end
+  end
+
+  def record_participation_outcome
+    authorize @election, :record_participation_outcome?
+
+    result = Elections::RecordParticipationOutcome.new(election: @election, status: params[:status]).call
+
+    if result.success?
+      redirect_to @election, notice: "투표자 상태를 처리했습니다."
     else
       redirect_to @election, alert: result.error_message
     end

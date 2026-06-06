@@ -1,0 +1,64 @@
+module Elections
+  class RecordParticipationOutcome
+    Result = Struct.new(:success?, :errors, keyword_init: true) do
+      def error_message
+        errors.join("\n")
+      end
+    end
+
+    ALLOWED_STATUSES = %w[absent abstained].freeze
+
+    def initialize(election:, status:)
+      @election = election
+      @status = status.to_s
+      @errors = []
+    end
+
+    def call
+      validate_recordable
+      return failure if errors.any?
+
+      ActiveRecord::Base.transaction do
+        current_election_voter.lock!
+        current_election_voter.create_election_voter_participation!(
+          status: status,
+          recorded_at: Time.current
+        )
+      end
+
+      success
+    rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => e
+      errors << e.message
+      failure
+    end
+
+    private
+
+    attr_reader :election, :status, :errors
+
+    def validate_recordable
+      errors << "진행 중인 선거에서만 처리할 수 있습니다." unless election.in_progress?
+      errors << "진행 중인 투표소를 찾을 수 없습니다." if polling_station.blank?
+      errors << "진행 중인 투표소에서만 처리할 수 있습니다." if polling_station.present? && !polling_station.active?
+      errors << "현재 투표자를 찾을 수 없습니다." if current_election_voter.blank?
+      errors << "이미 확정 처리된 투표자입니다." if current_election_voter&.election_voter_participation.present?
+      errors << "지원하지 않는 처리 상태입니다." unless status.in?(ALLOWED_STATUSES)
+    end
+
+    def polling_station
+      @polling_station ||= election.polling_station
+    end
+
+    def current_election_voter
+      @current_election_voter ||= polling_station&.current_election_voter
+    end
+
+    def success
+      Result.new(success?: true, errors: [])
+    end
+
+    def failure
+      Result.new(success?: false, errors: errors)
+    end
+  end
+end

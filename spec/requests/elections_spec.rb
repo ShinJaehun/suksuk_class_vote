@@ -336,6 +336,59 @@ RSpec.describe "Elections", type: :request do
     end
   end
 
+  describe "POST /elections/:id/record_participation_outcome" do
+    it "shows absent and abstained buttons before the current voter is finalized" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      sign_in teacher
+
+      get election_path(election)
+
+      expect(response.body).to include("미참여 처리")
+      expect(response.body).to include("기권 처리")
+      expect(response.body).to include(record_participation_outcome_election_path(election))
+    end
+
+    it "records absent outcome without changing candidate tally" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      candidate = election.candidates.order(:number).first
+      sign_in teacher
+
+      expect do
+        post record_participation_outcome_election_path(election), params: { status: "absent" }
+      end.not_to change { election.candidate_tallies.find_by(candidate: candidate).reload.votes_count }
+
+      expect(response).to redirect_to(election_path(election))
+      expect(flash[:notice]).to eq("투표자 상태를 처리했습니다.")
+
+      get election_path(election)
+
+      expect(response.body).to include("현재 투표자는 미참여 처리되었습니다.")
+      expect(response.body).to include(advance_current_voter_election_path(election))
+      expect(response.body).not_to include(submit_vote_election_path(election))
+    end
+
+    it "records abstained outcome without changing candidate tally" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      candidate = election.candidates.order(:number).first
+      sign_in teacher
+
+      expect do
+        post record_participation_outcome_election_path(election), params: { status: "abstained" }
+      end.not_to change { election.candidate_tallies.find_by(candidate: candidate).reload.votes_count }
+
+      expect(response).to redirect_to(election_path(election))
+
+      get election_path(election)
+
+      expect(response.body).to include("현재 투표자는 기권 처리되었습니다.")
+      expect(response.body).to include(advance_current_voter_election_path(election))
+      expect(response.body).not_to include(submit_vote_election_path(election))
+    end
+  end
+
   describe "POST /elections/:id/advance_current_voter" do
     it "moves to the next election voter after the current voter is completed" do
       teacher = create(:user)
