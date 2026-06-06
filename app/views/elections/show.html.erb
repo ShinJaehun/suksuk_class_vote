@@ -64,7 +64,12 @@
       <p>현재 투표자: <%= current_voter.number %>번 <%= current_voter.name %></p>
       <% if current_voter.election_voter_participation.present? %>
         <p>현재 투표자는 투표를 완료했습니다.</p>
-        <%= button_to "다음 학생으로", advance_current_voter_election_path(@election), method: :post %>
+        <% next_voter = @election.election_voters.where("number > ?", current_voter.number).order(:number).first %>
+        <% if next_voter.present? %>
+          <%= button_to "다음 학생으로", advance_current_voter_election_path(@election), method: :post %>
+        <% else %>
+          <%= button_to "선거 종료", close_election_path(@election), method: :post %>
+        <% end %>
       <% else %>
         <h3>후보 선택</h3>
         <% @election.candidates.order(:number).each do |candidate| %>
@@ -80,6 +85,30 @@
   <% else %>
     <p>투표 진행 정보를 찾을 수 없습니다.</p>
   <% end %>
+<% elsif @election.closed? %>
+  <p>선거가 종료되었습니다.</p>
+
+  <h2>선거 결과</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>기호</th>
+        <th>후보</th>
+        <th>득표수</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @election.candidates.order(:number).each do |candidate| %>
+        <% candidate_tally = @election.candidate_tallies.find_by(candidate: candidate) %>
+        <tr>
+          <td><%= candidate.number %>번</td>
+          <td><%= candidate.name %></td>
+          <td><%= candidate_tally&.votes_count.to_i %>표</td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
 <% end %>
 
 <% if @election.election_voters.exists? %>

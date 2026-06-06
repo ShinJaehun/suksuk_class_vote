@@ -5,6 +5,7 @@ Rails.application.routes.draw do
     post :start, on: :member
     post :submit_vote, on: :member
     post :advance_current_voter, on: :member
+    post :close, on: :member
     resources :candidates, only: %i[new create edit update destroy]
   end
   resources :voter_groups, only: %i[index show new create edit update destroy] do

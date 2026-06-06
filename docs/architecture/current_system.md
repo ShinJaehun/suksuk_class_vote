@@ -98,6 +98,7 @@
 - `Elections::SubmitVote` service 추가
 - 선거 상세 화면에서 현재 투표자의 후보 선택 제출 연결
 - 확정 상태인 현재 투표자에서 다음 `ElectionVoter`로 이동하는 기능 추가
+- 마지막 투표자 확정 뒤 선거 종료와 후보별 count-only 결과 표시 추가
 - 문서 기반 설계 정리 중
 
 ---

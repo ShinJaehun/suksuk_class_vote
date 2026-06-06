@@ -27,6 +27,10 @@ class ElectionPolicy < ApplicationPolicy
     admin? || owner?
   end
 
+  def close?
+    admin? || owner?
+  end
+
   def destroy?
     admin? || owner?
   end

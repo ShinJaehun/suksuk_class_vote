@@ -357,6 +357,28 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include(submit_vote_election_path(election))
     end
 
+    it "shows close button only when the completed current voter is the last voter" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      first_voter = election.polling_station.current_election_voter
+      last_voter = election.election_voters.order(:number).last
+      create(:election_voter_participation, election_voter: first_voter)
+      sign_in teacher
+
+      get election_path(election)
+
+      expect(response.body).to include(advance_current_voter_election_path(election))
+      expect(response.body).not_to include(close_election_path(election))
+
+      election.polling_station.update!(current_election_voter: last_voter)
+      create(:election_voter_participation, election_voter: last_voter)
+
+      get election_path(election)
+
+      expect(response.body).to include(close_election_path(election))
+      expect(response.body).not_to include(advance_current_voter_election_path(election))
+    end
+
     it "fails when the current voter is not completed" do
       teacher = create(:user)
       election = create_started_election(user: teacher)
@@ -368,6 +390,38 @@ RSpec.describe "Elections", type: :request do
       expect(response).to redirect_to(election_path(election))
       expect(flash[:alert]).to include("확정 상태")
       expect(election.polling_station.reload.current_election_voter).to eq(current_voter)
+    end
+  end
+
+  describe "POST /elections/:id/close" do
+    it "closes the election and shows candidate tally results" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      candidate = election.candidates.order(:number).first
+      last_voter = election.election_voters.order(:number).last
+      election.polling_station.update!(current_election_voter: last_voter)
+      create(:election_voter_participation, election_voter: last_voter)
+      election.candidate_tallies.find_by(candidate: candidate).update!(votes_count: 1)
+      sign_in teacher
+
+      post close_election_path(election)
+
+      expect(response).to redirect_to(election_path(election))
+      expect(flash[:notice]).to eq("선거를 종료했습니다.")
+      expect(election.reload).to be_closed
+      expect(election.polling_station).to be_closed
+
+      get election_path(election)
+
+      expect(response.body).to include("선거가 종료되었습니다.")
+      expect(response.body).to include("선거 결과")
+      expect(response.body).to include("1번")
+      expect(response.body).to include(candidate.name)
+      expect(response.body).to include("1표")
+      expect(response.body).not_to include(submit_vote_election_path(election))
+      expect(response.body).not_to include(advance_current_voter_election_path(election))
+      expect(response.body).not_to include("선택한 후보")
+      expect(response.body).not_to include("#{last_voter.name} #{candidate.name}")
     end
   end
 
