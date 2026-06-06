@@ -2,7 +2,7 @@ require "rails_helper"
 
 RSpec.describe Elections::Start do
   describe "#call" do
-    it "starts a draft election with at least two candidates, snapshots voter slots, and creates a polling station" do
+    it "starts a draft election with at least two candidates, snapshots voter slots, creates tallies, and creates a polling station" do
       election = create_startable_election
       first_slot = election.voter_group.voter_slots.order(:number).first
 
@@ -16,6 +16,12 @@ RSpec.describe Elections::Start do
         number: first_slot.number,
         name: first_slot.name
       )
+      expect(election.candidate_tallies.count).to eq(2)
+      expect(election.candidate_tallies.order(:candidate_id)).to all(have_attributes(
+        election: election,
+        votes_count: 0
+      ))
+      expect(election.candidate_tallies.map(&:candidate)).to match_array(election.candidates)
       expect(election.polling_station).to have_attributes(
         current_election_voter: election.election_voters.order(:number).first,
         status: "active"
@@ -42,6 +48,7 @@ RSpec.describe Elections::Start do
       expect(result.error_message).to include("draft 상태")
       expect(election.reload).to be_in_progress
       expect(election.election_voters).to be_empty
+      expect(election.candidate_tallies).to be_empty
       expect(election.polling_station).to be_nil
     end
 
@@ -53,10 +60,11 @@ RSpec.describe Elections::Start do
 
         expect(result).not_to be_success
         expect(result.error_message).to include("후보자가 2명 이상")
-      end.not_to change(PollingStation, :count)
+      end.not_to change(CandidateTally, :count)
 
       expect(election.reload).to be_draft
       expect(election.election_voters).to be_empty
+      expect(election.candidate_tallies).to be_empty
     end
 
     it "fails with a policy message when there is one candidate" do
@@ -68,10 +76,11 @@ RSpec.describe Elections::Start do
 
         expect(result).not_to be_success
         expect(result.error_message).to include("무투표 당선/찬반 투표 정책 결정 후 지원 예정")
-      end.not_to change(PollingStation, :count)
+      end.not_to change(CandidateTally, :count)
 
       expect(election.reload).to be_draft
       expect(election.election_voters).to be_empty
+      expect(election.candidate_tallies).to be_empty
     end
 
     it "fails when voter slots are empty" do
@@ -87,10 +96,11 @@ RSpec.describe Elections::Start do
 
         expect(result).not_to be_success
         expect(result.error_message).to include("투표자 명단이 1명 이상")
-      end.not_to change(PollingStation, :count)
+      end.not_to change(CandidateTally, :count)
 
       expect(election.reload).to be_draft
       expect(election.election_voters).to be_empty
+      expect(election.candidate_tallies).to be_empty
     end
 
     it "fails when the snapshot already exists" do
@@ -104,6 +114,7 @@ RSpec.describe Elections::Start do
       expect(result.error_message).to include("이미 선거용 명단")
       expect(election.reload).to be_draft
       expect(election.election_voters.count).to eq(1)
+      expect(election.candidate_tallies).to be_empty
       expect(election.polling_station).to be_nil
     end
 
@@ -117,7 +128,23 @@ RSpec.describe Elections::Start do
       expect(result.error_message).to include("이미 투표 진행 정보")
       expect(election.reload).to be_draft
       expect(election.election_voters).to be_empty
+      expect(election.candidate_tallies).to be_empty
       expect(election.polling_station).to be_present
+    end
+
+    it "fails when candidate tallies already exist" do
+      election = create_startable_election
+      candidate = election.candidates.order(:number).first
+      create(:candidate_tally, election: election, candidate: candidate)
+
+      result = described_class.new(election).call
+
+      expect(result).not_to be_success
+      expect(result.error_message).to include("이미 후보별 집계 정보")
+      expect(election.reload).to be_draft
+      expect(election.election_voters).to be_empty
+      expect(election.candidate_tallies.count).to eq(1)
+      expect(election.polling_station).to be_nil
     end
 
     it "rolls back status when snapshot creation fails" do
@@ -129,6 +156,20 @@ RSpec.describe Elections::Start do
       expect(result).not_to be_success
       expect(election.reload).to be_draft
       expect(election.election_voters).to be_empty
+      expect(election.candidate_tallies).to be_empty
+      expect(election.polling_station).to be_nil
+    end
+
+    it "rolls back snapshot and status when candidate tally creation fails" do
+      election = create_startable_election
+      allow(election.candidate_tallies).to receive(:create!).and_raise(ActiveRecord::RecordInvalid)
+
+      result = described_class.new(election).call
+
+      expect(result).not_to be_success
+      expect(election.reload).to be_draft
+      expect(election.election_voters).to be_empty
+      expect(election.candidate_tallies).to be_empty
       expect(election.polling_station).to be_nil
     end
 
@@ -141,6 +182,7 @@ RSpec.describe Elections::Start do
       expect(result).not_to be_success
       expect(election.reload).to be_draft
       expect(election.election_voters).to be_empty
+      expect(election.candidate_tallies).to be_empty
       expect(election.polling_station).to be_nil
     end
   end

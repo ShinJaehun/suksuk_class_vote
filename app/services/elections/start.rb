@@ -19,6 +19,7 @@ module Elections
 
       Election.transaction do
         create_snapshot
+        create_candidate_tallies
         first_election_voter = election.election_voters.order(:number).first
         election.update!(status: :in_progress)
         election.create_polling_station!(
@@ -51,6 +52,7 @@ module Elections
       errors << "투표자 명단이 1명 이상 있어야 선거를 시작할 수 있습니다." if voter_slots.empty?
       errors << "이미 선거용 명단이 생성된 선거입니다." if election.election_voters.exists?
       errors << "이미 투표 진행 정보가 생성된 선거입니다." if election.polling_station.present?
+      errors << "이미 후보별 집계 정보가 생성된 선거입니다." if election.candidate_tallies.exists?
     end
 
     def create_snapshot
@@ -59,6 +61,15 @@ module Elections
           source_voter_slot: voter_slot,
           number: voter_slot.number,
           name: voter_slot.name
+        )
+      end
+    end
+
+    def create_candidate_tallies
+      election.candidates.order(:number).each do |candidate|
+        election.candidate_tallies.create!(
+          candidate: candidate,
+          votes_count: 0
         )
       end
     end
