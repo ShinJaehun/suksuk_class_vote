@@ -3,6 +3,7 @@ class Election < ApplicationRecord
   belongs_to :voter_group
   has_many :candidates, dependent: :destroy
   has_many :election_voters, dependent: :destroy
+  has_one :polling_station, dependent: :destroy
 
   enum :status, { draft: 0, in_progress: 10, closed: 20 }
 

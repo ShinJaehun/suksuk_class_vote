@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_05_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_06_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -46,6 +46,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_05_020000) do
     t.bigint "voter_group_id", null: false
     t.index ["user_id"], name: "index_elections_on_user_id"
     t.index ["voter_group_id"], name: "index_elections_on_voter_group_id"
+  end
+
+  create_table "polling_stations", force: :cascade do |t|
+    t.datetime "closed_at"
+    t.datetime "created_at", null: false
+    t.bigint "current_election_voter_id"
+    t.bigint "election_id", null: false
+    t.datetime "started_at"
+    t.integer "status", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["current_election_voter_id"], name: "index_polling_stations_on_current_election_voter_id"
+    t.index ["election_id"], name: "index_polling_stations_on_election_id", unique: true
   end
 
   create_table "users", force: :cascade do |t|
@@ -85,6 +97,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_05_020000) do
   add_foreign_key "election_voters", "voter_slots", column: "source_voter_slot_id"
   add_foreign_key "elections", "users"
   add_foreign_key "elections", "voter_groups"
+  add_foreign_key "polling_stations", "election_voters", column: "current_election_voter_id"
+  add_foreign_key "polling_stations", "elections"
   add_foreign_key "voter_groups", "users"
   add_foreign_key "voter_slots", "voter_groups"
 end

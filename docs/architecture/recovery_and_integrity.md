@@ -67,7 +67,7 @@
 초기 MVP에서는 `Election` 1개당 `PollingStation` 1개를 둔다.
 `PollingStation.current_election_voter_id`는 현재 투표 위치 복구의 기준이다.
 
-후속 구현 컬럼 초안:
+현재 구현 컬럼:
 
 - `election:references, null: false, foreign_key: true`
 - `current_election_voter:references, null: true, foreign_key to election_voters`
@@ -89,6 +89,11 @@ DB index:
 
 `PollingStation`은 원본 `VoterGroup` 또는 `VoterSlot`을 직접 참조하지 않는다.
 복구와 진행은 `ElectionVoter` snapshot을 기준으로 한다.
+
+현재 구현에서는 `Elections::Start` transaction 안에서 `ElectionVoter` snapshot 생성,
+`Election`의 `in_progress` 전이, `PollingStation` 생성을 함께 처리한다.
+선거 시작 성공 시 `PollingStation.current_election_voter_id`는 첫 번째 `ElectionVoter`를 가리킨다.
+다음 학생 진행, 투표 제출, 후보 선택, 득표수 집계는 아직 구현하지 않았다.
 
 ### ElectionVoter 진행 상태
 

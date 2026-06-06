@@ -85,11 +85,13 @@
 - `ElectionVoter` snapshot 모델 추가
 - 후보자 2명 이상 일반 경쟁 투표에 한해 선거 시작 기능 추가
 - `Elections::Start` service로 선거용 명단 snapshot 생성과 `in_progress` 상태 전이를 transaction 처리
+- `PollingStation` 모델 추가
+- 선거 시작 성공 시 첫 번째 `ElectionVoter`를 현재 위치로 가리키는 `PollingStation` 생성
 - Pundit 기본 설치
 - RSpec 테스트 환경 추가
-- 투표 진행 상태 모델링 문서화
-- `PollingStation`을 초기 MVP 투표 진행 상태 모델명으로 문서 확정
+- 투표 진행 상태 1차 구현
 - 투표 흐름 미구현
+- 투표 제출, 후보 선택, 득표수 집계, 다음 학생 진행 미구현
 - 문서 기반 설계 정리 중
 
 ---
@@ -174,13 +176,14 @@
    - 구현됨: `Elections::Start` service 추가
    - 구현됨: 후보자 2명 이상 일반 경쟁 투표 start 조건 검증
    - 구현됨: 선거 시작 시점에 snapshot 생성
-   - 구현됨: snapshot 생성과 상태 변경을 transaction으로 처리
+   - 구현됨: snapshot 생성, 상태 변경, `PollingStation` 생성을 transaction으로 처리
+   - 구현됨: 선거 시작 성공 시 첫 번째 `ElectionVoter`를 `PollingStation.current_election_voter_id`로 저장
    - 후보자 1명 무투표 당선/찬반 투표 정책은 후속 결정
 8. 투표 진행 상태 모델링
    - 문서화됨: `ElectionVoter`는 고정 명단으로 유지
    - 문서화됨: 진행 상태와 실제 투표 결과 분리
-   - 문서화됨: `PollingStation`을 초기 MVP 진행 상태 모델명으로 확정
-   - 문서화됨: `PollingStation.current_election_voter_id`를 현재 위치 복구 기준으로 사용
+   - 구현됨: `PollingStation`을 초기 MVP 진행 상태 모델명으로 사용
+   - 구현됨: `PollingStation.current_election_voter_id`를 현재 위치 복구 기준으로 사용
    - 문서화됨: `VoteSession`은 학생 화면/토큰/제출 세션이 복잡해질 때 후속 검토
 9. 교사용 진행 화면
 10. 학생 투표 화면

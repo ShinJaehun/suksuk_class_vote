@@ -209,7 +209,7 @@ draft -> in_progress -> closed
 - 시작 버튼을 누른 순간의 명단을 해당 선거의 투표 대상 명단으로 고정한다.
 - 이후 원본 투표자 그룹이 바뀌어도 이미 시작된 선거에는 영향을 주지 않는다.
 - snapshot 생성과 `Election` 상태 변경은 transaction 안에서 함께 처리한다.
-- snapshot 생성이나 상태 변경 중 하나라도 실패하면 선거 시작 전체가 실패해야 한다.
+- snapshot 생성, `Election` 상태 변경, `PollingStation` 생성 중 하나라도 실패하면 선거 시작 전체가 실패해야 한다.
 - 이미 snapshot이 있으면 중복 생성하지 않아야 한다.
 
 사용자 기능 관점의 snapshot 흐름:
@@ -239,7 +239,7 @@ draft -> in_progress -> closed
 `VoteSession`은 학생 투표 제출 흐름이 복잡해질 때 후속 검토한다.
 
 선거 시작 로직은 `Elections::Start` service로 분리되어 있다.
-controller는 권한 확인과 결과 처리에 집중하고, snapshot 생성과 상태 전이는 service가 담당한다.
+controller는 권한 확인과 결과 처리에 집중하고, snapshot 생성, 상태 전이, `PollingStation` 생성은 service가 담당한다.
 
 start route 위치 초안:
 
@@ -295,8 +295,9 @@ end
 `ElectionVoter`에는 진행 상태를 넣지 않는다.
 완료된 학생 목록, receipt, tally는 투표 제출 설계에서 확정한다.
 
-후속 구현에서 선거 시작이 성공하면 `Elections::Start` transaction 안에서 `PollingStation`도 함께 생성하는 방향을 기준으로 둔다.
+현재 구현에서 선거 시작이 성공하면 `Elections::Start` transaction 안에서 `PollingStation`도 함께 생성한다.
 이때 `current_election_voter`는 첫 번째 `ElectionVoter`로 설정한다.
+다음 학생 진행, 투표 제출, 후보 선택, 득표수 집계는 아직 구현하지 않았다.
 
 ---
 

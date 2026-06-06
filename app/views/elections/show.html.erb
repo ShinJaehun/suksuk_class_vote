@@ -58,6 +58,16 @@
   <% end %>
 <% elsif @election.in_progress? %>
   <p>선거가 진행 중입니다.</p>
+  <% if @election.polling_station.present? %>
+    <% current_voter = @election.polling_station.current_election_voter %>
+    <% if current_voter.present? %>
+      <p>현재 투표자: <%= current_voter.number %>번 <%= current_voter.name %></p>
+    <% else %>
+      <p>현재 투표자를 찾을 수 없습니다.</p>
+    <% end %>
+  <% else %>
+    <p>투표 진행 정보를 찾을 수 없습니다.</p>
+  <% end %>
 <% end %>
 
 <% if @election.election_voters.exists? %>

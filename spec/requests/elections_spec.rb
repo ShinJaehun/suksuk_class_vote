@@ -165,11 +165,12 @@ RSpec.describe "Elections", type: :request do
 
       expect do
         post start_election_path(election)
-      end.to change(ElectionVoter, :count).by(2)
+      end.to change(ElectionVoter, :count).by(2).and change(PollingStation, :count).by(1)
 
       expect(response).to redirect_to(election_path(election))
       expect(flash[:notice]).to eq("선거를 시작했습니다.")
       expect(election.reload).to be_in_progress
+      expect(election.polling_station.current_election_voter).to eq(election.election_voters.order(:number).first)
     end
 
     it "does not allow teachers to start another teacher's election" do
@@ -207,11 +208,12 @@ RSpec.describe "Elections", type: :request do
 
       expect do
         post start_election_path(election)
-      end.not_to change(ElectionVoter, :count)
+      end.not_to change(PollingStation, :count)
 
       expect(response).to redirect_to(election_path(election))
       expect(flash[:alert]).to include("무투표 당선/찬반 투표 정책 결정 후 지원 예정")
       expect(election.reload).to be_draft
+      expect(election.election_voters).to be_empty
     end
 
     it "shows in progress status and election voters after start" do
@@ -224,10 +226,34 @@ RSpec.describe "Elections", type: :request do
 
       expect(response.body).to include("in_progress")
       expect(response.body).to include("선거가 진행 중입니다.")
+      expect(response.body).to include("현재 투표자: 1번 김민준")
       expect(response.body).to include("선거용 명단")
       expect(response.body).to include("김민준")
       expect(response.body).to include("이서연")
       expect(response.body).not_to include("후보자 추가")
+    end
+
+    it "does not show current voter information while draft" do
+      teacher = create(:user)
+      election = create_startable_election(user: teacher)
+      sign_in teacher
+
+      get election_path(election)
+
+      expect(response.body).not_to include("현재 투표자")
+      expect(response.body).not_to include("투표 진행 정보를 찾을 수 없습니다.")
+    end
+
+    it "shows a safe message when polling station is missing during in progress" do
+      teacher = create(:user)
+      election = create_startable_election(user: teacher)
+      election.update!(status: :in_progress)
+      sign_in teacher
+
+      get election_path(election)
+
+      expect(response.body).to include("선거가 진행 중입니다.")
+      expect(response.body).to include("투표 진행 정보를 찾을 수 없습니다.")
     end
   end
 

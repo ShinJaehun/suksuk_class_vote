@@ -19,7 +19,13 @@ module Elections
 
       Election.transaction do
         create_snapshot
+        first_election_voter = election.election_voters.order(:number).first
         election.update!(status: :in_progress)
+        election.create_polling_station!(
+          current_election_voter: first_election_voter,
+          status: :active,
+          started_at: Time.current
+        )
       end
 
       success
@@ -44,6 +50,7 @@ module Elections
 
       errors << "투표자 명단이 1명 이상 있어야 선거를 시작할 수 있습니다." if voter_slots.empty?
       errors << "이미 선거용 명단이 생성된 선거입니다." if election.election_voters.exists?
+      errors << "이미 투표 진행 정보가 생성된 선거입니다." if election.polling_station.present?
     end
 
     def create_snapshot
