@@ -95,21 +95,28 @@ DB index:
 선거 시작 성공 시 `PollingStation.current_election_voter_id`는 첫 번째 `ElectionVoter`를 가리킨다.
 다음 학생 진행, 투표 제출, 후보 선택, 득표수 집계는 아직 구현하지 않았다.
 
-### ElectionVoter 진행 상태
+### ElectionVoterParticipation / ElectionVoterReceipt
 
-출석번호별 투표 진행 상태다.
-이번 `PollingStation` 구조에서는 이 상태를 `ElectionVoter` 자체에 넣지 않는다.
-`PollingStation`은 `current_election_voter_id`만 가진다.
-완료된 학생 목록과 receipt는 투표 제출 설계에서 확정한다.
-원칙은 고정 명단과 진행 상태를 분리하는 것이다.
+출석번호별 투표 완료/미참여/기권 기록이다.
+구현 모델명은 후속 구현에서 `ElectionVoterParticipation` 또는 `ElectionVoterReceipt` 중 하나로 확정한다.
+이 모델은 특정 `ElectionVoter`가 투표 절차상 확정 상태가 되었는지만 저장한다.
+후보 선택 결과는 절대 저장하지 않는다.
+
+예상 컬럼:
+
+- `election_voter_id`
+- `status`
+- `completed_at` 또는 `recorded_at`
+
+중요 원칙:
+
+- A 학생이 투표했다는 기록은 남긴다.
+- A 학생이 누구에게 투표했는지는 남기지 않는다.
+- participation/receipt에는 `candidate_id`를 저장하지 않는다.
+- `election_voter_id`와 `candidate_id`를 직접 연결하지 않는다.
+- `PollingStation`은 완료 목록을 저장하지 않는다.
 
 예상 상태:
-
-- `waiting`
-  - 아직 투표 차례가 오지 않음
-
-- `voting`
-  - 현재 투표 중
 
 - `completed`
   - 투표 완료
@@ -119,6 +126,9 @@ DB index:
 
 - `abstained`
   - 기권/무투표
+
+- `skipped`
+  - 필요한 경우 후속 검토
 
 ### VoteSession
 
@@ -214,7 +224,7 @@ VoteSession: open
 
 ```text
 VoteSession: submitted
-ElectionVoter progress: completed
+ElectionVoterParticipation/Receipt: completed
 Tally: 후보 득표 +1
 ```
 
@@ -227,7 +237,7 @@ Tally: 후보 득표 +1
 
 ```text
 VoteSession: open
-ElectionVoter progress: voting
+ElectionVoterParticipation/Receipt: 변경 없음
 Tally: 변화 없음
 ```
 
@@ -278,12 +288,33 @@ Tally: 변화 없음
 2. 현재 투표 대상 `ElectionVoter`가 `PollingStation.current_election_voter_id`와 일치하는지 확인
 3. polling station이 active 상태인지 확인
 4. 후보가 해당 선거에 속하는지 확인
-5. 후보별 tally 증가
-6. `ElectionVoter` 진행 상태를 completed로 변경
-7. vote session을 submitted로 변경
-8. submitted_at 기록
+5. 해당 `ElectionVoter`의 participation/receipt가 아직 완료되지 않았는지 확인
+6. 후보별 `CandidateTally.votes_count` 증가
+7. participation/receipt를 `completed`로 기록
+8. vote session을 submitted로 변경
+9. submitted_at 기록
 
 이 중 하나라도 실패하면 전체가 rollback되어야 한다.
+`CandidateTally` 증가와 participation/receipt 완료 기록은 함께 성공하거나 함께 실패해야 한다.
+
+### CandidateTally
+
+`CandidateTally`는 후보별 총 득표수만 저장한다.
+학생 정보나 개별 투표자의 선택 결과를 저장하지 않는다.
+
+예상 컬럼:
+
+- `election_id`
+- `candidate_id`
+- `votes_count`
+
+중요 원칙:
+
+- count-only 구조를 기본으로 한다.
+- `CandidateTally`는 `ElectionVoter`와 직접 연결하지 않는다.
+- `CandidateTally`에는 `election_voter_id`를 저장하지 않는다.
+- 후보별 득표 증가 시각을 특정 학생의 `completed_at`과 연결해 추정할 수 있는 화면 흐름을 피한다.
+- Rails timestamps가 남더라도 비밀투표를 깨는 근거로 사용하거나 화면에 노출하지 않는다.
 
 ---
 
@@ -299,7 +330,7 @@ Tally: 변화 없음
 - submitted_at 존재 여부 확인
 - DB unique constraint 또는 lock
 - 트랜잭션 내부 재확인
-- 같은 `ElectionVoter`에 대한 완료 처리 중복 방지
+- 같은 `ElectionVoter`에 대한 participation/receipt 완료 처리 중복 방지
 - 같은 제출 요청이 후보별 득표를 두 번 증가시키지 않도록 하는 DB 제약
 
 ---
@@ -319,7 +350,7 @@ Tally: 변화 없음
 예상 제약:
 
 - 한 polling station에 open vote session은 하나만 존재
-- 한 polling station에 voting 상태의 `ElectionVoter` 진행 row는 하나만 존재
+- 한 `ElectionVoter`에 완료 participation/receipt는 하나만 존재
 - submitted vote session은 다시 submitted 처리 불가
 
 ---
@@ -338,15 +369,37 @@ Tally: 변화 없음
 
 - 완료 receipt 또는 제출 모델
   - 같은 `ElectionVoter` 완료 처리 중복 방지
+  - `candidate_id` 저장 금지
 
 - `vote_sessions`
   - open 상태 session 중복 방지
   - submitted session 재제출 방지
 
-- `tallies`
+- `candidate_tallies`
   - `[election_id, candidate_id]` 또는 `[polling_station_id, candidate_id]` unique
+  - `ElectionVoter` 직접 참조 금지
 
 정확한 index 설계는 실제 모델 정의 시 확정한다.
+
+---
+
+## 다음 학생 진행 원칙
+
+단순히 현재 번호에 1을 더해 다음 학생으로 넘기는 구조는 위험하다.
+새로고침, 뒤로가기, 중복 제출, 미참여 처리 실패 상황에서 실제 완료 상태와 진행 위치가 어긋날 수 있기 때문이다.
+
+다음 학생 진행은 현재 학생이 `completed`, `absent`, `abstained` 등 확정 상태가 된 뒤에만 허용한다.
+`PollingStation`은 현재 위치만 저장한다.
+완료 목록, 후보 선택 결과, 후보별 득표수는 `PollingStation`에 저장하지 않는다.
+
+명시적으로 배제하는 구조:
+
+- `ElectionVoter`에 `candidate_id` 저장
+- `VoteRecord(election_voter_id, candidate_id)` 형태
+- `PollingStation`에 후보 선택 결과 저장
+- `PollingStation`에 완료 목록 저장
+- `CandidateTally`와 `ElectionVoter` 직접 연결
+- 학생 `completed_at`과 후보별 득표 증가 정보를 화면에서 직접 연결해 보여주는 구조
 
 ---
 
@@ -360,8 +413,8 @@ Tally: 변화 없음
 - 교사 재로그인 후 진행 중인 `ElectionVoter` 위치로 복구된다.
 - open vote session은 한 투표소에 하나만 존재한다.
 - 같은 vote session을 두 번 제출해도 득표수는 한 번만 증가한다.
-- 제출 성공 시 `ElectionVoter` 진행 완료와 tally 증가가 함께 반영된다.
-- 제출 실패 시 `ElectionVoter` 진행 완료와 tally 증가가 모두 반영되지 않는다.
+- 제출 성공 시 participation/receipt 완료와 tally 증가가 함께 반영된다.
+- 제출 실패 시 participation/receipt 완료와 tally 증가가 모두 반영되지 않는다.
 - 완료된 `ElectionVoter`는 다시 투표할 수 없다.
 - 종료된 polling station에는 추가 투표를 할 수 없다.
 

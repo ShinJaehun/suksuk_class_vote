@@ -293,11 +293,26 @@ end
 진행 상태와 실제 투표 결과는 분리한다.
 교사용 진행 화면은 “누가 대기/투표 중/완료인지”를 보여주지만, 누가 어떤 후보를 선택했는지를 직접 연결하면 안 된다.
 `ElectionVoter`에는 진행 상태를 넣지 않는다.
-완료된 학생 목록, receipt, tally는 투표 제출 설계에서 확정한다.
+완료된 학생 목록은 `ElectionVoterParticipation` 또는 `ElectionVoterReceipt` 같은 별도 진행 기록 모델에서 다룬다.
+이 모델은 투표 완료/미참여/기권 같은 확정 상태만 저장하며, `candidate_id`는 저장하지 않는다.
+득표 집계는 후보별 count-only `CandidateTally`에서 다루며, `CandidateTally`는 `ElectionVoter`와 직접 연결하지 않는다.
 
 현재 구현에서 선거 시작이 성공하면 `Elections::Start` transaction 안에서 `PollingStation`도 함께 생성한다.
 이때 `current_election_voter`는 첫 번째 `ElectionVoter`로 설정한다.
 다음 학생 진행, 투표 제출, 후보 선택, 득표수 집계는 아직 구현하지 않았다.
+
+다음 학생 진행은 현재 학생이 `completed`, `absent`, `abstained` 등 확정 상태가 된 뒤에만 허용한다.
+단순히 출석번호를 1 증가시키는 방식은 중복 제출, 새로고침, 뒤로가기, 미참여 처리 실패 상황에서 진행 위치와 완료 상태가 어긋날 수 있으므로 피한다.
+`PollingStation`은 현재 위치만 저장하고, 완료 목록이나 후보 선택 결과를 저장하지 않는다.
+
+명시적으로 배제하는 구조:
+
+- `ElectionVoter`에 `candidate_id` 저장
+- `VoteRecord(election_voter_id, candidate_id)` 형태
+- `PollingStation`에 후보 선택 결과 저장
+- `PollingStation`에 완료 목록 저장
+- `CandidateTally`와 `ElectionVoter` 직접 연결
+- 학생 `completed_at`과 후보별 득표 증가 정보를 화면에서 직접 연결해 보여주는 구조
 
 ---
 

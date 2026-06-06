@@ -183,7 +183,8 @@
 * 과도한 shared context, helper, abstraction을 피한다.
 * 기존 테스트와 중복되는 저가치 테스트를 늘리지 않는다.
 * 전체 테스트는 사용자가 직접 실행하는 것을 기본으로 한다.
-* Codex는 필요한 경우 관련 request/model/service spec만 제안하거나, 사용자가 승인한 경우에만 targeted spec을 실행한다.
+* Codex는 기본적으로 테스트를 직접 실행하지 않고, 사용자가 실행할 테스트 명령만 제안한다.
+* 사용자가 명시적으로 요청하거나 승인한 경우에만 관련 request/model/service 등 targeted spec을 실행할 수 있다.
 
 ---
 

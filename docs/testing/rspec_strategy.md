@@ -89,26 +89,30 @@ Coverage 수치 자체를 목표로 삼지 않는다.
 
 ### 투표 진행 상태
 
-* 투표소는 ready / in_progress / closed 상태를 가진다.
-* voter slot은 waiting / voting / completed / absent / abstained 상태를 가진다.
-* 한 투표소에서 동시에 voting 상태인 voter slot은 하나만 허용한다.
+* `Election`은 draft / in_progress / closed 상태를 가진다.
+* `PollingStation`은 active / closed 상태를 가지며, ready 상태를 두지 않는다.
+* `PollingStation`은 `Election`이 in_progress가 된 뒤 생성되므로 active부터 시작한다.
+* `ElectionVoterParticipation` 또는 `ElectionVoterReceipt`는 completed / absent / abstained 같은 확정 상태를 가진다.
 * 한 투표소에서 open vote session은 하나만 허용한다.
-* 완료된 voter slot은 다시 투표할 수 없다.
+* 완료된 `ElectionVoter`는 다시 투표할 수 없다.
 * 종료된 polling station에는 추가 투표를 할 수 없다.
+* participation/receipt에는 `candidate_id`를 저장하지 않는다.
+* `CandidateTally`는 `ElectionVoter`와 직접 연결하지 않는다.
 
 ### 투표 제출 / 멱등성
 
 * open vote session이 있을 때만 투표 제출이 가능하다.
 * 같은 vote session을 두 번 제출해도 득표수는 한 번만 증가한다.
-* 제출 성공 시 voter slot 완료와 tally 증가가 함께 반영된다.
-* 제출 실패 시 voter slot 완료와 tally 증가가 모두 반영되지 않는다.
+* 제출 성공 시 participation/receipt 완료와 tally 증가가 함께 반영된다.
+* 제출 실패 시 participation/receipt 완료와 tally 증가가 모두 반영되지 않는다.
 * 종료된 투표소에 들어온 제출 요청은 거부된다.
+* 학생 completed_at과 후보별 득표 증가 정보를 화면에서 직접 연결해 보여주지 않는다.
 
 ### 중단 복구
 
-* 교사 진행 화면을 새로고침해도 현재 voter slot으로 복구된다.
+* 교사 진행 화면을 새로고침해도 현재 `ElectionVoter` 위치로 복구된다.
 * 학생 투표 화면을 새로고침해도 open vote session으로 복구된다.
-* 교사 재로그인 후 진행 중인 voter slot으로 복구된다.
+* 교사 재로그인 후 진행 중인 `ElectionVoter` 위치로 복구된다.
 * 제출 요청이 성공했지만 브라우저가 완료 화면을 받지 못한 경우, 재접속 시 completed 상태로 보인다.
 * 제출 요청이 실패한 경우, 재접속 시 기존 voting 상태로 다시 투표할 수 있다.
 
