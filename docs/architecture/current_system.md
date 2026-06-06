@@ -93,6 +93,7 @@
 - 투표 흐름 미구현
 - 투표 제출, 후보 선택, 득표수 집계, 다음 학생 진행 미구현
 - 투표 완료 기록과 후보별 count-only 집계 구조 문서화
+- `ElectionVoterParticipation`과 `CandidateTally` 최소 모델 추가
 - 문서 기반 설계 정리 중
 
 ---

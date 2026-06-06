@@ -1,5 +1,6 @@
 class Candidate < ApplicationRecord
   belongs_to :election
+  has_one :candidate_tally, dependent: :destroy
 
   validates :election, presence: true
   validates :number, presence: true,

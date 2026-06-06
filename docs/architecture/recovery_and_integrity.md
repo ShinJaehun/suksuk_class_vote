@@ -101,6 +101,8 @@ DB index:
 구현 모델명은 후속 구현에서 `ElectionVoterParticipation` 또는 `ElectionVoterReceipt` 중 하나로 확정한다.
 이 모델은 특정 `ElectionVoter`가 투표 절차상 확정 상태가 되었는지만 저장한다.
 후보 선택 결과는 절대 저장하지 않는다.
+현재 구현 모델명은 `ElectionVoterParticipation`이다.
+`waiting` 상태는 row를 미리 만들지 않고 participation row가 없는 상태로 표현한다.
 
 예상 컬럼:
 

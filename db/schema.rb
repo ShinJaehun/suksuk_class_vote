@@ -10,9 +10,20 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_06_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_06_021000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "candidate_tallies", force: :cascade do |t|
+    t.bigint "candidate_id", null: false
+    t.datetime "created_at", null: false
+    t.bigint "election_id", null: false
+    t.datetime "updated_at", null: false
+    t.integer "votes_count", default: 0, null: false
+    t.index ["candidate_id"], name: "index_candidate_tallies_on_candidate_id"
+    t.index ["election_id", "candidate_id"], name: "index_candidate_tallies_on_election_id_and_candidate_id", unique: true
+    t.index ["election_id"], name: "index_candidate_tallies_on_election_id"
+  end
 
   create_table "candidates", force: :cascade do |t|
     t.datetime "created_at", null: false
@@ -22,6 +33,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_06_010000) do
     t.datetime "updated_at", null: false
     t.index ["election_id", "number"], name: "index_candidates_on_election_id_and_number", unique: true
     t.index ["election_id"], name: "index_candidates_on_election_id"
+  end
+
+  create_table "election_voter_participations", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "election_voter_id", null: false
+    t.datetime "recorded_at"
+    t.integer "status", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["election_voter_id"], name: "index_election_voter_participations_on_election_voter_id", unique: true
   end
 
   create_table "election_voters", force: :cascade do |t|
@@ -92,7 +112,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_06_010000) do
     t.index ["voter_group_id"], name: "index_voter_slots_on_voter_group_id"
   end
 
+  add_foreign_key "candidate_tallies", "candidates"
+  add_foreign_key "candidate_tallies", "elections"
   add_foreign_key "candidates", "elections"
+  add_foreign_key "election_voter_participations", "election_voters"
   add_foreign_key "election_voters", "elections"
   add_foreign_key "election_voters", "voter_slots", column: "source_voter_slot_id"
   add_foreign_key "elections", "users"

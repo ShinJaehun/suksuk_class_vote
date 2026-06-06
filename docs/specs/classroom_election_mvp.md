@@ -295,6 +295,7 @@ end
 `ElectionVoter`에는 진행 상태를 넣지 않는다.
 완료된 학생 목록은 `ElectionVoterParticipation` 또는 `ElectionVoterReceipt` 같은 별도 진행 기록 모델에서 다룬다.
 이 모델은 투표 완료/미참여/기권 같은 확정 상태만 저장하며, `candidate_id`는 저장하지 않는다.
+현재 구현 모델명은 `ElectionVoterParticipation`이며, 대기 상태는 participation row를 미리 만들지 않고 row 부재로 표현한다.
 득표 집계는 후보별 count-only `CandidateTally`에서 다루며, `CandidateTally`는 `ElectionVoter`와 직접 연결하지 않는다.
 
 현재 구현에서 선거 시작이 성공하면 `Elections::Start` transaction 안에서 `PollingStation`도 함께 생성한다.

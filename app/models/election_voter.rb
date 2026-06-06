@@ -1,6 +1,7 @@
 class ElectionVoter < ApplicationRecord
   belongs_to :election
   belongs_to :source_voter_slot, class_name: "VoterSlot"
+  has_one :election_voter_participation, dependent: :destroy
 
   validates :election, presence: true
   validates :source_voter_slot, presence: true
