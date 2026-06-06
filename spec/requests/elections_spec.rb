@@ -467,7 +467,15 @@ RSpec.describe "Elections", type: :request do
       get election_path(election)
 
       expect(response.body).to include("선거가 종료되었습니다.")
+      expect(response.body).to include("참여 요약")
+      expect(response.body).to include("전체 투표자 수")
+      expect(response.body).to include("투표 완료 수")
+      expect(response.body).to include("미참여 수")
+      expect(response.body).to include("기권 수")
+      expect(response.body).to include("미처리 수")
       expect(response.body).to include("선거 결과")
+      expect(response.body).to include("최다 득표:")
+      expect(response.body).to include("1번 #{candidate.name}")
       expect(response.body).to include("1번")
       expect(response.body).to include(candidate.name)
       expect(response.body).to include("1표")
@@ -475,6 +483,37 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).not_to include(advance_current_voter_election_path(election))
       expect(response.body).not_to include("선택한 후보")
       expect(response.body).not_to include("#{last_voter.name} #{candidate.name}")
+    end
+
+    it "shows multiple top vote candidates when tied" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      last_voter = election.election_voters.order(:number).last
+      election.polling_station.update!(current_election_voter: last_voter)
+      create(:election_voter_participation, election_voter: last_voter)
+      election.candidate_tallies.update_all(votes_count: 1)
+      Elections::Close.new(election: election).call
+      sign_in teacher
+
+      get election_path(election)
+
+      election.candidates.order(:number).each do |candidate|
+        expect(response.body).to include("#{candidate.number}번 #{candidate.name}")
+      end
+    end
+
+    it "shows no top vote candidate when all candidates have zero votes" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      last_voter = election.election_voters.order(:number).last
+      election.polling_station.update!(current_election_voter: last_voter)
+      create(:election_voter_participation, election_voter: last_voter, status: :absent)
+      Elections::Close.new(election: election).call
+      sign_in teacher
+
+      get election_path(election)
+
+      expect(response.body).to include("최다 득표 후보 없음")
     end
   end
 

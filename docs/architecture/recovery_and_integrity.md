@@ -310,6 +310,7 @@ Tally: 변화 없음
 현재 `Elections::Close` service가 마지막 투표자 확정 뒤 `Election`과 `PollingStation`을 closed로 전이한다.
 현재 `Elections::RecordParticipationOutcome` service가 현재 투표자를 미참여 또는 기권으로 확정 처리하며, `CandidateTally`는 변경하지 않는다.
 종료 후 결과 화면은 `CandidateTally`의 count-only 집계를 표시하며, 학생별 후보 선택은 표시하지 않는다.
+closed 결과 화면은 participation 상태 count와 후보별 count-only tally를 분리해서 요약한다.
 
 예상 컬럼:
 
