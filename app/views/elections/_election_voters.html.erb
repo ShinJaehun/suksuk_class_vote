@@ -1,0 +1,20 @@
+<% if election.election_voters.exists? %>
+  <h2>선거용 명단</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>번호</th>
+        <th>이름</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% election.election_voters.order(:number).each do |election_voter| %>
+        <tr>
+          <td><%= election_voter.number %>번</td>
+          <td><%= election_voter.name %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>

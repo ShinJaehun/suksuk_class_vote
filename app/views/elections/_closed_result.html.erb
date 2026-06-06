@@ -1,0 +1,50 @@
+<p>선거가 종료되었습니다.</p>
+
+<h2>참여 요약</h2>
+
+<dl>
+  <dt>전체 투표자 수</dt>
+  <dd><%= result_summary.total_voters %>명</dd>
+
+  <dt>투표 완료 수</dt>
+  <dd><%= result_summary.completed_count %>명</dd>
+
+  <dt>미참여 수</dt>
+  <dd><%= result_summary.absent_count %>명</dd>
+
+  <dt>기권 수</dt>
+  <dd><%= result_summary.abstained_count %>명</dd>
+
+  <dt>미처리 수</dt>
+  <dd><%= result_summary.unprocessed_count %>명</dd>
+</dl>
+
+<% if result_summary.top_candidate_results.any? %>
+  <p>
+    최다 득표:
+    <%= result_summary.top_candidate_results.map { |result| "#{result.candidate.number}번 #{result.candidate.name}" }.join(", ") %>
+  </p>
+<% else %>
+  <p>최다 득표 후보 없음</p>
+<% end %>
+
+<h2>선거 결과</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>기호</th>
+      <th>후보</th>
+      <th>득표수</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% result_summary.candidate_results.each do |result| %>
+      <tr>
+        <td><%= result.candidate.number %>번</td>
+        <td><%= result.candidate.name %></td>
+        <td><%= result.votes_count %>표</td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
