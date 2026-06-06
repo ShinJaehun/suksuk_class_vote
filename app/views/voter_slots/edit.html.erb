@@ -1,23 +1,31 @@
-<h1>학생 이름 수정</h1>
+<div class="space-y-6">
+  <div class="space-y-2">
+    <p><%= link_to "투표자 그룹으로 돌아가기", voter_group_path(@voter_group), class: "text-sm font-medium text-stone-600 underline" %></p>
 
-<p><%= link_to "투표자 그룹으로 돌아가기", voter_group_path(@voter_group) %></p>
-
-<% if @voter_slot.errors.any? %>
-  <h2>학생 정보를 수정할 수 없습니다.</h2>
-  <ul>
-    <% @voter_slot.errors.full_messages.each do |message| %>
-      <li><%= message %></li>
-    <% end %>
-  </ul>
-<% end %>
-
-<p><%= @voter_slot.number %>번 학생입니다.</p>
-
-<%= form_with model: [@voter_group, @voter_slot] do |form| %>
-  <div>
-    <%= form.label :name, "이름" %>
-    <%= form.text_field :name %>
+    <h1 class="text-2xl font-semibold">학생 이름 수정</h1>
   </div>
 
-  <%= form.submit "저장" %>
-<% end %>
+  <% if @voter_slot.errors.any? %>
+    <div class="rounded-md border border-red-200 bg-red-50 p-4 text-red-800">
+      <h2 class="font-medium">학생 정보를 수정할 수 없습니다.</h2>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
+        <% @voter_slot.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
+    <p class="text-sm text-stone-600"><%= @voter_slot.number %>번 학생입니다.</p>
+
+    <%= form_with model: [@voter_group, @voter_slot], class: "space-y-4" do |form| %>
+      <div class="space-y-1">
+        <%= form.label :name, "이름", class: "text-sm font-medium text-stone-700" %>
+        <%= form.text_field :name, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+      </div>
+
+      <%= form.submit "저장", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+    <% end %>
+  </div>
+</div>
