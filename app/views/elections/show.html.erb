@@ -1,18 +1,28 @@
-<h1><%= @election.title %></h1>
+<div class="space-y-6">
+  <div class="space-y-2">
+    <p><%= link_to "선거 목록으로 돌아가기", elections_path, class: "text-sm font-medium text-stone-600 underline" %></p>
 
-<p><%= link_to "선거 목록으로 돌아가기", elections_path %></p>
+    <h1 class="text-3xl font-semibold"><%= @election.title %></h1>
+  </div>
 
-<dl>
-  <dt>상태</dt>
-  <dd><%= @election.status %></dd>
+  <dl class="grid gap-4 rounded-md border border-stone-200 bg-white p-4 sm:grid-cols-3">
+    <div class="space-y-1">
+      <dt class="text-sm font-medium text-stone-500">상태</dt>
+      <dd class="font-medium"><%= @election.status %></dd>
+    </div>
 
-  <dt>투표자 그룹</dt>
-  <dd><%= @election.voter_group.name %></dd>
+    <div class="space-y-1">
+      <dt class="text-sm font-medium text-stone-500">투표자 그룹</dt>
+      <dd class="font-medium"><%= @election.voter_group.name %></dd>
+    </div>
 
-  <dt>학생 수</dt>
-  <dd><%= @election.voter_group.voter_slots.count %>명</dd>
-</dl>
+    <div class="space-y-1">
+      <dt class="text-sm font-medium text-stone-500">학생 수</dt>
+      <dd class="font-medium"><%= @election.voter_group.voter_slots.count %>명</dd>
+    </div>
+  </dl>
 
-<%= render "candidates", election: @election %>
-<%= render "progress", election: @election, result_summary: @result_summary %>
-<%= render "election_voters", election: @election %>
+  <%= render "candidates", election: @election %>
+  <%= render "progress", election: @election, result_summary: @result_summary %>
+  <%= render "election_voters", election: @election %>
+</div>

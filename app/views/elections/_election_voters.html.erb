@@ -1,20 +1,24 @@
 <% if election.election_voters.exists? %>
-  <h2>선거용 명단</h2>
+  <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
+    <h2 class="text-xl font-semibold">선거용 명단</h2>
 
-  <table>
-    <thead>
-      <tr>
-        <th>번호</th>
-        <th>이름</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% election.election_voters.order(:number).each do |election_voter| %>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-left text-sm">
+        <thead class="border-b border-stone-200 text-stone-500">
         <tr>
-          <td><%= election_voter.number %>번</td>
-          <td><%= election_voter.name %></td>
+          <th class="px-3 py-2 font-medium">번호</th>
+          <th class="px-3 py-2 font-medium">이름</th>
         </tr>
-      <% end %>
-    </tbody>
-  </table>
+        </thead>
+        <tbody class="divide-y divide-stone-100">
+          <% election.election_voters.order(:number).each do |election_voter| %>
+            <tr>
+              <td class="px-3 py-3"><%= election_voter.number %>번</td>
+              <td class="px-3 py-3 font-medium"><%= election_voter.name %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </section>
 <% end %>
