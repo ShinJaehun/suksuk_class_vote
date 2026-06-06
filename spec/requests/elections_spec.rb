@@ -227,6 +227,7 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include("in_progress")
       expect(response.body).to include("선거가 진행 중입니다.")
       expect(response.body).to include("현재 투표자: 1번 김민준")
+      expect(response.body).to include(submit_vote_election_path(election))
       expect(response.body).to include("선거용 명단")
       expect(response.body).to include("김민준")
       expect(response.body).to include("이서연")
@@ -257,6 +258,119 @@ RSpec.describe "Elections", type: :request do
     end
   end
 
+  describe "POST /elections/:id/submit_vote" do
+    it "submits a vote for the current election voter" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      candidate = election.candidates.order(:number).first
+      current_election_voter = election.polling_station.current_election_voter
+      sign_in teacher
+
+      expect do
+        post submit_vote_election_path(election), params: { candidate_id: candidate.id }
+      end.to change(ElectionVoterParticipation, :count).by(1)
+
+      expect(response).to redirect_to(election_path(election))
+      expect(flash[:notice]).to eq("투표가 제출되었습니다.")
+      expect(election.candidate_tallies.find_by(candidate: candidate).reload.votes_count).to eq(1)
+      expect(current_election_voter.reload.election_voter_participation).to be_completed
+      expect(election.polling_station.reload.current_election_voter).to eq(current_election_voter)
+    end
+
+    it "does not submit twice for the same current election voter" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      candidate = election.candidates.order(:number).first
+      create(:election_voter_participation, election_voter: election.polling_station.current_election_voter)
+      sign_in teacher
+
+      expect do
+        post submit_vote_election_path(election), params: { candidate_id: candidate.id }
+      end.not_to change { election.candidate_tallies.find_by(candidate: candidate).reload.votes_count }
+
+      expect(response).to redirect_to(election_path(election))
+      expect(flash[:alert]).to include("이미 투표 완료")
+    end
+
+    it "does not allow a candidate from another election" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      candidate = create(:candidate)
+      sign_in teacher
+
+      post submit_vote_election_path(election), params: { candidate_id: candidate.id }
+
+      expect(response).to redirect_to(election_path(election))
+      expect(flash[:alert]).to include("이 선거의 후보자")
+      expect(election.polling_station.current_election_voter.election_voter_participation).to be_nil
+    end
+
+    it "fails for a draft election" do
+      teacher = create(:user)
+      election = create_startable_election(user: teacher)
+      candidate = election.candidates.order(:number).first
+      sign_in teacher
+
+      post submit_vote_election_path(election), params: { candidate_id: candidate.id }
+
+      expect(response).to redirect_to(election_path(election))
+      expect(flash[:alert]).to include("진행 중인 선거")
+    end
+
+    it "does not show vote submit buttons or private vote details after completion" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      candidate = election.candidates.order(:number).first
+      create(:election_voter_participation, election_voter: election.polling_station.current_election_voter)
+      sign_in teacher
+
+      get election_path(election)
+
+      expect(response.body).to include("현재 투표자는 투표를 완료했습니다.")
+      expect(response.body).to include(advance_current_voter_election_path(election))
+      expect(response.body).not_to include(submit_vote_election_path(election))
+      expect(response.body).not_to include("votes_count")
+      expect(response.body).not_to include("득표")
+      expect(response.body).not_to include("선택한 후보")
+      expect(response.body).not_to include("#{candidate.name}에게 투표")
+    end
+  end
+
+  describe "POST /elections/:id/advance_current_voter" do
+    it "moves to the next election voter after the current voter is completed" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      first_voter = election.polling_station.current_election_voter
+      next_voter = election.election_voters.where("number > ?", first_voter.number).order(:number).first
+      create(:election_voter_participation, election_voter: first_voter)
+      sign_in teacher
+
+      post advance_current_voter_election_path(election)
+
+      expect(response).to redirect_to(election_path(election))
+      expect(flash[:notice]).to eq("다음 학생으로 이동했습니다.")
+      expect(election.polling_station.reload.current_election_voter).to eq(next_voter)
+
+      get election_path(election)
+
+      expect(response.body).to include("현재 투표자: 2번 이서연")
+      expect(response.body).to include(submit_vote_election_path(election))
+    end
+
+    it "fails when the current voter is not completed" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      current_voter = election.polling_station.current_election_voter
+      sign_in teacher
+
+      post advance_current_voter_election_path(election)
+
+      expect(response).to redirect_to(election_path(election))
+      expect(flash[:alert]).to include("확정 상태")
+      expect(election.polling_station.reload.current_election_voter).to eq(current_voter)
+    end
+  end
+
   def create_startable_election(user: create(:user))
     voter_group = create(:voter_group, user: user)
     create(:voter_slot, voter_group: voter_group, number: 1, name: "김민준")
@@ -265,5 +379,11 @@ RSpec.describe "Elections", type: :request do
     create(:candidate, election: election, number: 1)
     create(:candidate, election: election, number: 2)
     election
+  end
+
+  def create_started_election(user: create(:user))
+    election = create_startable_election(user: user)
+    Elections::Start.new(election).call
+    election.reload
   end
 end

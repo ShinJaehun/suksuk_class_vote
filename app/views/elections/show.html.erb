@@ -62,6 +62,18 @@
     <% current_voter = @election.polling_station.current_election_voter %>
     <% if current_voter.present? %>
       <p>현재 투표자: <%= current_voter.number %>번 <%= current_voter.name %></p>
+      <% if current_voter.election_voter_participation.present? %>
+        <p>현재 투표자는 투표를 완료했습니다.</p>
+        <%= button_to "다음 학생으로", advance_current_voter_election_path(@election), method: :post %>
+      <% else %>
+        <h3>후보 선택</h3>
+        <% @election.candidates.order(:number).each do |candidate| %>
+          <%= button_to "#{candidate.number}번 #{candidate.name}",
+                        submit_vote_election_path(@election),
+                        method: :post,
+                        params: { candidate_id: candidate.id } %>
+        <% end %>
+      <% end %>
     <% else %>
       <p>현재 투표자를 찾을 수 없습니다.</p>
     <% end %>

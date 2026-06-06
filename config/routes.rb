@@ -3,6 +3,8 @@ Rails.application.routes.draw do
   resource :dashboard, only: :show
   resources :elections, only: %i[index show new create] do
     post :start, on: :member
+    post :submit_vote, on: :member
+    post :advance_current_voter, on: :member
     resources :candidates, only: %i[new create edit update destroy]
   end
   resources :voter_groups, only: %i[index show new create edit update destroy] do

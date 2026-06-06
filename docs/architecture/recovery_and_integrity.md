@@ -305,7 +305,9 @@ Tally: 변화 없음
 학생 정보나 개별 투표자의 선택 결과를 저장하지 않는다.
 현재 구현에서는 `Elections::Start` 성공 시 후보자별 `CandidateTally`가 0표로 생성된다.
 현재 `Elections::SubmitVote` service가 `CandidateTally` 증가와 `ElectionVoterParticipation` 생성을 하나의 transaction으로 처리한다.
-투표 제출 UI와 다음 학생 진행은 아직 구현하지 않았다.
+현재 선거 상세 화면에서 현재 투표자의 후보 선택 제출을 연결한다.
+현재 `Elections::AdvanceCurrentVoter` service가 확정 상태인 현재 투표자에서 다음 `ElectionVoter`로 이동한다.
+결과 화면과 선거 종료는 아직 구현하지 않았다.
 
 예상 컬럼:
 

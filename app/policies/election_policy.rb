@@ -19,6 +19,14 @@ class ElectionPolicy < ApplicationPolicy
     admin? || owner?
   end
 
+  def submit_vote?
+    admin? || owner?
+  end
+
+  def advance_current_voter?
+    admin? || owner?
+  end
+
   def destroy?
     admin? || owner?
   end

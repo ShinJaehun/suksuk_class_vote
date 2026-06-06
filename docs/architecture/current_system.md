@@ -96,6 +96,8 @@
 - `ElectionVoterParticipation`과 `CandidateTally` 최소 모델 추가
 - 선거 시작 성공 시 후보자별 `CandidateTally`를 0표로 생성
 - `Elections::SubmitVote` service 추가
+- 선거 상세 화면에서 현재 투표자의 후보 선택 제출 연결
+- 확정 상태인 현재 투표자에서 다음 `ElectionVoter`로 이동하는 기능 추가
 - 문서 기반 설계 정리 중
 
 ---
