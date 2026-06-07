@@ -55,6 +55,19 @@ RSpec.describe "Voter slots", type: :request do
 
       expect(response.body).to include("3번 학생을 추가합니다.")
     end
+
+    it "does not allow access while the group is used by an in-progress election" do
+      teacher = create(:user)
+      voter_group = create(:voter_group, user: teacher)
+      create(:voter_slot, voter_group: voter_group)
+      create(:election, user: teacher, voter_group: voter_group, status: :in_progress)
+      sign_in teacher
+
+      get new_voter_group_voter_slot_path(voter_group)
+
+      expect(response).to redirect_to(voter_group_path(voter_group))
+      expect(flash[:alert]).to eq("진행 중인 선거에서 사용 중인 그룹은 수정할 수 없습니다.")
+    end
   end
 
   describe "POST /voter_groups/:voter_group_id/voter_slots" do
@@ -94,6 +107,34 @@ RSpec.describe "Voter slots", type: :request do
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.body).to include("학생을 추가할 수 없습니다.")
+    end
+
+    it "does not create while the group is used by an in-progress election" do
+      teacher = create(:user)
+      voter_group = create(:voter_group, user: teacher)
+      create(:voter_slot, voter_group: voter_group)
+      create(:election, user: teacher, voter_group: voter_group, status: :in_progress)
+      sign_in teacher
+
+      expect do
+        post voter_group_voter_slots_path(voter_group), params: { voter_slot: { name: "새 학생" } }
+      end.not_to change(VoterSlot, :count)
+
+      expect(response).to redirect_to(voter_group_path(voter_group))
+    end
+
+    it "allows create when only closed elections use the group" do
+      teacher = create(:user)
+      voter_group = create(:voter_group, user: teacher)
+      create(:election, user: teacher, voter_group: voter_group, status: :closed)
+      sign_in teacher
+
+      expect do
+        post voter_group_voter_slots_path(voter_group), params: { voter_slot: { name: "새 학생" } }
+      end.to change(VoterSlot, :count).by(1)
+
+      expect(response).to redirect_to(voter_group_path(voter_group))
+      expect(voter_group.voter_slots.order(:number).last.name).to eq("새 학생")
     end
   end
 
@@ -139,6 +180,19 @@ RSpec.describe "Voter slots", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("학생 이름 수정")
     end
+
+    it "does not allow access while the group is used by an in-progress election" do
+      teacher = create(:user)
+      voter_group = create(:voter_group, user: teacher)
+      voter_slot = create(:voter_slot, voter_group: voter_group)
+      create(:election, user: teacher, voter_group: voter_group, status: :in_progress)
+      sign_in teacher
+
+      get edit_voter_group_voter_slot_path(voter_group, voter_slot)
+
+      expect(response).to redirect_to(voter_group_path(voter_group))
+      expect(flash[:alert]).to eq("진행 중인 선거에서 사용 중인 그룹은 수정할 수 없습니다.")
+    end
   end
 
   describe "PATCH /voter_groups/:voter_group_id/voter_slots/:id" do
@@ -176,6 +230,32 @@ RSpec.describe "Voter slots", type: :request do
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.body).to include("학생 정보를 수정할 수 없습니다.")
       expect(voter_slot.reload.name).to eq("수정 전")
+    end
+
+    it "does not update while the group is used by an in-progress election" do
+      teacher = create(:user)
+      voter_group = create(:voter_group, user: teacher)
+      voter_slot = create(:voter_slot, voter_group: voter_group, name: "수정 전")
+      create(:election, user: teacher, voter_group: voter_group, status: :in_progress)
+      sign_in teacher
+
+      patch voter_group_voter_slot_path(voter_group, voter_slot), params: { voter_slot: { name: "수정 후" } }
+
+      expect(response).to redirect_to(voter_group_path(voter_group))
+      expect(voter_slot.reload.name).to eq("수정 전")
+    end
+
+    it "allows update when only closed elections use the group" do
+      teacher = create(:user)
+      voter_group = create(:voter_group, user: teacher)
+      voter_slot = create(:voter_slot, voter_group: voter_group, name: "수정 전")
+      create(:election, user: teacher, voter_group: voter_group, status: :closed)
+      sign_in teacher
+
+      patch voter_group_voter_slot_path(voter_group, voter_slot), params: { voter_slot: { name: "수정 후" } }
+
+      expect(response).to redirect_to(voter_group_path(voter_group))
+      expect(voter_slot.reload.name).to eq("수정 후")
     end
   end
 
@@ -224,6 +304,37 @@ RSpec.describe "Voter slots", type: :request do
       delete voter_group_voter_slot_path(voter_group, deleted_slot)
 
       expect(voter_group.voter_slots.order(:number).pluck(:number)).to eq([1, 3])
+    end
+
+    it "does not delete while the group is used by an in-progress election" do
+      teacher = create(:user)
+      voter_group = create(:voter_group, user: teacher)
+      voter_slot = create(:voter_slot, voter_group: voter_group)
+      create(:election, user: teacher, voter_group: voter_group, status: :in_progress)
+      sign_in teacher
+
+      expect do
+        delete voter_group_voter_slot_path(voter_group, voter_slot)
+      end.not_to change(VoterSlot, :count)
+
+      expect(response).to redirect_to(voter_group_path(voter_group))
+    end
+
+    it "allows delete when only closed elections use the group and keeps election voter snapshot" do
+      teacher = create(:user)
+      voter_group = create(:voter_group, user: teacher)
+      voter_slot = create(:voter_slot, voter_group: voter_group, number: 7, name: "선거 당시 이름")
+      election = create(:election, user: teacher, voter_group: voter_group, status: :closed, voter_group_name_snapshot: voter_group.name)
+      election_voter = create(:election_voter, election: election, source_voter_slot: voter_slot, number: 7, name: "선거 당시 이름")
+      sign_in teacher
+
+      expect do
+        delete voter_group_voter_slot_path(voter_group, voter_slot)
+      end.to change(VoterSlot, :count).by(-1)
+
+      expect(response).to redirect_to(voter_group_path(voter_group))
+      expect(election_voter.reload.source_voter_slot).to be_nil
+      expect(election_voter).to have_attributes(number: 7, name: "선거 당시 이름")
     end
   end
 end

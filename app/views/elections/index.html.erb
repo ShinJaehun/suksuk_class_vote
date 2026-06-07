@@ -15,8 +15,8 @@
             <h2 class="font-medium"><%= election.title %></h2>
             <p class="text-sm text-stone-600">
               <%= election.status %>
-              · <%= election.voter_group.name %>
-              · 학생 <%= election.voter_group.voter_slots.size %>명
+              · <%= election.voter_group_display_name || "-" %>
+              · 학생 <%= election.election_voters.exists? ? election.election_voters.count : election.readiness_voter_count %>명
             </p>
           </div>
 

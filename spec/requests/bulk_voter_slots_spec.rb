@@ -93,6 +93,19 @@ RSpec.describe "Bulk voter slots", type: :request do
       expect(response.body).to include("학생 명단을 저장할 수 없습니다.")
       expect(response.body).to include("40명 이하")
     end
+
+    it "does not allow access while the group is used by an in-progress election" do
+      teacher = create(:user)
+      voter_group = create(:voter_group, user: teacher)
+      create(:voter_slot, voter_group: voter_group)
+      create(:election, user: teacher, voter_group: voter_group, status: :in_progress)
+      sign_in teacher
+
+      get new_voter_group_bulk_voter_slots_path(voter_group)
+
+      expect(response).to redirect_to(voter_group_path(voter_group))
+      expect(flash[:alert]).to eq("진행 중인 선거에서 사용 중인 그룹은 수정할 수 없습니다.")
+    end
   end
 
   describe "POST /voter_groups/:voter_group_id/bulk_voter_slots" do
@@ -132,6 +145,37 @@ RSpec.describe "Bulk voter slots", type: :request do
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.body).to include("학생 이름을 모두 입력해 주세요.")
       expect(response.body).to include("김민준")
+    end
+
+    it "does not create while the group is used by an in-progress election" do
+      teacher = create(:user)
+      voter_group = create(:voter_group, user: teacher)
+      create(:voter_slot, voter_group: voter_group)
+      create(:election, user: teacher, voter_group: voter_group, status: :in_progress)
+      sign_in teacher
+
+      expect do
+        post voter_group_bulk_voter_slots_path(voter_group), params: {
+          bulk_voter_slots: { names: ["김민준", "이서연"] }
+        }
+      end.not_to change(VoterSlot, :count)
+
+      expect(response).to redirect_to(voter_group_path(voter_group))
+    end
+
+    it "creates when only closed elections use the group" do
+      teacher = create(:user)
+      voter_group = create(:voter_group, user: teacher)
+      create(:election, user: teacher, voter_group: voter_group, status: :closed)
+      sign_in teacher
+
+      expect do
+        post voter_group_bulk_voter_slots_path(voter_group), params: {
+          bulk_voter_slots: { names: ["김민준", "이서연"] }
+        }
+      end.to change(VoterSlot, :count).by(2)
+
+      expect(response).to redirect_to(voter_group_path(voter_group))
     end
   end
 end

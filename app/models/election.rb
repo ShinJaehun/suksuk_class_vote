@@ -1,6 +1,6 @@
 class Election < ApplicationRecord
   belongs_to :user
-  belongs_to :voter_group
+  belongs_to :voter_group, optional: true
   has_many :candidates, dependent: :destroy
   has_many :election_voters, dependent: :destroy
   has_many :candidate_tallies, dependent: :destroy
@@ -11,8 +11,8 @@ class Election < ApplicationRecord
 
   validates :title, presence: true
   validates :user, presence: true
-  validates :voter_group, presence: true
-  validate :voter_group_has_voter_slots
+  validates :voter_group, presence: true, unless: :closed?
+  validate :voter_group_has_voter_slots, unless: :closed?
 
   def readiness_candidate_count
     candidates.count
@@ -24,6 +24,10 @@ class Election < ApplicationRecord
 
   def startable_by_configuration?
     draft? && readiness_candidate_count >= 2 && readiness_voter_count.positive?
+  end
+
+  def voter_group_display_name
+    voter_group_name_snapshot.presence || voter_group&.name
   end
 
   private

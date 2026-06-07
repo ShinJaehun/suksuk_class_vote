@@ -26,6 +26,10 @@
 선거가 시작된 뒤의 복구 기준은 원본 `VoterGroup`이 아니다.
 복구는 선거 시작 시점에 고정된 `ElectionVoter` snapshot과 후속 투표 진행 상태 모델을 기준으로 한다.
 원본 `VoterGroup`이나 `VoterSlot`이 변경되어도 이미 시작된 선거의 투표 순서와 투표 대상은 바뀌면 안 된다.
+진행 중인 선거가 참조 중인 원본 `VoterGroup`과 학생 명단은 편집/추가/삭제하지 못하게 막는다.
+draft 선거가 참조 중인 원본 `VoterGroup`도 삭제하지 못하게 막는다.
+선거 종료 뒤에는 `ElectionVoter` snapshot과 선거 시작 당시 그룹명 snapshot이 선거 자료 보존 기준이므로 원본 그룹/명단 편집/추가/삭제를 다시 허용한다.
+closed 선거는 `voter_group` 또는 `source_voter_slot` 참조가 비어도 `ElectionVoter.number/name` 기준으로 선거용 명단을 유지한다.
 
 ---
 
@@ -91,7 +95,7 @@ DB index:
 복구와 진행은 `ElectionVoter` snapshot을 기준으로 한다.
 
 현재 구현에서는 `Elections::Start` transaction 안에서 `ElectionVoter` snapshot 생성,
-후보별 `CandidateTally` 0표 생성, `Election`의 `in_progress` 전이, `PollingStation` 생성을 함께 처리한다.
+후보별 `CandidateTally` 0표 생성, 선거 시작 당시 그룹명 snapshot 저장, `Election`의 `in_progress` 전이, `PollingStation` 생성을 함께 처리한다.
 선거 시작 성공 시 `PollingStation.current_election_voter_id`는 첫 번째 `ElectionVoter`를 가리킨다.
 현재 구현에서는 투표 제출, 미참여/기권 처리, 다음 학생 진행, 선거 종료, 후보별 count-only 결과 표시까지 이 구조를 기준으로 진행한다.
 

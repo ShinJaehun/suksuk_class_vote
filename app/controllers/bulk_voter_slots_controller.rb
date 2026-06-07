@@ -6,11 +6,15 @@ class BulkVoterSlotsController < ApplicationController
 
   def new
     authorize @voter_group, :show?
+    return if redirect_if_locked_for_election_progress
+
     prepare_form
   end
 
   def create
     authorize @voter_group, :show?
+    return if redirect_if_locked_for_election_progress
+
     @names = submitted_names
     @count = @names.size if @names.present?
 
@@ -71,5 +75,12 @@ class BulkVoterSlotsController < ApplicationController
         @voter_group.voter_slots.create!(number: next_number + index, name: name)
       end
     end
+  end
+
+  def redirect_if_locked_for_election_progress
+    return false unless @voter_group.locked_for_election_progress?
+
+    redirect_to @voter_group, alert: "진행 중인 선거에서 사용 중인 그룹은 수정할 수 없습니다."
+    true
   end
 end

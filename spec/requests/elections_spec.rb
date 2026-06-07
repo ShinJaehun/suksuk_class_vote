@@ -246,6 +246,7 @@ RSpec.describe "Elections", type: :request do
       expect(response).to redirect_to(election_path(election))
       expect(flash[:notice]).to eq("선거를 시작했습니다.")
       expect(election.reload).to be_in_progress
+      expect(election.voter_group_name_snapshot).to eq(election.voter_group.name)
       expect(election.polling_station.current_election_voter).to eq(election.election_voters.order(:number).first)
     end
 
@@ -657,6 +658,48 @@ RSpec.describe "Elections", type: :request do
       get election_path(election)
 
       expect(response.body).to include("최다 득표 후보 없음")
+    end
+
+    it "keeps the election voter snapshot after the source voter group changes" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      first_election_voter = election.election_voters.order(:number).first
+      source_voter_slot = first_election_voter.source_voter_slot
+      last_voter = election.election_voters.order(:number).last
+      election.polling_station.update!(current_election_voter: last_voter)
+      create(:election_voter_participation, election_voter: last_voter, status: :absent)
+      Elections::Close.new(election: election).call
+      sign_in teacher
+
+      patch voter_group_voter_slot_path(election.voter_group, source_voter_slot), params: {
+        voter_slot: { name: "원본 수정" }
+      }
+
+      expect(response).to redirect_to(voter_group_path(election.voter_group))
+      expect(source_voter_slot.reload.name).to eq("원본 수정")
+      expect(first_election_voter.reload.name).not_to eq("원본 수정")
+    end
+
+    it "shows a closed election after the source voter group is deleted" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      voter_group = election.voter_group
+      group_name = election.voter_group_name_snapshot
+      last_voter = election.election_voters.order(:number).last
+      election.polling_station.update!(current_election_voter: last_voter)
+      create(:election_voter_participation, election_voter: last_voter, status: :absent)
+      Elections::Close.new(election: election).call
+      voter_group.destroy!
+      sign_in teacher
+
+      get election_path(election)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include(group_name)
+      expect(response.body).to include("김민준")
+      expect(response.body).to include("이서연")
+      expect(election.reload.voter_group).to be_nil
+      expect(election.election_voters.order(:number).pluck(:name)).to eq(["김민준", "이서연"])
     end
 
     it "does not show candidate management links after the election closes" do

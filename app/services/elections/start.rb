@@ -22,7 +22,10 @@ module Elections
         create_snapshot
         create_candidate_tallies
         first_election_voter = election.election_voters.order(:number).first
-        election.update!(status: :in_progress)
+        election.update!(
+          status: :in_progress,
+          voter_group_name_snapshot: election.voter_group.name
+        )
         election.create_polling_station!(
           current_election_voter: first_election_voter,
           status: :active,
@@ -84,7 +87,7 @@ module Elections
     end
 
     def voter_slots
-      @voter_slots ||= election.voter_group.voter_slots.order(:number)
+      @voter_slots ||= election.voter_group&.voter_slots&.order(:number) || VoterSlot.none
     end
 
     def record_event(event_type, election_voter: nil, details: {})

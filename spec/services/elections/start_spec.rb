@@ -10,6 +10,7 @@ RSpec.describe Elections::Start do
 
       expect(result).to be_success
       expect(election.reload).to be_in_progress
+      expect(election.voter_group_name_snapshot).to eq(election.voter_group.name)
       expect(election.election_voters.count).to eq(2)
       expect(election.election_voters.order(:number).first).to have_attributes(
         source_voter_slot: first_slot,

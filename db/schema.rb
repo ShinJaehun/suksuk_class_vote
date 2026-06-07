@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_07_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_07_030000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -65,7 +65,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_07_010000) do
     t.bigint "election_id", null: false
     t.string "name", null: false
     t.integer "number", null: false
-    t.bigint "source_voter_slot_id", null: false
+    t.bigint "source_voter_slot_id"
     t.datetime "updated_at", null: false
     t.index ["election_id", "number"], name: "index_election_voters_on_election_id_and_number", unique: true
     t.index ["election_id", "source_voter_slot_id"], name: "index_election_voters_on_election_id_and_source_voter_slot_id", unique: true
@@ -79,7 +79,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_07_010000) do
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
-    t.bigint "voter_group_id", null: false
+    t.bigint "voter_group_id"
+    t.string "voter_group_name_snapshot"
     t.index ["user_id"], name: "index_elections_on_user_id"
     t.index ["voter_group_id"], name: "index_elections_on_voter_group_id"
   end
@@ -136,9 +137,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_07_010000) do
   add_foreign_key "election_events", "users", column: "actor_id"
   add_foreign_key "election_voter_participations", "election_voters"
   add_foreign_key "election_voters", "elections"
-  add_foreign_key "election_voters", "voter_slots", column: "source_voter_slot_id"
+  add_foreign_key "election_voters", "voter_slots", column: "source_voter_slot_id", on_delete: :nullify
   add_foreign_key "elections", "users"
-  add_foreign_key "elections", "voter_groups"
+  add_foreign_key "elections", "voter_groups", on_delete: :nullify
   add_foreign_key "polling_stations", "election_voters", column: "current_election_voter_id"
   add_foreign_key "polling_stations", "elections"
   add_foreign_key "voter_groups", "users"

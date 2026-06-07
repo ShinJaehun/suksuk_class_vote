@@ -32,6 +32,12 @@ RSpec.describe Election, type: :model do
       expect(election.errors[:voter_group]).to be_present
     end
 
+    it "allows a closed election without a voter group" do
+      election = build(:election, status: :closed, voter_group: nil)
+
+      expect(election).to be_valid
+    end
+
     it "does not allow an empty voter group" do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)

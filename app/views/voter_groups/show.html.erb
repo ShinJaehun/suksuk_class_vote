@@ -5,15 +5,19 @@
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <h1 class="text-2xl font-semibold"><%= @voter_group.name %></h1>
 
-      <div class="flex flex-wrap items-center gap-2">
-        <%= link_to "투표자 그룹 수정",
-                    edit_voter_group_path(@voter_group),
-                    class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
-        <%= button_to "투표자 그룹 삭제",
-                      voter_group_path(@voter_group),
-                      method: :delete,
+      <% if @voter_group.locked_for_election_progress? %>
+        <p class="text-sm text-stone-600">진행 중인 선거에서 사용 중입니다.</p>
+      <% else %>
+        <div class="flex flex-wrap items-center gap-2">
+          <%= link_to "투표자 그룹 수정",
+                      edit_voter_group_path(@voter_group),
                       class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
-      </div>
+          <%= button_to "투표자 그룹 삭제",
+                        voter_group_path(@voter_group),
+                        method: :delete,
+                        class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
+        </div>
+      <% end %>
     </div>
   </div>
 
@@ -21,14 +25,16 @@
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <h2 class="text-xl font-semibold">학생 명단</h2>
 
-      <div class="flex flex-wrap items-center gap-2">
-        <%= link_to "학생 1명 추가",
-                    new_voter_group_voter_slot_path(@voter_group),
-                    class: "rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white" %>
-        <%= link_to "여러 명 추가",
-                    new_voter_group_bulk_voter_slots_path(@voter_group),
-                    class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
-      </div>
+      <% unless @voter_group.locked_for_election_progress? %>
+        <div class="flex flex-wrap items-center gap-2">
+          <%= link_to "학생 1명 추가",
+                      new_voter_group_voter_slot_path(@voter_group),
+                      class: "rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white" %>
+          <%= link_to "여러 명 추가",
+                      new_voter_group_bulk_voter_slots_path(@voter_group),
+                      class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
+        </div>
+      <% end %>
     </div>
 
     <% if @voter_group.voter_slots.any? %>
@@ -45,18 +51,20 @@
             <% @voter_group.voter_slots.order(:number).each do |voter_slot| %>
               <tr>
                 <td class="px-3 py-3"><%= voter_slot.number %>번</td>
-                <td class="px-3 py-3 font-medium"><%= voter_slot.name %></td>
-                <td class="px-3 py-3">
-                  <div class="flex flex-wrap items-center gap-2">
-                    <%= link_to "수정",
-                                edit_voter_group_voter_slot_path(@voter_group, voter_slot),
-                                class: "text-sm font-medium text-stone-700 underline" %>
-                    <%= button_to "삭제",
-                                  voter_group_voter_slot_path(@voter_group, voter_slot),
-                                  method: :delete,
+              <td class="px-3 py-3 font-medium"><%= voter_slot.name %></td>
+              <td class="px-3 py-3">
+                  <% unless @voter_group.locked_for_election_progress? %>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <%= link_to "수정",
+                                  edit_voter_group_voter_slot_path(@voter_group, voter_slot),
                                   class: "text-sm font-medium text-stone-700 underline" %>
-                  </div>
-                </td>
+                      <%= button_to "삭제",
+                                    voter_group_voter_slot_path(@voter_group, voter_slot),
+                                    method: :delete,
+                                    class: "text-sm font-medium text-stone-700 underline" %>
+                    </div>
+                  <% end %>
+              </td>
               </tr>
             <% end %>
           </tbody>

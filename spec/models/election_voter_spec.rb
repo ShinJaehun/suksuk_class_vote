@@ -17,12 +17,11 @@ RSpec.describe ElectionVoter, type: :model do
       expect(election_voter.errors[:election]).to be_present
     end
 
-    it "requires a source voter slot" do
+    it "allows a missing source voter slot" do
       election = create(:election)
       election_voter = build(:election_voter, election: election, source_voter_slot: nil, number: 1, name: "김민준")
 
-      expect(election_voter).not_to be_valid
-      expect(election_voter.errors[:source_voter_slot]).to be_present
+      expect(election_voter).to be_valid
     end
 
     it "requires a number" do
@@ -73,6 +72,14 @@ RSpec.describe ElectionVoter, type: :model do
 
       expect(duplicate).not_to be_valid
       expect(duplicate.errors[:source_voter_slot_id]).to be_present
+    end
+
+    it "allows multiple missing source voter slots in the same election" do
+      election = create(:election)
+      create(:election_voter, election: election, source_voter_slot: nil, number: 1)
+      election_voter = build(:election_voter, election: election, source_voter_slot: nil, number: 2)
+
+      expect(election_voter).to be_valid
     end
   end
 end
