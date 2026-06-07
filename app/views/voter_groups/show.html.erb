@@ -51,8 +51,8 @@
             <% @voter_group.voter_slots.order(:number).each do |voter_slot| %>
               <tr>
                 <td class="px-3 py-3"><%= voter_slot.number %>번</td>
-              <td class="px-3 py-3 font-medium"><%= voter_slot.name %></td>
-              <td class="px-3 py-3">
+                <td class="px-3 py-3 font-medium"><%= voter_slot.name %></td>
+                <td class="px-3 py-3">
                   <% unless @voter_group.locked_for_election_progress? %>
                     <div class="flex flex-wrap items-center gap-2">
                       <%= link_to "수정",
@@ -64,7 +64,7 @@
                                     class: "text-sm font-medium text-stone-700 underline" %>
                     </div>
                   <% end %>
-              </td>
+                </td>
               </tr>
             <% end %>
           </tbody>
