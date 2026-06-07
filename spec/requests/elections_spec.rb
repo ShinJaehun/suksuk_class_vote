@@ -151,6 +151,44 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include("김민준")
       expect(response.body).to include("선거 시작")
     end
+
+    it "shows recent event log with displayable events only" do
+      teacher = create(:user, name: "담임교사")
+      election = create_started_election(user: teacher)
+      candidate = election.candidates.order(:number).first
+      voters = election.election_voters.order(:number)
+      create(:election_event, election: election, actor: teacher, event_type: "election_started", details: { voter_count: 2, candidate_count: 2 })
+      create(:election_event, election: election, actor: teacher, event_type: "election_closed")
+      create(:election_event, election: election, actor: teacher, election_voter: voters[0], event_type: "vote_completed")
+      create(:election_event, election: election, actor: teacher, election_voter: voters[0], event_type: "voter_marked_absent")
+      create(:election_event, election: election, actor: teacher, election_voter: voters[1], event_type: "voter_marked_abstained")
+      create(:election_event, election: election, actor: teacher, election_voter: voters[1], event_type: "current_voter_advanced", details: { from_election_voter_id: voters[0].id, to_election_voter_id: voters[1].id })
+      sign_in teacher
+
+      get election_path(election)
+
+      event_log = response.body.match(%r{<section[^>]*data-testid="election-event-log"[^>]*>.*?</section>}m).to_s
+      expect(event_log).to include("운영 기록")
+      expect(event_log).to include("선거 시작")
+      expect(event_log).to include("선거 종료")
+      expect(event_log).to include("담임교사")
+      expect(event_log).to include("투표 완료")
+      expect(event_log).to include("#{voters[0].number}번 #{voters[0].name}")
+      expect(event_log).to include("미참여")
+      expect(event_log).not_to include("미참여 처리")
+      expect(event_log).to include("기권")
+      expect(event_log).not_to include("기권 처리")
+      expect(event_log).not_to include("다음 학생으로 이동")
+      expect(event_log).not_to include("candidate_id")
+      expect(event_log).not_to include("candidate_name")
+      expect(event_log).not_to include("candidate_number")
+      expect(event_log).not_to include("from_election_voter_id")
+      expect(event_log).not_to include("to_election_voter_id")
+      expect(event_log).not_to include("voter_count")
+      expect(event_log).not_to include("candidate_count")
+      expect(event_log).not_to include("details")
+      expect(event_log).not_to include(candidate.name)
+    end
   end
 
   describe "POST /elections/:id/start" do

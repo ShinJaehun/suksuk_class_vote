@@ -11,6 +11,11 @@ class ElectionsController < ApplicationController
     authorize @election
     @integrity_report = Elections::IntegrityReport.new(@election)
     @result_summary = Elections::ResultSummary.new(@election) if @election.closed?
+    @election_events = @election.election_events
+      .where(event_type: ElectionEvent::DISPLAYABLE_EVENT_TYPES)
+      .includes(:actor, :election_voter)
+      .order(occurred_at: :desc)
+      .limit(10)
   end
 
   def start
