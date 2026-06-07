@@ -31,6 +31,10 @@ class ElectionPolicy < ApplicationPolicy
     admin? || owner?
   end
 
+  def resume_current_voter?
+    admin? || owner?
+  end
+
   def close?
     admin? || owner?
   end

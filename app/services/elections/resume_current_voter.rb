@@ -1,0 +1,64 @@
+module Elections
+  class ResumeCurrentVoter
+    Result = Struct.new(:success?, :errors, keyword_init: true) do
+      def error_message
+        errors.join("\n")
+      end
+    end
+
+    def initialize(election:)
+      @election = election
+      @errors = []
+    end
+
+    def call
+      validate_resumable(polling_station)
+      return failure if errors.any?
+
+      ActiveRecord::Base.transaction do
+        locked_polling_station = polling_station.lock!
+        validate_resumable(locked_polling_station)
+        raise ActiveRecord::Rollback if errors.any?
+
+        locked_polling_station.update!(current_election_voter: first_unprocessed_election_voter)
+      end
+
+      errors.any? ? failure : success
+    rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => e
+      errors << e.message
+      failure
+    end
+
+    private
+
+    attr_reader :election, :errors
+
+    def validate_resumable(station)
+      errors << "진행 중인 선거에서만 재개할 수 있습니다." unless election.in_progress?
+      errors << "진행 중인 투표소를 찾을 수 없습니다." if station.blank?
+      errors << "진행 중인 투표소에서만 재개할 수 있습니다." if station.present? && !station.active?
+      errors << "현재 투표자가 이미 지정되어 있습니다." if station&.current_election_voter.present?
+      errors << "미처리 투표자를 찾을 수 없습니다." if station.present? && first_unprocessed_election_voter.blank?
+    end
+
+    def polling_station
+      @polling_station ||= election.polling_station
+    end
+
+    def first_unprocessed_election_voter
+      election.election_voters
+        .left_outer_joins(:election_voter_participation)
+        .where(election_voter_participations: { id: nil })
+        .order(:number)
+        .first
+    end
+
+    def success
+      Result.new(success?: true, errors: [])
+    end
+
+    def failure
+      Result.new(success?: false, errors: errors)
+    end
+  end
+end

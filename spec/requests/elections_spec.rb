@@ -270,6 +270,30 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include("진행 중인 선거의 투표소 정보를 찾을 수 없습니다.")
       expect(response.body).to include("진행 상태 확인이 필요합니다. 자동 복구는 아직 제공하지 않습니다.")
     end
+
+    it "shows resume button only when current voter is missing and an unprocessed voter exists" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      election.polling_station.update!(current_election_voter: nil)
+      sign_in teacher
+
+      get election_path(election)
+
+      expect(response.body).to include("첫 미처리 학생으로 재개")
+      expect(response.body).to include(resume_current_voter_election_path(election))
+      expect(response.body).to include("현재 투표자 정보가 비어 있을 때만 사용할 수 있습니다.")
+    end
+
+    it "does not show resume button during normal in progress state" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      sign_in teacher
+
+      get election_path(election)
+
+      expect(response.body).not_to include("첫 미처리 학생으로 재개")
+      expect(response.body).not_to include(resume_current_voter_election_path(election))
+    end
   end
 
   describe "POST /elections/:id/submit_vote" do
@@ -459,6 +483,23 @@ RSpec.describe "Elections", type: :request do
       expect(response).to redirect_to(election_path(election))
       expect(flash[:alert]).to include("확정 상태")
       expect(election.polling_station.reload.current_election_voter).to eq(current_voter)
+    end
+  end
+
+  describe "POST /elections/:id/resume_current_voter" do
+    it "sets the first unprocessed election voter as current voter" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      voters = election.election_voters.order(:number)
+      create(:election_voter_participation, election_voter: voters[0], status: :completed)
+      election.polling_station.update!(current_election_voter: nil)
+      sign_in teacher
+
+      post resume_current_voter_election_path(election)
+
+      expect(response).to redirect_to(election_path(election))
+      expect(flash[:notice]).to eq("첫 미처리 학생으로 재개했습니다.")
+      expect(election.polling_station.reload.current_election_voter).to eq(voters[1])
     end
   end
 

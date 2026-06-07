@@ -52,6 +52,15 @@ module Elections
       end
     end
 
+    def resumable_current_voter?
+      election.in_progress? &&
+        polling_station.present? &&
+        polling_station.active? &&
+        current_election_voter.blank? &&
+        current_voter_missing_only_issue? &&
+        first_unprocessed_election_voter.present?
+    end
+
     private
 
     attr_reader :election
@@ -112,6 +121,18 @@ module Elections
 
     def current_election_voter
       @current_election_voter ||= polling_station&.current_election_voter
+    end
+
+    def first_unprocessed_election_voter
+      @first_unprocessed_election_voter ||= election.election_voters
+        .left_outer_joins(:election_voter_participation)
+        .where(election_voter_participations: { id: nil })
+        .order(:number)
+        .first
+    end
+
+    def current_voter_missing_only_issue?
+      issues.map(&:message) == ["진행 중인 선거의 현재 투표자를 찾을 수 없습니다."]
     end
 
     def mismatched_candidate_tallies?

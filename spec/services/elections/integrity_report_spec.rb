@@ -205,6 +205,54 @@ RSpec.describe Elections::IntegrityReport do
     end
   end
 
+  describe "#resumable_current_voter?" do
+    it "returns true when current voter is missing and an unprocessed voter exists" do
+      election = create_in_progress_election
+      election.polling_station.update!(current_election_voter: nil)
+
+      report = described_class.new(election)
+
+      expect(report).to be_resumable_current_voter
+    end
+
+    it "returns false when current voter exists" do
+      report = described_class.new(create_in_progress_election)
+
+      expect(report).not_to be_resumable_current_voter
+    end
+
+    it "returns false when polling station is missing" do
+      election = create_in_progress_election
+      election.polling_station.destroy!
+
+      report = described_class.new(election.reload)
+
+      expect(report).not_to be_resumable_current_voter
+    end
+
+    it "returns false when no unprocessed voter exists" do
+      election = create_in_progress_election
+      election.election_voters.find_each do |election_voter|
+        create(:election_voter_participation, election_voter: election_voter)
+      end
+      election.polling_station.update!(current_election_voter: nil)
+
+      report = described_class.new(election)
+
+      expect(report).not_to be_resumable_current_voter
+    end
+
+    it "returns false when another integrity issue is present" do
+      election = create_in_progress_election
+      election.polling_station.update!(current_election_voter: nil)
+      election.candidate_tallies.first.destroy!
+
+      report = described_class.new(election.reload)
+
+      expect(report).not_to be_resumable_current_voter
+    end
+  end
+
   def create_startable_election
     teacher = create(:user)
     voter_group = create(:voter_group, user: teacher)

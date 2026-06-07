@@ -22,7 +22,7 @@
     </div>
   </dl>
 
-  <%= render "integrity_report", integrity_report: @integrity_report %>
+  <%= render "integrity_report", election: @election, integrity_report: @integrity_report %>
   <%= render "candidates", election: @election %>
   <%= render "progress", election: @election, result_summary: @result_summary %>
   <%= render "election_voters", election: @election %>

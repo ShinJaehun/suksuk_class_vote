@@ -14,6 +14,16 @@
     <p class="text-sm text-stone-600"><%= integrity_report.guidance_message %></p>
   <% end %>
 
+  <% if integrity_report.resumable_current_voter? %>
+    <div class="space-y-2">
+      <%= button_to "첫 미처리 학생으로 재개",
+                    resume_current_voter_election_path(election),
+                    method: :post,
+                    class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+      <p class="text-sm text-stone-600">현재 투표자 정보가 비어 있을 때만 사용할 수 있습니다. 득표수와 참여 기록은 변경하지 않습니다.</p>
+    </div>
+  <% end %>
+
   <% if integrity_report.show_summary? %>
     <% summary = integrity_report.summary %>
     <dl class="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
