@@ -159,6 +159,25 @@ DB index:
 이 서비스는 `PollingStation.current_election_voter_id` 포인터만 복원한다.
 `ElectionVoterParticipation`과 `CandidateTally`는 변경하지 않는다.
 
+### ElectionEvent / 운영 기록
+
+`ElectionEvent`는 선거 운영 이벤트를 DB에 기록한다.
+현재 구현된 이벤트:
+
+- `election_started`
+- `vote_completed`
+- `voter_marked_absent`
+- `voter_marked_abstained`
+- `current_voter_advanced`
+- `current_voter_resumed`
+- `election_closed`
+
+각 이벤트는 성공 transaction 안에서 함께 기록된다.
+`current_voter_advanced`는 DB에는 남지만 교사용 운영 기록 화면에서는 표시하지 않는다.
+교사용 운영 기록 화면은 표시 가능한 최근 10개 이벤트만 보여준다.
+선거 단위 이벤트는 actor를 대상으로 표시하고, 학생 처리 이벤트는 `ElectionVoter`를 대상으로 표시한다.
+운영 기록은 후보 정보를 저장하거나 표시하지 않는다.
+
 ### VoteSession
 
 특정 voter slot에 대해 열린 1회용 투표 세션이다.
@@ -448,7 +467,7 @@ CandidateTally: 변화 없음
 
 ## 미구현 / 후속 검토
 
-- `ElectionEventLog` / 감사 로그
+- 고도화된 감사 로그 / 외부 감사 기능
 - `IntegrityReport` issue code 도입
 - 시작 전 checklist / freeze UX
 - 결과 snapshot / 인쇄 또는 export

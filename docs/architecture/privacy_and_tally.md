@@ -159,6 +159,15 @@ VoteRecord
 
 ---
 
+## 운영 기록과 비밀투표
+
+`ElectionEvent`는 운영 이벤트만 기록한다.
+`vote_completed` event details에는 `candidate_id`, `candidate_name`, `candidate_number`를 저장하지 않는다.
+후보별 득표 변화 상세도 로그에 남기지 않는다.
+학생별 후보 선택은 저장, 표시, 로그 어느 쪽으로도 남기지 않는다.
+
+---
+
 ## 후속 검토 사항
 
 다음 항목은 현재 MVP 구현을 대체하지 않고, 감사 요구나 학생 투표 화면이 복잡해질 때 별도로 검토한다.
