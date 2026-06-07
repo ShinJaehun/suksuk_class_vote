@@ -12,9 +12,13 @@ RSpec.describe Elections::SubmitVote do
       expect(result).to be_success
       expect(election.candidate_tallies.find_by(candidate: candidate).votes_count).to eq(1)
       expect(current_election_voter.reload.election_voter_participation).to have_attributes(status: "completed")
+      expect(election.election_events.last).to have_attributes(
+        event_type: "vote_completed",
+        election_voter: current_election_voter
+      )
     end
 
-    it "does not store candidate information on participation or election voter information on tally" do
+    it "does not store candidate information on participation, tally, or event details" do
       election = create_in_progress_election
       candidate = election.candidates.order(:number).first
 
@@ -22,9 +26,15 @@ RSpec.describe Elections::SubmitVote do
 
       participation = election.polling_station.current_election_voter.election_voter_participation
       candidate_tally = election.candidate_tallies.find_by(candidate: candidate)
+      event = election.election_events.last
 
       expect(participation).not_to respond_to(:candidate_id)
       expect(candidate_tally).not_to respond_to(:election_voter_id)
+      expect(event.event_type).to eq("vote_completed")
+      expect(event.details).not_to have_key("candidate_id")
+      expect(event.details).not_to have_key("candidate_name")
+      expect(event.details).not_to have_key("candidate_number")
+      expect(event.details.values).not_to include(candidate.id, candidate.name, candidate.number)
     end
 
     it "fails when the current election voter already has participation" do
@@ -37,6 +47,7 @@ RSpec.describe Elections::SubmitVote do
       expect(result).not_to be_success
       expect(result.error_message).to include("이미 투표 완료")
       expect(election.candidate_tallies.find_by(candidate: candidate).votes_count).to eq(0)
+      expect(election.election_events.where(event_type: "vote_completed")).to be_empty
     end
 
     it "fails when candidate belongs to another election" do
@@ -134,6 +145,19 @@ RSpec.describe Elections::SubmitVote do
 
       expect(result).not_to be_success
       expect(election.polling_station.current_election_voter.election_voter_participation).to be_nil
+    end
+
+    it "rolls back vote changes when event logging fails" do
+      election = create_in_progress_election
+      candidate = election.candidates.order(:number).first
+      current_election_voter = election.polling_station.current_election_voter
+      allow(election.election_events).to receive(:create!).and_raise(ActiveRecord::RecordInvalid)
+
+      result = described_class.new(election: election, candidate: candidate).call
+
+      expect(result).not_to be_success
+      expect(election.candidate_tallies.find_by(candidate: candidate).reload.votes_count).to eq(0)
+      expect(current_election_voter.reload.election_voter_participation).to be_nil
     end
   end
 

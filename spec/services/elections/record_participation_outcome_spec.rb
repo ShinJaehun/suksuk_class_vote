@@ -11,6 +11,10 @@ RSpec.describe Elections::RecordParticipationOutcome do
       expect(result).to be_success
       expect(current_voter.reload.election_voter_participation).to be_absent
       expect(current_voter.election_voter_participation.recorded_at).to be_present
+      expect(election.election_events.last).to have_attributes(
+        event_type: "voter_marked_absent",
+        election_voter: current_voter
+      )
     end
 
     it "records abstained participation for the current election voter" do
@@ -22,6 +26,10 @@ RSpec.describe Elections::RecordParticipationOutcome do
       expect(result).to be_success
       expect(current_voter.reload.election_voter_participation).to be_abstained
       expect(current_voter.election_voter_participation.recorded_at).to be_present
+      expect(election.election_events.last).to have_attributes(
+        event_type: "voter_marked_abstained",
+        election_voter: current_voter
+      )
     end
 
     it "does not change candidate tallies" do

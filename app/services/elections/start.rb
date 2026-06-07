@@ -8,8 +8,9 @@ module Elections
 
     SINGLE_CANDIDATE_MESSAGE = "후보자가 1명인 선거는 무투표 당선/찬반 투표 정책 결정 후 지원 예정입니다."
 
-    def initialize(election)
+    def initialize(election, actor: nil)
       @election = election
+      @actor = actor
       @errors = []
     end
 
@@ -27,6 +28,14 @@ module Elections
           status: :active,
           started_at: Time.current
         )
+        record_event(
+          "election_started",
+          election_voter: first_election_voter,
+          details: {
+            voter_count: election.election_voters.count,
+            candidate_count: election.candidate_tallies.count
+          }
+        )
       end
 
       success
@@ -37,7 +46,7 @@ module Elections
 
     private
 
-    attr_reader :election, :errors
+    attr_reader :election, :actor, :errors
 
     def validate_startable
       errors << "draft 상태의 선거만 시작할 수 있습니다." unless election.draft?
@@ -76,6 +85,15 @@ module Elections
 
     def voter_slots
       @voter_slots ||= election.voter_group.voter_slots.order(:number)
+    end
+
+    def record_event(event_type, election_voter: nil, details: {})
+      election.election_events.create!(
+        actor: actor,
+        election_voter: election_voter,
+        event_type: event_type,
+        details: details
+      )
     end
 
     def success

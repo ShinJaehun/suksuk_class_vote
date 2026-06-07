@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_06_021000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_07_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -33,6 +33,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_06_021000) do
     t.datetime "updated_at", null: false
     t.index ["election_id", "number"], name: "index_candidates_on_election_id_and_number", unique: true
     t.index ["election_id"], name: "index_candidates_on_election_id"
+  end
+
+  create_table "election_events", force: :cascade do |t|
+    t.bigint "actor_id"
+    t.datetime "created_at", null: false
+    t.jsonb "details", default: {}, null: false
+    t.bigint "election_id", null: false
+    t.bigint "election_voter_id"
+    t.string "event_type", null: false
+    t.datetime "occurred_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_election_events_on_actor_id"
+    t.index ["election_id", "occurred_at"], name: "index_election_events_on_election_id_and_occurred_at"
+    t.index ["election_id"], name: "index_election_events_on_election_id"
+    t.index ["election_voter_id"], name: "index_election_events_on_election_voter_id"
+    t.index ["event_type"], name: "index_election_events_on_event_type"
   end
 
   create_table "election_voter_participations", force: :cascade do |t|
@@ -115,6 +131,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_06_021000) do
   add_foreign_key "candidate_tallies", "candidates"
   add_foreign_key "candidate_tallies", "elections"
   add_foreign_key "candidates", "elections"
+  add_foreign_key "election_events", "election_voters"
+  add_foreign_key "election_events", "elections"
+  add_foreign_key "election_events", "users", column: "actor_id"
   add_foreign_key "election_voter_participations", "election_voters"
   add_foreign_key "election_voters", "elections"
   add_foreign_key "election_voters", "voter_slots", column: "source_voter_slot_id"

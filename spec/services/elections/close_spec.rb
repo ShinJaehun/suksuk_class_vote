@@ -13,6 +13,10 @@ RSpec.describe Elections::Close do
       expect(election.reload).to be_closed
       expect(election.polling_station).to be_closed
       expect(election.polling_station.closed_at).to be_present
+      expect(election.election_events.last).to have_attributes(
+        event_type: "election_closed",
+        election_voter: last_voter
+      )
     end
 
     it "fails when election is not in progress" do

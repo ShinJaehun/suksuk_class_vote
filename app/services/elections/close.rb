@@ -8,8 +8,9 @@ module Elections
 
     FINAL_PARTICIPATION_STATUSES = %w[completed absent abstained].freeze
 
-    def initialize(election:)
+    def initialize(election:, actor: nil)
       @election = election
+      @actor = actor
       @errors = []
     end
 
@@ -21,6 +22,7 @@ module Elections
         locked_polling_station = polling_station.lock!
         election.update!(status: :closed)
         locked_polling_station.update!(status: :closed, closed_at: Time.current)
+        record_event("election_closed", election_voter: current_election_voter)
       end
 
       success
@@ -31,7 +33,7 @@ module Elections
 
     private
 
-    attr_reader :election, :errors
+    attr_reader :election, :actor, :errors
 
     def validate_closable
       errors << "진행 중인 선거만 종료할 수 있습니다." unless election.in_progress?
@@ -65,6 +67,15 @@ module Elections
         .where("number > ?", current_election_voter.number)
         .order(:number)
         .first
+    end
+
+    def record_event(event_type, election_voter: nil, details: {})
+      election.election_events.create!(
+        actor: actor,
+        election_voter: election_voter,
+        event_type: event_type,
+        details: details
+      )
     end
 
     def success

@@ -16,7 +16,7 @@ class ElectionsController < ApplicationController
   def start
     authorize @election, :start?
 
-    result = Elections::Start.new(@election).call
+    result = Elections::Start.new(@election, actor: current_user).call
 
     if result.success?
       redirect_to @election, notice: "선거를 시작했습니다."
@@ -29,7 +29,7 @@ class ElectionsController < ApplicationController
     authorize @election, :submit_vote?
 
     candidate = @election.candidates.find_by(id: params[:candidate_id])
-    result = Elections::SubmitVote.new(election: @election, candidate: candidate).call
+    result = Elections::SubmitVote.new(election: @election, candidate: candidate, actor: current_user).call
 
     if result.success?
       redirect_to @election, notice: "투표가 제출되었습니다."
@@ -41,7 +41,7 @@ class ElectionsController < ApplicationController
   def record_participation_outcome
     authorize @election, :record_participation_outcome?
 
-    result = Elections::RecordParticipationOutcome.new(election: @election, status: params[:status]).call
+    result = Elections::RecordParticipationOutcome.new(election: @election, status: params[:status], actor: current_user).call
 
     if result.success?
       redirect_to @election, notice: "투표자 상태를 처리했습니다."
@@ -53,7 +53,7 @@ class ElectionsController < ApplicationController
   def advance_current_voter
     authorize @election, :advance_current_voter?
 
-    result = Elections::AdvanceCurrentVoter.new(election: @election).call
+    result = Elections::AdvanceCurrentVoter.new(election: @election, actor: current_user).call
 
     if result.success?
       redirect_to @election, notice: "다음 학생으로 이동했습니다."
@@ -65,7 +65,7 @@ class ElectionsController < ApplicationController
   def resume_current_voter
     authorize @election, :resume_current_voter?
 
-    result = Elections::ResumeCurrentVoter.new(election: @election).call
+    result = Elections::ResumeCurrentVoter.new(election: @election, actor: current_user).call
 
     if result.success?
       redirect_to @election, notice: "첫 미처리 학생으로 재개했습니다."
@@ -77,7 +77,7 @@ class ElectionsController < ApplicationController
   def close
     authorize @election, :close?
 
-    result = Elections::Close.new(election: @election).call
+    result = Elections::Close.new(election: @election, actor: current_user).call
 
     if result.success?
       redirect_to @election, notice: "선거를 종료했습니다."

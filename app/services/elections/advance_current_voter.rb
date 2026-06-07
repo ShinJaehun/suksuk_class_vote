@@ -8,8 +8,9 @@ module Elections
 
     FINAL_PARTICIPATION_STATUSES = %w[completed absent abstained].freeze
 
-    def initialize(election:)
+    def initialize(election:, actor: nil)
       @election = election
+      @actor = actor
       @errors = []
     end
 
@@ -20,6 +21,14 @@ module Elections
       ActiveRecord::Base.transaction do
         locked_polling_station = polling_station.lock!
         locked_polling_station.update!(current_election_voter: next_election_voter)
+        record_event(
+          "current_voter_advanced",
+          election_voter: next_election_voter,
+          details: {
+            from_election_voter_id: current_election_voter.id,
+            to_election_voter_id: next_election_voter.id
+          }
+        )
       end
 
       success
@@ -30,7 +39,7 @@ module Elections
 
     private
 
-    attr_reader :election, :errors
+    attr_reader :election, :actor, :errors
 
     def validate_advancable
       errors << "진행 중인 선거에서만 다음 투표자로 이동할 수 있습니다." unless election.in_progress?
@@ -64,6 +73,15 @@ module Elections
         .where("number > ?", current_election_voter.number)
         .order(:number)
         .first
+    end
+
+    def record_event(event_type, election_voter: nil, details: {})
+      election.election_events.create!(
+        actor: actor,
+        election_voter: election_voter,
+        event_type: event_type,
+        details: details
+      )
     end
 
     def success

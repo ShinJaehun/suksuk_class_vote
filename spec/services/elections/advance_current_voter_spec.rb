@@ -13,6 +13,14 @@ RSpec.describe Elections::AdvanceCurrentVoter do
       expect(result).to be_success
       expect(election.polling_station.reload.current_election_voter).to eq(next_voter)
       expect(next_voter.election_voter_participation).to be_nil
+      expect(election.election_events.last).to have_attributes(
+        event_type: "current_voter_advanced",
+        election_voter: next_voter
+      )
+      expect(election.election_events.last.details).to include(
+        "from_election_voter_id" => first_voter.id,
+        "to_election_voter_id" => next_voter.id
+      )
     end
 
     it "fails when election is not in progress" do

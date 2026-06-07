@@ -6,9 +6,10 @@ module Elections
       end
     end
 
-    def initialize(election:, candidate:)
+    def initialize(election:, candidate:, actor: nil)
       @election = election
       @candidate = candidate
+      @actor = actor
       @errors = []
     end
 
@@ -27,6 +28,7 @@ module Elections
           status: :completed,
           recorded_at: Time.current
         )
+        record_event("vote_completed", election_voter: current_election_voter)
       end
 
       success
@@ -37,7 +39,7 @@ module Elections
 
     private
 
-    attr_reader :election, :candidate, :errors
+    attr_reader :election, :candidate, :actor, :errors
 
     def validate_submittable
       errors << "진행 중인 선거에만 투표할 수 있습니다." unless election.in_progress?
@@ -65,6 +67,15 @@ module Elections
       return nil unless candidate_belongs_to_election?
 
       @candidate_tally ||= election.candidate_tallies.find_by(candidate: candidate)
+    end
+
+    def record_event(event_type, election_voter: nil, details: {})
+      election.election_events.create!(
+        actor: actor,
+        election_voter: election_voter,
+        event_type: event_type,
+        details: details
+      )
     end
 
     def success

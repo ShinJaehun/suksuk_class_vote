@@ -6,8 +6,9 @@ module Elections
       end
     end
 
-    def initialize(election:)
+    def initialize(election:, actor: nil)
       @election = election
+      @actor = actor
       @errors = []
     end
 
@@ -21,6 +22,11 @@ module Elections
         raise ActiveRecord::Rollback if errors.any?
 
         locked_polling_station.update!(current_election_voter: first_unprocessed_election_voter)
+        record_event(
+          "current_voter_resumed",
+          election_voter: first_unprocessed_election_voter,
+          details: { to_election_voter_id: first_unprocessed_election_voter.id }
+        )
       end
 
       errors.any? ? failure : success
@@ -31,7 +37,7 @@ module Elections
 
     private
 
-    attr_reader :election, :errors
+    attr_reader :election, :actor, :errors
 
     def validate_resumable(station)
       errors << "진행 중인 선거에서만 재개할 수 있습니다." unless election.in_progress?
@@ -51,6 +57,15 @@ module Elections
         .where(election_voter_participations: { id: nil })
         .order(:number)
         .first
+    end
+
+    def record_event(event_type, election_voter: nil, details: {})
+      election.election_events.create!(
+        actor: actor,
+        election_voter: election_voter,
+        event_type: event_type,
+        details: details
+      )
     end
 
     def success

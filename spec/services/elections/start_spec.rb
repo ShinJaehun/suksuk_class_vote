@@ -27,6 +27,24 @@ RSpec.describe Elections::Start do
         status: "active"
       )
       expect(election.polling_station.started_at).to be_present
+      expect(election.election_events.last).to have_attributes(
+        event_type: "election_started",
+        election_voter: election.election_voters.order(:number).first
+      )
+      expect(election.election_events.last.details).to include(
+        "voter_count" => 2,
+        "candidate_count" => 2
+      )
+    end
+
+    it "records the actor when provided" do
+      election = create_startable_election
+      actor = election.user
+
+      result = described_class.new(election, actor: actor).call
+
+      expect(result).to be_success
+      expect(election.election_events.last.actor).to eq(actor)
     end
 
     it "preserves voter slot values from the start moment" do

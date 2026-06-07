@@ -8,9 +8,10 @@ module Elections
 
     ALLOWED_STATUSES = %w[absent abstained].freeze
 
-    def initialize(election:, status:)
+    def initialize(election:, status:, actor: nil)
       @election = election
       @status = status.to_s
+      @actor = actor
       @errors = []
     end
 
@@ -24,6 +25,7 @@ module Elections
           status: status,
           recorded_at: Time.current
         )
+        record_event(event_type, election_voter: current_election_voter)
       end
 
       success
@@ -34,7 +36,7 @@ module Elections
 
     private
 
-    attr_reader :election, :status, :errors
+    attr_reader :election, :status, :actor, :errors
 
     def validate_recordable
       errors << "진행 중인 선거에서만 처리할 수 있습니다." unless election.in_progress?
@@ -51,6 +53,19 @@ module Elections
 
     def current_election_voter
       @current_election_voter ||= polling_station&.current_election_voter
+    end
+
+    def event_type
+      "voter_marked_#{status}"
+    end
+
+    def record_event(event_type, election_voter: nil, details: {})
+      election.election_events.create!(
+        actor: actor,
+        election_voter: election_voter,
+        event_type: event_type,
+        details: details
+      )
     end
 
     def success

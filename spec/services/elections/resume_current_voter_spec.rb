@@ -12,6 +12,11 @@ RSpec.describe Elections::ResumeCurrentVoter do
 
       expect(result).to be_success
       expect(election.polling_station.reload.current_election_voter).to eq(voters[1])
+      expect(election.election_events.last).to have_attributes(
+        event_type: "current_voter_resumed",
+        election_voter: voters[1]
+      )
+      expect(election.election_events.last.details).to include("to_election_voter_id" => voters[1].id)
     end
 
     it "fails when current voter is already set" do
