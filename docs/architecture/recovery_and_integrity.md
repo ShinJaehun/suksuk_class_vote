@@ -124,6 +124,7 @@ DB index:
 학생 정보나 개별 투표자의 선택 결과를 저장하지 않는다.
 현재 구현에서는 `Elections::Start` 성공 시 후보자별 `CandidateTally`가 0표로 생성된다.
 `Elections::SubmitVote`는 `CandidateTally` 증가와 `ElectionVoterParticipation(completed)` 생성을 하나의 transaction으로 처리한다.
+후보자 추가/수정/삭제는 draft 상태에서만 허용해 시작 후 `CandidateTally` 기준 후보 구성이 바뀌지 않도록 한다.
 
 중요 원칙:
 
@@ -469,7 +470,7 @@ CandidateTally: 변화 없음
 
 - 고도화된 감사 로그 / 외부 감사 기능
 - `IntegrityReport` issue code 도입
-- 시작 전 checklist / freeze UX
+- 시작 전 checklist / freeze UX 고도화
 - 결과 snapshot / 인쇄 또는 export
 - 추가 복구 액션
 - `VoteSession` 후속 검토

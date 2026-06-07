@@ -367,6 +367,19 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).not_to include("첫 미처리 학생으로 재개")
       expect(response.body).not_to include(resume_current_voter_election_path(election))
     end
+
+    it "does not show candidate management links after the election starts" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      candidate = election.candidates.first
+      sign_in teacher
+
+      get election_path(election)
+
+      expect(response.body).not_to include("후보자 추가")
+      expect(response.body).not_to include(edit_election_candidate_path(election, candidate))
+      expect(response.body).not_to include(election_candidate_path(election, candidate))
+    end
   end
 
   describe "POST /elections/:id/submit_vote" do
@@ -644,6 +657,23 @@ RSpec.describe "Elections", type: :request do
       get election_path(election)
 
       expect(response.body).to include("최다 득표 후보 없음")
+    end
+
+    it "does not show candidate management links after the election closes" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      candidate = election.candidates.first
+      last_voter = election.election_voters.order(:number).last
+      election.polling_station.update!(current_election_voter: last_voter)
+      create(:election_voter_participation, election_voter: last_voter, status: :absent)
+      Elections::Close.new(election: election).call
+      sign_in teacher
+
+      get election_path(election)
+
+      expect(response.body).not_to include("후보자 추가")
+      expect(response.body).not_to include(edit_election_candidate_path(election, candidate))
+      expect(response.body).not_to include(election_candidate_path(election, candidate))
     end
   end
 

@@ -74,6 +74,17 @@ RSpec.describe "Candidates", type: :request do
       expect(response).to redirect_to(election_path(election))
       expect(flash[:alert]).to eq("draft 상태의 선거에서만 후보자를 관리할 수 있습니다.")
     end
+
+    it "does not allow access after the election closes" do
+      teacher = create(:user)
+      election = create(:election, user: teacher, status: :closed)
+      sign_in teacher
+
+      get new_election_candidate_path(election)
+
+      expect(response).to redirect_to(election_path(election))
+      expect(flash[:alert]).to eq("draft 상태의 선거에서만 후보자를 관리할 수 있습니다.")
+    end
   end
 
   describe "POST /elections/:election_id/candidates" do
@@ -126,6 +137,20 @@ RSpec.describe "Candidates", type: :request do
     it "does not create candidates after the election starts" do
       teacher = create(:user)
       election = create(:election, user: teacher, status: :in_progress)
+      sign_in teacher
+
+      expect do
+        post election_candidates_path(election), params: {
+          candidate: { name: "김민준" }
+        }
+      end.not_to change(Candidate, :count)
+
+      expect(response).to redirect_to(election_path(election))
+    end
+
+    it "does not create candidates after the election closes" do
+      teacher = create(:user)
+      election = create(:election, user: teacher, status: :closed)
       sign_in teacher
 
       expect do
@@ -206,6 +231,20 @@ RSpec.describe "Candidates", type: :request do
       expect(candidate.reload.name).to eq("원래 이름")
       expect(response).to redirect_to(election_path(election))
     end
+
+    it "does not update candidates after the election closes" do
+      teacher = create(:user)
+      election = create(:election, user: teacher, status: :closed)
+      candidate = create(:candidate, election: election, name: "원래 이름")
+      sign_in teacher
+
+      patch election_candidate_path(election, candidate), params: {
+        candidate: { name: "새 이름" }
+      }
+
+      expect(candidate.reload.name).to eq("원래 이름")
+      expect(response).to redirect_to(election_path(election))
+    end
   end
 
   describe "DELETE /elections/:election_id/candidates/:id" do
@@ -262,6 +301,19 @@ RSpec.describe "Candidates", type: :request do
     it "does not delete candidates after the election starts" do
       teacher = create(:user)
       election = create(:election, user: teacher, status: :in_progress)
+      candidate = create(:candidate, election: election)
+      sign_in teacher
+
+      expect do
+        delete election_candidate_path(election, candidate)
+      end.not_to change(Candidate, :count)
+
+      expect(response).to redirect_to(election_path(election))
+    end
+
+    it "does not delete candidates after the election closes" do
+      teacher = create(:user)
+      election = create(:election, user: teacher, status: :closed)
       candidate = create(:candidate, election: election)
       sign_in teacher
 
