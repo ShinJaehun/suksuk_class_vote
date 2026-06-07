@@ -45,7 +45,7 @@
 - 후보자별 득표 정보
 - 학생이 선택한 `candidate_id`
 
-후속 투표 진행 상태 모델은 `ElectionVoter`를 참조할 수 있다.
+현재 투표 진행 상태 모델은 `ElectionVoter`를 참조한다.
 하지만 실제 표를 저장하는 모델이 `election_voter_id`와 `candidate_id`를 직접 함께 저장하면 누가 누구에게 투표했는지 연결될 수 있다.
 이 구조는 비밀투표 원칙에 맞지 않을 수 있으므로 신중히 피하거나, 별도의 정책 결정과 감사 목적을 명확히 해야 한다.
 
@@ -70,11 +70,13 @@ VoteRecord
 
 ---
 
-## 집계 방향 후보
+## 현재 집계 방향
 
-실제 투표 결과 모델은 아직 구현하지 않는다.
+현재 MVP는 후보자별 count-only 집계를 사용한다.
+`ElectionVoterParticipation`은 투표자별 완료/미참여/기권 여부만 저장하고, `CandidateTally`는 후보별 득표수만 저장한다.
+두 모델은 같은 transaction에서 함께 처리될 수 있지만 학생별 후보 선택 결과를 직접 연결하지 않는다.
 
-후속 후보:
+후속 검토 후보:
 
 - `Tally`
 - `VoteRecord`
@@ -137,7 +139,7 @@ VoteRecord
 
 ## 투표 제출 transaction 원칙
 
-후속 구현에서 투표 제출은 반드시 transaction으로 처리한다.
+현재 구현에서 투표 제출은 transaction으로 처리한다.
 
 최소 확인:
 
@@ -157,14 +159,14 @@ VoteRecord
 
 ---
 
-## 아직 결정하지 않은 사항
+## 후속 검토 사항
 
-다음 항목은 후속 구현 전에 결정한다.
+다음 항목은 현재 MVP 구현을 대체하지 않고, 감사 요구나 학생 투표 화면이 복잡해질 때 별도로 검토한다.
 
-- 후보자별 count만 저장할지, 익명 vote record를 함께 둘지
-- 진행 완료 receipt 모델을 둘지
+- 익명 vote record를 함께 둘지
+- 진행 완료 receipt 모델을 별도로 둘지
 - `VoteSession`을 별도로 둘지
 - 중복 제출 방지를 unique constraint, row lock, idempotency key 중 어떤 조합으로 구현할지
 - 감사 가능성을 위해 어떤 데이터를 얼마 동안 남길지
 
-초기 기준은 비밀투표, 중단 복구, 중복 제출 방지를 동시에 만족하는 가장 단순한 구조를 우선 검토하는 것이다.
+초기 기준은 현재 구현된 count-only tally와 participation 분리 구조를 유지하는 것이다.

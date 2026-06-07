@@ -21,7 +21,7 @@
 - 어떤 학생이 투표 완료인지
 - 어떤 학생이 미참여 처리되었는지
 - 투표소가 진행 중인지 종료되었는지
-- 현재 열려 있는 투표 세션이 무엇인지
+- 현재 복구 기준 투표자가 누구인지
 
 선거가 시작된 뒤의 복구 기준은 원본 `VoterGroup`이 아니다.
 복구는 선거 시작 시점에 고정된 `ElectionVoter` snapshot과 후속 투표 진행 상태 모델을 기준으로 한다.
@@ -53,13 +53,13 @@
 
 ---
 
-## 상태 모델 초안
+## 현재 상태 모델
 
-초기 MVP의 투표 진행 상태 모델명은 `PollingStation`으로 확정한다.
+초기 MVP의 투표 진행 상태 모델명은 `PollingStation`이다.
 
 현재 구현된 `ElectionVoter`는 선거용 고정 명단이다.
 `ElectionVoter`는 실제 투표 결과나 출석번호 진행 상태를 저장하지 않는다.
-후속 진행 상태 모델은 `ElectionVoter`를 참조해 현재 투표 위치와 완료 여부를 복구한다.
+투표 진행은 `PollingStation`, `ElectionVoterParticipation`, `CandidateTally`가 분리해서 담당한다.
 
 ### PollingStation
 
@@ -91,63 +91,80 @@ DB index:
 복구와 진행은 `ElectionVoter` snapshot을 기준으로 한다.
 
 현재 구현에서는 `Elections::Start` transaction 안에서 `ElectionVoter` snapshot 생성,
-`Election`의 `in_progress` 전이, `PollingStation` 생성을 함께 처리한다.
+후보별 `CandidateTally` 0표 생성, `Election`의 `in_progress` 전이, `PollingStation` 생성을 함께 처리한다.
 선거 시작 성공 시 `PollingStation.current_election_voter_id`는 첫 번째 `ElectionVoter`를 가리킨다.
-다음 학생 진행, 투표 제출, 후보 선택, 득표수 집계는 아직 구현하지 않았다.
+현재 구현에서는 투표 제출, 미참여/기권 처리, 다음 학생 진행, 선거 종료, 후보별 count-only 결과 표시까지 이 구조를 기준으로 진행한다.
 
-### ElectionVoterParticipation / ElectionVoterReceipt
+### ElectionVoterParticipation
 
 출석번호별 투표 완료/미참여/기권 기록이다.
-구현 모델명은 후속 구현에서 `ElectionVoterParticipation` 또는 `ElectionVoterReceipt` 중 하나로 확정한다.
 이 모델은 특정 `ElectionVoter`가 투표 절차상 확정 상태가 되었는지만 저장한다.
 후보 선택 결과는 절대 저장하지 않는다.
 현재 구현 모델명은 `ElectionVoterParticipation`이다.
 `waiting` 상태는 row를 미리 만들지 않고 participation row가 없는 상태로 표현한다.
 
-예상 컬럼:
+현재 역할:
 
-- `election_voter_id`
-- `status`
-- `completed_at` 또는 `recorded_at`
+- `completed`: 투표 완료
+- `absent`: 미참여
+- `abstained`: 기권/무투표
+- `recorded_at`: 확정 처리 시각
 
 중요 원칙:
 
 - A 학생이 투표했다는 기록은 남긴다.
 - A 학생이 누구에게 투표했는지는 남기지 않는다.
-- participation/receipt에는 `candidate_id`를 저장하지 않는다.
+- `ElectionVoterParticipation`에는 `candidate_id`를 저장하지 않는다.
 - `election_voter_id`와 `candidate_id`를 직접 연결하지 않는다.
 - `PollingStation`은 완료 목록을 저장하지 않는다.
 
-예상 상태:
+### CandidateTally
 
-- `completed`
-  - 투표 완료
+`CandidateTally`는 후보별 총 득표수만 저장한다.
+학생 정보나 개별 투표자의 선택 결과를 저장하지 않는다.
+현재 구현에서는 `Elections::Start` 성공 시 후보자별 `CandidateTally`가 0표로 생성된다.
+`Elections::SubmitVote`는 `CandidateTally` 증가와 `ElectionVoterParticipation(completed)` 생성을 하나의 transaction으로 처리한다.
 
-- `absent`
-  - 결석, 조퇴 등으로 미참여
+중요 원칙:
 
-- `abstained`
-  - 기권/무투표
+- count-only 구조를 기본으로 한다.
+- `CandidateTally`는 `ElectionVoter`와 직접 연결하지 않는다.
+- `CandidateTally`에는 `election_voter_id`를 저장하지 않는다.
+- 후보별 득표 증가 시각을 특정 학생의 `recorded_at`과 연결해 추정할 수 있는 화면 흐름을 피한다.
+- Rails timestamps가 남더라도 비밀투표를 깨는 근거로 사용하거나 화면에 노출하지 않는다.
 
-- `skipped`
-  - 필요한 경우 후속 검토
+### IntegrityReport / ResumeCurrentVoter
+
+`Elections::IntegrityReport`는 선거 상세 화면의 상태 점검 카드와 운영 요약을 만든다.
+
+현재 점검 대상:
+
+- 진행 중/종료 상태에 맞는 `PollingStation` 존재 여부
+- `PollingStation` 상태 불일치
+- 현재 투표자 포인터 누락
+- 현재 투표자가 다른 선거의 `ElectionVoter`를 가리키는 문제
+- 후보 수와 `CandidateTally` 수 불일치
+- 다른 선거 후보가 연결된 `CandidateTally`
+- `completed` 수와 후보별 득표 합계 불일치
+- 처리 상태 합계가 전체 투표자 수를 초과하는 문제
+- 종료된 선거에 미처리 투표자가 남은 문제
+
+상태 점검 카드는 `draft`, `in_progress`, `closed` 모두에서 표시한다.
+다만 숫자 운영 요약은 선거 시작 전에는 숨기고, `in_progress`와 `closed`에서만 표시한다.
+운영 요약은 전체 투표자 수, 투표 완료 수, 미참여 수, 기권 수, 미처리 수, 후보별 득표 합계를 보여준다.
+
+`Elections::ResumeCurrentVoter`는 매우 제한적인 복구 액션이다.
+진행 중인 선거에서 `PollingStation`이 active이고, `current_election_voter`가 비어 있으며,
+다른 무결성 문제가 없고, 미처리 학생이 남아 있을 때만 첫 미처리 학생을 현재 투표자로 지정한다.
+이 서비스는 `PollingStation.current_election_voter_id` 포인터만 복원한다.
+`ElectionVoterParticipation`과 `CandidateTally`는 변경하지 않는다.
 
 ### VoteSession
 
 특정 voter slot에 대해 열린 1회용 투표 세션이다.
 학생 투표 화면과 제출 흐름이 복잡해질 때 후속 검토한다.
-초기 구현에서 반드시 먼저 만들 필요는 없다.
-
-예상 상태:
-
-- `open`
-  - 현재 투표 가능
-
-- `submitted`
-  - 제출 완료
-
-- `cancelled`
-  - 제출 전 취소
+현재 MVP 구현은 `VoteSession` 없이 `PollingStation`, `ElectionVoter`, `ElectionVoterParticipation`, `CandidateTally`를 기준으로 진행한다.
+따라서 `VoteSession`은 현재 필수 구조가 아니라 학생 개별 투표 화면, 토큰, 제출 세션이 복잡해질 때 검토할 후속 항목이다.
 
 ---
 
@@ -163,7 +180,7 @@ DB index:
 
 - 서버는 polling station 상태를 다시 읽는다.
 - `PollingStation.current_election_voter_id`가 있으면 해당 위치를 보여준다.
-- 없으면 첫 번째 `ElectionVoter` 또는 다음 미완료 `ElectionVoter`를 계산하는 방향을 검토한다.
+- `PollingStation.current_election_voter_id`가 없고 제한 조건을 모두 만족하면 `ResumeCurrentVoter`로 첫 미처리 학생을 현재 위치로 복원할 수 있다.
 
 ---
 
@@ -176,14 +193,16 @@ DB index:
 DB 상태:
 
 ```text
-ElectionVoter progress: voting
-VoteSession: open
+PollingStation: active
+current_election_voter: 현재 학생
+ElectionVoterParticipation: 없음
 ```
 
 기대 동작:
 
 - 같은 `ElectionVoter`의 투표 화면으로 복구한다.
 - 아직 제출 전이므로 다시 후보를 선택할 수 있다.
+- 후보 선택 정보는 DB에 저장되어 있지 않으므로 복구하지 않는다.
 
 ---
 
@@ -225,9 +244,8 @@ VoteSession: open
 #### 서버 트랜잭션 성공
 
 ```text
-VoteSession: submitted
-ElectionVoterParticipation/Receipt: completed
-Tally: 후보 득표 +1
+ElectionVoterParticipation: completed
+CandidateTally: 후보 득표 +1
 ```
 
 복구 시:
@@ -238,9 +256,8 @@ Tally: 후보 득표 +1
 #### 서버 트랜잭션 실패
 
 ```text
-VoteSession: open
-ElectionVoterParticipation/Receipt: 변경 없음
-Tally: 변화 없음
+ElectionVoterParticipation: 변경 없음
+CandidateTally: 변화 없음
 ```
 
 복구 시:
@@ -261,7 +278,7 @@ Tally: 변화 없음
 기대 동작:
 
 - 첫 번째 요청만 성공한다.
-- 두 번째 요청은 이미 제출된 vote session으로 처리한다.
+- 두 번째 요청은 이미 확정 처리된 현재 투표자로 거부한다.
 - 득표수는 한 번만 증가한다.
 
 ---
@@ -284,63 +301,34 @@ Tally: 변화 없음
 
 투표 제출은 반드시 하나의 DB 트랜잭션 안에서 처리한다.
 
-투표 제출 시 함께 처리되어야 하는 작업:
+현재 투표 제출 시 함께 처리되는 작업:
 
-1. vote session이 open 상태인지 확인
-2. 현재 투표 대상 `ElectionVoter`가 `PollingStation.current_election_voter_id`와 일치하는지 확인
-3. polling station이 active 상태인지 확인
+1. `Election`이 `in_progress` 상태인지 확인
+2. `PollingStation`이 있고 active 상태인지 확인
+3. 현재 투표 대상 `ElectionVoter`가 있는지 확인
 4. 후보가 해당 선거에 속하는지 확인
-5. 해당 `ElectionVoter`의 participation/receipt가 아직 완료되지 않았는지 확인
-6. 후보별 `CandidateTally.votes_count` 증가
-7. participation/receipt를 `completed`로 기록
-8. vote session을 submitted로 변경
-9. submitted_at 기록
+5. 후보별 `CandidateTally`가 있는지 확인
+6. 해당 `ElectionVoter`의 participation이 아직 없는지 확인
+7. `PollingStation`, 현재 `ElectionVoter`, `CandidateTally`를 transaction 안에서 lock
+8. 후보별 `CandidateTally.votes_count` 증가
+9. `ElectionVoterParticipation(completed)` 생성
 
 이 중 하나라도 실패하면 전체가 rollback되어야 한다.
-`CandidateTally` 증가와 participation/receipt 완료 기록은 함께 성공하거나 함께 실패해야 한다.
-
-### CandidateTally
-
-`CandidateTally`는 후보별 총 득표수만 저장한다.
-학생 정보나 개별 투표자의 선택 결과를 저장하지 않는다.
-현재 구현에서는 `Elections::Start` 성공 시 후보자별 `CandidateTally`가 0표로 생성된다.
-현재 `Elections::SubmitVote` service가 `CandidateTally` 증가와 `ElectionVoterParticipation` 생성을 하나의 transaction으로 처리한다.
-현재 선거 상세 화면에서 현재 투표자의 후보 선택 제출을 연결한다.
-현재 `Elections::AdvanceCurrentVoter` service가 확정 상태인 현재 투표자에서 다음 `ElectionVoter`로 이동한다.
-현재 `Elections::Close` service가 마지막 투표자 확정 뒤 `Election`과 `PollingStation`을 closed로 전이한다.
-현재 `Elections::RecordParticipationOutcome` service가 현재 투표자를 미참여 또는 기권으로 확정 처리하며, `CandidateTally`는 변경하지 않는다.
-종료 후 결과 화면은 `CandidateTally`의 count-only 집계를 표시하며, 학생별 후보 선택은 표시하지 않는다.
-closed 결과 화면은 participation 상태 count와 후보별 count-only tally를 분리해서 요약한다.
-
-예상 컬럼:
-
-- `election_id`
-- `candidate_id`
-- `votes_count`
-
-중요 원칙:
-
-- count-only 구조를 기본으로 한다.
-- `CandidateTally`는 `ElectionVoter`와 직접 연결하지 않는다.
-- `CandidateTally`에는 `election_voter_id`를 저장하지 않는다.
-- 후보별 득표 증가 시각을 특정 학생의 `completed_at`과 연결해 추정할 수 있는 화면 흐름을 피한다.
-- Rails timestamps가 남더라도 비밀투표를 깨는 근거로 사용하거나 화면에 노출하지 않는다.
+`CandidateTally` 증가와 `ElectionVoterParticipation` 완료 기록은 함께 성공하거나 함께 실패해야 한다.
 
 ---
 
 ## 멱등성 원칙
 
-투표 제출은 멱등적이어야 한다.
+투표 제출은 중복 처리되지 않아야 한다.
 
-같은 vote session에 대해 제출 요청이 여러 번 들어와도 최종 결과는 한 번 제출된 것과 같아야 한다.
+같은 현재 투표자에 대해 제출 요청이 여러 번 들어와도 최종 결과는 한 번 제출된 것과 같아야 한다.
 
 필요한 장치:
 
-- vote session 상태 확인
-- submitted_at 존재 여부 확인
 - DB unique constraint 또는 lock
 - 트랜잭션 내부 재확인
-- 같은 `ElectionVoter`에 대한 participation/receipt 완료 처리 중복 방지
+- 같은 `ElectionVoter`에 대한 participation 완료 처리 중복 방지
 - 같은 제출 요청이 후보별 득표를 두 번 증가시키지 않도록 하는 DB 제약
 
 ---
@@ -353,21 +341,20 @@ closed 결과 화면은 participation 상태 count와 후보별 count-only tally
 
 - polling station 또는 진행 상태 row lock
 - `ElectionVoter` 진행 row lock
-- vote session row lock
 - transaction 내부에서 상태 재확인
 - DB unique index
 
-예상 제약:
+현재 및 후속 제약:
 
-- 한 polling station에 open vote session은 하나만 존재
-- 한 `ElectionVoter`에 완료 participation/receipt는 하나만 존재
-- submitted vote session은 다시 submitted 처리 불가
+- 한 `ElectionVoter`에 participation은 하나만 존재
+- 한 선거 후보에 `CandidateTally`는 하나만 존재
+- 후속 `VoteSession` 도입 시 open/submitted session 중복 방지 제약 검토
 
 ---
 
-## DB 제약 후보
+## 현재 / 후속 DB 제약
 
-구현 시 검토할 제약:
+현재 유지하거나 후속 구현 시 검토할 제약:
 
 - `election_voters`
   - `[election_id, number]` unique
@@ -377,19 +364,17 @@ closed 결과 화면은 participation 상태 count와 후보별 count-only tally
   - `[election_id]` unique
   - `current_election_voter_id` foreign key to `election_voters`
 
-- 완료 receipt 또는 제출 모델
+- `election_voter_participations`
   - 같은 `ElectionVoter` 완료 처리 중복 방지
   - `candidate_id` 저장 금지
 
-- `vote_sessions`
-  - open 상태 session 중복 방지
-  - submitted session 재제출 방지
-
 - `candidate_tallies`
-  - `[election_id, candidate_id]` 또는 `[polling_station_id, candidate_id]` unique
+  - `[election_id, candidate_id]` unique
   - `ElectionVoter` 직접 참조 금지
 
-정확한 index 설계는 실제 모델 정의 시 확정한다.
+- `vote_sessions`
+  - 현재 미구현
+  - 도입 시 open 상태 session 중복 방지와 submitted session 재제출 방지 제약 검토
 
 ---
 
@@ -405,11 +390,42 @@ closed 결과 화면은 participation 상태 count와 후보별 count-only tally
 명시적으로 배제하는 구조:
 
 - `ElectionVoter`에 `candidate_id` 저장
+- `ElectionVoterParticipation`에 `candidate_id` 저장
+- `CandidateTally`에 `election_voter_id` 저장
 - `VoteRecord(election_voter_id, candidate_id)` 형태
 - `PollingStation`에 후보 선택 결과 저장
 - `PollingStation`에 완료 목록 저장
 - `CandidateTally`와 `ElectionVoter` 직접 연결
-- 학생 `completed_at`과 후보별 득표 증가 정보를 화면에서 직접 연결해 보여주는 구조
+- 학생 `recorded_at`과 후보별 득표 증가 정보를 화면에서 직접 연결해 보여주는 구조
+
+`IntegrityReport`와 `ResumeCurrentVoter`도 학생별 후보 선택 정보를 다루지 않는다.
+`IntegrityReport`는 후보별 득표 합계와 `completed` 수의 숫자 비교만 수행한다.
+`ResumeCurrentVoter`는 현재 투표자 포인터만 복원한다.
+학생별 후보 선택은 저장, 표시, 로그 어느 쪽으로도 남기지 않는다.
+
+---
+
+## 복구 가능 범위와 비복구 범위
+
+현재 구현에서 복구 가능한 것:
+
+- 브라우저 새로고침
+- 교사 재로그인
+- 서버 재시작 후 DB 상태 기준 재진입
+- `current_election_voter`가 nil이고, 다른 무결성 문제가 없으며, 미처리 학생이 남아 있는 경우 첫 미처리 학생으로 재개
+
+현재 자동 복구하지 않는 것:
+
+- `candidate_tallies` 수 불일치
+- `completed` 수와 `votes_count` 합계 불일치
+- `current_election_voter`가 다른 election의 voter를 가리키는 경우
+- `closed` 상태인데 미처리 학생이 남은 경우
+- `polling_station` 자체가 없는 경우
+- `polling_station` 상태 불일치
+- 후보별 득표 재계산
+
+위 문제는 상태 점검 카드에서 확인 대상으로 표시하되, 자동 수정하지 않는다.
+추가 복구 액션은 비밀투표와 무결성에 영향을 줄 수 있으므로 별도 설계 후 도입한다.
 
 ---
 
@@ -421,12 +437,23 @@ closed 결과 화면은 participation 상태 count와 후보별 count-only tally
 
 - 투표 중 새로고침해도 같은 `ElectionVoter` 위치로 복구된다.
 - 교사 재로그인 후 진행 중인 `ElectionVoter` 위치로 복구된다.
-- open vote session은 한 투표소에 하나만 존재한다.
-- 같은 vote session을 두 번 제출해도 득표수는 한 번만 증가한다.
-- 제출 성공 시 participation/receipt 완료와 tally 증가가 함께 반영된다.
-- 제출 실패 시 participation/receipt 완료와 tally 증가가 모두 반영되지 않는다.
+- 같은 현재 투표자에 대해 두 번 제출해도 득표수는 한 번만 증가한다.
+- 제출 성공 시 `ElectionVoterParticipation` 완료와 tally 증가가 함께 반영된다.
+- 제출 실패 시 `ElectionVoterParticipation` 완료와 tally 증가가 모두 반영되지 않는다.
 - 완료된 `ElectionVoter`는 다시 투표할 수 없다.
 - 종료된 polling station에는 추가 투표를 할 수 없다.
+- 후속 `VoteSession` 도입 시 open/submitted session 중복 방지 테스트를 별도로 추가한다.
+
+---
+
+## 미구현 / 후속 검토
+
+- `ElectionEventLog` / 감사 로그
+- `IntegrityReport` issue code 도입
+- 시작 전 checklist / freeze UX
+- 결과 snapshot / 인쇄 또는 export
+- 추가 복구 액션
+- `VoteSession` 후속 검토
 
 ---
 
