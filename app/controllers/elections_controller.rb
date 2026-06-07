@@ -9,6 +9,7 @@ class ElectionsController < ApplicationController
 
   def show
     authorize @election
+    @integrity_report = Elections::IntegrityReport.new(@election)
     @result_summary = Elections::ResultSummary.new(@election) if @election.closed?
   end
 

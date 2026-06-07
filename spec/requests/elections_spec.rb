@@ -131,6 +131,7 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include("후보자 추가")
       expect(response.body).to include(new_election_candidate_path(election))
       expect(response.body).to include("선거 시작")
+      expect(response.body).to include("상태 점검: 이상 없음")
       expect(response.body).to include("아직 생성된 선거용 명단이 없습니다.")
     end
 
@@ -255,6 +256,8 @@ RSpec.describe "Elections", type: :request do
 
       expect(response.body).to include("선거가 진행 중입니다.")
       expect(response.body).to include("투표 진행 정보를 찾을 수 없습니다.")
+      expect(response.body).to include("상태 점검: 확인 필요")
+      expect(response.body).to include("진행 중인 선거의 투표소 정보를 찾을 수 없습니다.")
     end
   end
 
@@ -330,7 +333,9 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include(advance_current_voter_election_path(election))
       expect(response.body).not_to include(submit_vote_election_path(election))
       expect(response.body).not_to include("votes_count")
-      expect(response.body).not_to include("득표")
+      expect(response.body).not_to include("candidate_id")
+      expect(response.body).not_to include("election_voter_id")
+      expect(response.body).not_to include("VoteRecord")
       expect(response.body).not_to include("선택한 후보")
       expect(response.body).not_to include("#{candidate.name}에게 투표")
     end
