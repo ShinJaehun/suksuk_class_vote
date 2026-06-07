@@ -22,6 +22,10 @@
     </div>
   </dl>
 
+  <% if @election.draft? %>
+    <%= render "readiness", election: @election %>
+  <% end %>
+
   <%= render "integrity_report", election: @election, integrity_report: @integrity_report %>
   <%= render "candidates", election: @election %>
   <%= render "progress", election: @election, result_summary: @result_summary %>

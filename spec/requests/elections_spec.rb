@@ -136,6 +136,11 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).not_to include("전체 투표자 수")
       expect(response.body).not_to include("후보별 득표 합계")
       expect(response.body).to include("아직 생성된 선거용 명단이 없습니다.")
+      expect(response.body).to include("투표자")
+      expect(response.body).to include("1명")
+      expect(response.body).to include("후보자")
+      expect(response.body).to include("0명")
+      expect(response.body).to include("시작 불가")
     end
 
     it "shows candidates" do
@@ -150,6 +155,35 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include("1번")
       expect(response.body).to include("김민준")
       expect(response.body).to include("선거 시작")
+    end
+
+    it "shows draft readiness as not startable with one candidate" do
+      teacher = create(:user)
+      election = create(:election, user: teacher)
+      create(:candidate, election: election, number: 1)
+      sign_in teacher
+
+      get election_path(election)
+
+      expect(response.body).to include("투표자")
+      expect(response.body).to include("1명")
+      expect(response.body).to include("후보자")
+      expect(response.body).to include("1명")
+      expect(response.body).to include("시작 불가")
+    end
+
+    it "shows draft readiness as startable with at least two candidates and voters" do
+      teacher = create(:user)
+      election = create_startable_election(user: teacher)
+      sign_in teacher
+
+      get election_path(election)
+
+      expect(response.body).to include("투표자")
+      expect(response.body).to include("2명")
+      expect(response.body).to include("후보자")
+      expect(response.body).to include("2명")
+      expect(response.body).to include("시작 가능")
     end
 
     it "shows recent event log with displayable events only" do
@@ -276,6 +310,7 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include("0명")
       expect(response.body).to include("후보별 득표 합계")
       expect(response.body).to include("0표")
+      expect(response.body).not_to include("시작 가능 여부")
       expect(response.body).to include(submit_vote_election_path(election))
       expect(response.body).to include("선거용 명단")
       expect(response.body).to include("김민준")

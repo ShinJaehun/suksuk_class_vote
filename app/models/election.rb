@@ -14,6 +14,18 @@ class Election < ApplicationRecord
   validates :voter_group, presence: true
   validate :voter_group_has_voter_slots
 
+  def readiness_candidate_count
+    candidates.count
+  end
+
+  def readiness_voter_count
+    voter_group&.voter_slots&.count.to_i
+  end
+
+  def startable_by_configuration?
+    draft? && readiness_candidate_count >= 2 && readiness_voter_count.positive?
+  end
+
   private
 
   def voter_group_has_voter_slots
