@@ -132,6 +132,9 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include(new_election_candidate_path(election))
       expect(response.body).to include("선거 시작")
       expect(response.body).to include("상태 점검: 이상 없음")
+      expect(response.body).to include("선거 시작 전 상태입니다. 시작 후 선거용 명단과 후보별 집계가 생성됩니다.")
+      expect(response.body).not_to include("전체 투표자 수")
+      expect(response.body).not_to include("후보별 득표 합계")
       expect(response.body).to include("아직 생성된 선거용 명단이 없습니다.")
     end
 
@@ -228,6 +231,13 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include("in_progress")
       expect(response.body).to include("선거가 진행 중입니다.")
       expect(response.body).to include("현재 투표자: 1번 김민준")
+      expect(response.body).to include("진행 상태가 정상입니다. 화면을 닫거나 새로고침해도 현재 투표자 기준으로 이어갈 수 있습니다.")
+      expect(response.body).to include("전체 투표자 수")
+      expect(response.body).to include("2명")
+      expect(response.body).to include("투표 완료 수")
+      expect(response.body).to include("0명")
+      expect(response.body).to include("후보별 득표 합계")
+      expect(response.body).to include("0표")
       expect(response.body).to include(submit_vote_election_path(election))
       expect(response.body).to include("선거용 명단")
       expect(response.body).to include("김민준")
@@ -258,6 +268,7 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include("투표 진행 정보를 찾을 수 없습니다.")
       expect(response.body).to include("상태 점검: 확인 필요")
       expect(response.body).to include("진행 중인 선거의 투표소 정보를 찾을 수 없습니다.")
+      expect(response.body).to include("진행 상태 확인이 필요합니다. 자동 복구는 아직 제공하지 않습니다.")
     end
   end
 

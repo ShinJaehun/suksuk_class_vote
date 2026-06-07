@@ -34,6 +34,24 @@ module Elections
       )
     end
 
+    def show_summary?
+      election.in_progress? || election.closed?
+    end
+
+    def guidance_message
+      if election.draft?
+        "선거 시작 전 상태입니다. 시작 후 선거용 명단과 후보별 집계가 생성됩니다."
+      elsif election.in_progress? && ok?
+        "진행 상태가 정상입니다. 화면을 닫거나 새로고침해도 현재 투표자 기준으로 이어갈 수 있습니다."
+      elsif election.in_progress?
+        "진행 상태 확인이 필요합니다. 자동 복구는 아직 제공하지 않습니다."
+      elsif election.closed? && ok?
+        "종료된 선거의 결과 상태가 정상입니다."
+      elsif election.closed?
+        "종료된 선거 결과 상태 확인이 필요합니다."
+      end
+    end
+
     private
 
     attr_reader :election

@@ -9,4 +9,43 @@
       <% end %>
     </ul>
   <% end %>
+
+  <% if integrity_report.guidance_message.present? %>
+    <p class="text-sm text-stone-600"><%= integrity_report.guidance_message %></p>
+  <% end %>
+
+  <% if integrity_report.show_summary? %>
+    <% summary = integrity_report.summary %>
+    <dl class="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+        <dt class="text-sm font-medium text-stone-500">전체 투표자 수</dt>
+        <dd class="mt-1 font-semibold"><%= summary.total_voters %>명</dd>
+      </div>
+
+      <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+        <dt class="text-sm font-medium text-stone-500">투표 완료 수</dt>
+        <dd class="mt-1 font-semibold"><%= summary.completed_count %>명</dd>
+      </div>
+
+      <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+        <dt class="text-sm font-medium text-stone-500">미참여 수</dt>
+        <dd class="mt-1 font-semibold"><%= summary.absent_count %>명</dd>
+      </div>
+
+      <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+        <dt class="text-sm font-medium text-stone-500">기권 수</dt>
+        <dd class="mt-1 font-semibold"><%= summary.abstained_count %>명</dd>
+      </div>
+
+      <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+        <dt class="text-sm font-medium text-stone-500">미처리 수</dt>
+        <dd class="mt-1 font-semibold"><%= summary.unprocessed_count %>명</dd>
+      </div>
+
+      <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+        <dt class="text-sm font-medium text-stone-500">후보별 득표 합계</dt>
+        <dd class="mt-1 font-semibold"><%= summary.votes_count %>표</dd>
+      </div>
+    </dl>
+  <% end %>
 </section>

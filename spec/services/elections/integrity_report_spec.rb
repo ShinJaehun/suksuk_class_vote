@@ -149,6 +149,62 @@ RSpec.describe Elections::IntegrityReport do
     end
   end
 
+  describe "#show_summary?" do
+    it "does not show summary for draft elections" do
+      report = described_class.new(create_startable_election)
+
+      expect(report.show_summary?).to be(false)
+    end
+
+    it "shows summary for in-progress elections" do
+      report = described_class.new(create_in_progress_election)
+
+      expect(report.show_summary?).to be(true)
+    end
+
+    it "shows summary for closed elections" do
+      report = described_class.new(create_closed_election)
+
+      expect(report.show_summary?).to be(true)
+    end
+  end
+
+  describe "#guidance_message" do
+    it "returns draft guidance" do
+      report = described_class.new(create_startable_election)
+
+      expect(report.guidance_message).to eq("선거 시작 전 상태입니다. 시작 후 선거용 명단과 후보별 집계가 생성됩니다.")
+    end
+
+    it "returns in-progress ok guidance" do
+      report = described_class.new(create_in_progress_election)
+
+      expect(report.guidance_message).to eq("진행 상태가 정상입니다. 화면을 닫거나 새로고침해도 현재 투표자 기준으로 이어갈 수 있습니다.")
+    end
+
+    it "returns in-progress issue guidance" do
+      election = create_in_progress_election
+      election.polling_station.destroy!
+      report = described_class.new(election.reload)
+
+      expect(report.guidance_message).to eq("진행 상태 확인이 필요합니다. 자동 복구는 아직 제공하지 않습니다.")
+    end
+
+    it "returns closed ok guidance" do
+      report = described_class.new(create_closed_election)
+
+      expect(report.guidance_message).to eq("종료된 선거의 결과 상태가 정상입니다.")
+    end
+
+    it "returns closed issue guidance" do
+      election = create_closed_election
+      election.polling_station.update!(status: :active)
+      report = described_class.new(election)
+
+      expect(report.guidance_message).to eq("종료된 선거 결과 상태 확인이 필요합니다.")
+    end
+  end
+
   def create_startable_election
     teacher = create(:user)
     voter_group = create(:voter_group, user: teacher)
