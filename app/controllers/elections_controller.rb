@@ -52,6 +52,7 @@ class ElectionsController < ApplicationController
     result = Elections::SubmitVote.new(election: @election, candidate: candidate, actor: current_user).call
 
     if result.success?
+      broadcast_operation_progress
       redirect_to operation_redirect_path, notice: "투표가 제출되었습니다."
     else
       redirect_to operation_redirect_path, alert: result.error_message
@@ -64,6 +65,7 @@ class ElectionsController < ApplicationController
     result = Elections::RecordParticipationOutcome.new(election: @election, status: params[:status], actor: current_user).call
 
     if result.success?
+      broadcast_operation_progress
       redirect_to operation_redirect_path, notice: "투표자 상태를 처리했습니다."
     else
       redirect_to operation_redirect_path, alert: result.error_message
@@ -76,6 +78,7 @@ class ElectionsController < ApplicationController
     result = Elections::AdvanceCurrentVoter.new(election: @election, actor: current_user).call
 
     if result.success?
+      broadcast_operation_progress
       redirect_to operation_redirect_path, notice: "다음 학생으로 이동했습니다."
     else
       redirect_to operation_redirect_path, alert: result.error_message
@@ -135,6 +138,16 @@ class ElectionsController < ApplicationController
     return ballot_election_path(@election) if params[:return_to] == "ballot" && @election.in_progress?
 
     @election
+  end
+
+  def broadcast_operation_progress
+    Turbo::StreamsChannel.broadcast_replace_to(
+      @election,
+      :operation_screen,
+      target: helpers.dom_id(@election, :progress),
+      partial: "elections/progress",
+      locals: { election: @election }
+    )
   end
 
   def set_selectable_voter_groups

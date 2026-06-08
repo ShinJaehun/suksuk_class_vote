@@ -191,6 +191,7 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include("시작 가능")
       expect(response.body).to include("선거 시작")
       expect(response.body).to include(start_election_path(election))
+      expect(response.body).to include("data-turbo-frame=\"_top\"")
     end
 
     it "shows recent event log with displayable events only" do
@@ -463,7 +464,12 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).not_to include("시작 가능 여부")
       expect(response.body).to include("투표 화면 열기")
       expect(response.body).to include(ballot_election_path(election))
+      expect(response.body).to include("turbo-cable-stream-source")
+      expect(response.body).to include("progress_election_#{election.id}")
       expect(response.body).not_to include(submit_vote_election_path(election))
+      expect(response.body).not_to include("미참여 처리")
+      expect(response.body).not_to include("기권 처리")
+      expect(response.body).not_to include("다음 학생으로")
       expect(response.body).to include("선거용 명단")
       expect(response.body).to include("김민준")
       expect(response.body).to include("이서연")
@@ -603,7 +609,7 @@ RSpec.describe "Elections", type: :request do
       get election_path(election)
 
       expect(response.body).to include("현재 투표자는 투표를 완료했습니다.")
-      expect(response.body).to include(advance_current_voter_election_path(election))
+      expect(response.body).not_to include(advance_current_voter_election_path(election))
       expect(response.body).not_to include(submit_vote_election_path(election))
       expect(response.body).not_to include("votes_count")
       expect(response.body).not_to include("candidate_id")
@@ -615,16 +621,17 @@ RSpec.describe "Elections", type: :request do
   end
 
   describe "POST /elections/:id/record_participation_outcome" do
-    it "shows absent and abstained buttons before the current voter is finalized" do
+    it "does not show absent and abstained buttons on the operation screen" do
       teacher = create(:user)
       election = create_started_election(user: teacher)
       sign_in teacher
 
       get election_path(election)
 
-      expect(response.body).to include("미참여 처리")
-      expect(response.body).to include("기권 처리")
-      expect(response.body).to include(record_participation_outcome_election_path(election))
+      expect(response.body).to include("투표 화면에서 선택을 진행하세요.")
+      expect(response.body).not_to include("미참여 처리")
+      expect(response.body).not_to include("기권 처리")
+      expect(response.body).not_to include(record_participation_outcome_election_path(election))
     end
 
     it "records absent outcome without changing candidate tally" do
@@ -643,7 +650,7 @@ RSpec.describe "Elections", type: :request do
       get election_path(election)
 
       expect(response.body).to include("현재 투표자는 미참여 처리되었습니다.")
-      expect(response.body).to include(advance_current_voter_election_path(election))
+      expect(response.body).not_to include(advance_current_voter_election_path(election))
       expect(response.body).not_to include(submit_vote_election_path(election))
     end
 
@@ -662,7 +669,7 @@ RSpec.describe "Elections", type: :request do
       get election_path(election)
 
       expect(response.body).to include("현재 투표자는 기권 처리되었습니다.")
-      expect(response.body).to include(advance_current_voter_election_path(election))
+      expect(response.body).not_to include(advance_current_voter_election_path(election))
       expect(response.body).not_to include(submit_vote_election_path(election))
     end
   end
@@ -700,7 +707,7 @@ RSpec.describe "Elections", type: :request do
 
       get election_path(election)
 
-      expect(response.body).to include(advance_current_voter_election_path(election))
+      expect(response.body).not_to include(advance_current_voter_election_path(election))
       expect(response.body).not_to include(close_election_path(election))
 
       election.polling_station.update!(current_election_voter: last_voter)
@@ -710,6 +717,7 @@ RSpec.describe "Elections", type: :request do
 
       expect(response.body).to include(close_election_path(election))
       expect(response.body).to include("선거를 종료할까요?")
+      expect(response.body).to include("data-turbo-frame=\"_top\"")
       expect(response.body).not_to include(advance_current_voter_election_path(election))
     end
 
