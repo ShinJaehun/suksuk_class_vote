@@ -1,6 +1,4 @@
 <div class="mx-auto max-w-2xl space-y-6">
-  <p><%= link_to "운영 화면으로 돌아가기", election_path(@election), class: "text-sm font-medium text-stone-600 underline" %></p>
-
   <div class="space-y-2">
     <h1 class="text-3xl font-semibold"><%= @election.title %></h1>
     <p class="text-stone-600">투표 화면</p>
@@ -22,7 +20,7 @@
                         params: { return_to: "ballot" },
                         class: "rounded-md bg-stone-900 px-4 py-3 text-sm font-medium text-white" %>
         <% else %>
-          <p class="text-stone-600">모든 투표자가 처리되었습니다. 운영 화면에서 선거를 종료하세요.</p>
+          <p class="text-stone-600">모든 투표자가 처리되었습니다. 창을 닫아주세요.</p>
         <% end %>
       <% else %>
         <div class="space-y-3">

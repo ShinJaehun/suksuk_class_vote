@@ -258,7 +258,7 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include("미참여 처리")
       expect(response.body).to include("return_to")
       expect(response.body).to include("ballot")
-      expect(response.body).to include(election_path(election))
+      expect(response.body).not_to include("운영 화면으로 돌아가기")
       expect(response.body).not_to include("운영 기록")
       expect(response.body).not_to include("상태 점검")
       expect(response.body).not_to include("선거용 명단")
@@ -341,7 +341,8 @@ RSpec.describe "Elections", type: :request do
 
       get ballot_election_path(election)
 
-      expect(response.body).to include("모든 투표자가 처리되었습니다. 운영 화면에서 선거를 종료하세요.")
+      expect(response.body).to include("모든 투표자가 처리되었습니다. 창을 닫아주세요.")
+      expect(response.body).not_to include("모든 투표자가 처리되었습니다. 운영 화면에서 선거를 종료하세요.")
       expect(response.body).not_to include(submit_vote_election_path(election))
       expect(response.body).not_to include(advance_current_voter_election_path(election))
       expect(response.body).not_to include(close_election_path(election))
@@ -466,6 +467,7 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include(ballot_election_path(election))
       expect(response.body).to include("turbo-cable-stream-source")
       expect(response.body).to include("progress_election_#{election.id}")
+      expect(response.body).to include("event_log_election_#{election.id}")
       expect(response.body).not_to include(submit_vote_election_path(election))
       expect(response.body).not_to include("미참여 처리")
       expect(response.body).not_to include("기권 처리")

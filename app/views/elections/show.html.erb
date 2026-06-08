@@ -52,5 +52,5 @@
     <%= render "progress", election: @election %>
   <% end %>
   <%= render "election_voters", election: @election %>
-  <%= render "event_log", election_events: @election_events %>
+  <%= render "event_log", election: @election, election_events: @election_events %>
 </div>

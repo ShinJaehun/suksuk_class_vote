@@ -11,11 +11,7 @@ class ElectionsController < ApplicationController
     authorize @election
     @integrity_report = Elections::IntegrityReport.new(@election)
     @result_summary = Elections::ResultSummary.new(@election) if @election.closed?
-    @election_events = @election.election_events
-      .where(event_type: ElectionEvent::DISPLAYABLE_EVENT_TYPES)
-      .includes(:actor, :election_voter)
-      .order(occurred_at: :desc)
-      .limit(10)
+    @election_events = operation_event_log_events
   end
 
   def ballot
@@ -53,6 +49,7 @@ class ElectionsController < ApplicationController
 
     if result.success?
       broadcast_operation_progress
+      broadcast_operation_event_log
       redirect_to operation_redirect_path, notice: "투표가 제출되었습니다."
     else
       redirect_to operation_redirect_path, alert: result.error_message
@@ -66,6 +63,7 @@ class ElectionsController < ApplicationController
 
     if result.success?
       broadcast_operation_progress
+      broadcast_operation_event_log
       redirect_to operation_redirect_path, notice: "투표자 상태를 처리했습니다."
     else
       redirect_to operation_redirect_path, alert: result.error_message
@@ -148,6 +146,24 @@ class ElectionsController < ApplicationController
       partial: "elections/progress",
       locals: { election: @election }
     )
+  end
+
+  def broadcast_operation_event_log
+    Turbo::StreamsChannel.broadcast_replace_to(
+      @election,
+      :operation_screen,
+      target: helpers.dom_id(@election, :event_log),
+      partial: "elections/event_log",
+      locals: { election: @election, election_events: operation_event_log_events }
+    )
+  end
+
+  def operation_event_log_events
+    @election.election_events
+      .where(event_type: ElectionEvent::DISPLAYABLE_EVENT_TYPES)
+      .includes(:actor, :election_voter)
+      .order(occurred_at: :desc)
+      .limit(10)
   end
 
   def set_selectable_voter_groups
