@@ -1,6 +1,6 @@
 class ElectionsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_election, only: %i[show start submit_vote record_participation_outcome advance_current_voter resume_current_voter close]
+  before_action :set_election, only: %i[show ballot start submit_vote record_participation_outcome advance_current_voter resume_current_voter close]
 
   def index
     @elections = policy_scope(Election).includes(voter_group: :voter_slots).order(created_at: :desc)
@@ -16,6 +16,17 @@ class ElectionsController < ApplicationController
       .includes(:actor, :election_voter)
       .order(occurred_at: :desc)
       .limit(10)
+  end
+
+  def ballot
+    authorize @election, :show?
+
+    unless @election.in_progress?
+      redirect_to @election, alert: "진행 중인 선거에서만 투표 화면을 사용할 수 있습니다."
+      return
+    end
+
+    @current_election_voter = @election.polling_station&.current_election_voter
   end
 
   def start

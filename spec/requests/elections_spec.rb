@@ -230,6 +230,67 @@ RSpec.describe "Elections", type: :request do
     end
   end
 
+  describe "GET /elections/:id/ballot" do
+    it "shows a simple ballot for the current voter during an in progress election" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      current_voter = election.polling_station.current_election_voter
+      other_voter = election.election_voters.where.not(id: current_voter.id).order(:number).first
+      candidates = election.candidates.order(:number)
+      sign_in teacher
+
+      get ballot_election_path(election)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include(election.title)
+      expect(response.body).to include("투표 화면")
+      expect(response.body).to include("현재 투표자")
+      expect(response.body).to include("#{current_voter.number}번 #{current_voter.name}")
+      candidates.each do |candidate|
+        expect(response.body).to include("#{candidate.number}번 #{candidate.name}")
+      end
+      expect(response.body).to include(submit_vote_election_path(election))
+      expect(response.body).to include(record_participation_outcome_election_path(election))
+      expect(response.body).to include("미참여 처리")
+      expect(response.body).to include(election_path(election))
+      expect(response.body).not_to include("운영 기록")
+      expect(response.body).not_to include("상태 점검")
+      expect(response.body).not_to include("선거용 명단")
+      expect(response.body).not_to include("후보별 득표 합계")
+      expect(response.body).not_to include("득표수")
+      expect(response.body).not_to include("선택한 후보")
+      if other_voter.present?
+        expect(response.body).not_to include("#{other_voter.number}번 #{other_voter.name}")
+      end
+    end
+
+    it "redirects draft elections to the operation screen" do
+      teacher = create(:user)
+      election = create_startable_election(user: teacher)
+      sign_in teacher
+
+      get ballot_election_path(election)
+
+      expect(response).to redirect_to(election_path(election))
+      expect(flash[:alert]).to eq("진행 중인 선거에서만 투표 화면을 사용할 수 있습니다.")
+    end
+
+    it "redirects closed elections to the operation screen" do
+      teacher = create(:user)
+      election = create_started_election(user: teacher)
+      last_voter = election.election_voters.order(:number).last
+      election.polling_station.update!(current_election_voter: last_voter)
+      create(:election_voter_participation, election_voter: last_voter, status: :absent)
+      Elections::Close.new(election: election).call
+      sign_in teacher
+
+      get ballot_election_path(election)
+
+      expect(response).to redirect_to(election_path(election))
+      expect(flash[:alert]).to eq("진행 중인 선거에서만 투표 화면을 사용할 수 있습니다.")
+    end
+  end
+
   describe "POST /elections/:id/start" do
     it "redirects guests to sign in" do
       election = create(:election)

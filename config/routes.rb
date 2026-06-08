@@ -2,6 +2,7 @@ Rails.application.routes.draw do
   devise_for :users
   resource :dashboard, only: :show
   resources :elections, only: %i[index show new create] do
+    get :ballot, on: :member
     post :start, on: :member
     post :submit_vote, on: :member
     post :record_participation_outcome, on: :member
