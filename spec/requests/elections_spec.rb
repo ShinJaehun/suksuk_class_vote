@@ -130,7 +130,8 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include("아직 등록된 후보자가 없습니다.")
       expect(response.body).to include("후보자 추가")
       expect(response.body).to include(new_election_candidate_path(election))
-      expect(response.body).to include("선거 시작")
+      expect(response.body).not_to include(start_election_path(election))
+      expect(response.body).to include("후보자 등록이 필요합니다.")
       expect(response.body).to include("상태 점검: 이상 없음")
       expect(response.body).to include("선거 시작 전 상태입니다. 시작 후 선거용 명단과 후보별 집계가 생성됩니다.")
       expect(response.body).not_to include("전체 투표자 수")
@@ -170,6 +171,8 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include("후보자")
       expect(response.body).to include("1명")
       expect(response.body).to include("시작 불가")
+      expect(response.body).not_to include(start_election_path(election))
+      expect(response.body).to include("후보자 등록이 필요합니다.")
     end
 
     it "shows draft readiness as startable with at least two candidates and voters" do
@@ -184,6 +187,8 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include("후보자")
       expect(response.body).to include("2명")
       expect(response.body).to include("시작 가능")
+      expect(response.body).to include("선거 시작")
+      expect(response.body).to include(start_election_path(election))
     end
 
     it "shows recent event log with displayable events only" do

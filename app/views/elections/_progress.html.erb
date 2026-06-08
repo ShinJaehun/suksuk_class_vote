@@ -2,7 +2,11 @@
   <h2 class="text-xl font-semibold">선거 진행</h2>
 
   <% if election.draft? %>
-    <%= button_to "선거 시작", start_election_path(election), method: :post, class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+    <% if election.startable_by_configuration? %>
+      <%= button_to "선거 시작", start_election_path(election), method: :post, class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+    <% else %>
+      <p class="text-stone-600">후보자 등록이 필요합니다.</p>
+    <% end %>
     <% unless election.election_voters.exists? %>
       <p class="text-stone-600">아직 생성된 선거용 명단이 없습니다.</p>
     <% end %>
