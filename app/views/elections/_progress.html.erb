@@ -44,16 +44,6 @@
           </div>
         <% else %>
           <div class="space-y-3">
-            <h3 class="font-medium">후보 선택</h3>
-            <div class="flex flex-wrap gap-2">
-              <% election.candidates.order(:number).each do |candidate| %>
-                <%= button_to "#{candidate.number}번 #{candidate.name}",
-                              submit_vote_election_path(election),
-                              method: :post,
-                              params: { candidate_id: candidate.id },
-                              class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
-              <% end %>
-            </div>
             <div class="flex flex-wrap gap-2">
               <%= button_to "미참여 처리",
                             record_participation_outcome_election_path(election),
