@@ -69,7 +69,5 @@
     <% else %>
       <p class="text-stone-600">투표 진행 정보를 찾을 수 없습니다.</p>
     <% end %>
-  <% elsif election.closed? %>
-    <%= render "closed_result", result_summary: result_summary %>
   <% end %>
 </section>
