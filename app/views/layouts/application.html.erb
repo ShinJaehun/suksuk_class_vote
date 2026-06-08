@@ -24,27 +24,29 @@
   </head>
 
   <body class="min-h-screen bg-stone-50 text-stone-900">
-    <header class="border-b border-stone-200 bg-white">
-      <nav class="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-        <div class="flex flex-wrap items-center gap-4">
-          <%= link_to "쑥쑥교실투표", root_path, class: "font-semibold" %>
-          <%= link_to "선거 목록", elections_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
-          <%= link_to "투표자 그룹", voter_groups_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
-        </div>
+    <% unless content_for?(:hide_navigation) %>
+      <header class="border-b border-stone-200 bg-white">
+        <nav class="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+          <div class="flex flex-wrap items-center gap-4">
+            <%= link_to "쑥쑥교실투표", root_path, class: "font-semibold" %>
+            <%= link_to "선거 목록", elections_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
+            <%= link_to "투표자 그룹", voter_groups_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
+          </div>
 
-        <div class="flex flex-wrap items-center gap-3 text-sm text-stone-600">
-          <% if user_signed_in? %>
-            <span><%= current_user.email %></span>
-            <%= button_to "로그아웃",
-                          destroy_user_session_path,
-                          method: :delete,
-                          class: "font-medium text-stone-700 underline" %>
-          <% else %>
-            <%= link_to "로그인", new_user_session_path, class: "font-medium text-stone-700 underline" %>
-          <% end %>
-        </div>
-      </nav>
-    </header>
+          <div class="flex flex-wrap items-center gap-3 text-sm text-stone-600">
+            <% if user_signed_in? %>
+              <span><%= current_user.email %></span>
+              <%= button_to "로그아웃",
+                            destroy_user_session_path,
+                            method: :delete,
+                            class: "font-medium text-stone-700 underline" %>
+            <% else %>
+              <%= link_to "로그인", new_user_session_path, class: "font-medium text-stone-700 underline" %>
+            <% end %>
+          </div>
+        </nav>
+      </header>
+    <% end %>
 
     <main class="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
       <%= yield %>
