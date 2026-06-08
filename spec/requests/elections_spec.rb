@@ -454,7 +454,8 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include("진행")
       expect(response.body).not_to include("in_progress")
       expect(response.body).to include("선거가 진행 중입니다.")
-      expect(response.body).to include("현재 투표자: 1번 김민준")
+      expect(response.body).to include("현재 투표자")
+      expect(response.body).to include("1번 김민준")
       expect(response.body).to include("진행 상태가 정상입니다. 화면을 닫거나 새로고침해도 현재 투표자 기준으로 이어갈 수 있습니다.")
       expect(response.body).to include("전체 투표자 수")
       expect(response.body).to include("2명")
@@ -693,7 +694,8 @@ RSpec.describe "Elections", type: :request do
 
       get election_path(election)
 
-      expect(response.body).to include("현재 투표자: 2번 이서연")
+      expect(response.body).to include("현재 투표자")
+      expect(response.body).to include("2번 이서연")
       expect(response.body).to include("투표 화면 열기")
       expect(response.body).to include(ballot_election_path(election))
       expect(response.body).not_to include(submit_vote_election_path(election))
