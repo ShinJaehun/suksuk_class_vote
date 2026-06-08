@@ -38,6 +38,7 @@
               <%= button_to "선거 종료",
                             close_election_path(election),
                             method: :post,
+                            data: { turbo_confirm: "선거를 종료할까요?" },
                             class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
             <% end %>
           </div>

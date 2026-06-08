@@ -562,6 +562,7 @@ RSpec.describe "Elections", type: :request do
       get election_path(election)
 
       expect(response.body).to include(close_election_path(election))
+      expect(response.body).to include("선거를 종료할까요?")
       expect(response.body).not_to include(advance_current_voter_election_path(election))
     end
 
