@@ -301,7 +301,8 @@ RSpec.describe "Elections", type: :request do
       post start_election_path(election)
       get election_path(election)
 
-      expect(response.body).to include("in_progress")
+      expect(response.body).to include("진행")
+      expect(response.body).not_to include("in_progress")
       expect(response.body).to include("선거가 진행 중입니다.")
       expect(response.body).to include("현재 투표자: 1번 김민준")
       expect(response.body).to include("진행 상태가 정상입니다. 화면을 닫거나 새로고침해도 현재 투표자 기준으로 이어갈 수 있습니다.")
@@ -709,7 +710,7 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include("김민준")
       expect(response.body).to include("이서연")
       expect(election.reload.voter_group).to be_nil
-      expect(election.election_voters.order(:number).pluck(:name)).to eq(["김민준", "이서연"])
+      expect(election.election_voters.order(:number).pluck(:name)).to eq([ "김민준", "이서연" ])
     end
 
     it "does not show candidate management links after the election closes" do

@@ -9,6 +9,12 @@ class Election < ApplicationRecord
 
   enum :status, { draft: 0, in_progress: 10, closed: 20 }
 
+  DISPLAY_STATUSES = {
+    "draft" => "준비",
+    "in_progress" => "진행",
+    "closed" => "종료"
+  }.freeze
+
   validates :title, presence: true
   validates :user, presence: true
   validates :voter_group, presence: true, unless: :closed?
@@ -24,6 +30,10 @@ class Election < ApplicationRecord
 
   def startable_by_configuration?
     draft? && readiness_candidate_count >= 2 && readiness_voter_count.positive?
+  end
+
+  def display_status
+    DISPLAY_STATUSES.fetch(status, status)
   end
 
   def voter_group_display_name
