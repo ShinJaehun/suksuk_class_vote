@@ -46,7 +46,7 @@ RSpec.describe Polls::IntegrityReport do
       report = described_class.new(election)
 
       expect(report).not_to be_ok
-      expect(report.issues.map(&:message)).to include("진행 중인 선거의 현재 투표자를 찾을 수 없습니다.")
+      expect(report.issues.map(&:message)).to include("진행 중인 선거의 현재 참여자를 찾을 수 없습니다.")
     end
 
     it "requires current election voter to belong to the same election" do
@@ -57,7 +57,7 @@ RSpec.describe Polls::IntegrityReport do
       report = described_class.new(election)
 
       expect(report).not_to be_ok
-      expect(report.issues.map(&:message)).to include("현재 투표자가 이 선거의 선거용 명단에 속하지 않습니다.")
+      expect(report.issues.map(&:message)).to include("현재 참여자가 이 선거의 투표 참여자 명단에 속하지 않습니다.")
     end
 
     it "checks poll_option tally count only after draft" do
@@ -104,7 +104,7 @@ RSpec.describe Polls::IntegrityReport do
       })
 
       expect(report).not_to be_ok
-      expect(report.issues.map(&:message)).to include("처리 상태 합계가 전체 투표자 수를 초과합니다.")
+      expect(report.issues.map(&:message)).to include("처리 상태 합계가 전체 참여자 수를 초과합니다.")
     end
 
     it "treats all voters processed during in-progress as ok when tallies match" do
@@ -145,7 +145,7 @@ RSpec.describe Polls::IntegrityReport do
       report = described_class.new(election.reload)
 
       expect(report).not_to be_ok
-      expect(report.issues.map(&:message)).to include("종료된 선거에 미처리 투표자가 남아 있습니다.")
+      expect(report.issues.map(&:message)).to include("종료된 선거에 미처리 참여자가 남아 있습니다.")
     end
   end
 
@@ -173,13 +173,13 @@ RSpec.describe Polls::IntegrityReport do
     it "returns draft guidance" do
       report = described_class.new(create_startable_election)
 
-      expect(report.guidance_message).to eq("선거 시작 전 상태입니다. 시작 후 선거용 명단과 후보별 집계가 생성됩니다.")
+      expect(report.guidance_message).to eq("선거 시작 전 상태입니다. 시작 후 투표 참여자 명단과 후보별 집계가 생성됩니다.")
     end
 
     it "returns in-progress ok guidance" do
       report = described_class.new(create_in_progress_election)
 
-      expect(report.guidance_message).to eq("진행 상태가 정상입니다. 화면을 닫거나 새로고침해도 현재 투표자 기준으로 이어갈 수 있습니다.")
+      expect(report.guidance_message).to eq("진행 상태가 정상입니다. 화면을 닫거나 새로고침해도 현재 참여자 기준으로 이어갈 수 있습니다.")
     end
 
     it "returns in-progress issue guidance" do

@@ -64,7 +64,7 @@ class PollsController < ApplicationController
     if result.success?
       broadcast_operation_progress
       broadcast_operation_event_log
-      redirect_to operation_redirect_path, notice: "투표자 상태를 처리했습니다."
+      redirect_to operation_redirect_path, notice: "참여자 상태를 처리했습니다."
     else
       redirect_to operation_redirect_path, alert: result.error_message
     end

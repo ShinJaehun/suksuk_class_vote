@@ -16,7 +16,7 @@ RSpec.describe "Voter groups", type: :request do
       get voter_groups_path
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("투표자 그룹")
+      expect(response.body).to include("참여자 그룹")
     end
   end
 
@@ -73,9 +73,9 @@ RSpec.describe "Voter groups", type: :request do
       expect(response.body).to include(new_voter_group_voter_slot_path(voter_group))
       expect(response.body).to include("여러 명 추가")
       expect(response.body).to include(new_voter_group_bulk_voter_slots_path(voter_group))
-      expect(response.body).to include("투표자 그룹 수정")
+      expect(response.body).to include("참여자 그룹 수정")
       expect(response.body).to include(edit_voter_group_path(voter_group))
-      expect(response.body).to include("투표자 그룹 삭제")
+      expect(response.body).to include("참여자 그룹 삭제")
       expect(response.body).to include(voter_group_path(voter_group))
       expect(response.body).to include("수정")
       expect(response.body).to include(edit_voter_group_voter_slot_path(voter_group, voter_slot))
@@ -118,7 +118,7 @@ RSpec.describe "Voter groups", type: :request do
       get edit_voter_group_path(voter_group)
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("투표자 그룹 수정")
+      expect(response.body).to include("참여자 그룹 수정")
       expect(response.body).to include("4학년 1반")
     end
 
@@ -187,7 +187,7 @@ RSpec.describe "Voter groups", type: :request do
       }
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(response.body).to include("투표자 그룹을 수정할 수 없습니다.")
+      expect(response.body).to include("참여자 그룹을 수정할 수 없습니다.")
       expect(voter_group.reload.name).to eq("기존 그룹")
     end
 

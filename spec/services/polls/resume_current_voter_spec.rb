@@ -40,7 +40,7 @@ RSpec.describe Polls::ResumeCurrentVoter do
       result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
-      expect(result.error_message).to include("미처리 투표자")
+      expect(result.error_message).to include("미처리 참여자")
       expect(election.polling_station.reload.current_poll_participant).to be_nil
     end
 

@@ -66,7 +66,7 @@ RSpec.describe Polls::AdvanceCurrentVoter do
       result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
-      expect(result.error_message).to include("현재 투표자")
+      expect(result.error_message).to include("현재 참여자")
     end
 
     it "fails when current voter has no participation" do
@@ -101,7 +101,7 @@ RSpec.describe Polls::AdvanceCurrentVoter do
       result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
-      expect(result.error_message).to include("다음 투표자")
+      expect(result.error_message).to include("다음 참여자")
       expect(election.polling_station.reload.current_poll_participant).to eq(last_voter)
       expect(election.reload).to be_in_progress
     end
