@@ -2,7 +2,7 @@ require "rails_helper"
 
 RSpec.describe Polls::Start do
   describe "#call" do
-    it "starts a draft election with at least two poll_options, snapshots voter slots, creates tallies, and creates a polling station" do
+    it "starts a draft election with at least two poll_options, snapshots voter slots, creates tallies, and creates a poll progress" do
       election = create_startable_election
       first_slot = election.voter_group.voter_slots.order(:number).first
 
@@ -23,11 +23,11 @@ RSpec.describe Polls::Start do
         votes_count: 0
       ))
       expect(election.poll_option_tallies.map(&:poll_option)).to match_array(election.poll_options)
-      expect(election.polling_station).to have_attributes(
+      expect(election.poll_progress).to have_attributes(
         current_poll_participant: election.poll_participants.order(:number).first,
         status: "active"
       )
-      expect(election.polling_station.started_at).to be_present
+      expect(election.poll_progress.started_at).to be_present
       expect(election.election_events.last).to have_attributes(
         event_type: "election_started",
         poll_participant: election.poll_participants.order(:number).first
@@ -68,7 +68,7 @@ RSpec.describe Polls::Start do
       expect(election.reload).to be_in_progress
       expect(election.poll_participants).to be_empty
       expect(election.poll_option_tallies).to be_empty
-      expect(election.polling_station).to be_nil
+      expect(election.poll_progress).to be_nil
     end
 
     it "fails when there are no poll_options" do
@@ -134,12 +134,12 @@ RSpec.describe Polls::Start do
       expect(election.reload).to be_draft
       expect(election.poll_participants.count).to eq(1)
       expect(election.poll_option_tallies).to be_empty
-      expect(election.polling_station).to be_nil
+      expect(election.poll_progress).to be_nil
     end
 
-    it "fails when the polling station already exists" do
+    it "fails when the poll progress already exists" do
       election = create_startable_election
-      create(:polling_station, poll: election)
+      create(:poll_progress, poll: election)
 
       result = described_class.new(election).call
 
@@ -148,7 +148,7 @@ RSpec.describe Polls::Start do
       expect(election.reload).to be_draft
       expect(election.poll_participants).to be_empty
       expect(election.poll_option_tallies).to be_empty
-      expect(election.polling_station).to be_present
+      expect(election.poll_progress).to be_present
     end
 
     it "fails when poll_option tallies already exist" do
@@ -163,7 +163,7 @@ RSpec.describe Polls::Start do
       expect(election.reload).to be_draft
       expect(election.poll_participants).to be_empty
       expect(election.poll_option_tallies.count).to eq(1)
-      expect(election.polling_station).to be_nil
+      expect(election.poll_progress).to be_nil
     end
 
     it "rolls back status when snapshot creation fails" do
@@ -176,7 +176,7 @@ RSpec.describe Polls::Start do
       expect(election.reload).to be_draft
       expect(election.poll_participants).to be_empty
       expect(election.poll_option_tallies).to be_empty
-      expect(election.polling_station).to be_nil
+      expect(election.poll_progress).to be_nil
     end
 
     it "rolls back snapshot and status when poll_option tally creation fails" do
@@ -189,12 +189,12 @@ RSpec.describe Polls::Start do
       expect(election.reload).to be_draft
       expect(election.poll_participants).to be_empty
       expect(election.poll_option_tallies).to be_empty
-      expect(election.polling_station).to be_nil
+      expect(election.poll_progress).to be_nil
     end
 
-    it "rolls back snapshot and status when polling station creation fails" do
+    it "rolls back snapshot and status when poll progress creation fails" do
       election = create_startable_election
-      allow(election).to receive(:create_polling_station!).and_raise(ActiveRecord::RecordInvalid)
+      allow(election).to receive(:create_poll_progress!).and_raise(ActiveRecord::RecordInvalid)
 
       result = described_class.new(election).call
 
@@ -202,7 +202,7 @@ RSpec.describe Polls::Start do
       expect(election.reload).to be_draft
       expect(election.poll_participants).to be_empty
       expect(election.poll_option_tallies).to be_empty
-      expect(election.polling_station).to be_nil
+      expect(election.poll_progress).to be_nil
     end
   end
 

@@ -19,9 +19,9 @@ module Polls
       return failure if errors.any?
 
       ActiveRecord::Base.transaction do
-        locked_polling_station = polling_station.lock!
+        locked_poll_progress = poll_progress.lock!
         poll.update!(status: :closed)
-        locked_polling_station.update!(status: :closed, closed_at: Time.current)
+        locked_poll_progress.update!(status: :closed, closed_at: Time.current)
         record_event("election_closed", poll_participant: current_poll_participant)
       end
 
@@ -37,19 +37,19 @@ module Polls
 
     def validate_closable
       errors << "진행 중인 선거만 종료할 수 있습니다." unless poll.in_progress?
-      errors << "진행 중인 투표소를 찾을 수 없습니다." if polling_station.blank?
-      errors << "진행 중인 투표소만 종료할 수 있습니다." if polling_station.present? && !polling_station.active?
+      errors << "진행 중인 투표소를 찾을 수 없습니다." if poll_progress.blank?
+      errors << "진행 중인 투표소만 종료할 수 있습니다." if poll_progress.present? && !poll_progress.active?
       errors << "현재 참여자를 찾을 수 없습니다." if current_poll_participant.blank?
       errors << "현재 참여자가 아직 확정 상태가 아닙니다." unless final_participation?
       errors << "아직 남은 참여자가 있어 선거를 종료할 수 없습니다." if next_poll_participant.present?
     end
 
-    def polling_station
-      @polling_station ||= poll.polling_station
+    def poll_progress
+      @poll_progress ||= poll.poll_progress
     end
 
     def current_poll_participant
-      @current_poll_participant ||= polling_station&.current_poll_participant
+      @current_poll_participant ||= poll_progress&.current_poll_participant
     end
 
     def participation

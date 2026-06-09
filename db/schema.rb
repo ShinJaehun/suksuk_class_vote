@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_09_030000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_10_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -73,7 +73,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_09_030000) do
     t.index ["poll_participant_id"], name: "index_poll_participations_on_poll_participant_id", unique: true
   end
 
-  create_table "polling_stations", force: :cascade do |t|
+  create_table "poll_progresses", force: :cascade do |t|
     t.datetime "closed_at"
     t.datetime "created_at", null: false
     t.bigint "current_poll_participant_id"
@@ -81,8 +81,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_09_030000) do
     t.datetime "started_at"
     t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
-    t.index ["current_poll_participant_id"], name: "index_polling_stations_on_current_poll_participant_id"
-    t.index ["poll_id"], name: "index_polling_stations_on_poll_id", unique: true
+    t.index ["current_poll_participant_id"], name: "index_poll_progresses_on_current_poll_participant_id"
+    t.index ["poll_id"], name: "index_poll_progresses_on_poll_id", unique: true
   end
 
   create_table "polls", force: :cascade do |t|
@@ -139,8 +139,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_09_030000) do
   add_foreign_key "poll_participants", "polls"
   add_foreign_key "poll_participants", "voter_slots", column: "source_voter_slot_id", on_delete: :nullify
   add_foreign_key "poll_participations", "poll_participants"
-  add_foreign_key "polling_stations", "poll_participants", column: "current_poll_participant_id"
-  add_foreign_key "polling_stations", "polls"
+  add_foreign_key "poll_progresses", "poll_participants", column: "current_poll_participant_id"
+  add_foreign_key "poll_progresses", "polls"
   add_foreign_key "polls", "users"
   add_foreign_key "polls", "voter_groups", on_delete: :nullify
   add_foreign_key "voter_groups", "users"

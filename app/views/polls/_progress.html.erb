@@ -17,8 +17,8 @@
       <% end %>
     <% elsif poll.in_progress? %>
       <p class="text-stone-600">선거가 진행 중입니다.</p>
-      <% if poll.polling_station.present? %>
-        <% current_voter = poll.polling_station.current_poll_participant %>
+      <% if poll.poll_progress.present? %>
+        <% current_voter = poll.poll_progress.current_poll_participant %>
         <% if current_voter.present? %>
           <div class="rounded-md border border-stone-200 bg-stone-50 p-5">
             <p class="text-sm font-medium text-stone-500">현재 참여자</p>

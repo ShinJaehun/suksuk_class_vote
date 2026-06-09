@@ -4,7 +4,7 @@ RSpec.describe Polls::RecordParticipationOutcome do
   describe "#call" do
     it "records absent participation for the current election voter" do
       election = create_in_progress_election
-      current_voter = election.polling_station.current_poll_participant
+      current_voter = election.poll_progress.current_poll_participant
 
       result = described_class.new(poll: election, status: :absent).call
 
@@ -19,7 +19,7 @@ RSpec.describe Polls::RecordParticipationOutcome do
 
     it "records abstained participation for the current election voter" do
       election = create_in_progress_election
-      current_voter = election.polling_station.current_poll_participant
+      current_voter = election.poll_progress.current_poll_participant
 
       result = described_class.new(poll: election, status: :abstained).call
 
@@ -43,7 +43,7 @@ RSpec.describe Polls::RecordParticipationOutcome do
 
     it "fails when current voter already has participation" do
       election = create_in_progress_election
-      current_voter = election.polling_station.current_poll_participant
+      current_voter = election.poll_progress.current_poll_participant
       create(:poll_participation, poll_participant: current_voter)
 
       result = described_class.new(poll: election, status: :absent).call
@@ -59,7 +59,7 @@ RSpec.describe Polls::RecordParticipationOutcome do
 
       expect(result).not_to be_success
       expect(result.error_message).to include("지원하지 않는 처리 상태")
-      expect(election.polling_station.current_poll_participant.poll_participation).to be_nil
+      expect(election.poll_progress.current_poll_participant.poll_participation).to be_nil
     end
 
     it "fails when election is not in progress" do
@@ -72,9 +72,9 @@ RSpec.describe Polls::RecordParticipationOutcome do
       expect(result.error_message).to include("진행 중인 선거")
     end
 
-    it "fails when polling station is missing" do
+    it "fails when poll progress is missing" do
       election = create_in_progress_election
-      election.polling_station.destroy!
+      election.poll_progress.destroy!
 
       result = described_class.new(poll: election.reload, status: :absent).call
 
@@ -82,9 +82,9 @@ RSpec.describe Polls::RecordParticipationOutcome do
       expect(result.error_message).to include("투표소를 찾을 수 없습니다")
     end
 
-    it "fails when polling station is closed" do
+    it "fails when poll progress is closed" do
       election = create_in_progress_election
-      election.polling_station.update!(status: :closed)
+      election.poll_progress.update!(status: :closed)
 
       result = described_class.new(poll: election, status: :absent).call
 
@@ -94,7 +94,7 @@ RSpec.describe Polls::RecordParticipationOutcome do
 
     it "fails when current election voter is missing" do
       election = create_in_progress_election
-      election.polling_station.update!(current_poll_participant: nil)
+      election.poll_progress.update!(current_poll_participant: nil)
 
       result = described_class.new(poll: election, status: :absent).call
 

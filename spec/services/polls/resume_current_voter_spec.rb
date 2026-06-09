@@ -6,12 +6,12 @@ RSpec.describe Polls::ResumeCurrentVoter do
       election = create_in_progress_election
       voters = election.poll_participants.order(:number)
       create(:poll_participation, poll_participant: voters[0], status: :completed)
-      election.polling_station.update!(current_poll_participant: nil)
+      election.poll_progress.update!(current_poll_participant: nil)
 
       result = described_class.new(poll: election).call
 
       expect(result).to be_success
-      expect(election.polling_station.reload.current_poll_participant).to eq(voters[1])
+      expect(election.poll_progress.reload.current_poll_participant).to eq(voters[1])
       expect(election.election_events.last).to have_attributes(
         event_type: "current_voter_resumed",
         poll_participant: voters[1]
@@ -21,13 +21,13 @@ RSpec.describe Polls::ResumeCurrentVoter do
 
     it "fails when current voter is already set" do
       election = create_in_progress_election
-      current_voter = election.polling_station.current_poll_participant
+      current_voter = election.poll_progress.current_poll_participant
 
       result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("이미 지정")
-      expect(election.polling_station.reload.current_poll_participant).to eq(current_voter)
+      expect(election.poll_progress.reload.current_poll_participant).to eq(current_voter)
     end
 
     it "fails when there is no unprocessed election voter" do
@@ -35,13 +35,13 @@ RSpec.describe Polls::ResumeCurrentVoter do
       election.poll_participants.find_each do |poll_participant|
         create(:poll_participation, poll_participant: poll_participant)
       end
-      election.polling_station.update!(current_poll_participant: nil)
+      election.poll_progress.update!(current_poll_participant: nil)
 
       result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("미처리 참여자")
-      expect(election.polling_station.reload.current_poll_participant).to be_nil
+      expect(election.poll_progress.reload.current_poll_participant).to be_nil
     end
 
     it "does not change participation, poll_option tallies, or election status" do
@@ -50,7 +50,7 @@ RSpec.describe Polls::ResumeCurrentVoter do
       create(:poll_participation, poll_participant: voters[0], status: :completed)
       poll_option_tally = election.poll_option_tallies.first
       poll_option_tally.update!(votes_count: 1)
-      election.polling_station.update!(current_poll_participant: nil)
+      election.poll_progress.update!(current_poll_participant: nil)
 
       expect do
         described_class.new(poll: election).call

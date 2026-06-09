@@ -2,7 +2,7 @@ require "rails_helper"
 
 RSpec.describe Polls::Close do
   describe "#call" do
-    it "closes the election and polling station when the last current voter is completed" do
+    it "closes the election and poll progress when the last current voter is completed" do
       election = create_in_progress_election
       last_voter = move_to_last_voter(election)
       create(:poll_participation, poll_participant: last_voter)
@@ -11,8 +11,8 @@ RSpec.describe Polls::Close do
 
       expect(result).to be_success
       expect(election.reload).to be_closed
-      expect(election.polling_station).to be_closed
-      expect(election.polling_station.closed_at).to be_present
+      expect(election.poll_progress).to be_closed
+      expect(election.poll_progress.closed_at).to be_present
       expect(election.election_events.last).to have_attributes(
         event_type: "election_closed",
         poll_participant: last_voter
@@ -30,12 +30,12 @@ RSpec.describe Polls::Close do
       expect(result).not_to be_success
       expect(result.error_message).to include("진행 중인 선거")
       expect(election.reload).to be_draft
-      expect(election.polling_station).to be_active
+      expect(election.poll_progress).to be_active
     end
 
-    it "fails when polling station is missing" do
+    it "fails when poll progress is missing" do
       election = create_in_progress_election
-      election.polling_station.destroy!
+      election.poll_progress.destroy!
 
       result = described_class.new(poll: election.reload).call
 
@@ -44,11 +44,11 @@ RSpec.describe Polls::Close do
       expect(election.reload).to be_in_progress
     end
 
-    it "fails when polling station is already closed" do
+    it "fails when poll progress is already closed" do
       election = create_in_progress_election
       last_voter = move_to_last_voter(election)
       create(:poll_participation, poll_participant: last_voter)
-      election.polling_station.update!(status: :closed)
+      election.poll_progress.update!(status: :closed)
 
       result = described_class.new(poll: election).call
 
@@ -59,7 +59,7 @@ RSpec.describe Polls::Close do
 
     it "fails when current voter is missing" do
       election = create_in_progress_election
-      election.polling_station.update!(current_poll_participant: nil)
+      election.poll_progress.update!(current_poll_participant: nil)
 
       result = described_class.new(poll: election).call
 
@@ -77,12 +77,12 @@ RSpec.describe Polls::Close do
       expect(result).not_to be_success
       expect(result.error_message).to include("확정 상태")
       expect(election.reload).to be_in_progress
-      expect(election.polling_station.reload.current_poll_participant).to eq(last_voter)
+      expect(election.poll_progress.reload.current_poll_participant).to eq(last_voter)
     end
 
     it "fails when current voter is not the last voter" do
       election = create_in_progress_election
-      current_voter = election.polling_station.current_poll_participant
+      current_voter = election.poll_progress.current_poll_participant
       create(:poll_participation, poll_participant: current_voter)
 
       result = described_class.new(poll: election).call
@@ -90,7 +90,7 @@ RSpec.describe Polls::Close do
       expect(result).not_to be_success
       expect(result.error_message).to include("남은 참여자")
       expect(election.reload).to be_in_progress
-      expect(election.polling_station).to be_active
+      expect(election.poll_progress).to be_active
     end
 
     it "allows absent and abstained participation states" do
@@ -119,7 +119,7 @@ RSpec.describe Polls::Close do
 
   def move_to_last_voter(election)
     last_voter = election.poll_participants.order(:number).last
-    election.polling_station.update!(current_poll_participant: last_voter)
+    election.poll_progress.update!(current_poll_participant: last_voter)
     last_voter
   end
 end

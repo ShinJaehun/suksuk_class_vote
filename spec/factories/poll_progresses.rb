@@ -1,5 +1,5 @@
 FactoryBot.define do
-  factory :polling_station do
+  factory :poll_progress do
     association :poll, status: :in_progress
     current_poll_participant { nil }
     status { :active }

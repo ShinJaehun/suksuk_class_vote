@@ -2,7 +2,7 @@ require "rails_helper"
 
 RSpec.describe Polls::IntegrityReport do
   describe "#ok?" do
-    it "treats draft elections without polling station or tallies as ok" do
+    it "treats draft elections without poll progress or tallies as ok" do
       election = create_startable_election
 
       report = described_class.new(election)
@@ -19,9 +19,9 @@ RSpec.describe Polls::IntegrityReport do
       expect(report).to be_ok
     end
 
-    it "requires polling station for in-progress elections" do
+    it "requires poll progress for in-progress elections" do
       election = create_in_progress_election
-      election.polling_station.destroy!
+      election.poll_progress.destroy!
 
       report = described_class.new(election.reload)
 
@@ -29,9 +29,9 @@ RSpec.describe Polls::IntegrityReport do
       expect(report.issues.map(&:message)).to include("진행 중인 선거의 투표소 정보를 찾을 수 없습니다.")
     end
 
-    it "requires active polling station for in-progress elections" do
+    it "requires active poll progress for in-progress elections" do
       election = create_in_progress_election
-      election.polling_station.update!(status: :closed)
+      election.poll_progress.update!(status: :closed)
 
       report = described_class.new(election)
 
@@ -41,7 +41,7 @@ RSpec.describe Polls::IntegrityReport do
 
     it "requires current election voter for in-progress elections" do
       election = create_in_progress_election
-      election.polling_station.update!(current_poll_participant: nil)
+      election.poll_progress.update!(current_poll_participant: nil)
 
       report = described_class.new(election)
 
@@ -52,7 +52,7 @@ RSpec.describe Polls::IntegrityReport do
     it "requires current election voter to belong to the same election" do
       election = create_in_progress_election
       other_election = create_in_progress_election
-      election.polling_station.update!(current_poll_participant: other_election.poll_participants.first)
+      election.poll_progress.update!(current_poll_participant: other_election.poll_participants.first)
 
       report = described_class.new(election)
 
@@ -84,7 +84,7 @@ RSpec.describe Polls::IntegrityReport do
 
     it "compares completed participation count with tally vote sum without voter-poll_option linkage" do
       election = create_in_progress_election
-      create(:poll_participation, poll_participant: election.polling_station.current_poll_participant, status: :completed)
+      create(:poll_participation, poll_participant: election.poll_progress.current_poll_participant, status: :completed)
 
       report = described_class.new(election)
 
@@ -119,18 +119,18 @@ RSpec.describe Polls::IntegrityReport do
       expect(report).to be_ok
     end
 
-    it "requires closed polling station for closed elections but allows current voter to remain" do
+    it "requires closed poll progress for closed elections but allows current voter to remain" do
       election = create_closed_election
 
       report = described_class.new(election)
 
       expect(report).to be_ok
-      expect(election.polling_station.current_poll_participant).to be_present
+      expect(election.poll_progress.current_poll_participant).to be_present
     end
 
-    it "requires polling station to be closed for closed elections" do
+    it "requires poll progress to be closed for closed elections" do
       election = create_closed_election
-      election.polling_station.update!(status: :active)
+      election.poll_progress.update!(status: :active)
 
       report = described_class.new(election)
 
@@ -184,7 +184,7 @@ RSpec.describe Polls::IntegrityReport do
 
     it "returns in-progress issue guidance" do
       election = create_in_progress_election
-      election.polling_station.destroy!
+      election.poll_progress.destroy!
       report = described_class.new(election.reload)
 
       expect(report.guidance_message).to eq("진행 상태 확인이 필요합니다. 자동 복구는 아직 제공하지 않습니다.")
@@ -198,7 +198,7 @@ RSpec.describe Polls::IntegrityReport do
 
     it "returns closed issue guidance" do
       election = create_closed_election
-      election.polling_station.update!(status: :active)
+      election.poll_progress.update!(status: :active)
       report = described_class.new(election)
 
       expect(report.guidance_message).to eq("종료된 선거 결과 상태 확인이 필요합니다.")
@@ -208,7 +208,7 @@ RSpec.describe Polls::IntegrityReport do
   describe "#resumable_current_voter?" do
     it "returns true when current voter is missing and an unprocessed voter exists" do
       election = create_in_progress_election
-      election.polling_station.update!(current_poll_participant: nil)
+      election.poll_progress.update!(current_poll_participant: nil)
 
       report = described_class.new(election)
 
@@ -221,9 +221,9 @@ RSpec.describe Polls::IntegrityReport do
       expect(report).not_to be_resumable_current_voter
     end
 
-    it "returns false when polling station is missing" do
+    it "returns false when poll progress is missing" do
       election = create_in_progress_election
-      election.polling_station.destroy!
+      election.poll_progress.destroy!
 
       report = described_class.new(election.reload)
 
@@ -235,7 +235,7 @@ RSpec.describe Polls::IntegrityReport do
       election.poll_participants.find_each do |poll_participant|
         create(:poll_participation, poll_participant: poll_participant)
       end
-      election.polling_station.update!(current_poll_participant: nil)
+      election.poll_progress.update!(current_poll_participant: nil)
 
       report = described_class.new(election)
 
@@ -244,7 +244,7 @@ RSpec.describe Polls::IntegrityReport do
 
     it "returns false when another integrity issue is present" do
       election = create_in_progress_election
-      election.polling_station.update!(current_poll_participant: nil)
+      election.poll_progress.update!(current_poll_participant: nil)
       election.poll_option_tallies.first.destroy!
 
       report = described_class.new(election.reload)
@@ -277,7 +277,7 @@ RSpec.describe Polls::IntegrityReport do
     create(:poll_participation, poll_participant: voters[1], status: :absent)
     election.poll_option_tallies.first.update!(votes_count: 1)
     election.update!(status: :closed)
-    election.polling_station.update!(status: :closed, closed_at: Time.current)
+    election.poll_progress.update!(status: :closed, closed_at: Time.current)
     election.reload
   end
 end

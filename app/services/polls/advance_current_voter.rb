@@ -19,8 +19,8 @@ module Polls
       return failure if errors.any?
 
       ActiveRecord::Base.transaction do
-        locked_polling_station = polling_station.lock!
-        locked_polling_station.update!(current_poll_participant: next_poll_participant)
+        locked_poll_progress = poll_progress.lock!
+        locked_poll_progress.update!(current_poll_participant: next_poll_participant)
         record_event(
           "current_voter_advanced",
           poll_participant: next_poll_participant,
@@ -43,19 +43,19 @@ module Polls
 
     def validate_advancable
       errors << "진행 중인 선거에서만 다음 참여자로 이동할 수 있습니다." unless poll.in_progress?
-      errors << "진행 중인 투표소를 찾을 수 없습니다." if polling_station.blank?
-      errors << "진행 중인 투표소에서만 다음 참여자로 이동할 수 있습니다." if polling_station.present? && !polling_station.active?
+      errors << "진행 중인 투표소를 찾을 수 없습니다." if poll_progress.blank?
+      errors << "진행 중인 투표소에서만 다음 참여자로 이동할 수 있습니다." if poll_progress.present? && !poll_progress.active?
       errors << "현재 참여자를 찾을 수 없습니다." if current_poll_participant.blank?
       errors << "현재 참여자가 아직 확정 상태가 아닙니다." unless final_participation?
       errors << "다음 참여자를 찾을 수 없습니다." if next_poll_participant.blank?
     end
 
-    def polling_station
-      @polling_station ||= poll.polling_station
+    def poll_progress
+      @poll_progress ||= poll.poll_progress
     end
 
     def current_poll_participant
-      @current_poll_participant ||= polling_station&.current_poll_participant
+      @current_poll_participant ||= poll_progress&.current_poll_participant
     end
 
     def participation

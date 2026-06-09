@@ -1,4 +1,4 @@
-class PollingStation < ApplicationRecord
+class PollProgress < ApplicationRecord
   belongs_to :poll
   belongs_to :current_poll_participant, class_name: "PollParticipant", optional: true
 

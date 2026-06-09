@@ -71,7 +71,7 @@ RSpec.describe Polls::ResultSummary do
     create(:poll_option, poll: election, number: 2, name: "후보자2")
     Polls::Start.new(election).call
     election.update!(status: :closed)
-    election.polling_station.update!(status: :closed, closed_at: Time.current)
+    election.poll_progress.update!(status: :closed, closed_at: Time.current)
     election.reload
   end
 end

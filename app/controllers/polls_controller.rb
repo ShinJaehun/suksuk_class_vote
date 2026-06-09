@@ -22,7 +22,7 @@ class PollsController < ApplicationController
       return
     end
 
-    @current_poll_participant = @poll.polling_station&.current_poll_participant
+    @current_poll_participant = @poll.poll_progress&.current_poll_participant
     @next_poll_participant = @poll.poll_participants
       .where("number > ?", @current_poll_participant.number)
       .order(:number)

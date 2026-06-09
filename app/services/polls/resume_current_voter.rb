@@ -13,15 +13,15 @@ module Polls
     end
 
     def call
-      validate_resumable(polling_station)
+      validate_resumable(poll_progress)
       return failure if errors.any?
 
       ActiveRecord::Base.transaction do
-        locked_polling_station = polling_station.lock!
-        validate_resumable(locked_polling_station)
+        locked_poll_progress = poll_progress.lock!
+        validate_resumable(locked_poll_progress)
         raise ActiveRecord::Rollback if errors.any?
 
-        locked_polling_station.update!(current_poll_participant: first_unprocessed_poll_participant)
+        locked_poll_progress.update!(current_poll_participant: first_unprocessed_poll_participant)
         record_event(
           "current_voter_resumed",
           poll_participant: first_unprocessed_poll_participant,
@@ -47,8 +47,8 @@ module Polls
       errors << "미처리 참여자를 찾을 수 없습니다." if station.present? && first_unprocessed_poll_participant.blank?
     end
 
-    def polling_station
-      @polling_station ||= poll.polling_station
+    def poll_progress
+      @poll_progress ||= poll.poll_progress
     end
 
     def first_unprocessed_poll_participant

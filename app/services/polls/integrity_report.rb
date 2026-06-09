@@ -54,8 +54,8 @@ module Polls
 
     def resumable_current_voter?
       poll.in_progress? &&
-        polling_station.present? &&
-        polling_station.active? &&
+        poll_progress.present? &&
+        poll_progress.active? &&
         current_poll_participant.blank? &&
         current_voter_missing_only_issue? &&
         first_unprocessed_poll_participant.present?
@@ -67,23 +67,23 @@ module Polls
 
     def build_issues
       [].tap do |report_issues|
-        add_polling_station_issues(report_issues)
+        add_poll_progress_issues(report_issues)
         add_tally_issues(report_issues) unless poll.draft?
         add_participation_issues(report_issues) unless poll.draft?
       end
     end
 
-    def add_polling_station_issues(report_issues)
+    def add_poll_progress_issues(report_issues)
       if poll.in_progress?
-        report_issues << issue("진행 중인 선거의 투표소 정보를 찾을 수 없습니다.") if polling_station.blank?
-        report_issues << issue("진행 중인 선거의 투표소가 active 상태가 아닙니다.") if polling_station.present? && !polling_station.active?
+        report_issues << issue("진행 중인 선거의 투표소 정보를 찾을 수 없습니다.") if poll_progress.blank?
+        report_issues << issue("진행 중인 선거의 투표소가 active 상태가 아닙니다.") if poll_progress.present? && !poll_progress.active?
         report_issues << issue("진행 중인 선거의 현재 참여자를 찾을 수 없습니다.") if current_poll_participant.blank?
         if current_poll_participant.present? && current_poll_participant.poll_id != poll.id
           report_issues << issue("현재 참여자가 이 선거의 투표 참여자 명단에 속하지 않습니다.")
         end
       elsif poll.closed?
-        report_issues << issue("종료된 선거의 투표소 정보를 찾을 수 없습니다.") if polling_station.blank?
-        report_issues << issue("종료된 선거의 투표소가 closed 상태가 아닙니다.") if polling_station.present? && !polling_station.closed?
+        report_issues << issue("종료된 선거의 투표소 정보를 찾을 수 없습니다.") if poll_progress.blank?
+        report_issues << issue("종료된 선거의 투표소가 closed 상태가 아닙니다.") if poll_progress.present? && !poll_progress.closed?
       end
     end
 
@@ -115,12 +115,12 @@ module Polls
       Issue.new(severity: :error, message: message)
     end
 
-    def polling_station
-      @polling_station ||= poll.polling_station
+    def poll_progress
+      @poll_progress ||= poll.poll_progress
     end
 
     def current_poll_participant
-      @current_poll_participant ||= polling_station&.current_poll_participant
+      @current_poll_participant ||= poll_progress&.current_poll_participant
     end
 
     def first_unprocessed_poll_participant

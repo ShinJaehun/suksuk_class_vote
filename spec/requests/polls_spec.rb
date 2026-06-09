@@ -265,7 +265,7 @@ RSpec.describe "Polls", type: :request do
     it "shows a simple ballot for the current voter during an in progress election" do
       teacher = create(:user)
       election = create_started_election(user: teacher)
-      current_voter = election.polling_station.current_poll_participant
+      current_voter = election.poll_progress.current_poll_participant
       other_voter = election.poll_participants.where.not(id: current_voter.id).order(:number).first
       poll_options = election.poll_options.order(:number)
       sign_in teacher
@@ -355,7 +355,7 @@ RSpec.describe "Polls", type: :request do
     it "shows a next voter button after the current voter is processed" do
       teacher = create(:user)
       election = create_started_election(user: teacher)
-      current_voter = election.polling_station.current_poll_participant
+      current_voter = election.poll_progress.current_poll_participant
       next_voter = election.poll_participants.where("number > ?", current_voter.number).order(:number).first
       create(:poll_participation, poll_participant: current_voter)
       sign_in teacher
@@ -373,7 +373,7 @@ RSpec.describe "Polls", type: :request do
     it "returns to the ballot after advancing from the ballot screen" do
       teacher = create(:user)
       election = create_started_election(user: teacher)
-      current_voter = election.polling_station.current_poll_participant
+      current_voter = election.poll_progress.current_poll_participant
       create(:poll_participation, poll_participant: current_voter)
       sign_in teacher
 
@@ -386,7 +386,7 @@ RSpec.describe "Polls", type: :request do
       teacher = create(:user)
       election = create_started_election(user: teacher)
       last_voter = election.poll_participants.order(:number).last
-      election.polling_station.update!(current_poll_participant: last_voter)
+      election.poll_progress.update!(current_poll_participant: last_voter)
       create(:poll_participation, poll_participant: last_voter)
       sign_in teacher
 
@@ -414,7 +414,7 @@ RSpec.describe "Polls", type: :request do
       teacher = create(:user)
       election = create_started_election(user: teacher)
       last_voter = election.poll_participants.order(:number).last
-      election.polling_station.update!(current_poll_participant: last_voter)
+      election.poll_progress.update!(current_poll_participant: last_voter)
       create(:poll_participation, poll_participant: last_voter, status: :absent)
       Polls::Close.new(poll: election).call
       sign_in teacher
@@ -442,13 +442,13 @@ RSpec.describe "Polls", type: :request do
 
       expect do
         post start_poll_path(election)
-      end.to change(PollParticipant, :count).by(2).and change(PollingStation, :count).by(1)
+      end.to change(PollParticipant, :count).by(2).and change(PollProgress, :count).by(1)
 
       expect(response).to redirect_to(poll_path(election))
       expect(flash[:notice]).to eq("선거를 시작했습니다.")
       expect(election.reload).to be_in_progress
       expect(election.voter_group_name_snapshot).to eq(election.voter_group.name)
-      expect(election.polling_station.current_poll_participant).to eq(election.poll_participants.order(:number).first)
+      expect(election.poll_progress.current_poll_participant).to eq(election.poll_participants.order(:number).first)
     end
 
     it "does not allow teachers to start another teacher's election" do
@@ -486,7 +486,7 @@ RSpec.describe "Polls", type: :request do
 
       expect do
         post start_poll_path(election)
-      end.not_to change(PollingStation, :count)
+      end.not_to change(PollProgress, :count)
 
       expect(response).to redirect_to(poll_path(election))
       expect(flash[:alert]).to include("무투표 당선/찬반 투표 정책 결정 후 지원 예정")
@@ -541,7 +541,7 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include("투표 진행 정보를 찾을 수 없습니다.")
     end
 
-    it "shows a safe message when polling station is missing during in progress" do
+    it "shows a safe message when poll progress is missing during in progress" do
       teacher = create(:user)
       election = create_startable_election(user: teacher)
       election.update!(status: :in_progress)
@@ -559,7 +559,7 @@ RSpec.describe "Polls", type: :request do
     it "shows resume button only when current voter is missing and an unprocessed voter exists" do
       teacher = create(:user)
       election = create_started_election(user: teacher)
-      election.polling_station.update!(current_poll_participant: nil)
+      election.poll_progress.update!(current_poll_participant: nil)
       sign_in teacher
 
       get poll_path(election)
@@ -599,7 +599,7 @@ RSpec.describe "Polls", type: :request do
       teacher = create(:user)
       election = create_started_election(user: teacher)
       poll_option = election.poll_options.order(:number).first
-      current_poll_participant = election.polling_station.current_poll_participant
+      current_poll_participant = election.poll_progress.current_poll_participant
       sign_in teacher
 
       expect do
@@ -610,14 +610,14 @@ RSpec.describe "Polls", type: :request do
       expect(flash[:notice]).to eq("투표가 제출되었습니다.")
       expect(election.poll_option_tallies.find_by(poll_option: poll_option).reload.votes_count).to eq(1)
       expect(current_poll_participant.reload.poll_participation).to be_completed
-      expect(election.polling_station.reload.current_poll_participant).to eq(current_poll_participant)
+      expect(election.poll_progress.reload.current_poll_participant).to eq(current_poll_participant)
     end
 
     it "does not submit twice for the same current election voter" do
       teacher = create(:user)
       election = create_started_election(user: teacher)
       poll_option = election.poll_options.order(:number).first
-      create(:poll_participation, poll_participant: election.polling_station.current_poll_participant)
+      create(:poll_participation, poll_participant: election.poll_progress.current_poll_participant)
       sign_in teacher
 
       expect do
@@ -638,7 +638,7 @@ RSpec.describe "Polls", type: :request do
 
       expect(response).to redirect_to(poll_path(election))
       expect(flash[:alert]).to include("이 선거의 후보자")
-      expect(election.polling_station.current_poll_participant.poll_participation).to be_nil
+      expect(election.poll_progress.current_poll_participant.poll_participation).to be_nil
     end
 
     it "fails for a draft election" do
@@ -657,7 +657,7 @@ RSpec.describe "Polls", type: :request do
       teacher = create(:user)
       election = create_started_election(user: teacher)
       poll_option = election.poll_options.order(:number).first
-      create(:poll_participation, poll_participant: election.polling_station.current_poll_participant)
+      create(:poll_participation, poll_participant: election.poll_progress.current_poll_participant)
       sign_in teacher
 
       get poll_path(election)
@@ -732,7 +732,7 @@ RSpec.describe "Polls", type: :request do
     it "moves to the next election voter after the current voter is completed" do
       teacher = create(:user)
       election = create_started_election(user: teacher)
-      first_voter = election.polling_station.current_poll_participant
+      first_voter = election.poll_progress.current_poll_participant
       next_voter = election.poll_participants.where("number > ?", first_voter.number).order(:number).first
       create(:poll_participation, poll_participant: first_voter)
       sign_in teacher
@@ -741,7 +741,7 @@ RSpec.describe "Polls", type: :request do
 
       expect(response).to redirect_to(poll_path(election))
       expect(flash[:notice]).to eq("다음 학생으로 이동했습니다.")
-      expect(election.polling_station.reload.current_poll_participant).to eq(next_voter)
+      expect(election.poll_progress.reload.current_poll_participant).to eq(next_voter)
 
       get poll_path(election)
 
@@ -755,7 +755,7 @@ RSpec.describe "Polls", type: :request do
     it "shows close button only when the completed current voter is the last voter" do
       teacher = create(:user)
       election = create_started_election(user: teacher)
-      first_voter = election.polling_station.current_poll_participant
+      first_voter = election.poll_progress.current_poll_participant
       last_voter = election.poll_participants.order(:number).last
       create(:poll_participation, poll_participant: first_voter)
       sign_in teacher
@@ -765,7 +765,7 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include(advance_current_voter_poll_path(election))
       expect(response.body).not_to include(close_poll_path(election))
 
-      election.polling_station.update!(current_poll_participant: last_voter)
+      election.poll_progress.update!(current_poll_participant: last_voter)
       create(:poll_participation, poll_participant: last_voter)
 
       get poll_path(election)
@@ -779,14 +779,14 @@ RSpec.describe "Polls", type: :request do
     it "fails when the current voter is not completed" do
       teacher = create(:user)
       election = create_started_election(user: teacher)
-      current_voter = election.polling_station.current_poll_participant
+      current_voter = election.poll_progress.current_poll_participant
       sign_in teacher
 
       post advance_current_voter_poll_path(election)
 
       expect(response).to redirect_to(poll_path(election))
       expect(flash[:alert]).to include("확정 상태")
-      expect(election.polling_station.reload.current_poll_participant).to eq(current_voter)
+      expect(election.poll_progress.reload.current_poll_participant).to eq(current_voter)
     end
   end
 
@@ -796,14 +796,14 @@ RSpec.describe "Polls", type: :request do
       election = create_started_election(user: teacher)
       voters = election.poll_participants.order(:number)
       create(:poll_participation, poll_participant: voters[0], status: :completed)
-      election.polling_station.update!(current_poll_participant: nil)
+      election.poll_progress.update!(current_poll_participant: nil)
       sign_in teacher
 
       post resume_current_voter_poll_path(election)
 
       expect(response).to redirect_to(poll_path(election))
       expect(flash[:notice]).to eq("첫 미처리 학생으로 재개했습니다.")
-      expect(election.polling_station.reload.current_poll_participant).to eq(voters[1])
+      expect(election.poll_progress.reload.current_poll_participant).to eq(voters[1])
     end
   end
 
@@ -813,7 +813,7 @@ RSpec.describe "Polls", type: :request do
       election = create_started_election(user: teacher)
       poll_option = election.poll_options.order(:number).first
       last_voter = election.poll_participants.order(:number).last
-      election.polling_station.update!(current_poll_participant: last_voter)
+      election.poll_progress.update!(current_poll_participant: last_voter)
       create(:poll_participation, poll_participant: last_voter)
       election.poll_option_tallies.find_by(poll_option: poll_option).update!(votes_count: 1)
       sign_in teacher
@@ -823,7 +823,7 @@ RSpec.describe "Polls", type: :request do
       expect(response).to redirect_to(poll_path(election))
       expect(flash[:notice]).to eq("선거를 종료했습니다.")
       expect(election.reload).to be_closed
-      expect(election.polling_station).to be_closed
+      expect(election.poll_progress).to be_closed
 
       get poll_path(election)
 
@@ -868,7 +868,7 @@ RSpec.describe "Polls", type: :request do
       second_opinion.update!(name: "청소 시간을 요일별로 나누자는 의견")
       Polls::Start.new(election).call
       last_voter = election.poll_participants.order(:number).last
-      election.polling_station.update!(current_poll_participant: last_voter)
+      election.poll_progress.update!(current_poll_participant: last_voter)
       create(:poll_participation, poll_participant: last_voter)
       election.poll_option_tallies.find_by(poll_option: first_opinion).update!(votes_count: 1)
       Polls::Close.new(poll: election).call
@@ -891,7 +891,7 @@ RSpec.describe "Polls", type: :request do
       teacher = create(:user)
       election = create_started_election(user: teacher)
       last_voter = election.poll_participants.order(:number).last
-      election.polling_station.update!(current_poll_participant: last_voter)
+      election.poll_progress.update!(current_poll_participant: last_voter)
       create(:poll_participation, poll_participant: last_voter)
       election.poll_option_tallies.update_all(votes_count: 1)
       Polls::Close.new(poll: election).call
@@ -908,7 +908,7 @@ RSpec.describe "Polls", type: :request do
       teacher = create(:user)
       election = create_started_election(user: teacher)
       last_voter = election.poll_participants.order(:number).last
-      election.polling_station.update!(current_poll_participant: last_voter)
+      election.poll_progress.update!(current_poll_participant: last_voter)
       create(:poll_participation, poll_participant: last_voter, status: :absent)
       Polls::Close.new(poll: election).call
       sign_in teacher
@@ -924,7 +924,7 @@ RSpec.describe "Polls", type: :request do
       first_poll_participant = election.poll_participants.order(:number).first
       source_voter_slot = first_poll_participant.source_voter_slot
       last_voter = election.poll_participants.order(:number).last
-      election.polling_station.update!(current_poll_participant: last_voter)
+      election.poll_progress.update!(current_poll_participant: last_voter)
       create(:poll_participation, poll_participant: last_voter, status: :absent)
       Polls::Close.new(poll: election).call
       sign_in teacher
@@ -944,7 +944,7 @@ RSpec.describe "Polls", type: :request do
       voter_group = election.voter_group
       group_name = election.voter_group_name_snapshot
       last_voter = election.poll_participants.order(:number).last
-      election.polling_station.update!(current_poll_participant: last_voter)
+      election.poll_progress.update!(current_poll_participant: last_voter)
       create(:poll_participation, poll_participant: last_voter, status: :absent)
       Polls::Close.new(poll: election).call
       voter_group.destroy!
@@ -965,7 +965,7 @@ RSpec.describe "Polls", type: :request do
       election = create_started_election(user: teacher)
       poll_option = election.poll_options.first
       last_voter = election.poll_participants.order(:number).last
-      election.polling_station.update!(current_poll_participant: last_voter)
+      election.poll_progress.update!(current_poll_participant: last_voter)
       create(:poll_participation, poll_participant: last_voter, status: :absent)
       Polls::Close.new(poll: election).call
       sign_in teacher

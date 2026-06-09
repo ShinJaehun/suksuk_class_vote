@@ -26,7 +26,7 @@ module Polls
           status: :in_progress,
           voter_group_name_snapshot: poll.voter_group.name
         )
-        poll.create_polling_station!(
+        poll.create_poll_progress!(
           current_poll_participant: first_poll_participant,
           status: :active,
           started_at: Time.current
@@ -63,7 +63,7 @@ module Polls
 
       errors << "참여자 명단이 1명 이상 있어야 선거를 시작할 수 있습니다." if voter_slots.empty?
       errors << "이미 투표 참여자 명단이 생성된 선거입니다." if poll.poll_participants.exists?
-      errors << "이미 투표 진행 정보가 생성된 선거입니다." if poll.polling_station.present?
+      errors << "이미 투표 진행 정보가 생성된 선거입니다." if poll.poll_progress.present?
       errors << "이미 후보별 집계 정보가 생성된 선거입니다." if poll.poll_option_tallies.exists?
     end
 
