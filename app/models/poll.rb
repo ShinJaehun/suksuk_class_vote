@@ -1,4 +1,4 @@
-class Election < ApplicationRecord
+class Poll < ApplicationRecord
   belongs_to :user
   belongs_to :voter_group, optional: true
   has_many :candidates, dependent: :destroy

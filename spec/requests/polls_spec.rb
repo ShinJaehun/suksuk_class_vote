@@ -1,11 +1,11 @@
 require "rails_helper"
 
-RSpec.describe "Elections", type: :request do
+RSpec.describe "Polls", type: :request do
   include Devise::Test::IntegrationHelpers
 
-  describe "GET /elections" do
+  describe "GET /polls" do
     it "redirects guests to sign in" do
-      get elections_path
+      get polls_path
 
       expect(response).to redirect_to(new_user_session_path)
     end
@@ -13,14 +13,14 @@ RSpec.describe "Elections", type: :request do
     it "allows teachers to view elections" do
       sign_in create(:user)
 
-      get elections_path
+      get polls_path
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("선거")
+      expect(response.body).to include("투표")
     end
   end
 
-  describe "GET /elections/new" do
+  describe "GET /polls/new" do
     it "shows only non-empty voter groups teachers can select" do
       teacher = create(:user)
       selectable_group = create(:voter_group, user: teacher, name: "선택 가능 그룹")
@@ -29,7 +29,7 @@ RSpec.describe "Elections", type: :request do
       create(:voter_group, :with_voter_slot, name: "다른 교사 그룹")
       sign_in teacher
 
-      get new_election_path
+      get new_poll_path
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("선택 가능 그룹 (학생 1명)")
@@ -41,7 +41,7 @@ RSpec.describe "Elections", type: :request do
     end
   end
 
-  describe "POST /elections" do
+  describe "POST /polls" do
     it "allows teachers to create elections with their own voter group" do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)
@@ -49,20 +49,20 @@ RSpec.describe "Elections", type: :request do
       sign_in teacher
 
       expect do
-        post elections_path, params: {
-          election: {
+        post polls_path, params: {
+          poll: {
             title: "4학년 1반 반장 선거",
             voter_group_id: voter_group.id,
             user_id: create(:user).id
           }
         }
-      end.to change(Election, :count).by(1)
+      end.to change(Poll, :count).by(1)
 
-      election = Election.find_by!(title: "4학년 1반 반장 선거")
+      election = Poll.find_by!(title: "4학년 1반 반장 선거")
       expect(election.user).to eq(teacher)
       expect(election.voter_group).to eq(voter_group)
       expect(election).to be_election
-      expect(response).to redirect_to(election_path(election))
+      expect(response).to redirect_to(poll_path(election))
     end
 
     it "allows teachers to create discussion elections and shows the activity label" do
@@ -71,22 +71,22 @@ RSpec.describe "Elections", type: :request do
       create(:voter_slot, voter_group: voter_group)
       sign_in teacher
 
-      post elections_path, params: {
-        election: {
+      post polls_path, params: {
+        poll: {
           title: "급식 메뉴 토의",
           kind: "discussion",
           voter_group_id: voter_group.id
         }
       }
 
-      election = Election.find_by!(title: "급식 메뉴 토의")
+      election = Poll.find_by!(title: "급식 메뉴 토의")
       expect(election).to be_discussion
 
-      get election_path(election)
+      get poll_path(election)
       expect(response.body).to include("활동 유형")
       expect(response.body).to include("토의")
 
-      get elections_path
+      get polls_path
       expect(response.body).to include("토의")
     end
 
@@ -95,16 +95,16 @@ RSpec.describe "Elections", type: :request do
       other_group = create(:voter_group, :with_voter_slot)
 
       expect do
-        post elections_path, params: {
-          election: {
+        post polls_path, params: {
+          poll: {
             title: "권한 없는 선거",
             voter_group_id: other_group.id
           }
         }
-      end.not_to change(Election, :count)
+      end.not_to change(Poll, :count)
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(response.body).to include("선거를 만들 수 없습니다.")
+      expect(response.body).to include("투표를 생성할 수 없습니다.")
     end
 
     it "does not create elections with an empty voter group" do
@@ -113,25 +113,25 @@ RSpec.describe "Elections", type: :request do
       sign_in teacher
 
       expect do
-        post elections_path, params: {
-          election: {
+        post polls_path, params: {
+          poll: {
             title: "빈 명단 선거",
             voter_group_id: empty_group.id
           }
         }
-      end.not_to change(Election, :count)
+      end.not_to change(Poll, :count)
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(response.body).to include("선거를 만들 수 없습니다.")
+      expect(response.body).to include("투표를 생성할 수 없습니다.")
     end
   end
 
-  describe "GET /elections/:id" do
+  describe "GET /polls/:id" do
     it "allows admins to view another teacher's election" do
       sign_in create(:user, :admin)
-      election = create(:election, title: "관리자 확인 선거")
+      election = create(:poll, title: "관리자 확인 선거")
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("관리자 확인 선거")
@@ -139,9 +139,9 @@ RSpec.describe "Elections", type: :request do
 
     it "does not allow teachers to view another teacher's election" do
       sign_in create(:user)
-      election = create(:election)
+      election = create(:poll)
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response).to redirect_to(dashboard_path)
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
@@ -149,18 +149,18 @@ RSpec.describe "Elections", type: :request do
 
     it "shows an empty candidate notice and a candidate add link" do
       teacher = create(:user)
-      election = create(:election, user: teacher)
+      election = create(:poll, user: teacher)
       sign_in teacher
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("아직 등록된 후보자가 없습니다.")
       expect(response.body).to include("후보자 추가")
-      expect(response.body).to include(new_election_candidate_path(election))
-      expect(response.body).not_to include(start_election_path(election))
+      expect(response.body).to include(new_poll_candidate_path(election))
+      expect(response.body).not_to include(start_poll_path(election))
       expect(response.body).not_to include("투표 화면 열기")
-      expect(response.body).not_to include(ballot_election_path(election))
+      expect(response.body).not_to include(ballot_poll_path(election))
       expect(response.body).to include("후보자 등록이 필요합니다.")
       expect(response.body).to include("상태 점검: 이상 없음")
       expect(response.body).to include("선거 시작 전 상태입니다. 시작 후 선거용 명단과 후보별 집계가 생성됩니다.")
@@ -176,11 +176,11 @@ RSpec.describe "Elections", type: :request do
 
     it "shows candidates" do
       teacher = create(:user)
-      election = create(:election, user: teacher)
-      create(:candidate, election: election, number: 1, name: "김민준")
+      election = create(:poll, user: teacher)
+      create(:candidate, poll: election, number: 1, name: "김민준")
       sign_in teacher
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("1번")
@@ -190,18 +190,18 @@ RSpec.describe "Elections", type: :request do
 
     it "shows draft readiness as not startable with one candidate" do
       teacher = create(:user)
-      election = create(:election, user: teacher)
-      create(:candidate, election: election, number: 1)
+      election = create(:poll, user: teacher)
+      create(:candidate, poll: election, number: 1)
       sign_in teacher
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response.body).to include("투표자")
       expect(response.body).to include("1명")
       expect(response.body).to include("후보자")
       expect(response.body).to include("1명")
       expect(response.body).to include("시작 불가")
-      expect(response.body).not_to include(start_election_path(election))
+      expect(response.body).not_to include(start_poll_path(election))
       expect(response.body).to include("후보자 등록이 필요합니다.")
     end
 
@@ -210,7 +210,7 @@ RSpec.describe "Elections", type: :request do
       election = create_startable_election(user: teacher)
       sign_in teacher
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response.body).to include("투표자")
       expect(response.body).to include("2명")
@@ -218,7 +218,7 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include("2명")
       expect(response.body).to include("시작 가능")
       expect(response.body).to include("선거 시작")
-      expect(response.body).to include(start_election_path(election))
+      expect(response.body).to include(start_poll_path(election))
       expect(response.body).to include("data-turbo-frame=\"_top\"")
     end
 
@@ -227,17 +227,17 @@ RSpec.describe "Elections", type: :request do
       election = create_started_election(user: teacher)
       candidate = election.candidates.order(:number).first
       voters = election.election_voters.order(:number)
-      create(:election_event, election: election, actor: teacher, event_type: "election_started", details: { voter_count: 2, candidate_count: 2 })
-      create(:election_event, election: election, actor: teacher, event_type: "election_closed")
-      create(:election_event, election: election, actor: teacher, election_voter: voters[0], event_type: "vote_completed")
-      create(:election_event, election: election, actor: teacher, election_voter: voters[0], event_type: "voter_marked_absent")
-      create(:election_event, election: election, actor: teacher, election_voter: voters[1], event_type: "voter_marked_abstained")
-      create(:election_event, election: election, actor: teacher, election_voter: voters[1], event_type: "current_voter_advanced", details: { from_election_voter_id: voters[0].id, to_election_voter_id: voters[1].id })
+      create(:election_event, poll: election, actor: teacher, event_type: "election_started", details: { voter_count: 2, candidate_count: 2 })
+      create(:election_event, poll: election, actor: teacher, event_type: "election_closed")
+      create(:election_event, poll: election, actor: teacher, election_voter: voters[0], event_type: "vote_completed")
+      create(:election_event, poll: election, actor: teacher, election_voter: voters[0], event_type: "voter_marked_absent")
+      create(:election_event, poll: election, actor: teacher, election_voter: voters[1], event_type: "voter_marked_abstained")
+      create(:election_event, poll: election, actor: teacher, election_voter: voters[1], event_type: "current_voter_advanced", details: { from_election_voter_id: voters[0].id, to_election_voter_id: voters[1].id })
       sign_in teacher
 
-      get election_path(election)
+      get poll_path(election)
 
-      event_log = response.body.match(%r{<section[^>]*data-testid="election-event-log"[^>]*>.*?</section>}m).to_s
+      event_log = response.body.match(%r{<section[^>]*data-testid="poll-event-log"[^>]*>.*?</section>}m).to_s
       expect(event_log).to include("운영 기록")
       expect(event_log).to include("선거 시작")
       expect(event_log).to include("선거 종료")
@@ -261,7 +261,7 @@ RSpec.describe "Elections", type: :request do
     end
   end
 
-  describe "GET /elections/:id/ballot" do
+  describe "GET /polls/:id/ballot" do
     it "shows a simple ballot for the current voter during an in progress election" do
       teacher = create(:user)
       election = create_started_election(user: teacher)
@@ -270,7 +270,7 @@ RSpec.describe "Elections", type: :request do
       candidates = election.candidates.order(:number)
       sign_in teacher
 
-      get ballot_election_path(election)
+      get ballot_poll_path(election)
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include(election.title)
@@ -281,8 +281,8 @@ RSpec.describe "Elections", type: :request do
       candidates.each do |candidate|
         expect(response.body).to include("#{candidate.number}번 #{candidate.name}")
       end
-      expect(response.body).to include(submit_vote_election_path(election))
-      expect(response.body).to include(record_participation_outcome_election_path(election))
+      expect(response.body).to include(submit_vote_poll_path(election))
+      expect(response.body).to include(record_participation_outcome_poll_path(election))
       expect(response.body).to include("기권 처리")
       expect(response.body).to include("미참여 처리")
       expect(response.body).to include("return_to")
@@ -307,13 +307,13 @@ RSpec.describe "Elections", type: :request do
       Elections::Start.new(election).call
       sign_in teacher
 
-      get ballot_election_path(election.reload)
+      get ballot_poll_path(election.reload)
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("의견 선택")
       expect(response.body).to include("1번 점심시간을 10분 늘리자는 의견")
       expect(response.body).to include("2번 청소 시간을 요일별로 나누자는 의견")
-      expect(response.body).to include(submit_vote_election_path(election))
+      expect(response.body).to include(submit_vote_poll_path(election))
       expect(response.body).to include("기권 처리")
       expect(response.body).to include("미참여 처리")
       expect(response.body).not_to include("후보자 선택")
@@ -327,9 +327,9 @@ RSpec.describe "Elections", type: :request do
       candidate = election.candidates.order(:number).first
       sign_in teacher
 
-      post submit_vote_election_path(election), params: { candidate_id: candidate.id, return_to: "ballot" }
+      post submit_vote_poll_path(election), params: { candidate_id: candidate.id, return_to: "ballot" }
 
-      expect(response).to redirect_to(ballot_election_path(election))
+      expect(response).to redirect_to(ballot_poll_path(election))
     end
 
     it "returns to the ballot after marking the current voter absent from the ballot screen" do
@@ -337,9 +337,9 @@ RSpec.describe "Elections", type: :request do
       election = create_started_election(user: teacher)
       sign_in teacher
 
-      post record_participation_outcome_election_path(election), params: { status: "absent", return_to: "ballot" }
+      post record_participation_outcome_poll_path(election), params: { status: "absent", return_to: "ballot" }
 
-      expect(response).to redirect_to(ballot_election_path(election))
+      expect(response).to redirect_to(ballot_poll_path(election))
     end
 
     it "returns to the ballot after marking the current voter abstained from the ballot screen" do
@@ -347,9 +347,9 @@ RSpec.describe "Elections", type: :request do
       election = create_started_election(user: teacher)
       sign_in teacher
 
-      post record_participation_outcome_election_path(election), params: { status: "abstained", return_to: "ballot" }
+      post record_participation_outcome_poll_path(election), params: { status: "abstained", return_to: "ballot" }
 
-      expect(response).to redirect_to(ballot_election_path(election))
+      expect(response).to redirect_to(ballot_poll_path(election))
     end
 
     it "shows a next voter button after the current voter is processed" do
@@ -360,12 +360,12 @@ RSpec.describe "Elections", type: :request do
       create(:election_voter_participation, election_voter: current_voter)
       sign_in teacher
 
-      get ballot_election_path(election)
+      get ballot_poll_path(election)
 
       expect(response.body).to include("현재 투표자는 이미 처리되었습니다.")
       expect(response.body).to include("다음 투표자는 #{next_voter.number}번 #{next_voter.name}입니다")
-      expect(response.body).to include(advance_current_voter_election_path(election))
-      expect(response.body).not_to include(submit_vote_election_path(election))
+      expect(response.body).to include(advance_current_voter_poll_path(election))
+      expect(response.body).not_to include(submit_vote_poll_path(election))
       expect(response.body).not_to include("기권 처리")
       expect(response.body).not_to include("미참여 처리")
     end
@@ -377,9 +377,9 @@ RSpec.describe "Elections", type: :request do
       create(:election_voter_participation, election_voter: current_voter)
       sign_in teacher
 
-      post advance_current_voter_election_path(election), params: { return_to: "ballot" }
+      post advance_current_voter_poll_path(election), params: { return_to: "ballot" }
 
-      expect(response).to redirect_to(ballot_election_path(election))
+      expect(response).to redirect_to(ballot_poll_path(election))
     end
 
     it "shows completion guidance when the last current voter is processed" do
@@ -390,13 +390,13 @@ RSpec.describe "Elections", type: :request do
       create(:election_voter_participation, election_voter: last_voter)
       sign_in teacher
 
-      get ballot_election_path(election)
+      get ballot_poll_path(election)
 
       expect(response.body).to include("모든 투표자가 처리되었습니다. 창을 닫아주세요.")
       expect(response.body).not_to include("모든 투표자가 처리되었습니다. 운영 화면에서 선거를 종료하세요.")
-      expect(response.body).not_to include(submit_vote_election_path(election))
-      expect(response.body).not_to include(advance_current_voter_election_path(election))
-      expect(response.body).not_to include(close_election_path(election))
+      expect(response.body).not_to include(submit_vote_poll_path(election))
+      expect(response.body).not_to include(advance_current_voter_poll_path(election))
+      expect(response.body).not_to include(close_poll_path(election))
     end
 
     it "redirects draft elections to the operation screen" do
@@ -404,9 +404,9 @@ RSpec.describe "Elections", type: :request do
       election = create_startable_election(user: teacher)
       sign_in teacher
 
-      get ballot_election_path(election)
+      get ballot_poll_path(election)
 
-      expect(response).to redirect_to(election_path(election))
+      expect(response).to redirect_to(poll_path(election))
       expect(flash[:alert]).to eq("진행 중인 선거에서만 투표 화면을 사용할 수 있습니다.")
     end
 
@@ -419,18 +419,18 @@ RSpec.describe "Elections", type: :request do
       Elections::Close.new(election: election).call
       sign_in teacher
 
-      get ballot_election_path(election)
+      get ballot_poll_path(election)
 
-      expect(response).to redirect_to(election_path(election))
+      expect(response).to redirect_to(poll_path(election))
       expect(flash[:alert]).to eq("진행 중인 선거에서만 투표 화면을 사용할 수 있습니다.")
     end
   end
 
-  describe "POST /elections/:id/start" do
+  describe "POST /polls/:id/start" do
     it "redirects guests to sign in" do
-      election = create(:election)
+      election = create(:poll)
 
-      post start_election_path(election)
+      post start_poll_path(election)
 
       expect(response).to redirect_to(new_user_session_path)
     end
@@ -441,10 +441,10 @@ RSpec.describe "Elections", type: :request do
       sign_in teacher
 
       expect do
-        post start_election_path(election)
+        post start_poll_path(election)
       end.to change(ElectionVoter, :count).by(2).and change(PollingStation, :count).by(1)
 
-      expect(response).to redirect_to(election_path(election))
+      expect(response).to redirect_to(poll_path(election))
       expect(flash[:notice]).to eq("선거를 시작했습니다.")
       expect(election.reload).to be_in_progress
       expect(election.voter_group_name_snapshot).to eq(election.voter_group.name)
@@ -457,7 +457,7 @@ RSpec.describe "Elections", type: :request do
       sign_in teacher
 
       expect do
-        post start_election_path(election)
+        post start_poll_path(election)
       end.not_to change(ElectionVoter, :count)
 
       expect(response).to redirect_to(dashboard_path)
@@ -471,24 +471,24 @@ RSpec.describe "Elections", type: :request do
       sign_in admin
 
       expect do
-        post start_election_path(election)
+        post start_poll_path(election)
       end.to change(ElectionVoter, :count).by(2)
 
-      expect(response).to redirect_to(election_path(election))
+      expect(response).to redirect_to(poll_path(election))
       expect(election.reload).to be_in_progress
     end
 
     it "fails with an alert when there is one candidate" do
       teacher = create(:user)
-      election = create(:election, user: teacher)
-      create(:candidate, election: election)
+      election = create(:poll, user: teacher)
+      create(:candidate, poll: election)
       sign_in teacher
 
       expect do
-        post start_election_path(election)
+        post start_poll_path(election)
       end.not_to change(PollingStation, :count)
 
-      expect(response).to redirect_to(election_path(election))
+      expect(response).to redirect_to(poll_path(election))
       expect(flash[:alert]).to include("무투표 당선/찬반 투표 정책 결정 후 지원 예정")
       expect(election.reload).to be_draft
       expect(election.election_voters).to be_empty
@@ -499,8 +499,8 @@ RSpec.describe "Elections", type: :request do
       election = create_startable_election(user: teacher)
       sign_in teacher
 
-      post start_election_path(election)
-      get election_path(election)
+      post start_poll_path(election)
+      get poll_path(election)
 
       expect(response.body).to include("진행")
       expect(response.body).not_to include("in_progress")
@@ -516,11 +516,11 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include("0표")
       expect(response.body).not_to include("시작 가능 여부")
       expect(response.body).to include("투표 화면 열기")
-      expect(response.body).to include(ballot_election_path(election))
+      expect(response.body).to include(ballot_poll_path(election))
       expect(response.body).to include("turbo-cable-stream-source")
-      expect(response.body).to include("progress_election_#{election.id}")
-      expect(response.body).to include("event_log_election_#{election.id}")
-      expect(response.body).not_to include(submit_vote_election_path(election))
+      expect(response.body).to include("progress_poll_#{election.id}")
+      expect(response.body).to include("event_log_poll_#{election.id}")
+      expect(response.body).not_to include(submit_vote_poll_path(election))
       expect(response.body).not_to include("미참여 처리")
       expect(response.body).not_to include("기권 처리")
       expect(response.body).not_to include("다음 학생으로")
@@ -535,7 +535,7 @@ RSpec.describe "Elections", type: :request do
       election = create_startable_election(user: teacher)
       sign_in teacher
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response.body).not_to include("현재 투표자")
       expect(response.body).not_to include("투표 진행 정보를 찾을 수 없습니다.")
@@ -547,7 +547,7 @@ RSpec.describe "Elections", type: :request do
       election.update!(status: :in_progress)
       sign_in teacher
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response.body).to include("선거가 진행 중입니다.")
       expect(response.body).to include("투표 진행 정보를 찾을 수 없습니다.")
@@ -562,10 +562,10 @@ RSpec.describe "Elections", type: :request do
       election.polling_station.update!(current_election_voter: nil)
       sign_in teacher
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response.body).to include("첫 미처리 학생으로 재개")
-      expect(response.body).to include(resume_current_voter_election_path(election))
+      expect(response.body).to include(resume_current_voter_poll_path(election))
       expect(response.body).to include("현재 투표자 정보가 비어 있을 때만 사용할 수 있습니다.")
     end
 
@@ -574,10 +574,10 @@ RSpec.describe "Elections", type: :request do
       election = create_started_election(user: teacher)
       sign_in teacher
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response.body).not_to include("첫 미처리 학생으로 재개")
-      expect(response.body).not_to include(resume_current_voter_election_path(election))
+      expect(response.body).not_to include(resume_current_voter_poll_path(election))
     end
 
     it "does not show candidate management links after the election starts" do
@@ -586,15 +586,15 @@ RSpec.describe "Elections", type: :request do
       candidate = election.candidates.first
       sign_in teacher
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response.body).not_to include("후보자 추가")
-      expect(response.body).not_to include(edit_election_candidate_path(election, candidate))
-      expect(response.body).not_to include(election_candidate_path(election, candidate))
+      expect(response.body).not_to include(edit_poll_candidate_path(election, candidate))
+      expect(response.body).not_to include(poll_candidate_path(election, candidate))
     end
   end
 
-  describe "POST /elections/:id/submit_vote" do
+  describe "POST /polls/:id/submit_vote" do
     it "submits a vote for the current election voter" do
       teacher = create(:user)
       election = create_started_election(user: teacher)
@@ -603,10 +603,10 @@ RSpec.describe "Elections", type: :request do
       sign_in teacher
 
       expect do
-        post submit_vote_election_path(election), params: { candidate_id: candidate.id }
+        post submit_vote_poll_path(election), params: { candidate_id: candidate.id }
       end.to change(ElectionVoterParticipation, :count).by(1)
 
-      expect(response).to redirect_to(election_path(election))
+      expect(response).to redirect_to(poll_path(election))
       expect(flash[:notice]).to eq("투표가 제출되었습니다.")
       expect(election.candidate_tallies.find_by(candidate: candidate).reload.votes_count).to eq(1)
       expect(current_election_voter.reload.election_voter_participation).to be_completed
@@ -621,10 +621,10 @@ RSpec.describe "Elections", type: :request do
       sign_in teacher
 
       expect do
-        post submit_vote_election_path(election), params: { candidate_id: candidate.id }
+        post submit_vote_poll_path(election), params: { candidate_id: candidate.id }
       end.not_to change { election.candidate_tallies.find_by(candidate: candidate).reload.votes_count }
 
-      expect(response).to redirect_to(election_path(election))
+      expect(response).to redirect_to(poll_path(election))
       expect(flash[:alert]).to include("이미 투표 완료")
     end
 
@@ -634,9 +634,9 @@ RSpec.describe "Elections", type: :request do
       candidate = create(:candidate)
       sign_in teacher
 
-      post submit_vote_election_path(election), params: { candidate_id: candidate.id }
+      post submit_vote_poll_path(election), params: { candidate_id: candidate.id }
 
-      expect(response).to redirect_to(election_path(election))
+      expect(response).to redirect_to(poll_path(election))
       expect(flash[:alert]).to include("이 선거의 후보자")
       expect(election.polling_station.current_election_voter.election_voter_participation).to be_nil
     end
@@ -647,9 +647,9 @@ RSpec.describe "Elections", type: :request do
       candidate = election.candidates.order(:number).first
       sign_in teacher
 
-      post submit_vote_election_path(election), params: { candidate_id: candidate.id }
+      post submit_vote_poll_path(election), params: { candidate_id: candidate.id }
 
-      expect(response).to redirect_to(election_path(election))
+      expect(response).to redirect_to(poll_path(election))
       expect(flash[:alert]).to include("진행 중인 선거")
     end
 
@@ -660,11 +660,11 @@ RSpec.describe "Elections", type: :request do
       create(:election_voter_participation, election_voter: election.polling_station.current_election_voter)
       sign_in teacher
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response.body).to include("현재 투표자는 투표를 완료했습니다.")
-      expect(response.body).not_to include(advance_current_voter_election_path(election))
-      expect(response.body).not_to include(submit_vote_election_path(election))
+      expect(response.body).not_to include(advance_current_voter_poll_path(election))
+      expect(response.body).not_to include(submit_vote_poll_path(election))
       expect(response.body).not_to include("votes_count")
       expect(response.body).not_to include("candidate_id")
       expect(response.body).not_to include("election_voter_id")
@@ -674,18 +674,18 @@ RSpec.describe "Elections", type: :request do
     end
   end
 
-  describe "POST /elections/:id/record_participation_outcome" do
+  describe "POST /polls/:id/record_participation_outcome" do
     it "does not show absent and abstained buttons on the operation screen" do
       teacher = create(:user)
       election = create_started_election(user: teacher)
       sign_in teacher
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response.body).to include("투표 화면에서 선택을 진행하세요.")
       expect(response.body).not_to include("미참여 처리")
       expect(response.body).not_to include("기권 처리")
-      expect(response.body).not_to include(record_participation_outcome_election_path(election))
+      expect(response.body).not_to include(record_participation_outcome_poll_path(election))
     end
 
     it "records absent outcome without changing candidate tally" do
@@ -695,17 +695,17 @@ RSpec.describe "Elections", type: :request do
       sign_in teacher
 
       expect do
-        post record_participation_outcome_election_path(election), params: { status: "absent" }
+        post record_participation_outcome_poll_path(election), params: { status: "absent" }
       end.not_to change { election.candidate_tallies.find_by(candidate: candidate).reload.votes_count }
 
-      expect(response).to redirect_to(election_path(election))
+      expect(response).to redirect_to(poll_path(election))
       expect(flash[:notice]).to eq("투표자 상태를 처리했습니다.")
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response.body).to include("현재 투표자는 미참여 처리되었습니다.")
-      expect(response.body).not_to include(advance_current_voter_election_path(election))
-      expect(response.body).not_to include(submit_vote_election_path(election))
+      expect(response.body).not_to include(advance_current_voter_poll_path(election))
+      expect(response.body).not_to include(submit_vote_poll_path(election))
     end
 
     it "records abstained outcome without changing candidate tally" do
@@ -715,20 +715,20 @@ RSpec.describe "Elections", type: :request do
       sign_in teacher
 
       expect do
-        post record_participation_outcome_election_path(election), params: { status: "abstained" }
+        post record_participation_outcome_poll_path(election), params: { status: "abstained" }
       end.not_to change { election.candidate_tallies.find_by(candidate: candidate).reload.votes_count }
 
-      expect(response).to redirect_to(election_path(election))
+      expect(response).to redirect_to(poll_path(election))
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response.body).to include("현재 투표자는 기권 처리되었습니다.")
-      expect(response.body).not_to include(advance_current_voter_election_path(election))
-      expect(response.body).not_to include(submit_vote_election_path(election))
+      expect(response.body).not_to include(advance_current_voter_poll_path(election))
+      expect(response.body).not_to include(submit_vote_poll_path(election))
     end
   end
 
-  describe "POST /elections/:id/advance_current_voter" do
+  describe "POST /polls/:id/advance_current_voter" do
     it "moves to the next election voter after the current voter is completed" do
       teacher = create(:user)
       election = create_started_election(user: teacher)
@@ -737,19 +737,19 @@ RSpec.describe "Elections", type: :request do
       create(:election_voter_participation, election_voter: first_voter)
       sign_in teacher
 
-      post advance_current_voter_election_path(election)
+      post advance_current_voter_poll_path(election)
 
-      expect(response).to redirect_to(election_path(election))
+      expect(response).to redirect_to(poll_path(election))
       expect(flash[:notice]).to eq("다음 학생으로 이동했습니다.")
       expect(election.polling_station.reload.current_election_voter).to eq(next_voter)
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response.body).to include("현재 투표자")
       expect(response.body).to include("2번 이서연")
       expect(response.body).to include("투표 화면 열기")
-      expect(response.body).to include(ballot_election_path(election))
-      expect(response.body).not_to include(submit_vote_election_path(election))
+      expect(response.body).to include(ballot_poll_path(election))
+      expect(response.body).not_to include(submit_vote_poll_path(election))
     end
 
     it "shows close button only when the completed current voter is the last voter" do
@@ -760,20 +760,20 @@ RSpec.describe "Elections", type: :request do
       create(:election_voter_participation, election_voter: first_voter)
       sign_in teacher
 
-      get election_path(election)
+      get poll_path(election)
 
-      expect(response.body).not_to include(advance_current_voter_election_path(election))
-      expect(response.body).not_to include(close_election_path(election))
+      expect(response.body).not_to include(advance_current_voter_poll_path(election))
+      expect(response.body).not_to include(close_poll_path(election))
 
       election.polling_station.update!(current_election_voter: last_voter)
       create(:election_voter_participation, election_voter: last_voter)
 
-      get election_path(election)
+      get poll_path(election)
 
-      expect(response.body).to include(close_election_path(election))
+      expect(response.body).to include(close_poll_path(election))
       expect(response.body).to include("선거를 종료할까요?")
       expect(response.body).to include("data-turbo-frame=\"_top\"")
-      expect(response.body).not_to include(advance_current_voter_election_path(election))
+      expect(response.body).not_to include(advance_current_voter_poll_path(election))
     end
 
     it "fails when the current voter is not completed" do
@@ -782,15 +782,15 @@ RSpec.describe "Elections", type: :request do
       current_voter = election.polling_station.current_election_voter
       sign_in teacher
 
-      post advance_current_voter_election_path(election)
+      post advance_current_voter_poll_path(election)
 
-      expect(response).to redirect_to(election_path(election))
+      expect(response).to redirect_to(poll_path(election))
       expect(flash[:alert]).to include("확정 상태")
       expect(election.polling_station.reload.current_election_voter).to eq(current_voter)
     end
   end
 
-  describe "POST /elections/:id/resume_current_voter" do
+  describe "POST /polls/:id/resume_current_voter" do
     it "sets the first unprocessed election voter as current voter" do
       teacher = create(:user)
       election = create_started_election(user: teacher)
@@ -799,15 +799,15 @@ RSpec.describe "Elections", type: :request do
       election.polling_station.update!(current_election_voter: nil)
       sign_in teacher
 
-      post resume_current_voter_election_path(election)
+      post resume_current_voter_poll_path(election)
 
-      expect(response).to redirect_to(election_path(election))
+      expect(response).to redirect_to(poll_path(election))
       expect(flash[:notice]).to eq("첫 미처리 학생으로 재개했습니다.")
       expect(election.polling_station.reload.current_election_voter).to eq(voters[1])
     end
   end
 
-  describe "POST /elections/:id/close" do
+  describe "POST /polls/:id/close" do
     it "closes the election and shows candidate tally results" do
       teacher = create(:user)
       election = create_started_election(user: teacher)
@@ -818,14 +818,14 @@ RSpec.describe "Elections", type: :request do
       election.candidate_tallies.find_by(candidate: candidate).update!(votes_count: 1)
       sign_in teacher
 
-      post close_election_path(election)
+      post close_poll_path(election)
 
-      expect(response).to redirect_to(election_path(election))
+      expect(response).to redirect_to(poll_path(election))
       expect(flash[:notice]).to eq("선거를 종료했습니다.")
       expect(election.reload).to be_closed
       expect(election.polling_station).to be_closed
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response.body).to include("선거가 종료되었습니다.")
       expect(response.body).to include("참여 요약")
@@ -851,10 +851,10 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).not_to include("미참여 처리")
       expect(response.body).not_to include("기권 처리")
       expect(response.body).not_to include("투표 화면 열기")
-      expect(response.body).not_to include(ballot_election_path(election))
-      expect(response.body).not_to include(submit_vote_election_path(election))
-      expect(response.body).not_to include(advance_current_voter_election_path(election))
-      expect(response.body).not_to include(close_election_path(election))
+      expect(response.body).not_to include(ballot_poll_path(election))
+      expect(response.body).not_to include(submit_vote_poll_path(election))
+      expect(response.body).not_to include(advance_current_voter_poll_path(election))
+      expect(response.body).not_to include(close_poll_path(election))
       expect(response.body).not_to include("선택한 후보")
       expect(response.body).not_to include("#{last_voter.name} #{candidate.name}")
     end
@@ -874,7 +874,7 @@ RSpec.describe "Elections", type: :request do
       Elections::Close.new(election: election).call
       sign_in teacher
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response.body).to include("토의가 종료되었습니다.")
       expect(response.body).to include("토의 결과")
@@ -897,7 +897,7 @@ RSpec.describe "Elections", type: :request do
       Elections::Close.new(election: election).call
       sign_in teacher
 
-      get election_path(election)
+      get poll_path(election)
 
       election.candidates.order(:number).each do |candidate|
         expect(response.body).to include("#{candidate.number}번 #{candidate.name}")
@@ -913,7 +913,7 @@ RSpec.describe "Elections", type: :request do
       Elections::Close.new(election: election).call
       sign_in teacher
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response.body).to include("최다 득표 후보 없음")
     end
@@ -950,7 +950,7 @@ RSpec.describe "Elections", type: :request do
       voter_group.destroy!
       sign_in teacher
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include(group_name)
@@ -970,11 +970,11 @@ RSpec.describe "Elections", type: :request do
       Elections::Close.new(election: election).call
       sign_in teacher
 
-      get election_path(election)
+      get poll_path(election)
 
       expect(response.body).not_to include("후보자 추가")
-      expect(response.body).not_to include(edit_election_candidate_path(election, candidate))
-      expect(response.body).not_to include(election_candidate_path(election, candidate))
+      expect(response.body).not_to include(edit_poll_candidate_path(election, candidate))
+      expect(response.body).not_to include(poll_candidate_path(election, candidate))
     end
   end
 
@@ -982,9 +982,9 @@ RSpec.describe "Elections", type: :request do
     voter_group = create(:voter_group, user: user)
     create(:voter_slot, voter_group: voter_group, number: 1, name: "김민준")
     create(:voter_slot, voter_group: voter_group, number: 2, name: "이서연")
-    election = create(:election, user: user, voter_group: voter_group, kind: kind)
-    create(:candidate, election: election, number: 1)
-    create(:candidate, election: election, number: 2)
+    election = create(:poll, user: user, voter_group: voter_group, kind: kind)
+    create(:candidate, poll: election, number: 1)
+    create(:candidate, poll: election, number: 2)
     election
   end
 

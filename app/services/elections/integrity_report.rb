@@ -78,7 +78,7 @@ module Elections
         report_issues << issue("진행 중인 선거의 투표소 정보를 찾을 수 없습니다.") if polling_station.blank?
         report_issues << issue("진행 중인 선거의 투표소가 active 상태가 아닙니다.") if polling_station.present? && !polling_station.active?
         report_issues << issue("진행 중인 선거의 현재 투표자를 찾을 수 없습니다.") if current_election_voter.blank?
-        if current_election_voter.present? && current_election_voter.election_id != election.id
+        if current_election_voter.present? && current_election_voter.poll_id != election.id
           report_issues << issue("현재 투표자가 이 선거의 선거용 명단에 속하지 않습니다.")
         end
       elsif election.closed?
@@ -136,7 +136,7 @@ module Elections
     end
 
     def mismatched_candidate_tallies?
-      election.candidate_tallies.joins(:candidate).where.not(candidates: { election_id: election.id }).exists?
+      election.candidate_tallies.joins(:candidate).where.not(candidates: { poll_id: election.id }).exists?
     end
 
     def total_voters
@@ -166,7 +166,7 @@ module Elections
     def participation_counts
       @participation_counts ||= ElectionVoterParticipation
         .joins(:election_voter)
-        .where(election_voters: { election_id: election.id })
+        .where(election_voters: { poll_id: election.id })
         .group(:status)
         .count
     end

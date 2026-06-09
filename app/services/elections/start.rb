@@ -18,7 +18,7 @@ module Elections
       validate_startable
       return failure if errors.any?
 
-      Election.transaction do
+      Poll.transaction do
         create_snapshot
         create_candidate_tallies
         first_election_voter = election.election_voters.order(:number).first

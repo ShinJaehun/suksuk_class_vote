@@ -60,7 +60,7 @@ module Elections
     end
 
     def candidate_belongs_to_election?
-      candidate.present? && candidate.election_id == election.id
+      candidate.present? && candidate.poll_id == election.id
     end
 
     def candidate_tally

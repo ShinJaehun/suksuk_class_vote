@@ -1,6 +1,6 @@
-<%= form_with model: [election, candidate], class: "space-y-4" do |form| %>
+<%= form_with model: [poll, candidate], class: "space-y-4" do |form| %>
   <div class="space-y-1">
-    <%= form.label :name, election.election? ? "#{election.choice_label} 이름" : election.choice_label, class: "text-sm font-medium text-stone-700" %>
+    <%= form.label :name, poll.election? ? "#{poll.choice_label} 이름" : poll.choice_label, class: "text-sm font-medium text-stone-700" %>
     <%= form.text_field :name, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
   </div>
 

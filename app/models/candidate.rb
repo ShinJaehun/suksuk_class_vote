@@ -1,10 +1,10 @@
 class Candidate < ApplicationRecord
-  belongs_to :election
+  belongs_to :poll
   has_one :candidate_tally, dependent: :destroy
 
-  validates :election, presence: true
+  validates :poll, presence: true
   validates :number, presence: true,
                      numericality: { only_integer: true, greater_than: 0 },
-                     uniqueness: { scope: :election_id }
+                     uniqueness: { scope: :poll_id }
   validates :name, presence: true
 end

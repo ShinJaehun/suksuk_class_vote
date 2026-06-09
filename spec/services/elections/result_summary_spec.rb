@@ -66,9 +66,9 @@ RSpec.describe Elections::ResultSummary do
     create(:voter_slot, voter_group: voter_group, number: 2, name: "이서연")
     create(:voter_slot, voter_group: voter_group, number: 3, name: "박지호")
     create(:voter_slot, voter_group: voter_group, number: 4, name: "최지우")
-    election = create(:election, user: teacher, voter_group: voter_group)
-    create(:candidate, election: election, number: 1, name: "후보자1")
-    create(:candidate, election: election, number: 2, name: "후보자2")
+    election = create(:poll, user: teacher, voter_group: voter_group)
+    create(:candidate, poll: election, number: 1, name: "후보자1")
+    create(:candidate, poll: election, number: 2, name: "후보자2")
     Elections::Start.new(election).call
     election.update!(status: :closed)
     election.polling_station.update!(status: :closed, closed_at: Time.current)

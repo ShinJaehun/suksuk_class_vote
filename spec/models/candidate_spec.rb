@@ -11,7 +11,7 @@ RSpec.describe Candidate, type: :model do
 
   describe "validations" do
     it "requires an election" do
-      candidate = build(:candidate, election: nil)
+      candidate = build(:candidate, poll: nil)
 
       expect(candidate).not_to be_valid
       expect(candidate.errors[:election]).to be_present
@@ -39,9 +39,9 @@ RSpec.describe Candidate, type: :model do
     end
 
     it "does not allow duplicate numbers in the same election" do
-      election = create(:election)
-      create(:candidate, election: election, number: 1)
-      candidate = build(:candidate, election: election, number: 1)
+      election = create(:poll)
+      create(:candidate, poll: election, number: 1)
+      candidate = build(:candidate, poll: election, number: 1)
 
       expect(candidate).not_to be_valid
       expect(candidate.errors[:number]).to be_present

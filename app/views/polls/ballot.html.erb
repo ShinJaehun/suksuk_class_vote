@@ -2,7 +2,7 @@
 
 <div class="mx-auto max-w-2xl space-y-6">
   <div class="space-y-2">
-    <h1 class="text-3xl font-semibold"><%= @election.title %></h1>
+    <h1 class="text-3xl font-semibold"><%= @poll.title %></h1>
     <p class="text-stone-600">투표 화면</p>
   </div>
 
@@ -17,7 +17,7 @@
         <p class="text-stone-600">현재 투표자는 이미 처리되었습니다.</p>
         <% if @next_election_voter.present? %>
           <%= button_to "다음 투표자는 #{@next_election_voter.number}번 #{@next_election_voter.name}입니다",
-                        advance_current_voter_election_path(@election),
+                        advance_current_voter_poll_path(@poll),
                         method: :post,
                         params: { return_to: "ballot" },
                         class: "rounded-md bg-stone-900 px-4 py-3 text-sm font-medium text-white" %>
@@ -28,26 +28,26 @@
         <% end %>
       <% else %>
         <div class="space-y-4">
-          <h2 class="text-xl font-semibold"><%= @election.choice_label %> 선택</h2>
-          <div class="<%= @election.election? ? "grid gap-3 sm:grid-cols-2" : "space-y-3" %>">
-            <% @election.candidates.order(:number).each do |candidate| %>
+          <h2 class="text-xl font-semibold"><%= @poll.choice_label %> 선택</h2>
+          <div class="<%= @poll.election? ? "grid gap-3 sm:grid-cols-2" : "space-y-3" %>">
+            <% @poll.candidates.order(:number).each do |candidate| %>
               <%= button_to "#{candidate.number}번 #{candidate.name}",
-                            submit_vote_election_path(@election),
+                            submit_vote_poll_path(@poll),
                             method: :post,
                             params: { candidate_id: candidate.id, return_to: "ballot" },
-                            class: @election.election? ? "rounded-md bg-stone-900 px-4 py-5 text-xl font-medium text-white" : "w-full rounded-md bg-stone-900 px-5 py-4 text-left text-lg font-medium text-white" %>
+                            class: @poll.election? ? "rounded-md bg-stone-900 px-4 py-5 text-xl font-medium text-white" : "w-full rounded-md bg-stone-900 px-5 py-4 text-left text-lg font-medium text-white" %>
             <% end %>
           </div>
 
           <div class="border-t border-stone-200 pt-4">
             <div class="flex flex-wrap gap-2">
               <%= button_to "기권 처리",
-                            record_participation_outcome_election_path(@election),
+                            record_participation_outcome_poll_path(@poll),
                             method: :post,
                             params: { status: "abstained", return_to: "ballot" },
                             class: "rounded-md border border-stone-300 px-4 py-3 text-sm font-medium text-stone-700" %>
               <%= button_to "미참여 처리",
-                            record_participation_outcome_election_path(@election),
+                            record_participation_outcome_poll_path(@poll),
                             method: :post,
                             params: { status: "absent", return_to: "ballot" },
                             class: "rounded-md border border-stone-300 px-4 py-3 text-sm font-medium text-stone-700" %>

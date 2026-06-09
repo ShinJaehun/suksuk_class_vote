@@ -56,7 +56,7 @@ RSpec.describe VoterSlot, type: :model do
     it "does not destroy while the voter group is used by an in-progress election" do
       voter_group = create(:voter_group)
       voter_slot = create(:voter_slot, voter_group: voter_group)
-      create(:election, voter_group: voter_group, status: :in_progress)
+      create(:poll, voter_group: voter_group, status: :in_progress)
 
       expect(voter_slot.destroy).to be false
       expect(voter_slot.errors[:base]).to be_present

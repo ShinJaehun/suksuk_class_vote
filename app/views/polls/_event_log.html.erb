@@ -1,10 +1,10 @@
-<%= turbo_frame_tag dom_id(election, :event_log), class: "block" do %>
-  <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4" data-testid="election-event-log">
+<%= turbo_frame_tag dom_id(poll, :event_log), class: "block" do %>
+  <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4" data-testid="poll-event-log">
     <h2 class="text-xl font-semibold">운영 기록</h2>
 
-    <% if election_events.any? %>
+    <% if poll_events.any? %>
       <ul class="divide-y divide-stone-200">
-        <% election_events.each do |event| %>
+        <% poll_events.each do |event| %>
           <% target =
             if event.election_level_event?
               event.actor&.name.presence || event.actor&.email

@@ -87,7 +87,7 @@ RSpec.describe "Voter groups", type: :request do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)
       voter_slot = create(:voter_slot, voter_group: voter_group)
-      create(:election, user: teacher, voter_group: voter_group, status: :in_progress)
+      create(:poll, user: teacher, voter_group: voter_group, status: :in_progress)
       sign_in teacher
 
       get voter_group_path(voter_group)
@@ -146,7 +146,7 @@ RSpec.describe "Voter groups", type: :request do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)
       create(:voter_slot, voter_group: voter_group)
-      create(:election, user: teacher, voter_group: voter_group, status: :in_progress)
+      create(:poll, user: teacher, voter_group: voter_group, status: :in_progress)
       sign_in teacher
 
       get edit_voter_group_path(voter_group)
@@ -195,7 +195,7 @@ RSpec.describe "Voter groups", type: :request do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher, name: "기존 그룹")
       create(:voter_slot, voter_group: voter_group)
-      create(:election, user: teacher, voter_group: voter_group, status: :in_progress)
+      create(:poll, user: teacher, voter_group: voter_group, status: :in_progress)
       sign_in teacher
 
       patch voter_group_path(voter_group), params: { voter_group: { name: "수정 후" } }
@@ -208,7 +208,7 @@ RSpec.describe "Voter groups", type: :request do
     it "allows update when only closed elections use the group" do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher, name: "기존 그룹")
-      create(:election, user: teacher, voter_group: voter_group, status: :closed)
+      create(:poll, user: teacher, voter_group: voter_group, status: :closed)
       sign_in teacher
 
       patch voter_group_path(voter_group), params: { voter_group: { name: "수정 후" } }
@@ -269,7 +269,7 @@ RSpec.describe "Voter groups", type: :request do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)
       create(:voter_slot, voter_group: voter_group)
-      create(:election, user: teacher, voter_group: voter_group, status: :draft)
+      create(:poll, user: teacher, voter_group: voter_group, status: :draft)
       sign_in teacher
 
       expect do
@@ -283,7 +283,7 @@ RSpec.describe "Voter groups", type: :request do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)
       create(:voter_slot, voter_group: voter_group)
-      create(:election, user: teacher, voter_group: voter_group, status: :in_progress)
+      create(:poll, user: teacher, voter_group: voter_group, status: :in_progress)
       sign_in teacher
 
       expect do
@@ -296,7 +296,7 @@ RSpec.describe "Voter groups", type: :request do
     it "allows destroying a voter group used only by closed elections" do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)
-      election = create(:election, user: teacher, voter_group: voter_group, status: :closed, voter_group_name_snapshot: voter_group.name)
+      election = create(:poll, user: teacher, voter_group: voter_group, status: :closed, voter_group_name_snapshot: voter_group.name)
       sign_in teacher
 
       expect do

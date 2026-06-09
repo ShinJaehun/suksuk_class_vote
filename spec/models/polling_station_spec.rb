@@ -19,12 +19,12 @@ RSpec.describe PollingStation, type: :model do
 
   describe "validations" do
     it "requires one polling station per election" do
-      election = create(:election)
-      create(:polling_station, election: election)
-      polling_station = build(:polling_station, election: election)
+      election = create(:poll)
+      create(:polling_station, poll: election)
+      polling_station = build(:polling_station, poll: election)
 
       expect(polling_station).not_to be_valid
-      expect(polling_station.errors[:election_id]).to be_present
+      expect(polling_station.errors[:poll_id]).to be_present
     end
 
     it "requires a status" do

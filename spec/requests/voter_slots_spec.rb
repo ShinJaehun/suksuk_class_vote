@@ -60,7 +60,7 @@ RSpec.describe "Voter slots", type: :request do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)
       create(:voter_slot, voter_group: voter_group)
-      create(:election, user: teacher, voter_group: voter_group, status: :in_progress)
+      create(:poll, user: teacher, voter_group: voter_group, status: :in_progress)
       sign_in teacher
 
       get new_voter_group_voter_slot_path(voter_group)
@@ -113,7 +113,7 @@ RSpec.describe "Voter slots", type: :request do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)
       create(:voter_slot, voter_group: voter_group)
-      create(:election, user: teacher, voter_group: voter_group, status: :in_progress)
+      create(:poll, user: teacher, voter_group: voter_group, status: :in_progress)
       sign_in teacher
 
       expect do
@@ -126,7 +126,7 @@ RSpec.describe "Voter slots", type: :request do
     it "allows create when only closed elections use the group" do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)
-      create(:election, user: teacher, voter_group: voter_group, status: :closed)
+      create(:poll, user: teacher, voter_group: voter_group, status: :closed)
       sign_in teacher
 
       expect do
@@ -185,7 +185,7 @@ RSpec.describe "Voter slots", type: :request do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)
       voter_slot = create(:voter_slot, voter_group: voter_group)
-      create(:election, user: teacher, voter_group: voter_group, status: :in_progress)
+      create(:poll, user: teacher, voter_group: voter_group, status: :in_progress)
       sign_in teacher
 
       get edit_voter_group_voter_slot_path(voter_group, voter_slot)
@@ -236,7 +236,7 @@ RSpec.describe "Voter slots", type: :request do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)
       voter_slot = create(:voter_slot, voter_group: voter_group, name: "수정 전")
-      create(:election, user: teacher, voter_group: voter_group, status: :in_progress)
+      create(:poll, user: teacher, voter_group: voter_group, status: :in_progress)
       sign_in teacher
 
       patch voter_group_voter_slot_path(voter_group, voter_slot), params: { voter_slot: { name: "수정 후" } }
@@ -249,7 +249,7 @@ RSpec.describe "Voter slots", type: :request do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)
       voter_slot = create(:voter_slot, voter_group: voter_group, name: "수정 전")
-      create(:election, user: teacher, voter_group: voter_group, status: :closed)
+      create(:poll, user: teacher, voter_group: voter_group, status: :closed)
       sign_in teacher
 
       patch voter_group_voter_slot_path(voter_group, voter_slot), params: { voter_slot: { name: "수정 후" } }
@@ -310,7 +310,7 @@ RSpec.describe "Voter slots", type: :request do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)
       voter_slot = create(:voter_slot, voter_group: voter_group)
-      create(:election, user: teacher, voter_group: voter_group, status: :in_progress)
+      create(:poll, user: teacher, voter_group: voter_group, status: :in_progress)
       sign_in teacher
 
       expect do
@@ -324,8 +324,8 @@ RSpec.describe "Voter slots", type: :request do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)
       voter_slot = create(:voter_slot, voter_group: voter_group, number: 7, name: "선거 당시 이름")
-      election = create(:election, user: teacher, voter_group: voter_group, status: :closed, voter_group_name_snapshot: voter_group.name)
-      election_voter = create(:election_voter, election: election, source_voter_slot: voter_slot, number: 7, name: "선거 당시 이름")
+      election = create(:poll, user: teacher, voter_group: voter_group, status: :closed, voter_group_name_snapshot: voter_group.name)
+      election_voter = create(:election_voter, poll: election, source_voter_slot: voter_slot, number: 7, name: "선거 당시 이름")
       sign_in teacher
 
       expect do

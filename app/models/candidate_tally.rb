@@ -1,19 +1,19 @@
 class CandidateTally < ApplicationRecord
-  belongs_to :election
+  belongs_to :poll
   belongs_to :candidate
 
-  validates :election, presence: true
+  validates :poll, presence: true
   validates :candidate, presence: true
-  validates :candidate_id, uniqueness: { scope: :election_id }
+  validates :candidate_id, uniqueness: { scope: :poll_id }
   validates :votes_count, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
-  validate :candidate_belongs_to_election
+  validate :candidate_belongs_to_poll
 
   private
 
-  def candidate_belongs_to_election
-    return if election.blank? || candidate.blank?
-    return if candidate.election_id == election.id
+  def candidate_belongs_to_poll
+    return if poll.blank? || candidate.blank?
+    return if candidate.poll_id == poll.id
 
-    errors.add(:candidate, "must belong to election")
+    errors.add(:candidate, "must belong to poll")
   end
 end

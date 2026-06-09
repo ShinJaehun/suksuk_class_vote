@@ -1,5 +1,5 @@
 FactoryBot.define do
-  factory :election do
+  factory :poll do
     association :user
     title { "4학년 1반 반장 선거" }
     status { :draft }

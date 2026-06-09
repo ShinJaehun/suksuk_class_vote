@@ -1,38 +1,38 @@
 <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
   <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-    <h2 class="text-xl font-semibold"><%= election.choice_list_label %></h2>
+    <h2 class="text-xl font-semibold"><%= poll.choice_list_label %></h2>
 
-    <% if election.draft? %>
-      <p><%= link_to "#{election.choice_label} 추가", new_election_candidate_path(election), class: "inline-flex rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white" %></p>
+    <% if poll.draft? %>
+      <p><%= link_to "#{poll.choice_label} 추가", new_poll_candidate_path(poll), class: "inline-flex rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white" %></p>
     <% end %>
   </div>
 
-  <% if election.candidates.any? %>
+  <% if poll.candidates.any? %>
     <div class="overflow-x-auto">
       <table class="min-w-full text-left text-sm">
         <thead class="border-b border-stone-200 text-stone-500">
           <tr>
-            <th class="px-3 py-2 font-medium"><%= election.choice_number_label %></th>
-            <th class="px-3 py-2 font-medium"><%= election.choice_label %></th>
+            <th class="px-3 py-2 font-medium"><%= poll.choice_number_label %></th>
+            <th class="px-3 py-2 font-medium"><%= poll.choice_label %></th>
             <th class="px-3 py-2 font-medium">관리</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-stone-100">
-          <% election.candidates.order(:number).each do |candidate| %>
+          <% poll.candidates.order(:number).each do |candidate| %>
             <tr>
               <td class="px-3 py-3"><%= candidate.number %>번</td>
               <td class="px-3 py-3 font-medium"><%= candidate.name %></td>
               <td class="px-3 py-3">
-                <% if election.draft? %>
+                <% if poll.draft? %>
                   <div class="flex flex-wrap items-center gap-2">
-                    <%= link_to "수정", edit_election_candidate_path(election, candidate), class: "text-sm font-medium text-stone-700 underline" %>
+                    <%= link_to "수정", edit_poll_candidate_path(poll, candidate), class: "text-sm font-medium text-stone-700 underline" %>
                     <%= button_to "삭제",
-                                  election_candidate_path(election, candidate),
+                                  poll_candidate_path(poll, candidate),
                                   method: :delete,
                                   class: "text-sm font-medium text-stone-700 underline" %>
                   </div>
                 <% else %>
-                  <span class="text-stone-600"><%= election.election? ? "후보자를" : "#{election.choice_label}을" %> 수정할 수 없습니다.</span>
+                  <span class="text-stone-600"><%= poll.election? ? "후보자를" : "#{poll.choice_label}을" %> 수정할 수 없습니다.</span>
                 <% end %>
               </td>
             </tr>
@@ -41,6 +41,6 @@
       </table>
     </div>
   <% else %>
-    <p class="text-stone-600">아직 등록된 <%= election.choice_label %><%= election.election? ? "가" : "이" %> 없습니다.</p>
+    <p class="text-stone-600">아직 등록된 <%= poll.choice_label %><%= poll.election? ? "가" : "이" %> 없습니다.</p>
   <% end %>
 </section>

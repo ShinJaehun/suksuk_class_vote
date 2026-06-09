@@ -66,9 +66,9 @@ RSpec.describe Elections::ResumeCurrentVoter do
     voter_group = create(:voter_group, user: teacher)
     create(:voter_slot, voter_group: voter_group, number: 1, name: "김민준")
     create(:voter_slot, voter_group: voter_group, number: 2, name: "이서연")
-    election = create(:election, user: teacher, voter_group: voter_group)
-    create(:candidate, election: election, number: 1)
-    create(:candidate, election: election, number: 2)
+    election = create(:poll, user: teacher, voter_group: voter_group)
+    create(:candidate, poll: election, number: 1)
+    create(:candidate, poll: election, number: 2)
     Elections::Start.new(election).call
     election.reload
   end

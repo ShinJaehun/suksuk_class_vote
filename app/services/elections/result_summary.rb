@@ -49,7 +49,7 @@ module Elections
     def participation_counts
       @participation_counts ||= ElectionVoterParticipation
         .joins(:election_voter)
-        .where(election_voters: { election_id: election.id })
+        .where(election_voters: { poll_id: election.id })
         .group(:status)
         .count
     end

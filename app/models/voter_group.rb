@@ -1,7 +1,7 @@
 class VoterGroup < ApplicationRecord
   belongs_to :user
   has_many :voter_slots, dependent: :destroy
-  has_many :elections, dependent: :nullify
+  has_many :polls, dependent: :nullify
 
   before_destroy :ensure_not_used_by_open_elections, prepend: true
 
@@ -9,11 +9,11 @@ class VoterGroup < ApplicationRecord
   validates :user, presence: true
 
   def locked_for_election_progress?
-    elections.in_progress.exists?
+    polls.in_progress.exists?
   end
 
   def used_by_open_election?
-    elections.where(status: [Election.statuses[:draft], Election.statuses[:in_progress]]).exists?
+    polls.where(status: [Poll.statuses[:draft], Poll.statuses[:in_progress]]).exists?
   end
 
   private

@@ -19,7 +19,7 @@ RSpec.describe Elections::Start do
       )
       expect(election.candidate_tallies.count).to eq(2)
       expect(election.candidate_tallies.order(:candidate_id)).to all(have_attributes(
-        election: election,
+        poll: election,
         votes_count: 0
       ))
       expect(election.candidate_tallies.map(&:candidate)).to match_array(election.candidates)
@@ -72,7 +72,7 @@ RSpec.describe Elections::Start do
     end
 
     it "fails when there are no candidates" do
-      election = create(:election)
+      election = create(:poll)
 
       expect do
         result = described_class.new(election).call
@@ -87,8 +87,8 @@ RSpec.describe Elections::Start do
     end
 
     it "fails with a policy message when there is one candidate" do
-      election = create(:election)
-      create(:candidate, election: election)
+      election = create(:poll)
+      create(:candidate, poll: election)
 
       expect do
         result = described_class.new(election).call
@@ -105,10 +105,10 @@ RSpec.describe Elections::Start do
     it "fails when voter slots are empty" do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)
-      election = build(:election, user: teacher, voter_group: voter_group)
+      election = build(:poll, user: teacher, voter_group: voter_group)
       election.save!(validate: false)
-      create(:candidate, election: election, number: 1)
-      create(:candidate, election: election, number: 2)
+      create(:candidate, poll: election, number: 1)
+      create(:candidate, poll: election, number: 2)
 
       expect do
         result = described_class.new(election).call
@@ -125,7 +125,7 @@ RSpec.describe Elections::Start do
     it "fails when the snapshot already exists" do
       election = create_startable_election
       voter_slot = election.voter_group.voter_slots.order(:number).first
-      create(:election_voter, election: election, source_voter_slot: voter_slot, number: voter_slot.number)
+      create(:election_voter, poll: election, source_voter_slot: voter_slot, number: voter_slot.number)
 
       result = described_class.new(election).call
 
@@ -139,7 +139,7 @@ RSpec.describe Elections::Start do
 
     it "fails when the polling station already exists" do
       election = create_startable_election
-      create(:polling_station, election: election)
+      create(:polling_station, poll: election)
 
       result = described_class.new(election).call
 
@@ -154,7 +154,7 @@ RSpec.describe Elections::Start do
     it "fails when candidate tallies already exist" do
       election = create_startable_election
       candidate = election.candidates.order(:number).first
-      create(:candidate_tally, election: election, candidate: candidate)
+      create(:candidate_tally, poll: election, candidate: candidate)
 
       result = described_class.new(election).call
 
@@ -211,9 +211,9 @@ RSpec.describe Elections::Start do
     voter_group = create(:voter_group, user: teacher)
     create(:voter_slot, voter_group: voter_group, number: 1, name: "김민준")
     create(:voter_slot, voter_group: voter_group, number: 2, name: "이서연")
-    election = create(:election, user: teacher, voter_group: voter_group, status: status)
-    create(:candidate, election: election, number: 1)
-    create(:candidate, election: election, number: 2)
+    election = create(:poll, user: teacher, voter_group: voter_group, status: status)
+    create(:candidate, poll: election, number: 1)
+    create(:candidate, poll: election, number: 2)
     election
   end
 end

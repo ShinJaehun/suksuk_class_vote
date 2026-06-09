@@ -33,13 +33,13 @@ class ElectionEvent < ApplicationRecord
     candidate_number
   ].freeze
 
-  belongs_to :election
+  belongs_to :poll
   belongs_to :actor, class_name: "User", optional: true
   belongs_to :election_voter, optional: true
 
   before_validation :set_defaults
 
-  validates :election, presence: true
+  validates :poll, presence: true
   validates :event_type, presence: true, inclusion: { in: EVENT_TYPES }
   validates :occurred_at, presence: true
   validate :details_is_hash

@@ -98,7 +98,7 @@ RSpec.describe "Bulk voter slots", type: :request do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)
       create(:voter_slot, voter_group: voter_group)
-      create(:election, user: teacher, voter_group: voter_group, status: :in_progress)
+      create(:poll, user: teacher, voter_group: voter_group, status: :in_progress)
       sign_in teacher
 
       get new_voter_group_bulk_voter_slots_path(voter_group)
@@ -151,7 +151,7 @@ RSpec.describe "Bulk voter slots", type: :request do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)
       create(:voter_slot, voter_group: voter_group)
-      create(:election, user: teacher, voter_group: voter_group, status: :in_progress)
+      create(:poll, user: teacher, voter_group: voter_group, status: :in_progress)
       sign_in teacher
 
       expect do
@@ -166,7 +166,7 @@ RSpec.describe "Bulk voter slots", type: :request do
     it "creates when only closed elections use the group" do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)
-      create(:election, user: teacher, voter_group: voter_group, status: :closed)
+      create(:poll, user: teacher, voter_group: voter_group, status: :closed)
       sign_in teacher
 
       expect do
