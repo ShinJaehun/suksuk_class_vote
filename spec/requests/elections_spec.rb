@@ -276,6 +276,7 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include(election.title)
       expect(response.body).to include("투표 화면")
       expect(response.body).to include("현재 투표자")
+      expect(response.body).to include("후보자 선택")
       expect(response.body).to include("#{current_voter.number}번 #{current_voter.name}")
       candidates.each do |candidate|
         expect(response.body).to include("#{candidate.number}번 #{candidate.name}")
@@ -296,6 +297,28 @@ RSpec.describe "Elections", type: :request do
       if other_voter.present?
         expect(response.body).not_to include("#{other_voter.number}번 #{other_voter.name}")
       end
+    end
+
+    it "shows discussion choices as selectable opinions on the ballot" do
+      teacher = create(:user)
+      election = create_startable_election(user: teacher, kind: :discussion)
+      election.candidates.find_by!(number: 1).update!(name: "점심시간을 10분 늘리자는 의견")
+      election.candidates.find_by!(number: 2).update!(name: "청소 시간을 요일별로 나누자는 의견")
+      Elections::Start.new(election).call
+      sign_in teacher
+
+      get ballot_election_path(election.reload)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("의견 선택")
+      expect(response.body).to include("1번 점심시간을 10분 늘리자는 의견")
+      expect(response.body).to include("2번 청소 시간을 요일별로 나누자는 의견")
+      expect(response.body).to include(submit_vote_election_path(election))
+      expect(response.body).to include("기권 처리")
+      expect(response.body).to include("미참여 처리")
+      expect(response.body).not_to include("후보자 선택")
+      expect(response.body).not_to include("득표수")
+      expect(response.body).not_to include("선택한 후보")
     end
 
     it "returns to the ballot after submitting a vote from the ballot screen" do
@@ -926,11 +949,11 @@ RSpec.describe "Elections", type: :request do
     end
   end
 
-  def create_startable_election(user: create(:user))
+  def create_startable_election(user: create(:user), kind: :election)
     voter_group = create(:voter_group, user: user)
     create(:voter_slot, voter_group: voter_group, number: 1, name: "김민준")
     create(:voter_slot, voter_group: voter_group, number: 2, name: "이서연")
-    election = create(:election, user: user, voter_group: voter_group)
+    election = create(:election, user: user, voter_group: voter_group, kind: kind)
     create(:candidate, election: election, number: 1)
     create(:candidate, election: election, number: 2)
     election
