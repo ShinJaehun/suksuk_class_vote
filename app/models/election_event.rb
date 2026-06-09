@@ -35,7 +35,7 @@ class ElectionEvent < ApplicationRecord
 
   belongs_to :poll
   belongs_to :actor, class_name: "User", optional: true
-  belongs_to :election_voter, optional: true
+  belongs_to :poll_participant, optional: true
 
   before_validation :set_defaults
 

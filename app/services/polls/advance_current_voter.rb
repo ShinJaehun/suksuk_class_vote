@@ -20,13 +20,13 @@ module Polls
 
       ActiveRecord::Base.transaction do
         locked_polling_station = polling_station.lock!
-        locked_polling_station.update!(current_election_voter: next_election_voter)
+        locked_polling_station.update!(current_poll_participant: next_poll_participant)
         record_event(
           "current_voter_advanced",
-          election_voter: next_election_voter,
+          poll_participant: next_poll_participant,
           details: {
-            from_election_voter_id: current_election_voter.id,
-            to_election_voter_id: next_election_voter.id
+            from_poll_participant_id: current_poll_participant.id,
+            to_poll_participant_id: next_poll_participant.id
           }
         )
       end
@@ -45,40 +45,40 @@ module Polls
       errors << "진행 중인 선거에서만 다음 투표자로 이동할 수 있습니다." unless poll.in_progress?
       errors << "진행 중인 투표소를 찾을 수 없습니다." if polling_station.blank?
       errors << "진행 중인 투표소에서만 다음 투표자로 이동할 수 있습니다." if polling_station.present? && !polling_station.active?
-      errors << "현재 투표자를 찾을 수 없습니다." if current_election_voter.blank?
+      errors << "현재 투표자를 찾을 수 없습니다." if current_poll_participant.blank?
       errors << "현재 투표자가 아직 확정 상태가 아닙니다." unless final_participation?
-      errors << "다음 투표자를 찾을 수 없습니다." if next_election_voter.blank?
+      errors << "다음 투표자를 찾을 수 없습니다." if next_poll_participant.blank?
     end
 
     def polling_station
       @polling_station ||= poll.polling_station
     end
 
-    def current_election_voter
-      @current_election_voter ||= polling_station&.current_election_voter
+    def current_poll_participant
+      @current_poll_participant ||= polling_station&.current_poll_participant
     end
 
     def participation
-      @participation ||= current_election_voter&.election_voter_participation
+      @participation ||= current_poll_participant&.poll_participation
     end
 
     def final_participation?
       participation.present? && participation.status.in?(FINAL_PARTICIPATION_STATUSES)
     end
 
-    def next_election_voter
-      return nil if current_election_voter.blank?
+    def next_poll_participant
+      return nil if current_poll_participant.blank?
 
-      @next_election_voter ||= poll.election_voters
-        .where("number > ?", current_election_voter.number)
+      @next_poll_participant ||= poll.poll_participants
+        .where("number > ?", current_poll_participant.number)
         .order(:number)
         .first
     end
 
-    def record_event(event_type, election_voter: nil, details: {})
+    def record_event(event_type, poll_participant: nil, details: {})
       poll.election_events.create!(
         actor: actor,
-        election_voter: election_voter,
+        poll_participant: poll_participant,
         event_type: event_type,
         details: details
       )

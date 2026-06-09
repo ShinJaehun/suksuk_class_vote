@@ -11,8 +11,8 @@ RSpec.describe Polls::Start do
       expect(result).to be_success
       expect(election.reload).to be_in_progress
       expect(election.voter_group_name_snapshot).to eq(election.voter_group.name)
-      expect(election.election_voters.count).to eq(2)
-      expect(election.election_voters.order(:number).first).to have_attributes(
+      expect(election.poll_participants.count).to eq(2)
+      expect(election.poll_participants.order(:number).first).to have_attributes(
         source_voter_slot: first_slot,
         number: first_slot.number,
         name: first_slot.name
@@ -24,13 +24,13 @@ RSpec.describe Polls::Start do
       ))
       expect(election.poll_option_tallies.map(&:poll_option)).to match_array(election.poll_options)
       expect(election.polling_station).to have_attributes(
-        current_election_voter: election.election_voters.order(:number).first,
+        current_poll_participant: election.poll_participants.order(:number).first,
         status: "active"
       )
       expect(election.polling_station.started_at).to be_present
       expect(election.election_events.last).to have_attributes(
         event_type: "election_started",
-        election_voter: election.election_voters.order(:number).first
+        poll_participant: election.poll_participants.order(:number).first
       )
       expect(election.election_events.last.details).to include(
         "voter_count" => 2,
@@ -55,7 +55,7 @@ RSpec.describe Polls::Start do
       described_class.new(election).call
       voter_slot.update!(name: "변경된 이름")
 
-      expect(election.election_voters.order(:number).first.name).not_to eq("변경된 이름")
+      expect(election.poll_participants.order(:number).first.name).not_to eq("변경된 이름")
     end
 
     it "fails when the election is not draft" do
@@ -66,7 +66,7 @@ RSpec.describe Polls::Start do
       expect(result).not_to be_success
       expect(result.error_message).to include("draft 상태")
       expect(election.reload).to be_in_progress
-      expect(election.election_voters).to be_empty
+      expect(election.poll_participants).to be_empty
       expect(election.poll_option_tallies).to be_empty
       expect(election.polling_station).to be_nil
     end
@@ -82,7 +82,7 @@ RSpec.describe Polls::Start do
       end.not_to change(PollOptionTally, :count)
 
       expect(election.reload).to be_draft
-      expect(election.election_voters).to be_empty
+      expect(election.poll_participants).to be_empty
       expect(election.poll_option_tallies).to be_empty
     end
 
@@ -98,7 +98,7 @@ RSpec.describe Polls::Start do
       end.not_to change(PollOptionTally, :count)
 
       expect(election.reload).to be_draft
-      expect(election.election_voters).to be_empty
+      expect(election.poll_participants).to be_empty
       expect(election.poll_option_tallies).to be_empty
     end
 
@@ -118,21 +118,21 @@ RSpec.describe Polls::Start do
       end.not_to change(PollOptionTally, :count)
 
       expect(election.reload).to be_draft
-      expect(election.election_voters).to be_empty
+      expect(election.poll_participants).to be_empty
       expect(election.poll_option_tallies).to be_empty
     end
 
     it "fails when the snapshot already exists" do
       election = create_startable_election
       voter_slot = election.voter_group.voter_slots.order(:number).first
-      create(:election_voter, poll: election, source_voter_slot: voter_slot, number: voter_slot.number)
+      create(:poll_participant, poll: election, source_voter_slot: voter_slot, number: voter_slot.number)
 
       result = described_class.new(election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("이미 선거용 명단")
       expect(election.reload).to be_draft
-      expect(election.election_voters.count).to eq(1)
+      expect(election.poll_participants.count).to eq(1)
       expect(election.poll_option_tallies).to be_empty
       expect(election.polling_station).to be_nil
     end
@@ -146,7 +146,7 @@ RSpec.describe Polls::Start do
       expect(result).not_to be_success
       expect(result.error_message).to include("이미 투표 진행 정보")
       expect(election.reload).to be_draft
-      expect(election.election_voters).to be_empty
+      expect(election.poll_participants).to be_empty
       expect(election.poll_option_tallies).to be_empty
       expect(election.polling_station).to be_present
     end
@@ -161,7 +161,7 @@ RSpec.describe Polls::Start do
       expect(result).not_to be_success
       expect(result.error_message).to include("이미 후보별 집계 정보")
       expect(election.reload).to be_draft
-      expect(election.election_voters).to be_empty
+      expect(election.poll_participants).to be_empty
       expect(election.poll_option_tallies.count).to eq(1)
       expect(election.polling_station).to be_nil
     end
@@ -174,7 +174,7 @@ RSpec.describe Polls::Start do
 
       expect(result).not_to be_success
       expect(election.reload).to be_draft
-      expect(election.election_voters).to be_empty
+      expect(election.poll_participants).to be_empty
       expect(election.poll_option_tallies).to be_empty
       expect(election.polling_station).to be_nil
     end
@@ -187,7 +187,7 @@ RSpec.describe Polls::Start do
 
       expect(result).not_to be_success
       expect(election.reload).to be_draft
-      expect(election.election_voters).to be_empty
+      expect(election.poll_participants).to be_empty
       expect(election.poll_option_tallies).to be_empty
       expect(election.polling_station).to be_nil
     end
@@ -200,7 +200,7 @@ RSpec.describe Polls::Start do
 
       expect(result).not_to be_success
       expect(election.reload).to be_draft
-      expect(election.election_voters).to be_empty
+      expect(election.poll_participants).to be_empty
       expect(election.poll_option_tallies).to be_empty
       expect(election.polling_station).to be_nil
     end

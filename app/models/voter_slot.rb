@@ -1,6 +1,6 @@
 class VoterSlot < ApplicationRecord
   belongs_to :voter_group
-  has_many :election_voters, foreign_key: :source_voter_slot_id, dependent: :nullify, inverse_of: :source_voter_slot
+  has_many :poll_participants, foreign_key: :source_voter_slot_id, dependent: :nullify, inverse_of: :source_voter_slot
 
   before_destroy :ensure_voter_group_not_locked_for_election_progress, prepend: true
 

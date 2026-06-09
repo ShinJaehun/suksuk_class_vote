@@ -4,31 +4,31 @@ RSpec.describe Polls::RecordParticipationOutcome do
   describe "#call" do
     it "records absent participation for the current election voter" do
       election = create_in_progress_election
-      current_voter = election.polling_station.current_election_voter
+      current_voter = election.polling_station.current_poll_participant
 
       result = described_class.new(poll: election, status: :absent).call
 
       expect(result).to be_success
-      expect(current_voter.reload.election_voter_participation).to be_absent
-      expect(current_voter.election_voter_participation.recorded_at).to be_present
+      expect(current_voter.reload.poll_participation).to be_absent
+      expect(current_voter.poll_participation.recorded_at).to be_present
       expect(election.election_events.last).to have_attributes(
         event_type: "voter_marked_absent",
-        election_voter: current_voter
+        poll_participant: current_voter
       )
     end
 
     it "records abstained participation for the current election voter" do
       election = create_in_progress_election
-      current_voter = election.polling_station.current_election_voter
+      current_voter = election.polling_station.current_poll_participant
 
       result = described_class.new(poll: election, status: :abstained).call
 
       expect(result).to be_success
-      expect(current_voter.reload.election_voter_participation).to be_abstained
-      expect(current_voter.election_voter_participation.recorded_at).to be_present
+      expect(current_voter.reload.poll_participation).to be_abstained
+      expect(current_voter.poll_participation.recorded_at).to be_present
       expect(election.election_events.last).to have_attributes(
         event_type: "voter_marked_abstained",
-        election_voter: current_voter
+        poll_participant: current_voter
       )
     end
 
@@ -43,8 +43,8 @@ RSpec.describe Polls::RecordParticipationOutcome do
 
     it "fails when current voter already has participation" do
       election = create_in_progress_election
-      current_voter = election.polling_station.current_election_voter
-      create(:election_voter_participation, election_voter: current_voter)
+      current_voter = election.polling_station.current_poll_participant
+      create(:poll_participation, poll_participant: current_voter)
 
       result = described_class.new(poll: election, status: :absent).call
 
@@ -59,7 +59,7 @@ RSpec.describe Polls::RecordParticipationOutcome do
 
       expect(result).not_to be_success
       expect(result.error_message).to include("지원하지 않는 처리 상태")
-      expect(election.polling_station.current_election_voter.election_voter_participation).to be_nil
+      expect(election.polling_station.current_poll_participant.poll_participation).to be_nil
     end
 
     it "fails when election is not in progress" do
@@ -94,7 +94,7 @@ RSpec.describe Polls::RecordParticipationOutcome do
 
     it "fails when current election voter is missing" do
       election = create_in_progress_election
-      election.polling_station.update!(current_election_voter: nil)
+      election.polling_station.update!(current_poll_participant: nil)
 
       result = described_class.new(poll: election, status: :absent).call
 

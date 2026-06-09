@@ -41,7 +41,7 @@ RSpec.describe Polls::IntegrityReport do
 
     it "requires current election voter for in-progress elections" do
       election = create_in_progress_election
-      election.polling_station.update!(current_election_voter: nil)
+      election.polling_station.update!(current_poll_participant: nil)
 
       report = described_class.new(election)
 
@@ -52,7 +52,7 @@ RSpec.describe Polls::IntegrityReport do
     it "requires current election voter to belong to the same election" do
       election = create_in_progress_election
       other_election = create_in_progress_election
-      election.polling_station.update!(current_election_voter: other_election.election_voters.first)
+      election.polling_station.update!(current_poll_participant: other_election.poll_participants.first)
 
       report = described_class.new(election)
 
@@ -84,7 +84,7 @@ RSpec.describe Polls::IntegrityReport do
 
     it "compares completed participation count with tally vote sum without voter-poll_option linkage" do
       election = create_in_progress_election
-      create(:election_voter_participation, election_voter: election.polling_station.current_election_voter, status: :completed)
+      create(:poll_participation, poll_participant: election.polling_station.current_poll_participant, status: :completed)
 
       report = described_class.new(election)
 
@@ -109,9 +109,9 @@ RSpec.describe Polls::IntegrityReport do
 
     it "treats all voters processed during in-progress as ok when tallies match" do
       election = create_in_progress_election
-      voters = election.election_voters.order(:number)
-      create(:election_voter_participation, election_voter: voters[0], status: :completed)
-      create(:election_voter_participation, election_voter: voters[1], status: :absent)
+      voters = election.poll_participants.order(:number)
+      create(:poll_participation, poll_participant: voters[0], status: :completed)
+      create(:poll_participation, poll_participant: voters[1], status: :absent)
       election.poll_option_tallies.first.update!(votes_count: 1)
 
       report = described_class.new(election)
@@ -125,7 +125,7 @@ RSpec.describe Polls::IntegrityReport do
       report = described_class.new(election)
 
       expect(report).to be_ok
-      expect(election.polling_station.current_election_voter).to be_present
+      expect(election.polling_station.current_poll_participant).to be_present
     end
 
     it "requires polling station to be closed for closed elections" do
@@ -140,7 +140,7 @@ RSpec.describe Polls::IntegrityReport do
 
     it "reports unprocessed voters for closed elections" do
       election = create_closed_election
-      election.election_voters.order(:number).last.election_voter_participation.destroy!
+      election.poll_participants.order(:number).last.poll_participation.destroy!
 
       report = described_class.new(election.reload)
 
@@ -208,7 +208,7 @@ RSpec.describe Polls::IntegrityReport do
   describe "#resumable_current_voter?" do
     it "returns true when current voter is missing and an unprocessed voter exists" do
       election = create_in_progress_election
-      election.polling_station.update!(current_election_voter: nil)
+      election.polling_station.update!(current_poll_participant: nil)
 
       report = described_class.new(election)
 
@@ -232,10 +232,10 @@ RSpec.describe Polls::IntegrityReport do
 
     it "returns false when no unprocessed voter exists" do
       election = create_in_progress_election
-      election.election_voters.find_each do |election_voter|
-        create(:election_voter_participation, election_voter: election_voter)
+      election.poll_participants.find_each do |poll_participant|
+        create(:poll_participation, poll_participant: poll_participant)
       end
-      election.polling_station.update!(current_election_voter: nil)
+      election.polling_station.update!(current_poll_participant: nil)
 
       report = described_class.new(election)
 
@@ -244,7 +244,7 @@ RSpec.describe Polls::IntegrityReport do
 
     it "returns false when another integrity issue is present" do
       election = create_in_progress_election
-      election.polling_station.update!(current_election_voter: nil)
+      election.polling_station.update!(current_poll_participant: nil)
       election.poll_option_tallies.first.destroy!
 
       report = described_class.new(election.reload)
@@ -272,9 +272,9 @@ RSpec.describe Polls::IntegrityReport do
 
   def create_closed_election
     election = create_in_progress_election
-    voters = election.election_voters.order(:number)
-    create(:election_voter_participation, election_voter: voters[0], status: :completed)
-    create(:election_voter_participation, election_voter: voters[1], status: :absent)
+    voters = election.poll_participants.order(:number)
+    create(:poll_participation, poll_participant: voters[0], status: :completed)
+    create(:poll_participation, poll_participant: voters[1], status: :absent)
     election.poll_option_tallies.first.update!(votes_count: 1)
     election.update!(status: :closed)
     election.polling_station.update!(status: :closed, closed_at: Time.current)

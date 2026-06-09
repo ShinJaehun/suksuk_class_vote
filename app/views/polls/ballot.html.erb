@@ -6,17 +6,17 @@
     <p class="text-stone-600">투표 화면</p>
   </div>
 
-  <% if @current_election_voter.present? %>
+  <% if @current_poll_participant.present? %>
     <section class="space-y-5 rounded-md border border-stone-200 bg-white p-5">
       <div class="rounded-md border border-stone-200 bg-stone-50 p-5">
         <p class="text-sm font-medium text-stone-500">현재 투표자</p>
-        <p class="mt-2 text-4xl font-semibold"><%= @current_election_voter.number %>번 <%= @current_election_voter.name %></p>
+        <p class="mt-2 text-4xl font-semibold"><%= @current_poll_participant.number %>번 <%= @current_poll_participant.name %></p>
       </div>
 
-      <% if @current_election_voter.election_voter_participation.present? %>
+      <% if @current_poll_participant.poll_participation.present? %>
         <p class="text-stone-600">현재 투표자는 이미 처리되었습니다.</p>
-        <% if @next_election_voter.present? %>
-          <%= button_to "다음 투표자는 #{@next_election_voter.number}번 #{@next_election_voter.name}입니다",
+        <% if @next_poll_participant.present? %>
+          <%= button_to "다음 투표자는 #{@next_poll_participant.number}번 #{@next_poll_participant.name}입니다",
                         advance_current_voter_poll_path(@poll),
                         method: :post,
                         params: { return_to: "ballot" },

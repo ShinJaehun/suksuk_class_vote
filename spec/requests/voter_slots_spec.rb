@@ -325,7 +325,7 @@ RSpec.describe "Voter slots", type: :request do
       voter_group = create(:voter_group, user: teacher)
       voter_slot = create(:voter_slot, voter_group: voter_group, number: 7, name: "선거 당시 이름")
       election = create(:poll, user: teacher, voter_group: voter_group, status: :closed, voter_group_name_snapshot: voter_group.name)
-      election_voter = create(:election_voter, poll: election, source_voter_slot: voter_slot, number: 7, name: "선거 당시 이름")
+      poll_participant = create(:poll_participant, poll: election, source_voter_slot: voter_slot, number: 7, name: "선거 당시 이름")
       sign_in teacher
 
       expect do
@@ -333,8 +333,8 @@ RSpec.describe "Voter slots", type: :request do
       end.to change(VoterSlot, :count).by(-1)
 
       expect(response).to redirect_to(voter_group_path(voter_group))
-      expect(election_voter.reload.source_voter_slot).to be_nil
-      expect(election_voter).to have_attributes(number: 7, name: "선거 당시 이름")
+      expect(poll_participant.reload.source_voter_slot).to be_nil
+      expect(poll_participant).to have_attributes(number: 7, name: "선거 당시 이름")
     end
   end
 end

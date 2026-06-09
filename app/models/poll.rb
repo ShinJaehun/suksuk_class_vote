@@ -2,7 +2,7 @@ class Poll < ApplicationRecord
   belongs_to :user
   belongs_to :voter_group, optional: true
   has_many :poll_options, dependent: :destroy
-  has_many :election_voters, dependent: :destroy
+  has_many :poll_participants, dependent: :destroy
   has_many :poll_option_tallies, dependent: :destroy
   has_many :election_events, dependent: :destroy
   has_one :polling_station, dependent: :destroy

@@ -8,8 +8,8 @@
           <% target =
             if event.election_level_event?
               event.actor&.name.presence || event.actor&.email
-            elsif event.voter_level_event? && event.election_voter.present?
-              "#{event.election_voter.number}번 #{event.election_voter.name}"
+            elsif event.voter_level_event? && event.poll_participant.present?
+              "#{event.poll_participant.number}번 #{event.poll_participant.name}"
             end
           %>
 

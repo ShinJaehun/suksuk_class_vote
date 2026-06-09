@@ -1,5 +1,5 @@
 FactoryBot.define do
-  factory :election_voter do
+  factory :poll_participant do
     transient do
       teacher { association(:user) }
       voter_group { create(:voter_group, user: teacher) }

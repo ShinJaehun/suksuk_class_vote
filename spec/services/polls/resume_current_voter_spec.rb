@@ -4,57 +4,57 @@ RSpec.describe Polls::ResumeCurrentVoter do
   describe "#call" do
     it "sets current voter to the first unprocessed election voter" do
       election = create_in_progress_election
-      voters = election.election_voters.order(:number)
-      create(:election_voter_participation, election_voter: voters[0], status: :completed)
-      election.polling_station.update!(current_election_voter: nil)
+      voters = election.poll_participants.order(:number)
+      create(:poll_participation, poll_participant: voters[0], status: :completed)
+      election.polling_station.update!(current_poll_participant: nil)
 
       result = described_class.new(poll: election).call
 
       expect(result).to be_success
-      expect(election.polling_station.reload.current_election_voter).to eq(voters[1])
+      expect(election.polling_station.reload.current_poll_participant).to eq(voters[1])
       expect(election.election_events.last).to have_attributes(
         event_type: "current_voter_resumed",
-        election_voter: voters[1]
+        poll_participant: voters[1]
       )
-      expect(election.election_events.last.details).to include("to_election_voter_id" => voters[1].id)
+      expect(election.election_events.last.details).to include("to_poll_participant_id" => voters[1].id)
     end
 
     it "fails when current voter is already set" do
       election = create_in_progress_election
-      current_voter = election.polling_station.current_election_voter
+      current_voter = election.polling_station.current_poll_participant
 
       result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("이미 지정")
-      expect(election.polling_station.reload.current_election_voter).to eq(current_voter)
+      expect(election.polling_station.reload.current_poll_participant).to eq(current_voter)
     end
 
     it "fails when there is no unprocessed election voter" do
       election = create_in_progress_election
-      election.election_voters.find_each do |election_voter|
-        create(:election_voter_participation, election_voter: election_voter)
+      election.poll_participants.find_each do |poll_participant|
+        create(:poll_participation, poll_participant: poll_participant)
       end
-      election.polling_station.update!(current_election_voter: nil)
+      election.polling_station.update!(current_poll_participant: nil)
 
       result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("미처리 투표자")
-      expect(election.polling_station.reload.current_election_voter).to be_nil
+      expect(election.polling_station.reload.current_poll_participant).to be_nil
     end
 
     it "does not change participation, poll_option tallies, or election status" do
       election = create_in_progress_election
-      voters = election.election_voters.order(:number)
-      create(:election_voter_participation, election_voter: voters[0], status: :completed)
+      voters = election.poll_participants.order(:number)
+      create(:poll_participation, poll_participant: voters[0], status: :completed)
       poll_option_tally = election.poll_option_tallies.first
       poll_option_tally.update!(votes_count: 1)
-      election.polling_station.update!(current_election_voter: nil)
+      election.polling_station.update!(current_poll_participant: nil)
 
       expect do
         described_class.new(poll: election).call
-      end.not_to change(ElectionVoterParticipation, :count)
+      end.not_to change(PollParticipation, :count)
 
       expect(poll_option_tally.reload.votes_count).to eq(1)
       expect(election.reload).to be_in_progress

@@ -56,9 +56,9 @@ module Polls
       poll.in_progress? &&
         polling_station.present? &&
         polling_station.active? &&
-        current_election_voter.blank? &&
+        current_poll_participant.blank? &&
         current_voter_missing_only_issue? &&
-        first_unprocessed_election_voter.present?
+        first_unprocessed_poll_participant.present?
     end
 
     private
@@ -77,8 +77,8 @@ module Polls
       if poll.in_progress?
         report_issues << issue("진행 중인 선거의 투표소 정보를 찾을 수 없습니다.") if polling_station.blank?
         report_issues << issue("진행 중인 선거의 투표소가 active 상태가 아닙니다.") if polling_station.present? && !polling_station.active?
-        report_issues << issue("진행 중인 선거의 현재 투표자를 찾을 수 없습니다.") if current_election_voter.blank?
-        if current_election_voter.present? && current_election_voter.poll_id != poll.id
+        report_issues << issue("진행 중인 선거의 현재 투표자를 찾을 수 없습니다.") if current_poll_participant.blank?
+        if current_poll_participant.present? && current_poll_participant.poll_id != poll.id
           report_issues << issue("현재 투표자가 이 선거의 선거용 명단에 속하지 않습니다.")
         end
       elsif poll.closed?
@@ -119,14 +119,14 @@ module Polls
       @polling_station ||= poll.polling_station
     end
 
-    def current_election_voter
-      @current_election_voter ||= polling_station&.current_election_voter
+    def current_poll_participant
+      @current_poll_participant ||= polling_station&.current_poll_participant
     end
 
-    def first_unprocessed_election_voter
-      @first_unprocessed_election_voter ||= poll.election_voters
-        .left_outer_joins(:election_voter_participation)
-        .where(election_voter_participations: { id: nil })
+    def first_unprocessed_poll_participant
+      @first_unprocessed_poll_participant ||= poll.poll_participants
+        .left_outer_joins(:poll_participation)
+        .where(poll_participations: { id: nil })
         .order(:number)
         .first
     end
@@ -140,7 +140,7 @@ module Polls
     end
 
     def total_voters
-      @total_voters ||= poll.election_voters.count
+      @total_voters ||= poll.poll_participants.count
     end
 
     def completed_count
@@ -164,9 +164,9 @@ module Polls
     end
 
     def participation_counts
-      @participation_counts ||= ElectionVoterParticipation
-        .joins(:election_voter)
-        .where(election_voters: { poll_id: poll.id })
+      @participation_counts ||= PollParticipation
+        .joins(:poll_participant)
+        .where(poll_participants: { poll_id: poll.id })
         .group(:status)
         .count
     end

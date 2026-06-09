@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_09_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_09_030000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -18,38 +18,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_09_020000) do
     t.bigint "actor_id"
     t.datetime "created_at", null: false
     t.jsonb "details", default: {}, null: false
-    t.bigint "election_voter_id"
     t.string "event_type", null: false
     t.datetime "occurred_at", null: false
     t.bigint "poll_id", null: false
+    t.bigint "poll_participant_id"
     t.datetime "updated_at", null: false
     t.index ["actor_id"], name: "index_election_events_on_actor_id"
-    t.index ["election_voter_id"], name: "index_election_events_on_election_voter_id"
     t.index ["event_type"], name: "index_election_events_on_event_type"
     t.index ["poll_id", "occurred_at"], name: "index_election_events_on_poll_id_and_occurred_at"
     t.index ["poll_id"], name: "index_election_events_on_poll_id"
-  end
-
-  create_table "election_voter_participations", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.bigint "election_voter_id", null: false
-    t.datetime "recorded_at"
-    t.integer "status", default: 0, null: false
-    t.datetime "updated_at", null: false
-    t.index ["election_voter_id"], name: "index_election_voter_participations_on_election_voter_id", unique: true
-  end
-
-  create_table "election_voters", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "name", null: false
-    t.integer "number", null: false
-    t.bigint "poll_id", null: false
-    t.bigint "source_voter_slot_id"
-    t.datetime "updated_at", null: false
-    t.index ["poll_id", "number"], name: "index_election_voters_on_poll_id_and_number", unique: true
-    t.index ["poll_id", "source_voter_slot_id"], name: "index_election_voters_on_poll_id_and_source_voter_slot_id", unique: true
-    t.index ["poll_id"], name: "index_election_voters_on_poll_id"
-    t.index ["source_voter_slot_id"], name: "index_election_voters_on_source_voter_slot_id"
+    t.index ["poll_participant_id"], name: "index_election_events_on_poll_participant_id"
   end
 
   create_table "poll_option_tallies", force: :cascade do |t|
@@ -73,15 +51,37 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_09_020000) do
     t.index ["poll_id"], name: "index_poll_options_on_poll_id"
   end
 
+  create_table "poll_participants", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.integer "number", null: false
+    t.bigint "poll_id", null: false
+    t.bigint "source_voter_slot_id"
+    t.datetime "updated_at", null: false
+    t.index ["poll_id", "number"], name: "index_poll_participants_on_poll_id_and_number", unique: true
+    t.index ["poll_id", "source_voter_slot_id"], name: "index_poll_participants_on_poll_id_and_source_voter_slot_id", unique: true
+    t.index ["poll_id"], name: "index_poll_participants_on_poll_id"
+    t.index ["source_voter_slot_id"], name: "index_poll_participants_on_source_voter_slot_id"
+  end
+
+  create_table "poll_participations", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "poll_participant_id", null: false
+    t.datetime "recorded_at"
+    t.integer "status", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["poll_participant_id"], name: "index_poll_participations_on_poll_participant_id", unique: true
+  end
+
   create_table "polling_stations", force: :cascade do |t|
     t.datetime "closed_at"
     t.datetime "created_at", null: false
-    t.bigint "current_election_voter_id"
+    t.bigint "current_poll_participant_id"
     t.bigint "poll_id", null: false
     t.datetime "started_at"
     t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
-    t.index ["current_election_voter_id"], name: "index_polling_stations_on_current_election_voter_id"
+    t.index ["current_poll_participant_id"], name: "index_polling_stations_on_current_poll_participant_id"
     t.index ["poll_id"], name: "index_polling_stations_on_poll_id", unique: true
   end
 
@@ -130,16 +130,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_09_020000) do
     t.index ["voter_group_id"], name: "index_voter_slots_on_voter_group_id"
   end
 
-  add_foreign_key "election_events", "election_voters"
+  add_foreign_key "election_events", "poll_participants"
   add_foreign_key "election_events", "polls"
   add_foreign_key "election_events", "users", column: "actor_id"
-  add_foreign_key "election_voter_participations", "election_voters"
-  add_foreign_key "election_voters", "polls"
-  add_foreign_key "election_voters", "voter_slots", column: "source_voter_slot_id", on_delete: :nullify
   add_foreign_key "poll_option_tallies", "poll_options"
   add_foreign_key "poll_option_tallies", "polls"
   add_foreign_key "poll_options", "polls"
-  add_foreign_key "polling_stations", "election_voters", column: "current_election_voter_id"
+  add_foreign_key "poll_participants", "polls"
+  add_foreign_key "poll_participants", "voter_slots", column: "source_voter_slot_id", on_delete: :nullify
+  add_foreign_key "poll_participations", "poll_participants"
+  add_foreign_key "polling_stations", "poll_participants", column: "current_poll_participant_id"
   add_foreign_key "polling_stations", "polls"
   add_foreign_key "polls", "users"
   add_foreign_key "polls", "voter_groups", on_delete: :nullify

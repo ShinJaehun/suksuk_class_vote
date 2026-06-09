@@ -4,36 +4,36 @@ RSpec.describe Polls::AdvanceCurrentVoter do
   describe "#call" do
     it "moves polling station current voter to the next election voter" do
       election = create_in_progress_election
-      first_voter = election.polling_station.current_election_voter
-      next_voter = election.election_voters.where("number > ?", first_voter.number).order(:number).first
-      create(:election_voter_participation, election_voter: first_voter)
+      first_voter = election.polling_station.current_poll_participant
+      next_voter = election.poll_participants.where("number > ?", first_voter.number).order(:number).first
+      create(:poll_participation, poll_participant: first_voter)
 
       result = described_class.new(poll: election).call
 
       expect(result).to be_success
-      expect(election.polling_station.reload.current_election_voter).to eq(next_voter)
-      expect(next_voter.election_voter_participation).to be_nil
+      expect(election.polling_station.reload.current_poll_participant).to eq(next_voter)
+      expect(next_voter.poll_participation).to be_nil
       expect(election.election_events.last).to have_attributes(
         event_type: "current_voter_advanced",
-        election_voter: next_voter
+        poll_participant: next_voter
       )
       expect(election.election_events.last.details).to include(
-        "from_election_voter_id" => first_voter.id,
-        "to_election_voter_id" => next_voter.id
+        "from_poll_participant_id" => first_voter.id,
+        "to_poll_participant_id" => next_voter.id
       )
     end
 
     it "fails when election is not in progress" do
       election = create_in_progress_election
-      first_voter = election.polling_station.current_election_voter
-      create(:election_voter_participation, election_voter: first_voter)
+      first_voter = election.polling_station.current_poll_participant
+      create(:poll_participation, poll_participant: first_voter)
       election.update!(status: :draft)
 
       result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("진행 중인 선거")
-      expect(election.polling_station.reload.current_election_voter).to eq(first_voter)
+      expect(election.polling_station.reload.current_poll_participant).to eq(first_voter)
     end
 
     it "fails when polling station is missing" do
@@ -48,20 +48,20 @@ RSpec.describe Polls::AdvanceCurrentVoter do
 
     it "fails when polling station is closed" do
       election = create_in_progress_election
-      first_voter = election.polling_station.current_election_voter
-      create(:election_voter_participation, election_voter: first_voter)
+      first_voter = election.polling_station.current_poll_participant
+      create(:poll_participation, poll_participant: first_voter)
       election.polling_station.update!(status: :closed)
 
       result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("진행 중인 투표소")
-      expect(election.polling_station.reload.current_election_voter).to eq(first_voter)
+      expect(election.polling_station.reload.current_poll_participant).to eq(first_voter)
     end
 
     it "fails when current voter is missing" do
       election = create_in_progress_election
-      election.polling_station.update!(current_election_voter: nil)
+      election.polling_station.update!(current_poll_participant: nil)
 
       result = described_class.new(poll: election).call
 
@@ -71,38 +71,38 @@ RSpec.describe Polls::AdvanceCurrentVoter do
 
     it "fails when current voter has no participation" do
       election = create_in_progress_election
-      first_voter = election.polling_station.current_election_voter
+      first_voter = election.polling_station.current_poll_participant
 
       result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("확정 상태")
-      expect(election.polling_station.reload.current_election_voter).to eq(first_voter)
+      expect(election.polling_station.reload.current_poll_participant).to eq(first_voter)
     end
 
     it "allows absent and abstained participation states" do
       election = create_in_progress_election
-      first_voter = election.polling_station.current_election_voter
-      next_voter = election.election_voters.where("number > ?", first_voter.number).order(:number).first
-      create(:election_voter_participation, election_voter: first_voter, status: :abstained)
+      first_voter = election.polling_station.current_poll_participant
+      next_voter = election.poll_participants.where("number > ?", first_voter.number).order(:number).first
+      create(:poll_participation, poll_participant: first_voter, status: :abstained)
 
       result = described_class.new(poll: election).call
 
       expect(result).to be_success
-      expect(election.polling_station.reload.current_election_voter).to eq(next_voter)
+      expect(election.polling_station.reload.current_poll_participant).to eq(next_voter)
     end
 
     it "fails when there is no next election voter" do
       election = create_in_progress_election
-      last_voter = election.election_voters.order(:number).last
-      election.polling_station.update!(current_election_voter: last_voter)
-      create(:election_voter_participation, election_voter: last_voter)
+      last_voter = election.poll_participants.order(:number).last
+      election.polling_station.update!(current_poll_participant: last_voter)
+      create(:poll_participation, poll_participant: last_voter)
 
       result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("다음 투표자")
-      expect(election.polling_station.reload.current_election_voter).to eq(last_voter)
+      expect(election.polling_station.reload.current_poll_participant).to eq(last_voter)
       expect(election.reload).to be_in_progress
     end
   end

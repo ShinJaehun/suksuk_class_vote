@@ -7,7 +7,7 @@ module Polls
     end
 
     def total_voters
-      poll.election_voters.count
+      poll.poll_participants.count
     end
 
     def completed_count
@@ -47,9 +47,9 @@ module Polls
     attr_reader :poll
 
     def participation_counts
-      @participation_counts ||= ElectionVoterParticipation
-        .joins(:election_voter)
-        .where(election_voters: { poll_id: poll.id })
+      @participation_counts ||= PollParticipation
+        .joins(:poll_participant)
+        .where(poll_participants: { poll_id: poll.id })
         .group(:status)
         .count
     end

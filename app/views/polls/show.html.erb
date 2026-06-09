@@ -38,7 +38,7 @@
     <div class="space-y-1">
       <dt class="text-sm font-medium text-stone-500">학생 수</dt>
       <dd class="font-medium">
-        <%= @poll.election_voters.exists? ? @poll.election_voters.count : @poll.readiness_voter_count %>명
+        <%= @poll.poll_participants.exists? ? @poll.poll_participants.count : @poll.readiness_voter_count %>명
       </dd>
     </div>
   </dl>
@@ -56,6 +56,6 @@
   <% else %>
     <%= render "progress", poll: @poll %>
   <% end %>
-  <%= render "election_voters", poll: @poll %>
+  <%= render "poll_participants", poll: @poll %>
   <%= render "event_log", poll: @poll, poll_events: @poll_events %>
 </div>

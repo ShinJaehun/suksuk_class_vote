@@ -4,10 +4,10 @@ RSpec.describe Polls::ResultSummary do
   describe "#total_voters and participation counts" do
     it "summarizes participation outcomes without poll_option linkage" do
       election = create_closed_election
-      voters = election.election_voters.order(:number)
-      create(:election_voter_participation, election_voter: voters[0], status: :completed)
-      create(:election_voter_participation, election_voter: voters[1], status: :absent)
-      create(:election_voter_participation, election_voter: voters[2], status: :abstained)
+      voters = election.poll_participants.order(:number)
+      create(:poll_participation, poll_participant: voters[0], status: :completed)
+      create(:poll_participation, poll_participant: voters[1], status: :absent)
+      create(:poll_participation, poll_participant: voters[2], status: :abstained)
 
       summary = described_class.new(election)
 

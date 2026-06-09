@@ -11,7 +11,7 @@ RSpec.describe ElectionEvent, type: :model do
 
   describe "associations" do
     it "allows actor and election voter to be optional" do
-      event = build(:election_event, actor: nil, election_voter: nil)
+      event = build(:election_event, actor: nil, poll_participant: nil)
 
       expect(event).to be_valid
     end

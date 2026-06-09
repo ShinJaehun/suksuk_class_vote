@@ -22,11 +22,11 @@ class PollsController < ApplicationController
       return
     end
 
-    @current_election_voter = @poll.polling_station&.current_election_voter
-    @next_election_voter = @poll.election_voters
-      .where("number > ?", @current_election_voter.number)
+    @current_poll_participant = @poll.polling_station&.current_poll_participant
+    @next_poll_participant = @poll.poll_participants
+      .where("number > ?", @current_poll_participant.number)
       .order(:number)
-      .first if @current_election_voter.present?
+      .first if @current_poll_participant.present?
   end
 
   def start
@@ -161,7 +161,7 @@ class PollsController < ApplicationController
   def operation_event_log_events
     @poll.election_events
       .where(event_type: ElectionEvent::DISPLAYABLE_EVENT_TYPES)
-      .includes(:actor, :election_voter)
+      .includes(:actor, :poll_participant)
       .order(occurred_at: :desc)
       .limit(10)
   end

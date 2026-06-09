@@ -21,21 +21,21 @@ module Polls
       Poll.transaction do
         create_snapshot
         create_poll_option_tallies
-        first_election_voter = poll.election_voters.order(:number).first
+        first_poll_participant = poll.poll_participants.order(:number).first
         poll.update!(
           status: :in_progress,
           voter_group_name_snapshot: poll.voter_group.name
         )
         poll.create_polling_station!(
-          current_election_voter: first_election_voter,
+          current_poll_participant: first_poll_participant,
           status: :active,
           started_at: Time.current
         )
         record_event(
           "election_started",
-          election_voter: first_election_voter,
+          poll_participant: first_poll_participant,
           details: {
-            voter_count: poll.election_voters.count,
+            voter_count: poll.poll_participants.count,
             poll_option_count: poll.poll_option_tallies.count
           }
         )
@@ -62,14 +62,14 @@ module Polls
       end
 
       errors << "투표자 명단이 1명 이상 있어야 선거를 시작할 수 있습니다." if voter_slots.empty?
-      errors << "이미 선거용 명단이 생성된 선거입니다." if poll.election_voters.exists?
+      errors << "이미 선거용 명단이 생성된 선거입니다." if poll.poll_participants.exists?
       errors << "이미 투표 진행 정보가 생성된 선거입니다." if poll.polling_station.present?
       errors << "이미 후보별 집계 정보가 생성된 선거입니다." if poll.poll_option_tallies.exists?
     end
 
     def create_snapshot
       voter_slots.each do |voter_slot|
-        poll.election_voters.create!(
+        poll.poll_participants.create!(
           source_voter_slot: voter_slot,
           number: voter_slot.number,
           name: voter_slot.name
@@ -90,10 +90,10 @@ module Polls
       @voter_slots ||= poll.voter_group&.voter_slots&.order(:number) || VoterSlot.none
     end
 
-    def record_event(event_type, election_voter: nil, details: {})
+    def record_event(event_type, poll_participant: nil, details: {})
       poll.election_events.create!(
         actor: actor,
-        election_voter: election_voter,
+        poll_participant: poll_participant,
         event_type: event_type,
         details: details
       )

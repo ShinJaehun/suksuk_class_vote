@@ -22,7 +22,7 @@ module Polls
         locked_polling_station = polling_station.lock!
         poll.update!(status: :closed)
         locked_polling_station.update!(status: :closed, closed_at: Time.current)
-        record_event("election_closed", election_voter: current_election_voter)
+        record_event("election_closed", poll_participant: current_poll_participant)
       end
 
       success
@@ -39,40 +39,40 @@ module Polls
       errors << "진행 중인 선거만 종료할 수 있습니다." unless poll.in_progress?
       errors << "진행 중인 투표소를 찾을 수 없습니다." if polling_station.blank?
       errors << "진행 중인 투표소만 종료할 수 있습니다." if polling_station.present? && !polling_station.active?
-      errors << "현재 투표자를 찾을 수 없습니다." if current_election_voter.blank?
+      errors << "현재 투표자를 찾을 수 없습니다." if current_poll_participant.blank?
       errors << "현재 투표자가 아직 확정 상태가 아닙니다." unless final_participation?
-      errors << "아직 남은 투표자가 있어 선거를 종료할 수 없습니다." if next_election_voter.present?
+      errors << "아직 남은 투표자가 있어 선거를 종료할 수 없습니다." if next_poll_participant.present?
     end
 
     def polling_station
       @polling_station ||= poll.polling_station
     end
 
-    def current_election_voter
-      @current_election_voter ||= polling_station&.current_election_voter
+    def current_poll_participant
+      @current_poll_participant ||= polling_station&.current_poll_participant
     end
 
     def participation
-      @participation ||= current_election_voter&.election_voter_participation
+      @participation ||= current_poll_participant&.poll_participation
     end
 
     def final_participation?
       participation.present? && participation.status.in?(FINAL_PARTICIPATION_STATUSES)
     end
 
-    def next_election_voter
-      return nil if current_election_voter.blank?
+    def next_poll_participant
+      return nil if current_poll_participant.blank?
 
-      @next_election_voter ||= poll.election_voters
-        .where("number > ?", current_election_voter.number)
+      @next_poll_participant ||= poll.poll_participants
+        .where("number > ?", current_poll_participant.number)
         .order(:number)
         .first
     end
 
-    def record_event(event_type, election_voter: nil, details: {})
+    def record_event(event_type, poll_participant: nil, details: {})
       poll.election_events.create!(
         actor: actor,
-        election_voter: election_voter,
+        poll_participant: poll_participant,
         event_type: event_type,
         details: details
       )

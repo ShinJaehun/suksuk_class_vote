@@ -19,16 +19,16 @@ module Polls
 
       ActiveRecord::Base.transaction do
         locked_polling_station = polling_station.lock!
-        current_election_voter = locked_polling_station.current_election_voter
-        current_election_voter.lock!
+        current_poll_participant = locked_polling_station.current_poll_participant
+        current_poll_participant.lock!
 
         poll_option_tally.lock!
         poll_option_tally.update!(votes_count: poll_option_tally.votes_count + 1)
-        current_election_voter.create_election_voter_participation!(
+        current_poll_participant.create_poll_participation!(
           status: :completed,
           recorded_at: Time.current
         )
-        record_event("vote_completed", election_voter: current_election_voter)
+        record_event("vote_completed", poll_participant: current_poll_participant)
       end
 
       success
@@ -45,9 +45,9 @@ module Polls
       errors << "진행 중인 선거에만 투표할 수 있습니다." unless poll.in_progress?
       errors << "진행 중인 투표소를 찾을 수 없습니다." if polling_station.blank?
       errors << "진행 중인 투표소에만 투표할 수 있습니다." if polling_station.present? && !polling_station.active?
-      errors << "현재 투표자를 찾을 수 없습니다." if current_election_voter.blank?
+      errors << "현재 투표자를 찾을 수 없습니다." if current_poll_participant.blank?
       errors << "이 선거의 후보자에게만 투표할 수 있습니다." unless poll_option_belongs_to_poll?
-      errors << "이미 투표 완료 처리된 투표자입니다." if current_election_voter&.election_voter_participation.present?
+      errors << "이미 투표 완료 처리된 투표자입니다." if current_poll_participant&.poll_participation.present?
       errors << "후보별 집계 정보를 찾을 수 없습니다." if poll_option_tally.blank?
     end
 
@@ -55,8 +55,8 @@ module Polls
       @polling_station ||= poll.polling_station
     end
 
-    def current_election_voter
-      @current_election_voter ||= polling_station&.current_election_voter
+    def current_poll_participant
+      @current_poll_participant ||= polling_station&.current_poll_participant
     end
 
     def poll_option_belongs_to_poll?
@@ -69,10 +69,10 @@ module Polls
       @poll_option_tally ||= poll.poll_option_tallies.find_by(poll_option: poll_option)
     end
 
-    def record_event(event_type, election_voter: nil, details: {})
+    def record_event(event_type, poll_participant: nil, details: {})
       poll.election_events.create!(
         actor: actor,
-        election_voter: election_voter,
+        poll_participant: poll_participant,
         event_type: event_type,
         details: details
       )

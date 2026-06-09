@@ -11,7 +11,7 @@ RSpec.describe PollingStation, type: :model do
 
   describe "associations" do
     it "allows current election voter to be blank" do
-      polling_station = build(:polling_station, current_election_voter: nil)
+      polling_station = build(:polling_station, current_poll_participant: nil)
 
       expect(polling_station).to be_valid
     end

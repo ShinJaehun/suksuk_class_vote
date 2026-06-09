@@ -21,11 +21,11 @@ module Polls
         validate_resumable(locked_polling_station)
         raise ActiveRecord::Rollback if errors.any?
 
-        locked_polling_station.update!(current_election_voter: first_unprocessed_election_voter)
+        locked_polling_station.update!(current_poll_participant: first_unprocessed_poll_participant)
         record_event(
           "current_voter_resumed",
-          election_voter: first_unprocessed_election_voter,
-          details: { to_election_voter_id: first_unprocessed_election_voter.id }
+          poll_participant: first_unprocessed_poll_participant,
+          details: { to_poll_participant_id: first_unprocessed_poll_participant.id }
         )
       end
 
@@ -43,26 +43,26 @@ module Polls
       errors << "진행 중인 선거에서만 재개할 수 있습니다." unless poll.in_progress?
       errors << "진행 중인 투표소를 찾을 수 없습니다." if station.blank?
       errors << "진행 중인 투표소에서만 재개할 수 있습니다." if station.present? && !station.active?
-      errors << "현재 투표자가 이미 지정되어 있습니다." if station&.current_election_voter.present?
-      errors << "미처리 투표자를 찾을 수 없습니다." if station.present? && first_unprocessed_election_voter.blank?
+      errors << "현재 투표자가 이미 지정되어 있습니다." if station&.current_poll_participant.present?
+      errors << "미처리 투표자를 찾을 수 없습니다." if station.present? && first_unprocessed_poll_participant.blank?
     end
 
     def polling_station
       @polling_station ||= poll.polling_station
     end
 
-    def first_unprocessed_election_voter
-      poll.election_voters
-        .left_outer_joins(:election_voter_participation)
-        .where(election_voter_participations: { id: nil })
+    def first_unprocessed_poll_participant
+      poll.poll_participants
+        .left_outer_joins(:poll_participation)
+        .where(poll_participations: { id: nil })
         .order(:number)
         .first
     end
 
-    def record_event(event_type, election_voter: nil, details: {})
+    def record_event(event_type, poll_participant: nil, details: {})
       poll.election_events.create!(
         actor: actor,
-        election_voter: election_voter,
+        poll_participant: poll_participant,
         event_type: event_type,
         details: details
       )

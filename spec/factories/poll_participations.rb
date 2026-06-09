@@ -1,6 +1,6 @@
 FactoryBot.define do
-  factory :election_voter_participation do
-    association :election_voter
+  factory :poll_participation do
+    association :poll_participant
     status { :completed }
     recorded_at { Time.current }
   end

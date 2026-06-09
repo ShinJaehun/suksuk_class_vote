@@ -20,12 +20,12 @@ module Polls
       return failure if errors.any?
 
       ActiveRecord::Base.transaction do
-        current_election_voter.lock!
-        current_election_voter.create_election_voter_participation!(
+        current_poll_participant.lock!
+        current_poll_participant.create_poll_participation!(
           status: status,
           recorded_at: Time.current
         )
-        record_event(event_type, election_voter: current_election_voter)
+        record_event(event_type, poll_participant: current_poll_participant)
       end
 
       success
@@ -42,8 +42,8 @@ module Polls
       errors << "진행 중인 선거에서만 처리할 수 있습니다." unless poll.in_progress?
       errors << "진행 중인 투표소를 찾을 수 없습니다." if polling_station.blank?
       errors << "진행 중인 투표소에서만 처리할 수 있습니다." if polling_station.present? && !polling_station.active?
-      errors << "현재 투표자를 찾을 수 없습니다." if current_election_voter.blank?
-      errors << "이미 확정 처리된 투표자입니다." if current_election_voter&.election_voter_participation.present?
+      errors << "현재 투표자를 찾을 수 없습니다." if current_poll_participant.blank?
+      errors << "이미 확정 처리된 투표자입니다." if current_poll_participant&.poll_participation.present?
       errors << "지원하지 않는 처리 상태입니다." unless status.in?(ALLOWED_STATUSES)
     end
 
@@ -51,18 +51,18 @@ module Polls
       @polling_station ||= poll.polling_station
     end
 
-    def current_election_voter
-      @current_election_voter ||= polling_station&.current_election_voter
+    def current_poll_participant
+      @current_poll_participant ||= polling_station&.current_poll_participant
     end
 
     def event_type
       "voter_marked_#{status}"
     end
 
-    def record_event(event_type, election_voter: nil, details: {})
+    def record_event(event_type, poll_participant: nil, details: {})
       poll.election_events.create!(
         actor: actor,
-        election_voter: election_voter,
+        poll_participant: poll_participant,
         event_type: event_type,
         details: details
       )
