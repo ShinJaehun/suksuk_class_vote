@@ -71,4 +71,47 @@ RSpec.describe Election, type: :model do
       expect(Election.statuses).to include("closed" => 20)
     end
   end
+
+  describe "kind" do
+    it "defaults to election" do
+      election = Election.new
+
+      expect(election).to be_election
+    end
+
+    it "supports discussion and debate kinds" do
+      discussion = build(:election, :discussion)
+      debate = build(:election, :debate)
+
+      expect(discussion).to be_discussion
+      expect(debate).to be_debate
+      expect(Election.kinds).to include("discussion" => 10, "debate" => 20)
+    end
+  end
+
+  describe "display labels" do
+    it "returns election labels" do
+      election = build(:election)
+
+      expect(election.activity_label).to eq("선거")
+      expect(election.choice_label).to eq("후보자")
+      expect(election.choice_list_label).to eq("후보자")
+    end
+
+    it "returns discussion labels" do
+      election = build(:election, :discussion)
+
+      expect(election.activity_label).to eq("토의 투표")
+      expect(election.choice_label).to eq("의견")
+      expect(election.choice_list_label).to eq("의견 목록")
+    end
+
+    it "returns debate labels" do
+      election = build(:election, :debate)
+
+      expect(election.activity_label).to eq("토론 투표")
+      expect(election.choice_label).to eq("입장")
+      expect(election.choice_list_label).to eq("입장 목록")
+    end
+  end
 end

@@ -7,7 +7,26 @@ class Election < ApplicationRecord
   has_many :election_events, dependent: :destroy
   has_one :polling_station, dependent: :destroy
 
+  enum :kind, { election: 0, discussion: 10, debate: 20 }
   enum :status, { draft: 0, in_progress: 10, closed: 20 }
+
+  ACTIVITY_LABELS = {
+    "election" => "선거",
+    "discussion" => "토의 투표",
+    "debate" => "토론 투표"
+  }.freeze
+
+  CHOICE_LABELS = {
+    "election" => "후보자",
+    "discussion" => "의견",
+    "debate" => "입장"
+  }.freeze
+
+  CHOICE_LIST_LABELS = {
+    "election" => "후보자",
+    "discussion" => "의견 목록",
+    "debate" => "입장 목록"
+  }.freeze
 
   DISPLAY_STATUSES = {
     "draft" => "준비",
@@ -34,6 +53,18 @@ class Election < ApplicationRecord
 
   def display_status
     DISPLAY_STATUSES.fetch(status, status)
+  end
+
+  def activity_label
+    ACTIVITY_LABELS.fetch(kind, kind)
+  end
+
+  def choice_label
+    CHOICE_LABELS.fetch(kind, kind)
+  end
+
+  def choice_list_label
+    CHOICE_LIST_LABELS.fetch(kind, kind)
   end
 
   def voter_group_display_name
