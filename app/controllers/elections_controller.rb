@@ -179,6 +179,6 @@ class ElectionsController < ApplicationController
   end
 
   def election_params
-    params.require(:election).permit(:title, :voter_group_id)
+    params.require(:election).permit(:title, :kind, :voter_group_id)
   end
 end

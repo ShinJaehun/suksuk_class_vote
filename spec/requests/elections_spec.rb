@@ -59,7 +59,58 @@ RSpec.describe "Elections", type: :request do
       election = Election.find_by!(title: "4학년 1반 반장 선거")
       expect(election.user).to eq(teacher)
       expect(election.voter_group).to eq(voter_group)
+      expect(election).to be_election
       expect(response).to redirect_to(election_path(election))
+    end
+
+    it "allows teachers to create discussion elections and shows the activity label" do
+      teacher = create(:user)
+      voter_group = create(:voter_group, user: teacher)
+      create(:voter_slot, voter_group: voter_group)
+      sign_in teacher
+
+      post elections_path, params: {
+        election: {
+          title: "급식 메뉴 토의",
+          kind: "discussion",
+          voter_group_id: voter_group.id
+        }
+      }
+
+      election = Election.find_by!(title: "급식 메뉴 토의")
+      expect(election).to be_discussion
+
+      get election_path(election)
+      expect(response.body).to include("활동 유형")
+      expect(response.body).to include("토의 투표")
+
+      get elections_path
+      expect(response.body).to include("토의 투표")
+    end
+
+    it "allows teachers to create debate elections and shows the activity label" do
+      teacher = create(:user)
+      voter_group = create(:voter_group, user: teacher)
+      create(:voter_slot, voter_group: voter_group)
+      sign_in teacher
+
+      post elections_path, params: {
+        election: {
+          title: "학급 규칙 토론",
+          kind: "debate",
+          voter_group_id: voter_group.id
+        }
+      }
+
+      election = Election.find_by!(title: "학급 규칙 토론")
+      expect(election).to be_debate
+
+      get election_path(election)
+      expect(response.body).to include("활동 유형")
+      expect(response.body).to include("토론 투표")
+
+      get elections_path
+      expect(response.body).to include("토론 투표")
     end
 
     it "does not allow teachers to create elections with another teacher's voter group" do
