@@ -12,8 +12,8 @@ class Election < ApplicationRecord
 
   ACTIVITY_LABELS = {
     "election" => "선거",
-    "discussion" => "토의 투표",
-    "debate" => "토론 투표"
+    "discussion" => "토의",
+    "debate" => "토론"
   }.freeze
 
   CHOICE_LABELS = {
@@ -24,8 +24,14 @@ class Election < ApplicationRecord
 
   CHOICE_LIST_LABELS = {
     "election" => "후보자",
-    "discussion" => "의견 목록",
-    "debate" => "입장 목록"
+    "discussion" => "의견",
+    "debate" => "입장"
+  }.freeze
+
+  CHOICE_NUMBER_LABELS = {
+    "election" => "기호",
+    "discussion" => "번호",
+    "debate" => "번호"
   }.freeze
 
   DISPLAY_STATUSES = {
@@ -65,6 +71,10 @@ class Election < ApplicationRecord
 
   def choice_list_label
     CHOICE_LIST_LABELS.fetch(kind, kind)
+  end
+
+  def choice_number_label
+    CHOICE_NUMBER_LABELS.fetch(kind, kind)
   end
 
   def voter_group_display_name

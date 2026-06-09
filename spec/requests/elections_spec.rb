@@ -36,6 +36,8 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).not_to include("빈 그룹")
       expect(response.body).not_to include("다른 교사 그룹")
       expect(response.body).to include("학생이 등록된 투표자 그룹만 사용할 수 있습니다.")
+      expect(response.body).to include("토의")
+      expect(response.body).not_to include("토론")
     end
   end
 
@@ -82,35 +84,10 @@ RSpec.describe "Elections", type: :request do
 
       get election_path(election)
       expect(response.body).to include("활동 유형")
-      expect(response.body).to include("토의 투표")
+      expect(response.body).to include("토의")
 
       get elections_path
-      expect(response.body).to include("토의 투표")
-    end
-
-    it "allows teachers to create debate elections and shows the activity label" do
-      teacher = create(:user)
-      voter_group = create(:voter_group, user: teacher)
-      create(:voter_slot, voter_group: voter_group)
-      sign_in teacher
-
-      post elections_path, params: {
-        election: {
-          title: "학급 규칙 토론",
-          kind: "debate",
-          voter_group_id: voter_group.id
-        }
-      }
-
-      election = Election.find_by!(title: "학급 규칙 토론")
-      expect(election).to be_debate
-
-      get election_path(election)
-      expect(response.body).to include("활동 유형")
-      expect(response.body).to include("토론 투표")
-
-      get elections_path
-      expect(response.body).to include("토론 투표")
+      expect(response.body).to include("토의")
     end
 
     it "does not allow teachers to create elections with another teacher's voter group" do

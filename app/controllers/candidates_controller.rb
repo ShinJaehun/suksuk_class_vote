@@ -14,7 +14,7 @@ class CandidatesController < ApplicationController
     @candidate.number = next_number
 
     if @candidate.save
-      redirect_to @election, notice: "후보자를 추가했습니다."
+      redirect_to @election, notice: "#{choice_object_label} 추가했습니다."
     else
       render :new, status: :unprocessable_entity
     end
@@ -25,7 +25,7 @@ class CandidatesController < ApplicationController
 
   def update
     if @candidate.update(candidate_params)
-      redirect_to @election, notice: "후보자를 수정했습니다."
+      redirect_to @election, notice: "#{choice_object_label} 수정했습니다."
     else
       render :edit, status: :unprocessable_entity
     end
@@ -33,7 +33,7 @@ class CandidatesController < ApplicationController
 
   def destroy
     @candidate.destroy
-    redirect_to @election, notice: "후보자를 삭제했습니다."
+    redirect_to @election, notice: "#{choice_object_label} 삭제했습니다."
   end
 
   private
@@ -49,7 +49,7 @@ class CandidatesController < ApplicationController
   def ensure_draft_election
     return if @election.draft?
 
-    redirect_to @election, alert: "draft 상태의 선거에서만 후보자를 관리할 수 있습니다."
+    redirect_to @election, alert: "draft 상태의 선거에서만 #{choice_object_label} 관리할 수 있습니다."
   end
 
   def set_candidate
@@ -62,5 +62,11 @@ class CandidatesController < ApplicationController
 
   def candidate_params
     params.require(:candidate).permit(:name)
+  end
+
+  def choice_object_label
+    return "후보자를" if @election.election?
+
+    "#{@election.choice_label}을"
   end
 end

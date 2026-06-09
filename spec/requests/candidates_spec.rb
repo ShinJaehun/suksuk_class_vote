@@ -50,7 +50,8 @@ RSpec.describe "Candidates", type: :request do
 
       get new_election_candidate_path(election)
 
-      expect(response.body).to include("1번 후보를 추가합니다.")
+      expect(response.body).to include("1번 후보자를 추가합니다.")
+      expect(response.body).to include("후보자 이름")
     end
 
     it "shows the next number after existing candidates" do
@@ -61,7 +62,20 @@ RSpec.describe "Candidates", type: :request do
 
       get new_election_candidate_path(election)
 
-      expect(response.body).to include("2번 후보를 추가합니다.")
+      expect(response.body).to include("2번 후보자를 추가합니다.")
+    end
+
+    it "uses discussion choice labels" do
+      teacher = create(:user)
+      election = create(:election, :discussion, user: teacher)
+      sign_in teacher
+
+      get new_election_candidate_path(election)
+
+      expect(response.body).to include("의견 추가")
+      expect(response.body).to include("1번 의견을 추가합니다.")
+      expect(response.body).to include(">의견</label>")
+      expect(response.body).not_to include("후보자 이름")
     end
 
     it "does not allow access after the election starts" do
@@ -132,6 +146,26 @@ RSpec.describe "Candidates", type: :request do
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.body).to include("후보자를 추가할 수 없습니다.")
+    end
+
+    it "uses discussion labels in create failures and notices" do
+      teacher = create(:user)
+      election = create(:election, :discussion, user: teacher)
+      sign_in teacher
+
+      post election_candidates_path(election), params: {
+        candidate: { name: "" }
+      }
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include("의견을 추가할 수 없습니다.")
+
+      post election_candidates_path(election), params: {
+        candidate: { name: "점심시간 연장" }
+      }
+
+      expect(response).to redirect_to(election_path(election))
+      expect(flash[:notice]).to eq("의견을 추가했습니다.")
     end
 
     it "does not create candidates after the election starts" do
@@ -245,6 +279,33 @@ RSpec.describe "Candidates", type: :request do
       expect(candidate.reload.name).to eq("원래 이름")
       expect(response).to redirect_to(election_path(election))
     end
+
+    it "uses discussion labels in edit failures and notices" do
+      teacher = create(:user)
+      election = create(:election, :discussion, user: teacher)
+      candidate = create(:candidate, election: election, number: 1, name: "이전 의견")
+      sign_in teacher
+
+      get edit_election_candidate_path(election, candidate)
+
+      expect(response.body).to include("의견 수정")
+      expect(response.body).to include("1번 의견입니다.")
+      expect(response.body).to include(">의견</label>")
+
+      patch election_candidate_path(election, candidate), params: {
+        candidate: { name: "" }
+      }
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include("의견을 수정할 수 없습니다.")
+
+      patch election_candidate_path(election, candidate), params: {
+        candidate: { name: "새 의견" }
+      }
+
+      expect(response).to redirect_to(election_path(election))
+      expect(flash[:notice]).to eq("의견을 수정했습니다.")
+    end
   end
 
   describe "DELETE /elections/:election_id/candidates/:id" do
@@ -259,6 +320,18 @@ RSpec.describe "Candidates", type: :request do
       end.to change(Candidate, :count).by(-1)
 
       expect(response).to redirect_to(election_path(election))
+    end
+
+    it "uses discussion labels in destroy notices" do
+      teacher = create(:user)
+      election = create(:election, :discussion, user: teacher)
+      candidate = create(:candidate, election: election)
+      sign_in teacher
+
+      delete election_candidate_path(election, candidate)
+
+      expect(response).to redirect_to(election_path(election))
+      expect(flash[:notice]).to eq("의견을 삭제했습니다.")
     end
 
     it "does not renumber remaining candidates after deletion" do

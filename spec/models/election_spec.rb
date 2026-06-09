@@ -96,22 +96,25 @@ RSpec.describe Election, type: :model do
       expect(election.activity_label).to eq("선거")
       expect(election.choice_label).to eq("후보자")
       expect(election.choice_list_label).to eq("후보자")
+      expect(election.choice_number_label).to eq("기호")
     end
 
     it "returns discussion labels" do
       election = build(:election, :discussion)
 
-      expect(election.activity_label).to eq("토의 투표")
+      expect(election.activity_label).to eq("토의")
       expect(election.choice_label).to eq("의견")
-      expect(election.choice_list_label).to eq("의견 목록")
+      expect(election.choice_list_label).to eq("의견")
+      expect(election.choice_number_label).to eq("번호")
     end
 
     it "returns debate labels" do
       election = build(:election, :debate)
 
-      expect(election.activity_label).to eq("토론 투표")
+      expect(election.activity_label).to eq("토론")
       expect(election.choice_label).to eq("입장")
-      expect(election.choice_list_label).to eq("입장 목록")
+      expect(election.choice_list_label).to eq("입장")
+      expect(election.choice_number_label).to eq("번호")
     end
   end
 end

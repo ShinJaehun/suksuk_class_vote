@@ -25,10 +25,10 @@
     <div class="space-y-1">
       <%= form.label :kind, "활동 유형", class: "text-sm font-medium text-stone-700" %>
       <%= form.select :kind,
-                      [["선거", "election"], ["토의 투표", "discussion"], ["토론 투표", "debate"]],
+                      [["선거", "election"], ["토의", "discussion"]],
                       {},
                       class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
-      <p class="text-sm text-stone-600">선거, 토의 투표, 토론 투표 중 하나를 선택하세요.</p>
+      <p class="text-sm text-stone-600">선거 또는 토의 중 하나를 선택하세요.</p>
     </div>
 
     <div class="space-y-1">
