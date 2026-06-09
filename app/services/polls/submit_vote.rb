@@ -1,4 +1,4 @@
-module Elections
+module Polls
   class SubmitVote
     Result = Struct.new(:success?, :errors, keyword_init: true) do
       def error_message
@@ -6,8 +6,8 @@ module Elections
       end
     end
 
-    def initialize(election:, candidate:, actor: nil)
-      @election = election
+    def initialize(poll:, candidate:, actor: nil)
+      @poll = poll
       @candidate = candidate
       @actor = actor
       @errors = []
@@ -39,38 +39,38 @@ module Elections
 
     private
 
-    attr_reader :election, :candidate, :actor, :errors
+    attr_reader :poll, :candidate, :actor, :errors
 
     def validate_submittable
-      errors << "진행 중인 선거에만 투표할 수 있습니다." unless election.in_progress?
+      errors << "진행 중인 선거에만 투표할 수 있습니다." unless poll.in_progress?
       errors << "진행 중인 투표소를 찾을 수 없습니다." if polling_station.blank?
       errors << "진행 중인 투표소에만 투표할 수 있습니다." if polling_station.present? && !polling_station.active?
       errors << "현재 투표자를 찾을 수 없습니다." if current_election_voter.blank?
-      errors << "이 선거의 후보자에게만 투표할 수 있습니다." unless candidate_belongs_to_election?
+      errors << "이 선거의 후보자에게만 투표할 수 있습니다." unless candidate_belongs_to_poll?
       errors << "이미 투표 완료 처리된 투표자입니다." if current_election_voter&.election_voter_participation.present?
       errors << "후보별 집계 정보를 찾을 수 없습니다." if candidate_tally.blank?
     end
 
     def polling_station
-      @polling_station ||= election.polling_station
+      @polling_station ||= poll.polling_station
     end
 
     def current_election_voter
       @current_election_voter ||= polling_station&.current_election_voter
     end
 
-    def candidate_belongs_to_election?
-      candidate.present? && candidate.poll_id == election.id
+    def candidate_belongs_to_poll?
+      candidate.present? && candidate.poll_id == poll.id
     end
 
     def candidate_tally
-      return nil unless candidate_belongs_to_election?
+      return nil unless candidate_belongs_to_poll?
 
-      @candidate_tally ||= election.candidate_tallies.find_by(candidate: candidate)
+      @candidate_tally ||= poll.candidate_tallies.find_by(candidate: candidate)
     end
 
     def record_event(event_type, election_voter: nil, details: {})
-      election.election_events.create!(
+      poll.election_events.create!(
         actor: actor,
         election_voter: election_voter,
         event_type: event_type,

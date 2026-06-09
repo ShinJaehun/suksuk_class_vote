@@ -1,4 +1,4 @@
-module Elections
+module Polls
   class Close
     Result = Struct.new(:success?, :errors, keyword_init: true) do
       def error_message
@@ -8,8 +8,8 @@ module Elections
 
     FINAL_PARTICIPATION_STATUSES = %w[completed absent abstained].freeze
 
-    def initialize(election:, actor: nil)
-      @election = election
+    def initialize(poll:, actor: nil)
+      @poll = poll
       @actor = actor
       @errors = []
     end
@@ -20,7 +20,7 @@ module Elections
 
       ActiveRecord::Base.transaction do
         locked_polling_station = polling_station.lock!
-        election.update!(status: :closed)
+        poll.update!(status: :closed)
         locked_polling_station.update!(status: :closed, closed_at: Time.current)
         record_event("election_closed", election_voter: current_election_voter)
       end
@@ -33,10 +33,10 @@ module Elections
 
     private
 
-    attr_reader :election, :actor, :errors
+    attr_reader :poll, :actor, :errors
 
     def validate_closable
-      errors << "진행 중인 선거만 종료할 수 있습니다." unless election.in_progress?
+      errors << "진행 중인 선거만 종료할 수 있습니다." unless poll.in_progress?
       errors << "진행 중인 투표소를 찾을 수 없습니다." if polling_station.blank?
       errors << "진행 중인 투표소만 종료할 수 있습니다." if polling_station.present? && !polling_station.active?
       errors << "현재 투표자를 찾을 수 없습니다." if current_election_voter.blank?
@@ -45,7 +45,7 @@ module Elections
     end
 
     def polling_station
-      @polling_station ||= election.polling_station
+      @polling_station ||= poll.polling_station
     end
 
     def current_election_voter
@@ -63,14 +63,14 @@ module Elections
     def next_election_voter
       return nil if current_election_voter.blank?
 
-      @next_election_voter ||= election.election_voters
+      @next_election_voter ||= poll.election_voters
         .where("number > ?", current_election_voter.number)
         .order(:number)
         .first
     end
 
     def record_event(event_type, election_voter: nil, details: {})
-      election.election_events.create!(
+      poll.election_events.create!(
         actor: actor,
         election_voter: election_voter,
         event_type: event_type,

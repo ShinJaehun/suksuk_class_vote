@@ -9,8 +9,8 @@ class PollsController < ApplicationController
 
   def show
     authorize @poll
-    @integrity_report = Elections::IntegrityReport.new(@poll)
-    @result_summary = Elections::ResultSummary.new(@poll) if @poll.closed?
+    @integrity_report = Polls::IntegrityReport.new(@poll)
+    @result_summary = Polls::ResultSummary.new(@poll) if @poll.closed?
     @poll_events = operation_event_log_events
   end
 
@@ -32,7 +32,7 @@ class PollsController < ApplicationController
   def start
     authorize @poll, :start?
 
-    result = Elections::Start.new(@poll, actor: current_user).call
+    result = Polls::Start.new(@poll, actor: current_user).call
 
     if result.success?
       redirect_to @poll, notice: "선거를 시작했습니다."
@@ -45,7 +45,7 @@ class PollsController < ApplicationController
     authorize @poll, :submit_vote?
 
     candidate = @poll.candidates.find_by(id: params[:candidate_id])
-    result = Elections::SubmitVote.new(election: @poll, candidate: candidate, actor: current_user).call
+    result = Polls::SubmitVote.new(poll: @poll, candidate: candidate, actor: current_user).call
 
     if result.success?
       broadcast_operation_progress
@@ -59,7 +59,7 @@ class PollsController < ApplicationController
   def record_participation_outcome
     authorize @poll, :record_participation_outcome?
 
-    result = Elections::RecordParticipationOutcome.new(election: @poll, status: params[:status], actor: current_user).call
+    result = Polls::RecordParticipationOutcome.new(poll: @poll, status: params[:status], actor: current_user).call
 
     if result.success?
       broadcast_operation_progress
@@ -73,7 +73,7 @@ class PollsController < ApplicationController
   def advance_current_voter
     authorize @poll, :advance_current_voter?
 
-    result = Elections::AdvanceCurrentVoter.new(election: @poll, actor: current_user).call
+    result = Polls::AdvanceCurrentVoter.new(poll: @poll, actor: current_user).call
 
     if result.success?
       broadcast_operation_progress
@@ -86,7 +86,7 @@ class PollsController < ApplicationController
   def resume_current_voter
     authorize @poll, :resume_current_voter?
 
-    result = Elections::ResumeCurrentVoter.new(election: @poll, actor: current_user).call
+    result = Polls::ResumeCurrentVoter.new(poll: @poll, actor: current_user).call
 
     if result.success?
       redirect_to @poll, notice: "첫 미처리 학생으로 재개했습니다."
@@ -98,7 +98,7 @@ class PollsController < ApplicationController
   def close
     authorize @poll, :close?
 
-    result = Elections::Close.new(election: @poll, actor: current_user).call
+    result = Polls::Close.new(poll: @poll, actor: current_user).call
 
     if result.success?
       redirect_to @poll, notice: "선거를 종료했습니다."

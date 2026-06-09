@@ -1,13 +1,13 @@
-module Elections
+module Polls
   class ResultSummary
     CandidateResult = Struct.new(:candidate, :votes_count, keyword_init: true)
 
-    def initialize(election)
-      @election = election
+    def initialize(poll)
+      @poll = poll
     end
 
     def total_voters
-      election.election_voters.count
+      poll.election_voters.count
     end
 
     def completed_count
@@ -27,7 +27,7 @@ module Elections
     end
 
     def candidate_results
-      @candidate_results ||= election.candidates.order(:number).map do |candidate|
+      @candidate_results ||= poll.candidates.order(:number).map do |candidate|
         CandidateResult.new(
           candidate: candidate,
           votes_count: tally_counts.fetch(candidate.id, 0)
@@ -44,18 +44,18 @@ module Elections
 
     private
 
-    attr_reader :election
+    attr_reader :poll
 
     def participation_counts
       @participation_counts ||= ElectionVoterParticipation
         .joins(:election_voter)
-        .where(election_voters: { poll_id: election.id })
+        .where(election_voters: { poll_id: poll.id })
         .group(:status)
         .count
     end
 
     def tally_counts
-      @tally_counts ||= election.candidate_tallies.pluck(:candidate_id, :votes_count).to_h
+      @tally_counts ||= poll.candidate_tallies.pluck(:candidate_id, :votes_count).to_h
     end
   end
 end

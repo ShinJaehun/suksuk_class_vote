@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe Elections::Start do
+RSpec.describe Polls::Start do
   describe "#call" do
     it "starts a draft election with at least two candidates, snapshots voter slots, creates tallies, and creates a polling station" do
       election = create_startable_election

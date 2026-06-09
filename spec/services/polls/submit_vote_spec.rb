@@ -1,13 +1,13 @@
 require "rails_helper"
 
-RSpec.describe Elections::SubmitVote do
+RSpec.describe Polls::SubmitVote do
   describe "#call" do
     it "increments candidate tally and creates completed participation for the current election voter" do
       election = create_in_progress_election
       candidate = election.candidates.order(:number).first
       current_election_voter = election.polling_station.current_election_voter
 
-      result = described_class.new(election: election, candidate: candidate).call
+      result = described_class.new(poll: election, candidate: candidate).call
 
       expect(result).to be_success
       expect(election.candidate_tallies.find_by(candidate: candidate).votes_count).to eq(1)
@@ -22,7 +22,7 @@ RSpec.describe Elections::SubmitVote do
       election = create_in_progress_election
       candidate = election.candidates.order(:number).first
 
-      described_class.new(election: election, candidate: candidate).call
+      described_class.new(poll: election, candidate: candidate).call
 
       participation = election.polling_station.current_election_voter.election_voter_participation
       candidate_tally = election.candidate_tallies.find_by(candidate: candidate)
@@ -42,7 +42,7 @@ RSpec.describe Elections::SubmitVote do
       candidate = election.candidates.order(:number).first
       create(:election_voter_participation, election_voter: election.polling_station.current_election_voter)
 
-      result = described_class.new(election: election, candidate: candidate).call
+      result = described_class.new(poll: election, candidate: candidate).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("이미 투표 완료")
@@ -54,7 +54,7 @@ RSpec.describe Elections::SubmitVote do
       election = create_in_progress_election
       candidate = create(:candidate)
 
-      result = described_class.new(election: election, candidate: candidate).call
+      result = described_class.new(poll: election, candidate: candidate).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("이 선거의 후보자")
@@ -66,7 +66,7 @@ RSpec.describe Elections::SubmitVote do
       election.update!(status: :draft)
       candidate = election.candidates.order(:number).first
 
-      result = described_class.new(election: election, candidate: candidate).call
+      result = described_class.new(poll: election, candidate: candidate).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("진행 중인 선거")
@@ -78,7 +78,7 @@ RSpec.describe Elections::SubmitVote do
       election.polling_station.destroy!
       candidate = election.candidates.order(:number).first
 
-      result = described_class.new(election: election.reload, candidate: candidate).call
+      result = described_class.new(poll: election.reload, candidate: candidate).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("투표소를 찾을 수 없습니다")
@@ -90,7 +90,7 @@ RSpec.describe Elections::SubmitVote do
       election.polling_station.update!(status: :closed)
       candidate = election.candidates.order(:number).first
 
-      result = described_class.new(election: election, candidate: candidate).call
+      result = described_class.new(poll: election, candidate: candidate).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("진행 중인 투표소")
@@ -102,7 +102,7 @@ RSpec.describe Elections::SubmitVote do
       election.polling_station.update!(current_election_voter: nil)
       candidate = election.candidates.order(:number).first
 
-      result = described_class.new(election: election, candidate: candidate).call
+      result = described_class.new(poll: election, candidate: candidate).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("현재 투표자")
@@ -114,7 +114,7 @@ RSpec.describe Elections::SubmitVote do
       candidate = election.candidates.order(:number).first
       election.candidate_tallies.find_by(candidate: candidate).destroy!
 
-      result = described_class.new(election: election, candidate: candidate).call
+      result = described_class.new(poll: election, candidate: candidate).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("후보별 집계 정보")
@@ -127,7 +127,7 @@ RSpec.describe Elections::SubmitVote do
       current_election_voter = election.polling_station.current_election_voter
       allow_any_instance_of(ElectionVoter).to receive(:create_election_voter_participation!).and_raise(ActiveRecord::RecordInvalid)
 
-      result = described_class.new(election: election, candidate: candidate).call
+      result = described_class.new(poll: election, candidate: candidate).call
 
       expect(result).not_to be_success
       expect(election.candidate_tallies.find_by(candidate: candidate).reload.votes_count).to eq(0)
@@ -141,7 +141,7 @@ RSpec.describe Elections::SubmitVote do
       allow(candidate_tally).to receive(:update!).and_raise(ActiveRecord::RecordInvalid)
       allow(election.candidate_tallies).to receive(:find_by).and_return(candidate_tally)
 
-      result = described_class.new(election: election, candidate: candidate).call
+      result = described_class.new(poll: election, candidate: candidate).call
 
       expect(result).not_to be_success
       expect(election.polling_station.current_election_voter.election_voter_participation).to be_nil
@@ -153,7 +153,7 @@ RSpec.describe Elections::SubmitVote do
       current_election_voter = election.polling_station.current_election_voter
       allow(election.election_events).to receive(:create!).and_raise(ActiveRecord::RecordInvalid)
 
-      result = described_class.new(election: election, candidate: candidate).call
+      result = described_class.new(poll: election, candidate: candidate).call
 
       expect(result).not_to be_success
       expect(election.candidate_tallies.find_by(candidate: candidate).reload.votes_count).to eq(0)
@@ -169,7 +169,7 @@ RSpec.describe Elections::SubmitVote do
     election = create(:poll, user: teacher, voter_group: voter_group)
     create(:candidate, poll: election, number: 1)
     create(:candidate, poll: election, number: 2)
-    Elections::Start.new(election).call
+    Polls::Start.new(election).call
     election.reload
   end
 end

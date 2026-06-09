@@ -1,4 +1,4 @@
-module Elections
+module Polls
   class Start
     Result = Struct.new(:success?, :errors, keyword_init: true) do
       def error_message
@@ -8,8 +8,8 @@ module Elections
 
     SINGLE_CANDIDATE_MESSAGE = "후보자가 1명인 선거는 무투표 당선/찬반 투표 정책 결정 후 지원 예정입니다."
 
-    def initialize(election, actor: nil)
-      @election = election
+    def initialize(poll, actor: nil)
+      @poll = poll
       @actor = actor
       @errors = []
     end
@@ -21,12 +21,12 @@ module Elections
       Poll.transaction do
         create_snapshot
         create_candidate_tallies
-        first_election_voter = election.election_voters.order(:number).first
-        election.update!(
+        first_election_voter = poll.election_voters.order(:number).first
+        poll.update!(
           status: :in_progress,
-          voter_group_name_snapshot: election.voter_group.name
+          voter_group_name_snapshot: poll.voter_group.name
         )
-        election.create_polling_station!(
+        poll.create_polling_station!(
           current_election_voter: first_election_voter,
           status: :active,
           started_at: Time.current
@@ -35,8 +35,8 @@ module Elections
           "election_started",
           election_voter: first_election_voter,
           details: {
-            voter_count: election.election_voters.count,
-            candidate_count: election.candidate_tallies.count
+            voter_count: poll.election_voters.count,
+            candidate_count: poll.candidate_tallies.count
           }
         )
       end
@@ -49,12 +49,12 @@ module Elections
 
     private
 
-    attr_reader :election, :actor, :errors
+    attr_reader :poll, :actor, :errors
 
     def validate_startable
-      errors << "draft 상태의 선거만 시작할 수 있습니다." unless election.draft?
+      errors << "draft 상태의 선거만 시작할 수 있습니다." unless poll.draft?
 
-      candidate_count = election.candidates.count
+      candidate_count = poll.candidates.count
       if candidate_count.zero?
         errors << "후보자가 2명 이상 있어야 선거를 시작할 수 있습니다."
       elsif candidate_count == 1
@@ -62,14 +62,14 @@ module Elections
       end
 
       errors << "투표자 명단이 1명 이상 있어야 선거를 시작할 수 있습니다." if voter_slots.empty?
-      errors << "이미 선거용 명단이 생성된 선거입니다." if election.election_voters.exists?
-      errors << "이미 투표 진행 정보가 생성된 선거입니다." if election.polling_station.present?
-      errors << "이미 후보별 집계 정보가 생성된 선거입니다." if election.candidate_tallies.exists?
+      errors << "이미 선거용 명단이 생성된 선거입니다." if poll.election_voters.exists?
+      errors << "이미 투표 진행 정보가 생성된 선거입니다." if poll.polling_station.present?
+      errors << "이미 후보별 집계 정보가 생성된 선거입니다." if poll.candidate_tallies.exists?
     end
 
     def create_snapshot
       voter_slots.each do |voter_slot|
-        election.election_voters.create!(
+        poll.election_voters.create!(
           source_voter_slot: voter_slot,
           number: voter_slot.number,
           name: voter_slot.name
@@ -78,8 +78,8 @@ module Elections
     end
 
     def create_candidate_tallies
-      election.candidates.order(:number).each do |candidate|
-        election.candidate_tallies.create!(
+      poll.candidates.order(:number).each do |candidate|
+        poll.candidate_tallies.create!(
           candidate: candidate,
           votes_count: 0
         )
@@ -87,11 +87,11 @@ module Elections
     end
 
     def voter_slots
-      @voter_slots ||= election.voter_group&.voter_slots&.order(:number) || VoterSlot.none
+      @voter_slots ||= poll.voter_group&.voter_slots&.order(:number) || VoterSlot.none
     end
 
     def record_event(event_type, election_voter: nil, details: {})
-      election.election_events.create!(
+      poll.election_events.create!(
         actor: actor,
         election_voter: election_voter,
         event_type: event_type,

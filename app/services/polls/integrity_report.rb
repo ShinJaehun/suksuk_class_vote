@@ -1,4 +1,4 @@
-module Elections
+module Polls
   class IntegrityReport
     Issue = Struct.new(:severity, :message, keyword_init: true)
     Summary = Struct.new(
@@ -11,8 +11,8 @@ module Elections
       keyword_init: true
     )
 
-    def initialize(election)
-      @election = election
+    def initialize(poll)
+      @poll = poll
     end
 
     def ok?
@@ -35,25 +35,25 @@ module Elections
     end
 
     def show_summary?
-      election.in_progress? || election.closed?
+      poll.in_progress? || poll.closed?
     end
 
     def guidance_message
-      if election.draft?
+      if poll.draft?
         "선거 시작 전 상태입니다. 시작 후 선거용 명단과 후보별 집계가 생성됩니다."
-      elsif election.in_progress? && ok?
+      elsif poll.in_progress? && ok?
         "진행 상태가 정상입니다. 화면을 닫거나 새로고침해도 현재 투표자 기준으로 이어갈 수 있습니다."
-      elsif election.in_progress?
+      elsif poll.in_progress?
         "진행 상태 확인이 필요합니다. 자동 복구는 아직 제공하지 않습니다."
-      elsif election.closed? && ok?
+      elsif poll.closed? && ok?
         "종료된 선거의 결과 상태가 정상입니다."
-      elsif election.closed?
+      elsif poll.closed?
         "종료된 선거 결과 상태 확인이 필요합니다."
       end
     end
 
     def resumable_current_voter?
-      election.in_progress? &&
+      poll.in_progress? &&
         polling_station.present? &&
         polling_station.active? &&
         current_election_voter.blank? &&
@@ -63,32 +63,32 @@ module Elections
 
     private
 
-    attr_reader :election
+    attr_reader :poll
 
     def build_issues
       [].tap do |report_issues|
         add_polling_station_issues(report_issues)
-        add_tally_issues(report_issues) unless election.draft?
-        add_participation_issues(report_issues) unless election.draft?
+        add_tally_issues(report_issues) unless poll.draft?
+        add_participation_issues(report_issues) unless poll.draft?
       end
     end
 
     def add_polling_station_issues(report_issues)
-      if election.in_progress?
+      if poll.in_progress?
         report_issues << issue("진행 중인 선거의 투표소 정보를 찾을 수 없습니다.") if polling_station.blank?
         report_issues << issue("진행 중인 선거의 투표소가 active 상태가 아닙니다.") if polling_station.present? && !polling_station.active?
         report_issues << issue("진행 중인 선거의 현재 투표자를 찾을 수 없습니다.") if current_election_voter.blank?
-        if current_election_voter.present? && current_election_voter.poll_id != election.id
+        if current_election_voter.present? && current_election_voter.poll_id != poll.id
           report_issues << issue("현재 투표자가 이 선거의 선거용 명단에 속하지 않습니다.")
         end
-      elsif election.closed?
+      elsif poll.closed?
         report_issues << issue("종료된 선거의 투표소 정보를 찾을 수 없습니다.") if polling_station.blank?
         report_issues << issue("종료된 선거의 투표소가 closed 상태가 아닙니다.") if polling_station.present? && !polling_station.closed?
       end
     end
 
     def add_tally_issues(report_issues)
-      if election.candidates.count != election.candidate_tallies.count
+      if poll.candidates.count != poll.candidate_tallies.count
         report_issues << issue("후보 수와 후보별 집계 정보 수가 일치하지 않습니다.")
       end
 
@@ -106,7 +106,7 @@ module Elections
         report_issues << issue("처리 상태 합계가 전체 투표자 수를 초과합니다.")
       end
 
-      if election.closed? && unprocessed_count.positive?
+      if poll.closed? && unprocessed_count.positive?
         report_issues << issue("종료된 선거에 미처리 투표자가 남아 있습니다.")
       end
     end
@@ -116,7 +116,7 @@ module Elections
     end
 
     def polling_station
-      @polling_station ||= election.polling_station
+      @polling_station ||= poll.polling_station
     end
 
     def current_election_voter
@@ -124,7 +124,7 @@ module Elections
     end
 
     def first_unprocessed_election_voter
-      @first_unprocessed_election_voter ||= election.election_voters
+      @first_unprocessed_election_voter ||= poll.election_voters
         .left_outer_joins(:election_voter_participation)
         .where(election_voter_participations: { id: nil })
         .order(:number)
@@ -136,11 +136,11 @@ module Elections
     end
 
     def mismatched_candidate_tallies?
-      election.candidate_tallies.joins(:candidate).where.not(candidates: { poll_id: election.id }).exists?
+      poll.candidate_tallies.joins(:candidate).where.not(candidates: { poll_id: poll.id }).exists?
     end
 
     def total_voters
-      @total_voters ||= election.election_voters.count
+      @total_voters ||= poll.election_voters.count
     end
 
     def completed_count
@@ -160,13 +160,13 @@ module Elections
     end
 
     def votes_count
-      @votes_count ||= election.candidate_tallies.sum(:votes_count)
+      @votes_count ||= poll.candidate_tallies.sum(:votes_count)
     end
 
     def participation_counts
       @participation_counts ||= ElectionVoterParticipation
         .joins(:election_voter)
-        .where(election_voters: { poll_id: election.id })
+        .where(election_voters: { poll_id: poll.id })
         .group(:status)
         .count
     end

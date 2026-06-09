@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe Elections::IntegrityReport do
+RSpec.describe Polls::IntegrityReport do
   describe "#ok?" do
     it "treats draft elections without polling station or tallies as ok" do
       election = create_startable_election
@@ -266,7 +266,7 @@ RSpec.describe Elections::IntegrityReport do
 
   def create_in_progress_election
     election = create_startable_election
-    Elections::Start.new(election).call
+    Polls::Start.new(election).call
     election.reload
   end
 

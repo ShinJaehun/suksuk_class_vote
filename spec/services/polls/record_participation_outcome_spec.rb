@@ -1,12 +1,12 @@
 require "rails_helper"
 
-RSpec.describe Elections::RecordParticipationOutcome do
+RSpec.describe Polls::RecordParticipationOutcome do
   describe "#call" do
     it "records absent participation for the current election voter" do
       election = create_in_progress_election
       current_voter = election.polling_station.current_election_voter
 
-      result = described_class.new(election: election, status: :absent).call
+      result = described_class.new(poll: election, status: :absent).call
 
       expect(result).to be_success
       expect(current_voter.reload.election_voter_participation).to be_absent
@@ -21,7 +21,7 @@ RSpec.describe Elections::RecordParticipationOutcome do
       election = create_in_progress_election
       current_voter = election.polling_station.current_election_voter
 
-      result = described_class.new(election: election, status: :abstained).call
+      result = described_class.new(poll: election, status: :abstained).call
 
       expect(result).to be_success
       expect(current_voter.reload.election_voter_participation).to be_abstained
@@ -36,7 +36,7 @@ RSpec.describe Elections::RecordParticipationOutcome do
       election = create_in_progress_election
       tally_counts = election.candidate_tallies.order(:candidate_id).pluck(:votes_count)
 
-      described_class.new(election: election, status: :absent).call
+      described_class.new(poll: election, status: :absent).call
 
       expect(election.candidate_tallies.order(:candidate_id).pluck(:votes_count)).to eq(tally_counts)
     end
@@ -46,7 +46,7 @@ RSpec.describe Elections::RecordParticipationOutcome do
       current_voter = election.polling_station.current_election_voter
       create(:election_voter_participation, election_voter: current_voter)
 
-      result = described_class.new(election: election, status: :absent).call
+      result = described_class.new(poll: election, status: :absent).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("이미 확정 처리")
@@ -55,7 +55,7 @@ RSpec.describe Elections::RecordParticipationOutcome do
     it "fails when status is not allowed" do
       election = create_in_progress_election
 
-      result = described_class.new(election: election, status: :completed).call
+      result = described_class.new(poll: election, status: :completed).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("지원하지 않는 처리 상태")
@@ -66,7 +66,7 @@ RSpec.describe Elections::RecordParticipationOutcome do
       election = create_in_progress_election
       election.update!(status: :draft)
 
-      result = described_class.new(election: election, status: :absent).call
+      result = described_class.new(poll: election, status: :absent).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("진행 중인 선거")
@@ -76,7 +76,7 @@ RSpec.describe Elections::RecordParticipationOutcome do
       election = create_in_progress_election
       election.polling_station.destroy!
 
-      result = described_class.new(election: election.reload, status: :absent).call
+      result = described_class.new(poll: election.reload, status: :absent).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("투표소를 찾을 수 없습니다")
@@ -86,7 +86,7 @@ RSpec.describe Elections::RecordParticipationOutcome do
       election = create_in_progress_election
       election.polling_station.update!(status: :closed)
 
-      result = described_class.new(election: election, status: :absent).call
+      result = described_class.new(poll: election, status: :absent).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("진행 중인 투표소")
@@ -96,7 +96,7 @@ RSpec.describe Elections::RecordParticipationOutcome do
       election = create_in_progress_election
       election.polling_station.update!(current_election_voter: nil)
 
-      result = described_class.new(election: election, status: :absent).call
+      result = described_class.new(poll: election, status: :absent).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("현재 투표자")
@@ -111,7 +111,7 @@ RSpec.describe Elections::RecordParticipationOutcome do
     election = create(:poll, user: teacher, voter_group: voter_group)
     create(:candidate, poll: election, number: 1)
     create(:candidate, poll: election, number: 2)
-    Elections::Start.new(election).call
+    Polls::Start.new(election).call
     election.reload
   end
 end

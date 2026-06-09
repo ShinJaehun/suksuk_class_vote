@@ -304,7 +304,7 @@ RSpec.describe "Polls", type: :request do
       election = create_startable_election(user: teacher, kind: :discussion)
       election.candidates.find_by!(number: 1).update!(name: "점심시간을 10분 늘리자는 의견")
       election.candidates.find_by!(number: 2).update!(name: "청소 시간을 요일별로 나누자는 의견")
-      Elections::Start.new(election).call
+      Polls::Start.new(election).call
       sign_in teacher
 
       get ballot_poll_path(election.reload)
@@ -416,7 +416,7 @@ RSpec.describe "Polls", type: :request do
       last_voter = election.election_voters.order(:number).last
       election.polling_station.update!(current_election_voter: last_voter)
       create(:election_voter_participation, election_voter: last_voter, status: :absent)
-      Elections::Close.new(election: election).call
+      Polls::Close.new(poll: election).call
       sign_in teacher
 
       get ballot_poll_path(election)
@@ -866,12 +866,12 @@ RSpec.describe "Polls", type: :request do
       second_opinion = election.candidates.find_by!(number: 2)
       first_opinion.update!(name: "점심시간을 10분 늘리자는 의견")
       second_opinion.update!(name: "청소 시간을 요일별로 나누자는 의견")
-      Elections::Start.new(election).call
+      Polls::Start.new(election).call
       last_voter = election.election_voters.order(:number).last
       election.polling_station.update!(current_election_voter: last_voter)
       create(:election_voter_participation, election_voter: last_voter)
       election.candidate_tallies.find_by(candidate: first_opinion).update!(votes_count: 1)
-      Elections::Close.new(election: election).call
+      Polls::Close.new(poll: election).call
       sign_in teacher
 
       get poll_path(election)
@@ -894,7 +894,7 @@ RSpec.describe "Polls", type: :request do
       election.polling_station.update!(current_election_voter: last_voter)
       create(:election_voter_participation, election_voter: last_voter)
       election.candidate_tallies.update_all(votes_count: 1)
-      Elections::Close.new(election: election).call
+      Polls::Close.new(poll: election).call
       sign_in teacher
 
       get poll_path(election)
@@ -910,7 +910,7 @@ RSpec.describe "Polls", type: :request do
       last_voter = election.election_voters.order(:number).last
       election.polling_station.update!(current_election_voter: last_voter)
       create(:election_voter_participation, election_voter: last_voter, status: :absent)
-      Elections::Close.new(election: election).call
+      Polls::Close.new(poll: election).call
       sign_in teacher
 
       get poll_path(election)
@@ -926,7 +926,7 @@ RSpec.describe "Polls", type: :request do
       last_voter = election.election_voters.order(:number).last
       election.polling_station.update!(current_election_voter: last_voter)
       create(:election_voter_participation, election_voter: last_voter, status: :absent)
-      Elections::Close.new(election: election).call
+      Polls::Close.new(poll: election).call
       sign_in teacher
 
       patch voter_group_voter_slot_path(election.voter_group, source_voter_slot), params: {
@@ -946,7 +946,7 @@ RSpec.describe "Polls", type: :request do
       last_voter = election.election_voters.order(:number).last
       election.polling_station.update!(current_election_voter: last_voter)
       create(:election_voter_participation, election_voter: last_voter, status: :absent)
-      Elections::Close.new(election: election).call
+      Polls::Close.new(poll: election).call
       voter_group.destroy!
       sign_in teacher
 
@@ -967,7 +967,7 @@ RSpec.describe "Polls", type: :request do
       last_voter = election.election_voters.order(:number).last
       election.polling_station.update!(current_election_voter: last_voter)
       create(:election_voter_participation, election_voter: last_voter, status: :absent)
-      Elections::Close.new(election: election).call
+      Polls::Close.new(poll: election).call
       sign_in teacher
 
       get poll_path(election)
@@ -990,7 +990,7 @@ RSpec.describe "Polls", type: :request do
 
   def create_started_election(user: create(:user))
     election = create_startable_election(user: user)
-    Elections::Start.new(election).call
+    Polls::Start.new(election).call
     election.reload
   end
 end

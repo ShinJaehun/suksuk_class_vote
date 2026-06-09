@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe Elections::AdvanceCurrentVoter do
+RSpec.describe Polls::AdvanceCurrentVoter do
   describe "#call" do
     it "moves polling station current voter to the next election voter" do
       election = create_in_progress_election
@@ -8,7 +8,7 @@ RSpec.describe Elections::AdvanceCurrentVoter do
       next_voter = election.election_voters.where("number > ?", first_voter.number).order(:number).first
       create(:election_voter_participation, election_voter: first_voter)
 
-      result = described_class.new(election: election).call
+      result = described_class.new(poll: election).call
 
       expect(result).to be_success
       expect(election.polling_station.reload.current_election_voter).to eq(next_voter)
@@ -29,7 +29,7 @@ RSpec.describe Elections::AdvanceCurrentVoter do
       create(:election_voter_participation, election_voter: first_voter)
       election.update!(status: :draft)
 
-      result = described_class.new(election: election).call
+      result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("진행 중인 선거")
@@ -40,7 +40,7 @@ RSpec.describe Elections::AdvanceCurrentVoter do
       election = create_in_progress_election
       election.polling_station.destroy!
 
-      result = described_class.new(election: election.reload).call
+      result = described_class.new(poll: election.reload).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("투표소를 찾을 수 없습니다")
@@ -52,7 +52,7 @@ RSpec.describe Elections::AdvanceCurrentVoter do
       create(:election_voter_participation, election_voter: first_voter)
       election.polling_station.update!(status: :closed)
 
-      result = described_class.new(election: election).call
+      result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("진행 중인 투표소")
@@ -63,7 +63,7 @@ RSpec.describe Elections::AdvanceCurrentVoter do
       election = create_in_progress_election
       election.polling_station.update!(current_election_voter: nil)
 
-      result = described_class.new(election: election).call
+      result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("현재 투표자")
@@ -73,7 +73,7 @@ RSpec.describe Elections::AdvanceCurrentVoter do
       election = create_in_progress_election
       first_voter = election.polling_station.current_election_voter
 
-      result = described_class.new(election: election).call
+      result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("확정 상태")
@@ -86,7 +86,7 @@ RSpec.describe Elections::AdvanceCurrentVoter do
       next_voter = election.election_voters.where("number > ?", first_voter.number).order(:number).first
       create(:election_voter_participation, election_voter: first_voter, status: :abstained)
 
-      result = described_class.new(election: election).call
+      result = described_class.new(poll: election).call
 
       expect(result).to be_success
       expect(election.polling_station.reload.current_election_voter).to eq(next_voter)
@@ -98,7 +98,7 @@ RSpec.describe Elections::AdvanceCurrentVoter do
       election.polling_station.update!(current_election_voter: last_voter)
       create(:election_voter_participation, election_voter: last_voter)
 
-      result = described_class.new(election: election).call
+      result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("다음 투표자")
@@ -115,7 +115,7 @@ RSpec.describe Elections::AdvanceCurrentVoter do
     election = create(:poll, user: teacher, voter_group: voter_group)
     create(:candidate, poll: election, number: 1)
     create(:candidate, poll: election, number: 2)
-    Elections::Start.new(election).call
+    Polls::Start.new(election).call
     election.reload
   end
 end

@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe Elections::ResumeCurrentVoter do
+RSpec.describe Polls::ResumeCurrentVoter do
   describe "#call" do
     it "sets current voter to the first unprocessed election voter" do
       election = create_in_progress_election
@@ -8,7 +8,7 @@ RSpec.describe Elections::ResumeCurrentVoter do
       create(:election_voter_participation, election_voter: voters[0], status: :completed)
       election.polling_station.update!(current_election_voter: nil)
 
-      result = described_class.new(election: election).call
+      result = described_class.new(poll: election).call
 
       expect(result).to be_success
       expect(election.polling_station.reload.current_election_voter).to eq(voters[1])
@@ -23,7 +23,7 @@ RSpec.describe Elections::ResumeCurrentVoter do
       election = create_in_progress_election
       current_voter = election.polling_station.current_election_voter
 
-      result = described_class.new(election: election).call
+      result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("이미 지정")
@@ -37,7 +37,7 @@ RSpec.describe Elections::ResumeCurrentVoter do
       end
       election.polling_station.update!(current_election_voter: nil)
 
-      result = described_class.new(election: election).call
+      result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("미처리 투표자")
@@ -53,7 +53,7 @@ RSpec.describe Elections::ResumeCurrentVoter do
       election.polling_station.update!(current_election_voter: nil)
 
       expect do
-        described_class.new(election: election).call
+        described_class.new(poll: election).call
       end.not_to change(ElectionVoterParticipation, :count)
 
       expect(candidate_tally.reload.votes_count).to eq(1)
@@ -69,7 +69,7 @@ RSpec.describe Elections::ResumeCurrentVoter do
     election = create(:poll, user: teacher, voter_group: voter_group)
     create(:candidate, poll: election, number: 1)
     create(:candidate, poll: election, number: 2)
-    Elections::Start.new(election).call
+    Polls::Start.new(election).call
     election.reload
   end
 end

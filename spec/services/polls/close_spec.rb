@@ -1,13 +1,13 @@
 require "rails_helper"
 
-RSpec.describe Elections::Close do
+RSpec.describe Polls::Close do
   describe "#call" do
     it "closes the election and polling station when the last current voter is completed" do
       election = create_in_progress_election
       last_voter = move_to_last_voter(election)
       create(:election_voter_participation, election_voter: last_voter)
 
-      result = described_class.new(election: election).call
+      result = described_class.new(poll: election).call
 
       expect(result).to be_success
       expect(election.reload).to be_closed
@@ -25,7 +25,7 @@ RSpec.describe Elections::Close do
       create(:election_voter_participation, election_voter: last_voter)
       election.update!(status: :draft)
 
-      result = described_class.new(election: election).call
+      result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("진행 중인 선거")
@@ -37,7 +37,7 @@ RSpec.describe Elections::Close do
       election = create_in_progress_election
       election.polling_station.destroy!
 
-      result = described_class.new(election: election.reload).call
+      result = described_class.new(poll: election.reload).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("투표소를 찾을 수 없습니다")
@@ -50,7 +50,7 @@ RSpec.describe Elections::Close do
       create(:election_voter_participation, election_voter: last_voter)
       election.polling_station.update!(status: :closed)
 
-      result = described_class.new(election: election).call
+      result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("진행 중인 투표소")
@@ -61,7 +61,7 @@ RSpec.describe Elections::Close do
       election = create_in_progress_election
       election.polling_station.update!(current_election_voter: nil)
 
-      result = described_class.new(election: election).call
+      result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("현재 투표자")
@@ -72,7 +72,7 @@ RSpec.describe Elections::Close do
       election = create_in_progress_election
       last_voter = move_to_last_voter(election)
 
-      result = described_class.new(election: election).call
+      result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("확정 상태")
@@ -85,7 +85,7 @@ RSpec.describe Elections::Close do
       current_voter = election.polling_station.current_election_voter
       create(:election_voter_participation, election_voter: current_voter)
 
-      result = described_class.new(election: election).call
+      result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("남은 투표자")
@@ -98,7 +98,7 @@ RSpec.describe Elections::Close do
       last_voter = move_to_last_voter(election)
       create(:election_voter_participation, election_voter: last_voter, status: :absent)
 
-      result = described_class.new(election: election).call
+      result = described_class.new(poll: election).call
 
       expect(result).to be_success
       expect(election.reload).to be_closed
@@ -113,7 +113,7 @@ RSpec.describe Elections::Close do
     election = create(:poll, user: teacher, voter_group: voter_group)
     create(:candidate, poll: election, number: 1)
     create(:candidate, poll: election, number: 2)
-    Elections::Start.new(election).call
+    Polls::Start.new(election).call
     election.reload
   end
 

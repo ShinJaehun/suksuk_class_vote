@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe Elections::ResultSummary do
+RSpec.describe Polls::ResultSummary do
   describe "#total_voters and participation counts" do
     it "summarizes participation outcomes without candidate linkage" do
       election = create_closed_election
@@ -69,7 +69,7 @@ RSpec.describe Elections::ResultSummary do
     election = create(:poll, user: teacher, voter_group: voter_group)
     create(:candidate, poll: election, number: 1, name: "후보자1")
     create(:candidate, poll: election, number: 2, name: "후보자2")
-    Elections::Start.new(election).call
+    Polls::Start.new(election).call
     election.update!(status: :closed)
     election.polling_station.update!(status: :closed, closed_at: Time.current)
     election.reload

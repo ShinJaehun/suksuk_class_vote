@@ -1,4 +1,4 @@
-module Elections
+module Polls
   class ResumeCurrentVoter
     Result = Struct.new(:success?, :errors, keyword_init: true) do
       def error_message
@@ -6,8 +6,8 @@ module Elections
       end
     end
 
-    def initialize(election:, actor: nil)
-      @election = election
+    def initialize(poll:, actor: nil)
+      @poll = poll
       @actor = actor
       @errors = []
     end
@@ -37,10 +37,10 @@ module Elections
 
     private
 
-    attr_reader :election, :actor, :errors
+    attr_reader :poll, :actor, :errors
 
     def validate_resumable(station)
-      errors << "진행 중인 선거에서만 재개할 수 있습니다." unless election.in_progress?
+      errors << "진행 중인 선거에서만 재개할 수 있습니다." unless poll.in_progress?
       errors << "진행 중인 투표소를 찾을 수 없습니다." if station.blank?
       errors << "진행 중인 투표소에서만 재개할 수 있습니다." if station.present? && !station.active?
       errors << "현재 투표자가 이미 지정되어 있습니다." if station&.current_election_voter.present?
@@ -48,11 +48,11 @@ module Elections
     end
 
     def polling_station
-      @polling_station ||= election.polling_station
+      @polling_station ||= poll.polling_station
     end
 
     def first_unprocessed_election_voter
-      election.election_voters
+      poll.election_voters
         .left_outer_joins(:election_voter_participation)
         .where(election_voter_participations: { id: nil })
         .order(:number)
@@ -60,7 +60,7 @@ module Elections
     end
 
     def record_event(event_type, election_voter: nil, details: {})
-      election.election_events.create!(
+      poll.election_events.create!(
         actor: actor,
         election_voter: election_voter,
         event_type: event_type,
