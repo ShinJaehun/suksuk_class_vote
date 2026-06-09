@@ -97,6 +97,8 @@ RSpec.describe Election, type: :model do
       expect(election.choice_label).to eq("후보자")
       expect(election.choice_list_label).to eq("후보자")
       expect(election.choice_number_label).to eq("기호")
+      expect(election.winner_label).to eq("최다 득표 후보")
+      expect(election.vote_count_label).to eq("득표수")
     end
 
     it "returns discussion labels" do
@@ -106,6 +108,8 @@ RSpec.describe Election, type: :model do
       expect(election.choice_label).to eq("의견")
       expect(election.choice_list_label).to eq("의견")
       expect(election.choice_number_label).to eq("번호")
+      expect(election.winner_label).to eq("가장 많이 선택된 의견")
+      expect(election.vote_count_label).to eq("선택 수")
     end
 
     it "returns debate labels" do
@@ -115,6 +119,8 @@ RSpec.describe Election, type: :model do
       expect(election.choice_label).to eq("입장")
       expect(election.choice_list_label).to eq("입장")
       expect(election.choice_number_label).to eq("번호")
+      expect(election.winner_label).to eq("가장 많이 선택된 입장")
+      expect(election.vote_count_label).to eq("선택 수")
     end
   end
 end

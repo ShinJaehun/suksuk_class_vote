@@ -34,6 +34,18 @@ class Election < ApplicationRecord
     "debate" => "번호"
   }.freeze
 
+  WINNER_LABELS = {
+    "election" => "최다 득표 후보",
+    "discussion" => "가장 많이 선택된 의견",
+    "debate" => "가장 많이 선택된 입장"
+  }.freeze
+
+  VOTE_COUNT_LABELS = {
+    "election" => "득표수",
+    "discussion" => "선택 수",
+    "debate" => "선택 수"
+  }.freeze
+
   DISPLAY_STATUSES = {
     "draft" => "준비",
     "in_progress" => "진행",
@@ -75,6 +87,14 @@ class Election < ApplicationRecord
 
   def choice_number_label
     CHOICE_NUMBER_LABELS.fetch(kind, kind)
+  end
+
+  def winner_label
+    WINNER_LABELS.fetch(kind, kind)
+  end
+
+  def vote_count_label
+    VOTE_COUNT_LABELS.fetch(kind, kind)
   end
 
   def voter_group_display_name

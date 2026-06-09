@@ -835,7 +835,8 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).to include("기권 수")
       expect(response.body).to include("미처리 수")
       expect(response.body).to include("선거 결과")
-      expect(response.body).to include("최다 득표:")
+      expect(response.body).to include("최다 득표 후보:")
+      expect(response.body).to include("득표수")
       expect(response.body).to include("1번 #{candidate.name}")
       expect(response.body).to include("1번")
       expect(response.body).to include(candidate.name)
@@ -856,6 +857,34 @@ RSpec.describe "Elections", type: :request do
       expect(response.body).not_to include(close_election_path(election))
       expect(response.body).not_to include("선택한 후보")
       expect(response.body).not_to include("#{last_voter.name} #{candidate.name}")
+    end
+
+    it "shows discussion result labels for closed discussion elections" do
+      teacher = create(:user)
+      election = create_startable_election(user: teacher, kind: :discussion)
+      first_opinion = election.candidates.find_by!(number: 1)
+      second_opinion = election.candidates.find_by!(number: 2)
+      first_opinion.update!(name: "점심시간을 10분 늘리자는 의견")
+      second_opinion.update!(name: "청소 시간을 요일별로 나누자는 의견")
+      Elections::Start.new(election).call
+      last_voter = election.election_voters.order(:number).last
+      election.polling_station.update!(current_election_voter: last_voter)
+      create(:election_voter_participation, election_voter: last_voter)
+      election.candidate_tallies.find_by(candidate: first_opinion).update!(votes_count: 1)
+      Elections::Close.new(election: election).call
+      sign_in teacher
+
+      get election_path(election)
+
+      expect(response.body).to include("토의가 종료되었습니다.")
+      expect(response.body).to include("토의 결과")
+      expect(response.body).to include("가장 많이 선택된 의견:")
+      expect(response.body).to include("의견")
+      expect(response.body).to include("선택 수")
+      expect(response.body).to include("1번 점심시간을 10분 늘리자는 의견")
+      expect(response.body).to include("청소 시간을 요일별로 나누자는 의견")
+      expect(response.body).not_to include("최다 득표 후보")
+      expect(response.body).not_to include("득표수")
     end
 
     it "shows multiple top vote candidates when tied" do

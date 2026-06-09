@@ -1,5 +1,5 @@
 <div class="space-y-4">
-  <p class="text-stone-600">선거가 종료되었습니다.</p>
+  <p class="text-stone-600"><%= @election.activity_label %>가 종료되었습니다.</p>
 
   <h2 class="text-xl font-semibold">참여 요약</h2>
 
@@ -32,22 +32,22 @@
 
   <% if result_summary.top_candidate_results.any? %>
     <p class="rounded-md bg-stone-100 p-3 font-medium">
-      최다 득표:
+      <%= @election.winner_label %>:
       <%= result_summary.top_candidate_results.map { |result| "#{result.candidate.number}번 #{result.candidate.name}" }.join(", ") %>
     </p>
   <% else %>
-    <p class="rounded-md bg-stone-100 p-3 font-medium">최다 득표 후보 없음</p>
+    <p class="rounded-md bg-stone-100 p-3 font-medium"><%= @election.winner_label %> 없음</p>
   <% end %>
 
-  <h2 class="text-xl font-semibold">선거 결과</h2>
+  <h2 class="text-xl font-semibold"><%= @election.activity_label %> 결과</h2>
 
   <div class="overflow-x-auto">
     <table class="min-w-full text-left text-sm">
       <thead class="border-b border-stone-200 text-stone-500">
       <tr>
-        <th class="px-3 py-2 font-medium">기호</th>
-        <th class="px-3 py-2 font-medium">후보</th>
-        <th class="px-3 py-2 font-medium">득표수</th>
+        <th class="px-3 py-2 font-medium"><%= @election.choice_number_label %></th>
+        <th class="px-3 py-2 font-medium"><%= @election.choice_label %></th>
+        <th class="px-3 py-2 font-medium"><%= @election.vote_count_label %></th>
       </tr>
       </thead>
       <tbody class="divide-y divide-stone-100">
