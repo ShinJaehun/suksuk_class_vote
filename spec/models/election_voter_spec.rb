@@ -10,11 +10,11 @@ RSpec.describe ElectionVoter, type: :model do
   end
 
   describe "validations" do
-    it "requires an election" do
+    it "requires a poll" do
       election_voter = build(:election_voter, poll: nil)
 
       expect(election_voter).not_to be_valid
-      expect(election_voter.errors[:election]).to be_present
+      expect(election_voter.errors[:poll]).to be_present
     end
 
     it "allows a missing source voter slot" do
@@ -45,7 +45,7 @@ RSpec.describe ElectionVoter, type: :model do
       expect(election_voter.errors[:name]).to be_present
     end
 
-    it "does not allow duplicate numbers in the same election" do
+    it "does not allow duplicate numbers in the same poll" do
       election = create(:poll)
       create(:election_voter, poll: election, number: 1)
       election_voter = build(:election_voter, poll: election, number: 1)
@@ -54,18 +54,18 @@ RSpec.describe ElectionVoter, type: :model do
       expect(election_voter.errors[:number]).to be_present
     end
 
-    it "allows the same number in different elections" do
+    it "allows the same number in different polls" do
       create(:election_voter, number: 1)
       election_voter = build(:election_voter, number: 1)
 
       expect(election_voter).to be_valid
     end
 
-    it "does not allow duplicate source voter slots in the same election" do
+    it "does not allow duplicate source voter slots in the same poll" do
       election_voter = create(:election_voter)
       duplicate = build(
         :election_voter,
-        poll: election_voter.election,
+        poll: election_voter.poll,
         source_voter_slot: election_voter.source_voter_slot,
         number: election_voter.number + 1
       )
@@ -74,7 +74,7 @@ RSpec.describe ElectionVoter, type: :model do
       expect(duplicate.errors[:source_voter_slot_id]).to be_present
     end
 
-    it "allows multiple missing source voter slots in the same election" do
+    it "allows multiple missing source voter slots in the same poll" do
       election = create(:poll)
       create(:election_voter, poll: election, source_voter_slot: nil, number: 1)
       election_voter = build(:election_voter, poll: election, source_voter_slot: nil, number: 2)

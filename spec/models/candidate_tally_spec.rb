@@ -10,11 +10,11 @@ RSpec.describe CandidateTally, type: :model do
   end
 
   describe "validations" do
-    it "requires an election" do
+    it "requires a poll" do
       candidate_tally = build(:candidate_tally, poll: nil)
 
       expect(candidate_tally).not_to be_valid
-      expect(candidate_tally.errors[:election]).to be_present
+      expect(candidate_tally.errors[:poll]).to be_present
     end
 
     it "requires a candidate" do
@@ -24,7 +24,7 @@ RSpec.describe CandidateTally, type: :model do
       expect(candidate_tally.errors[:candidate]).to be_present
     end
 
-    it "requires one tally per election and candidate" do
+    it "requires one tally per poll and candidate" do
       candidate = create(:candidate)
       create(:candidate_tally, poll: candidate.poll, candidate: candidate)
       candidate_tally = build(:candidate_tally, poll: candidate.poll, candidate: candidate)
@@ -40,7 +40,7 @@ RSpec.describe CandidateTally, type: :model do
       expect(candidate_tally.errors[:votes_count]).to be_present
     end
 
-    it "requires the candidate to belong to the election" do
+    it "requires the candidate to belong to the poll" do
       election = create(:poll)
       candidate = create(:candidate)
       candidate_tally = build(:candidate_tally, poll: election, candidate: candidate)
