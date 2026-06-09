@@ -1,9 +1,9 @@
 class Poll < ApplicationRecord
   belongs_to :user
   belongs_to :voter_group, optional: true
-  has_many :candidates, dependent: :destroy
+  has_many :poll_options, dependent: :destroy
   has_many :election_voters, dependent: :destroy
-  has_many :candidate_tallies, dependent: :destroy
+  has_many :poll_option_tallies, dependent: :destroy
   has_many :election_events, dependent: :destroy
   has_one :polling_station, dependent: :destroy
 
@@ -57,8 +57,8 @@ class Poll < ApplicationRecord
   validates :voter_group, presence: true, unless: :closed?
   validate :voter_group_has_voter_slots, unless: :closed?
 
-  def readiness_candidate_count
-    candidates.count
+  def readiness_poll_option_count
+    poll_options.count
   end
 
   def readiness_voter_count
@@ -66,7 +66,7 @@ class Poll < ApplicationRecord
   end
 
   def startable_by_configuration?
-    draft? && readiness_candidate_count >= 2 && readiness_voter_count.positive?
+    draft? && readiness_poll_option_count >= 2 && readiness_voter_count.positive?
   end
 
   def display_status

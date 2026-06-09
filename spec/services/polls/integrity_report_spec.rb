@@ -60,9 +60,9 @@ RSpec.describe Polls::IntegrityReport do
       expect(report.issues.map(&:message)).to include("현재 투표자가 이 선거의 선거용 명단에 속하지 않습니다.")
     end
 
-    it "checks candidate tally count only after draft" do
+    it "checks poll_option tally count only after draft" do
       election = create_in_progress_election
-      election.candidate_tallies.first.destroy!
+      election.poll_option_tallies.first.destroy!
 
       report = described_class.new(election.reload)
 
@@ -70,11 +70,11 @@ RSpec.describe Polls::IntegrityReport do
       expect(report.issues.map(&:message)).to include("후보 수와 후보별 집계 정보 수가 일치하지 않습니다.")
     end
 
-    it "reports candidate tallies linked to candidates from another election" do
+    it "reports poll_option tallies linked to poll_options from another election" do
       election = create_in_progress_election
       other_election = create_in_progress_election
-      tally = election.candidate_tallies.first
-      tally.update_column(:candidate_id, other_election.candidates.first.id)
+      tally = election.poll_option_tallies.first
+      tally.update_column(:poll_option_id, other_election.poll_options.first.id)
 
       report = described_class.new(election.reload)
 
@@ -82,7 +82,7 @@ RSpec.describe Polls::IntegrityReport do
       expect(report.issues.map(&:message)).to include("다른 선거의 후보자가 연결된 후보별 집계 정보가 있습니다.")
     end
 
-    it "compares completed participation count with tally vote sum without voter-candidate linkage" do
+    it "compares completed participation count with tally vote sum without voter-poll_option linkage" do
       election = create_in_progress_election
       create(:election_voter_participation, election_voter: election.polling_station.current_election_voter, status: :completed)
 
@@ -94,7 +94,7 @@ RSpec.describe Polls::IntegrityReport do
 
     it "reports negative unprocessed counts" do
       election = create_in_progress_election
-      election.candidate_tallies.first.update!(votes_count: 2)
+      election.poll_option_tallies.first.update!(votes_count: 2)
 
       report = described_class.new(election)
       allow(report).to receive(:participation_counts).and_return({
@@ -112,7 +112,7 @@ RSpec.describe Polls::IntegrityReport do
       voters = election.election_voters.order(:number)
       create(:election_voter_participation, election_voter: voters[0], status: :completed)
       create(:election_voter_participation, election_voter: voters[1], status: :absent)
-      election.candidate_tallies.first.update!(votes_count: 1)
+      election.poll_option_tallies.first.update!(votes_count: 1)
 
       report = described_class.new(election)
 
@@ -245,7 +245,7 @@ RSpec.describe Polls::IntegrityReport do
     it "returns false when another integrity issue is present" do
       election = create_in_progress_election
       election.polling_station.update!(current_election_voter: nil)
-      election.candidate_tallies.first.destroy!
+      election.poll_option_tallies.first.destroy!
 
       report = described_class.new(election.reload)
 
@@ -259,8 +259,8 @@ RSpec.describe Polls::IntegrityReport do
     create(:voter_slot, voter_group: voter_group, number: 1, name: "김민준")
     create(:voter_slot, voter_group: voter_group, number: 2, name: "이서연")
     election = create(:poll, user: teacher, voter_group: voter_group)
-    create(:candidate, poll: election, number: 1)
-    create(:candidate, poll: election, number: 2)
+    create(:poll_option, poll: election, number: 1)
+    create(:poll_option, poll: election, number: 2)
     election
   end
 
@@ -275,7 +275,7 @@ RSpec.describe Polls::IntegrityReport do
     voters = election.election_voters.order(:number)
     create(:election_voter_participation, election_voter: voters[0], status: :completed)
     create(:election_voter_participation, election_voter: voters[1], status: :absent)
-    election.candidate_tallies.first.update!(votes_count: 1)
+    election.poll_option_tallies.first.update!(votes_count: 1)
     election.update!(status: :closed)
     election.polling_station.update!(status: :closed, closed_at: Time.current)
     election.reload

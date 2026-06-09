@@ -30,10 +30,10 @@
     </div>
   </dl>
 
-  <% if result_summary.top_candidate_results.any? %>
+  <% if result_summary.top_poll_option_results.any? %>
     <p class="rounded-md bg-stone-100 p-3 font-medium">
       <%= @poll.winner_label %>:
-      <%= result_summary.top_candidate_results.map { |result| "#{result.candidate.number}번 #{result.candidate.name}" }.join(", ") %>
+      <%= result_summary.top_poll_option_results.map { |result| "#{result.poll_option.number}번 #{result.poll_option.name}" }.join(", ") %>
     </p>
   <% else %>
     <p class="rounded-md bg-stone-100 p-3 font-medium"><%= @poll.winner_label %> 없음</p>
@@ -51,10 +51,10 @@
       </tr>
       </thead>
       <tbody class="divide-y divide-stone-100">
-        <% result_summary.candidate_results.each do |result| %>
+        <% result_summary.poll_option_results.each do |result| %>
           <tr>
-            <td class="px-3 py-3"><%= result.candidate.number %>번</td>
-            <td class="px-3 py-3 font-medium"><%= result.candidate.name %></td>
+            <td class="px-3 py-3"><%= result.poll_option.number %>번</td>
+            <td class="px-3 py-3 font-medium"><%= result.poll_option.name %></td>
             <td class="px-3 py-3"><%= result.votes_count %>표</td>
           </tr>
         <% end %>

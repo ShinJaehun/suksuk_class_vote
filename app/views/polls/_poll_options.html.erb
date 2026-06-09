@@ -3,11 +3,11 @@
     <h2 class="text-xl font-semibold"><%= poll.choice_list_label %></h2>
 
     <% if poll.draft? %>
-      <p><%= link_to "#{poll.choice_label} 추가", new_poll_candidate_path(poll), class: "inline-flex rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white" %></p>
+      <p><%= link_to "#{poll.choice_label} 추가", new_poll_poll_option_path(poll), class: "inline-flex rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white" %></p>
     <% end %>
   </div>
 
-  <% if poll.candidates.any? %>
+  <% if poll.poll_options.any? %>
     <div class="overflow-x-auto">
       <table class="min-w-full text-left text-sm">
         <thead class="border-b border-stone-200 text-stone-500">
@@ -18,16 +18,16 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-stone-100">
-          <% poll.candidates.order(:number).each do |candidate| %>
+          <% poll.poll_options.order(:number).each do |poll_option| %>
             <tr>
-              <td class="px-3 py-3"><%= candidate.number %>번</td>
-              <td class="px-3 py-3 font-medium"><%= candidate.name %></td>
+              <td class="px-3 py-3"><%= poll_option.number %>번</td>
+              <td class="px-3 py-3 font-medium"><%= poll_option.name %></td>
               <td class="px-3 py-3">
                 <% if poll.draft? %>
                   <div class="flex flex-wrap items-center gap-2">
-                    <%= link_to "수정", edit_poll_candidate_path(poll, candidate), class: "text-sm font-medium text-stone-700 underline" %>
+                    <%= link_to "수정", edit_poll_poll_option_path(poll, poll_option), class: "text-sm font-medium text-stone-700 underline" %>
                     <%= button_to "삭제",
-                                  poll_candidate_path(poll, candidate),
+                                  poll_poll_option_path(poll, poll_option),
                                   method: :delete,
                                   class: "text-sm font-medium text-stone-700 underline" %>
                   </div>

@@ -88,11 +88,11 @@ module Polls
     end
 
     def add_tally_issues(report_issues)
-      if poll.candidates.count != poll.candidate_tallies.count
+      if poll.poll_options.count != poll.poll_option_tallies.count
         report_issues << issue("후보 수와 후보별 집계 정보 수가 일치하지 않습니다.")
       end
 
-      if mismatched_candidate_tallies?
+      if mismatched_poll_option_tallies?
         report_issues << issue("다른 선거의 후보자가 연결된 후보별 집계 정보가 있습니다.")
       end
     end
@@ -135,8 +135,8 @@ module Polls
       issues.map(&:message) == ["진행 중인 선거의 현재 투표자를 찾을 수 없습니다."]
     end
 
-    def mismatched_candidate_tallies?
-      poll.candidate_tallies.joins(:candidate).where.not(candidates: { poll_id: poll.id }).exists?
+    def mismatched_poll_option_tallies?
+      poll.poll_option_tallies.joins(:poll_option).where.not(poll_options: { poll_id: poll.id }).exists?
     end
 
     def total_voters
@@ -160,7 +160,7 @@ module Polls
     end
 
     def votes_count
-      @votes_count ||= poll.candidate_tallies.sum(:votes_count)
+      @votes_count ||= poll.poll_option_tallies.sum(:votes_count)
     end
 
     def participation_counts

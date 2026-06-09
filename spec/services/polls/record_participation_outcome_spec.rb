@@ -32,13 +32,13 @@ RSpec.describe Polls::RecordParticipationOutcome do
       )
     end
 
-    it "does not change candidate tallies" do
+    it "does not change poll_option tallies" do
       election = create_in_progress_election
-      tally_counts = election.candidate_tallies.order(:candidate_id).pluck(:votes_count)
+      tally_counts = election.poll_option_tallies.order(:poll_option_id).pluck(:votes_count)
 
       described_class.new(poll: election, status: :absent).call
 
-      expect(election.candidate_tallies.order(:candidate_id).pluck(:votes_count)).to eq(tally_counts)
+      expect(election.poll_option_tallies.order(:poll_option_id).pluck(:votes_count)).to eq(tally_counts)
     end
 
     it "fails when current voter already has participation" do
@@ -109,8 +109,8 @@ RSpec.describe Polls::RecordParticipationOutcome do
     create(:voter_slot, voter_group: voter_group, number: 1, name: "김민준")
     create(:voter_slot, voter_group: voter_group, number: 2, name: "이서연")
     election = create(:poll, user: teacher, voter_group: voter_group)
-    create(:candidate, poll: election, number: 1)
-    create(:candidate, poll: election, number: 2)
+    create(:poll_option, poll: election, number: 1)
+    create(:poll_option, poll: election, number: 2)
     Polls::Start.new(election).call
     election.reload
   end

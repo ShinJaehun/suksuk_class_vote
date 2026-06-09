@@ -19,7 +19,7 @@ RSpec.describe ElectionEvent, type: :model do
 
   describe "validations" do
     it "requires a supported event type" do
-      event = build(:election_event, event_type: "candidate_selected")
+      event = build(:election_event, event_type: "poll_option_selected")
 
       expect(event).not_to be_valid
       expect(event.errors[:event_type]).to be_present
@@ -41,8 +41,8 @@ RSpec.describe ElectionEvent, type: :model do
       expect(event.occurred_at).to be_present
     end
 
-    it "does not allow candidate information in details" do
-      event = build(:election_event, details: { candidate_id: 1 })
+    it "does not allow poll_option information in details" do
+      event = build(:election_event, details: { poll_option_id: 1 })
 
       expect(event).not_to be_valid
       expect(event.errors[:details]).to be_present

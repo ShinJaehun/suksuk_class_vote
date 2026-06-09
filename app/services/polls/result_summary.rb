@@ -1,6 +1,6 @@
 module Polls
   class ResultSummary
-    CandidateResult = Struct.new(:candidate, :votes_count, keyword_init: true)
+    PollOptionResult = Struct.new(:poll_option, :votes_count, keyword_init: true)
 
     def initialize(poll)
       @poll = poll
@@ -26,20 +26,20 @@ module Polls
       total_voters - participation_counts.values.sum
     end
 
-    def candidate_results
-      @candidate_results ||= poll.candidates.order(:number).map do |candidate|
-        CandidateResult.new(
-          candidate: candidate,
-          votes_count: tally_counts.fetch(candidate.id, 0)
+    def poll_option_results
+      @poll_option_results ||= poll.poll_options.order(:number).map do |poll_option|
+        PollOptionResult.new(
+          poll_option: poll_option,
+          votes_count: tally_counts.fetch(poll_option.id, 0)
         )
       end
     end
 
-    def top_candidate_results
-      max_votes = candidate_results.map(&:votes_count).max.to_i
+    def top_poll_option_results
+      max_votes = poll_option_results.map(&:votes_count).max.to_i
       return [] if max_votes.zero?
 
-      candidate_results.select { |result| result.votes_count == max_votes }
+      poll_option_results.select { |result| result.votes_count == max_votes }
     end
 
     private
@@ -55,7 +55,7 @@ module Polls
     end
 
     def tally_counts
-      @tally_counts ||= poll.candidate_tallies.pluck(:candidate_id, :votes_count).to_h
+      @tally_counts ||= poll.poll_option_tallies.pluck(:poll_option_id, :votes_count).to_h
     end
   end
 end

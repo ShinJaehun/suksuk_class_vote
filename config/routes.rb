@@ -9,7 +9,7 @@ Rails.application.routes.draw do
     post :advance_current_voter, on: :member
     post :resume_current_voter, on: :member
     post :close, on: :member
-    resources :candidates, only: %i[new create edit update destroy]
+    resources :poll_options, path: "options", only: %i[new create edit update destroy]
   end
   resources :voter_groups, only: %i[index show new create edit update destroy] do
     resources :voter_slots, only: %i[new create edit update destroy]

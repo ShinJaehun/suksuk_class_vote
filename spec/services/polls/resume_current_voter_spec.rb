@@ -44,19 +44,19 @@ RSpec.describe Polls::ResumeCurrentVoter do
       expect(election.polling_station.reload.current_election_voter).to be_nil
     end
 
-    it "does not change participation, candidate tallies, or election status" do
+    it "does not change participation, poll_option tallies, or election status" do
       election = create_in_progress_election
       voters = election.election_voters.order(:number)
       create(:election_voter_participation, election_voter: voters[0], status: :completed)
-      candidate_tally = election.candidate_tallies.first
-      candidate_tally.update!(votes_count: 1)
+      poll_option_tally = election.poll_option_tallies.first
+      poll_option_tally.update!(votes_count: 1)
       election.polling_station.update!(current_election_voter: nil)
 
       expect do
         described_class.new(poll: election).call
       end.not_to change(ElectionVoterParticipation, :count)
 
-      expect(candidate_tally.reload.votes_count).to eq(1)
+      expect(poll_option_tally.reload.votes_count).to eq(1)
       expect(election.reload).to be_in_progress
     end
   end
@@ -67,8 +67,8 @@ RSpec.describe Polls::ResumeCurrentVoter do
     create(:voter_slot, voter_group: voter_group, number: 1, name: "김민준")
     create(:voter_slot, voter_group: voter_group, number: 2, name: "이서연")
     election = create(:poll, user: teacher, voter_group: voter_group)
-    create(:candidate, poll: election, number: 1)
-    create(:candidate, poll: election, number: 2)
+    create(:poll_option, poll: election, number: 1)
+    create(:poll_option, poll: election, number: 2)
     Polls::Start.new(election).call
     election.reload
   end

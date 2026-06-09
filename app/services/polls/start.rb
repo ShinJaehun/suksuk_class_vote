@@ -20,7 +20,7 @@ module Polls
 
       Poll.transaction do
         create_snapshot
-        create_candidate_tallies
+        create_poll_option_tallies
         first_election_voter = poll.election_voters.order(:number).first
         poll.update!(
           status: :in_progress,
@@ -36,7 +36,7 @@ module Polls
           election_voter: first_election_voter,
           details: {
             voter_count: poll.election_voters.count,
-            candidate_count: poll.candidate_tallies.count
+            poll_option_count: poll.poll_option_tallies.count
           }
         )
       end
@@ -54,17 +54,17 @@ module Polls
     def validate_startable
       errors << "draft 상태의 선거만 시작할 수 있습니다." unless poll.draft?
 
-      candidate_count = poll.candidates.count
-      if candidate_count.zero?
+      poll_option_count = poll.poll_options.count
+      if poll_option_count.zero?
         errors << "후보자가 2명 이상 있어야 선거를 시작할 수 있습니다."
-      elsif candidate_count == 1
+      elsif poll_option_count == 1
         errors << SINGLE_CANDIDATE_MESSAGE
       end
 
       errors << "투표자 명단이 1명 이상 있어야 선거를 시작할 수 있습니다." if voter_slots.empty?
       errors << "이미 선거용 명단이 생성된 선거입니다." if poll.election_voters.exists?
       errors << "이미 투표 진행 정보가 생성된 선거입니다." if poll.polling_station.present?
-      errors << "이미 후보별 집계 정보가 생성된 선거입니다." if poll.candidate_tallies.exists?
+      errors << "이미 후보별 집계 정보가 생성된 선거입니다." if poll.poll_option_tallies.exists?
     end
 
     def create_snapshot
@@ -77,10 +77,10 @@ module Polls
       end
     end
 
-    def create_candidate_tallies
-      poll.candidates.order(:number).each do |candidate|
-        poll.candidate_tallies.create!(
-          candidate: candidate,
+    def create_poll_option_tallies
+      poll.poll_options.order(:number).each do |poll_option|
+        poll.poll_option_tallies.create!(
+          poll_option: poll_option,
           votes_count: 0
         )
       end

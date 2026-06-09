@@ -44,8 +44,8 @@ class PollsController < ApplicationController
   def submit_vote
     authorize @poll, :submit_vote?
 
-    candidate = @poll.candidates.find_by(id: params[:candidate_id])
-    result = Polls::SubmitVote.new(poll: @poll, candidate: candidate, actor: current_user).call
+    poll_option = @poll.poll_options.find_by(id: params[:poll_option_id])
+    result = Polls::SubmitVote.new(poll: @poll, poll_option: poll_option, actor: current_user).call
 
     if result.success?
       broadcast_operation_progress

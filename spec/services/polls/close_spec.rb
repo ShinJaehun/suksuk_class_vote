@@ -111,8 +111,8 @@ RSpec.describe Polls::Close do
     create(:voter_slot, voter_group: voter_group, number: 1, name: "김민준")
     create(:voter_slot, voter_group: voter_group, number: 2, name: "이서연")
     election = create(:poll, user: teacher, voter_group: voter_group)
-    create(:candidate, poll: election, number: 1)
-    create(:candidate, poll: election, number: 2)
+    create(:poll_option, poll: election, number: 1)
+    create(:poll_option, poll: election, number: 2)
     Polls::Start.new(election).call
     election.reload
   end

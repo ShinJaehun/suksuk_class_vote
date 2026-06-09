@@ -28,9 +28,9 @@ class ElectionEvent < ApplicationRecord
   ].freeze
 
   FORBIDDEN_DETAIL_KEYS = %w[
-    candidate_id
-    candidate_name
-    candidate_number
+    poll_option_id
+    poll_option_name
+    poll_option_number
   ].freeze
 
   belongs_to :poll
@@ -43,7 +43,7 @@ class ElectionEvent < ApplicationRecord
   validates :event_type, presence: true, inclusion: { in: EVENT_TYPES }
   validates :occurred_at, presence: true
   validate :details_is_hash
-  validate :details_do_not_include_candidate_information
+  validate :details_do_not_include_poll_option_information
 
   def display_label
     DISPLAY_LABELS.fetch(event_type, event_type)
@@ -68,13 +68,13 @@ class ElectionEvent < ApplicationRecord
     self.occurred_at ||= Time.current
   end
 
-  def details_do_not_include_candidate_information
+  def details_do_not_include_poll_option_information
     return if details.blank?
 
     forbidden_keys = flattened_detail_keys(details) & FORBIDDEN_DETAIL_KEYS
     return if forbidden_keys.empty?
 
-    errors.add(:details, "must not include candidate information")
+    errors.add(:details, "must not include poll_option information")
   end
 
   def details_is_hash

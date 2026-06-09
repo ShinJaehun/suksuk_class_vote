@@ -1,6 +1,6 @@
-class Candidate < ApplicationRecord
+class PollOption < ApplicationRecord
   belongs_to :poll
-  has_one :candidate_tally, dependent: :destroy
+  has_one :poll_option_tally, dependent: :destroy
 
   validates :poll, presence: true
   validates :number, presence: true,

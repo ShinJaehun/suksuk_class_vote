@@ -1,19 +1,19 @@
-class CandidatesController < ApplicationController
+class PollOptionsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_poll
   before_action :authorize_poll
   before_action :ensure_draft_poll
-  before_action :set_candidate, only: %i[edit update destroy]
+  before_action :set_poll_option, only: %i[edit update destroy]
 
   def new
-    @candidate = @poll.candidates.build(number: next_number)
+    @poll_option = @poll.poll_options.build(number: next_number)
   end
 
   def create
-    @candidate = @poll.candidates.build(candidate_params)
-    @candidate.number = next_number
+    @poll_option = @poll.poll_options.build(poll_option_params)
+    @poll_option.number = next_number
 
-    if @candidate.save
+    if @poll_option.save
       redirect_to @poll, notice: "#{choice_object_label} 추가했습니다."
     else
       render :new, status: :unprocessable_entity
@@ -24,7 +24,7 @@ class CandidatesController < ApplicationController
   end
 
   def update
-    if @candidate.update(candidate_params)
+    if @poll_option.update(poll_option_params)
       redirect_to @poll, notice: "#{choice_object_label} 수정했습니다."
     else
       render :edit, status: :unprocessable_entity
@@ -32,7 +32,7 @@ class CandidatesController < ApplicationController
   end
 
   def destroy
-    @candidate.destroy
+    @poll_option.destroy
     redirect_to @poll, notice: "#{choice_object_label} 삭제했습니다."
   end
 
@@ -52,16 +52,16 @@ class CandidatesController < ApplicationController
     redirect_to @poll, alert: "draft 상태의 투표에서만 #{choice_object_label} 관리할 수 있습니다."
   end
 
-  def set_candidate
-    @candidate = @poll.candidates.find(params[:id])
+  def set_poll_option
+    @poll_option = @poll.poll_options.find(params[:id])
   end
 
   def next_number
-    @poll.candidates.maximum(:number).to_i + 1
+    @poll.poll_options.maximum(:number).to_i + 1
   end
 
-  def candidate_params
-    params.require(:candidate).permit(:name)
+  def poll_option_params
+    params.require(:poll_option).permit(:name)
   end
 
   def choice_object_label

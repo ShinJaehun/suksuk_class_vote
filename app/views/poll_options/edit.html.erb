@@ -5,11 +5,11 @@
     <h1 class="text-2xl font-semibold"><%= @poll.choice_label %> 수정</h1>
   </div>
 
-  <% if @candidate.errors.any? %>
+  <% if @poll_option.errors.any? %>
     <div class="rounded-md border border-red-200 bg-red-50 p-4 text-red-800">
       <h2 class="font-medium"><%= @poll.election? ? "후보자를" : "#{@poll.choice_label}을" %> 수정할 수 없습니다.</h2>
       <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
-        <% @candidate.errors.full_messages.each do |message| %>
+        <% @poll_option.errors.full_messages.each do |message| %>
           <li><%= message %></li>
         <% end %>
       </ul>
@@ -17,8 +17,8 @@
   <% end %>
 
   <div class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
-    <p class="text-sm text-stone-600"><%= @candidate.number %>번 <%= @poll.choice_label %>입니다.</p>
+    <p class="text-sm text-stone-600"><%= @poll_option.number %>번 <%= @poll.choice_label %>입니다.</p>
 
-    <%= render "form", poll: @poll, candidate: @candidate, submit_label: "저장" %>
+    <%= render "form", poll: @poll, poll_option: @poll_option, submit_label: "저장" %>
   </div>
 </div>

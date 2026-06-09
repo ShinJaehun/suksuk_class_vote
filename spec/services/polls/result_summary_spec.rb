@@ -2,7 +2,7 @@ require "rails_helper"
 
 RSpec.describe Polls::ResultSummary do
   describe "#total_voters and participation counts" do
-    it "summarizes participation outcomes without candidate linkage" do
+    it "summarizes participation outcomes without poll_option linkage" do
       election = create_closed_election
       voters = election.election_voters.order(:number)
       create(:election_voter_participation, election_voter: voters[0], status: :completed)
@@ -19,43 +19,43 @@ RSpec.describe Polls::ResultSummary do
     end
   end
 
-  describe "#candidate_results" do
-    it "uses existing candidate tally counts" do
+  describe "#poll_option_results" do
+    it "uses existing poll_option tally counts" do
       election = create_closed_election
-      candidate = election.candidates.order(:number).first
-      election.candidate_tallies.find_by(candidate: candidate).update!(votes_count: 3)
+      poll_option = election.poll_options.order(:number).first
+      election.poll_option_tallies.find_by(poll_option: poll_option).update!(votes_count: 3)
 
-      result = described_class.new(election).candidate_results.first
+      result = described_class.new(election).poll_option_results.first
 
-      expect(result.candidate).to eq(candidate)
+      expect(result.poll_option).to eq(poll_option)
       expect(result.votes_count).to eq(3)
     end
   end
 
-  describe "#top_candidate_results" do
-    it "returns candidates with the most votes" do
+  describe "#top_poll_option_results" do
+    it "returns poll_options with the most votes" do
       election = create_closed_election
-      candidate = election.candidates.order(:number).first
-      election.candidate_tallies.find_by(candidate: candidate).update!(votes_count: 2)
+      poll_option = election.poll_options.order(:number).first
+      election.poll_option_tallies.find_by(poll_option: poll_option).update!(votes_count: 2)
 
-      top_results = described_class.new(election).top_candidate_results
+      top_results = described_class.new(election).top_poll_option_results
 
-      expect(top_results.map(&:candidate)).to eq([candidate])
+      expect(top_results.map(&:poll_option)).to eq([poll_option])
     end
 
-    it "returns multiple top candidates when tied" do
+    it "returns multiple top poll_options when tied" do
       election = create_closed_election
-      election.candidate_tallies.update_all(votes_count: 2)
+      election.poll_option_tallies.update_all(votes_count: 2)
 
-      top_results = described_class.new(election).top_candidate_results
+      top_results = described_class.new(election).top_poll_option_results
 
-      expect(top_results.map(&:candidate)).to match_array(election.candidates)
+      expect(top_results.map(&:poll_option)).to match_array(election.poll_options)
     end
 
-    it "returns no top candidates when all candidates have zero votes" do
+    it "returns no top poll_options when all poll_options have zero votes" do
       election = create_closed_election
 
-      expect(described_class.new(election).top_candidate_results).to be_empty
+      expect(described_class.new(election).top_poll_option_results).to be_empty
     end
   end
 
@@ -67,8 +67,8 @@ RSpec.describe Polls::ResultSummary do
     create(:voter_slot, voter_group: voter_group, number: 3, name: "박지호")
     create(:voter_slot, voter_group: voter_group, number: 4, name: "최지우")
     election = create(:poll, user: teacher, voter_group: voter_group)
-    create(:candidate, poll: election, number: 1, name: "후보자1")
-    create(:candidate, poll: election, number: 2, name: "후보자2")
+    create(:poll_option, poll: election, number: 1, name: "후보자1")
+    create(:poll_option, poll: election, number: 2, name: "후보자2")
     Polls::Start.new(election).call
     election.update!(status: :closed)
     election.polling_station.update!(status: :closed, closed_at: Time.current)

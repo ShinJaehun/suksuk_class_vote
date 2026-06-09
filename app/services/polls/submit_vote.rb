@@ -6,9 +6,9 @@ module Polls
       end
     end
 
-    def initialize(poll:, candidate:, actor: nil)
+    def initialize(poll:, poll_option:, actor: nil)
       @poll = poll
-      @candidate = candidate
+      @poll_option = poll_option
       @actor = actor
       @errors = []
     end
@@ -22,8 +22,8 @@ module Polls
         current_election_voter = locked_polling_station.current_election_voter
         current_election_voter.lock!
 
-        candidate_tally.lock!
-        candidate_tally.update!(votes_count: candidate_tally.votes_count + 1)
+        poll_option_tally.lock!
+        poll_option_tally.update!(votes_count: poll_option_tally.votes_count + 1)
         current_election_voter.create_election_voter_participation!(
           status: :completed,
           recorded_at: Time.current
@@ -39,16 +39,16 @@ module Polls
 
     private
 
-    attr_reader :poll, :candidate, :actor, :errors
+    attr_reader :poll, :poll_option, :actor, :errors
 
     def validate_submittable
       errors << "진행 중인 선거에만 투표할 수 있습니다." unless poll.in_progress?
       errors << "진행 중인 투표소를 찾을 수 없습니다." if polling_station.blank?
       errors << "진행 중인 투표소에만 투표할 수 있습니다." if polling_station.present? && !polling_station.active?
       errors << "현재 투표자를 찾을 수 없습니다." if current_election_voter.blank?
-      errors << "이 선거의 후보자에게만 투표할 수 있습니다." unless candidate_belongs_to_poll?
+      errors << "이 선거의 후보자에게만 투표할 수 있습니다." unless poll_option_belongs_to_poll?
       errors << "이미 투표 완료 처리된 투표자입니다." if current_election_voter&.election_voter_participation.present?
-      errors << "후보별 집계 정보를 찾을 수 없습니다." if candidate_tally.blank?
+      errors << "후보별 집계 정보를 찾을 수 없습니다." if poll_option_tally.blank?
     end
 
     def polling_station
@@ -59,14 +59,14 @@ module Polls
       @current_election_voter ||= polling_station&.current_election_voter
     end
 
-    def candidate_belongs_to_poll?
-      candidate.present? && candidate.poll_id == poll.id
+    def poll_option_belongs_to_poll?
+      poll_option.present? && poll_option.poll_id == poll.id
     end
 
-    def candidate_tally
-      return nil unless candidate_belongs_to_poll?
+    def poll_option_tally
+      return nil unless poll_option_belongs_to_poll?
 
-      @candidate_tally ||= poll.candidate_tallies.find_by(candidate: candidate)
+      @poll_option_tally ||= poll.poll_option_tallies.find_by(poll_option: poll_option)
     end
 
     def record_event(event_type, election_voter: nil, details: {})
