@@ -56,7 +56,7 @@ module Polls
     end
 
     def event_type
-      "voter_marked_#{status}"
+      "participant_marked_#{status}"
     end
 
     def record_event(event_type, poll_participant: nil, details: {})

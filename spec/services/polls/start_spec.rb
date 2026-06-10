@@ -29,7 +29,7 @@ RSpec.describe Polls::Start do
       )
       expect(election.poll_progress.started_at).to be_present
       expect(election.poll_events.last).to have_attributes(
-        event_type: "election_started",
+        event_type: "poll_started",
         poll_participant: election.poll_participants.order(:number).first
       )
       expect(election.poll_events.last.details).to include(

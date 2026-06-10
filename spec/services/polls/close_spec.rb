@@ -14,7 +14,7 @@ RSpec.describe Polls::Close do
       expect(election.poll_progress).to be_closed
       expect(election.poll_progress.closed_at).to be_present
       expect(election.poll_events.last).to have_attributes(
-        event_type: "election_closed",
+        event_type: "poll_closed",
         poll_participant: last_voter
       )
     end

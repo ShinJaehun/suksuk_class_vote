@@ -6,9 +6,9 @@
       <ul class="divide-y divide-stone-200">
         <% poll_events.each do |event| %>
           <% target =
-            if event.election_level_event?
+            if event.poll_level_event?
               event.actor&.name.presence || event.actor&.email
-            elsif event.voter_level_event? && event.poll_participant.present?
+            elsif event.participant_level_event? && event.poll_participant.present?
               "#{event.poll_participant.number}번 #{event.poll_participant.name}"
             end
           %>

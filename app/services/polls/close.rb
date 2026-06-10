@@ -22,7 +22,7 @@ module Polls
         locked_poll_progress = poll_progress.lock!
         poll.update!(status: :closed)
         locked_poll_progress.update!(status: :closed, closed_at: Time.current)
-        record_event("election_closed", poll_participant: current_poll_participant)
+        record_event("poll_closed", poll_participant: current_poll_participant)
       end
 
       success

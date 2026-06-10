@@ -26,7 +26,7 @@ RSpec.describe PollEvent, type: :model do
     end
 
     it "defaults details to an empty hash" do
-      event = described_class.new(poll: build(:poll), event_type: "election_started")
+      event = described_class.new(poll: build(:poll), event_type: "poll_started")
 
       event.valid?
 
@@ -34,7 +34,7 @@ RSpec.describe PollEvent, type: :model do
     end
 
     it "defaults occurred_at" do
-      event = described_class.new(poll: build(:poll), event_type: "election_started")
+      event = described_class.new(poll: build(:poll), event_type: "poll_started")
 
       event.valid?
 

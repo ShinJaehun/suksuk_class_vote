@@ -23,7 +23,7 @@ module Polls
 
         locked_poll_progress.update!(current_poll_participant: first_unprocessed_poll_participant)
         record_event(
-          "current_voter_resumed",
+          "current_participant_resumed",
           poll_participant: first_unprocessed_poll_participant,
           details: { to_poll_participant_id: first_unprocessed_poll_participant.id }
         )

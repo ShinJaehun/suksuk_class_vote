@@ -1,30 +1,30 @@
 class PollEvent < ApplicationRecord
   EVENT_TYPES = %w[
-    election_started
+    poll_started
     vote_completed
-    voter_marked_absent
-    voter_marked_abstained
-    current_voter_advanced
-    current_voter_resumed
-    election_closed
+    participant_marked_absent
+    participant_marked_abstained
+    current_participant_advanced
+    current_participant_resumed
+    poll_closed
   ].freeze
 
   DISPLAY_LABELS = {
-    "election_started" => "선거 시작",
+    "poll_started" => "투표 시작",
     "vote_completed" => "투표 완료",
-    "voter_marked_absent" => "미참여",
-    "voter_marked_abstained" => "기권",
-    "current_voter_resumed" => "첫 미처리 학생으로 재개",
-    "election_closed" => "선거 종료"
+    "participant_marked_absent" => "미참여",
+    "participant_marked_abstained" => "기권",
+    "current_participant_resumed" => "첫 미처리 참여자로 재개",
+    "poll_closed" => "투표 종료"
   }.freeze
 
   DISPLAYABLE_EVENT_TYPES = DISPLAY_LABELS.keys.freeze
-  ELECTION_LEVEL_EVENT_TYPES = %w[election_started election_closed].freeze
-  VOTER_LEVEL_EVENT_TYPES = %w[
+  POLL_LEVEL_EVENT_TYPES = %w[poll_started poll_closed].freeze
+  PARTICIPANT_LEVEL_EVENT_TYPES = %w[
     vote_completed
-    voter_marked_absent
-    voter_marked_abstained
-    current_voter_resumed
+    participant_marked_absent
+    participant_marked_abstained
+    current_participant_resumed
   ].freeze
 
   FORBIDDEN_DETAIL_KEYS = %w[
@@ -49,16 +49,16 @@ class PollEvent < ApplicationRecord
     DISPLAY_LABELS.fetch(event_type, event_type)
   end
 
-  def displayable_in_election_log?
+  def displayable_in_poll_log?
     event_type.in?(DISPLAYABLE_EVENT_TYPES)
   end
 
-  def election_level_event?
-    event_type.in?(ELECTION_LEVEL_EVENT_TYPES)
+  def poll_level_event?
+    event_type.in?(POLL_LEVEL_EVENT_TYPES)
   end
 
-  def voter_level_event?
-    event_type.in?(VOTER_LEVEL_EVENT_TYPES)
+  def participant_level_event?
+    event_type.in?(PARTICIPANT_LEVEL_EVENT_TYPES)
   end
 
   private

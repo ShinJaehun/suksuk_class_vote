@@ -22,7 +22,7 @@ module Polls
         locked_poll_progress = poll_progress.lock!
         locked_poll_progress.update!(current_poll_participant: next_poll_participant)
         record_event(
-          "current_voter_advanced",
+          "current_participant_advanced",
           poll_participant: next_poll_participant,
           details: {
             from_poll_participant_id: current_poll_participant.id,

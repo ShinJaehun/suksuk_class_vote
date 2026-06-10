@@ -13,7 +13,7 @@ RSpec.describe Polls::ResumeCurrentVoter do
       expect(result).to be_success
       expect(election.poll_progress.reload.current_poll_participant).to eq(voters[1])
       expect(election.poll_events.last).to have_attributes(
-        event_type: "current_voter_resumed",
+        event_type: "current_participant_resumed",
         poll_participant: voters[1]
       )
       expect(election.poll_events.last.details).to include("to_poll_participant_id" => voters[1].id)

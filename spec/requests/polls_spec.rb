@@ -227,20 +227,20 @@ RSpec.describe "Polls", type: :request do
       election = create_started_election(user: teacher)
       poll_option = election.poll_options.order(:number).first
       voters = election.poll_participants.order(:number)
-      create(:poll_event, poll: election, actor: teacher, event_type: "election_started", details: { voter_count: 2, poll_option_count: 2 })
-      create(:poll_event, poll: election, actor: teacher, event_type: "election_closed")
+      create(:poll_event, poll: election, actor: teacher, event_type: "poll_started", details: { voter_count: 2, poll_option_count: 2 })
+      create(:poll_event, poll: election, actor: teacher, event_type: "poll_closed")
       create(:poll_event, poll: election, actor: teacher, poll_participant: voters[0], event_type: "vote_completed")
-      create(:poll_event, poll: election, actor: teacher, poll_participant: voters[0], event_type: "voter_marked_absent")
-      create(:poll_event, poll: election, actor: teacher, poll_participant: voters[1], event_type: "voter_marked_abstained")
-      create(:poll_event, poll: election, actor: teacher, poll_participant: voters[1], event_type: "current_voter_advanced", details: { from_poll_participant_id: voters[0].id, to_poll_participant_id: voters[1].id })
+      create(:poll_event, poll: election, actor: teacher, poll_participant: voters[0], event_type: "participant_marked_absent")
+      create(:poll_event, poll: election, actor: teacher, poll_participant: voters[1], event_type: "participant_marked_abstained")
+      create(:poll_event, poll: election, actor: teacher, poll_participant: voters[1], event_type: "current_participant_advanced", details: { from_poll_participant_id: voters[0].id, to_poll_participant_id: voters[1].id })
       sign_in teacher
 
       get poll_path(election)
 
       event_log = response.body.match(%r{<section[^>]*data-testid="poll-event-log"[^>]*>.*?</section>}m).to_s
       expect(event_log).to include("운영 기록")
-      expect(event_log).to include("선거 시작")
-      expect(event_log).to include("선거 종료")
+      expect(event_log).to include("투표 시작")
+      expect(event_log).to include("투표 종료")
       expect(event_log).to include("담임교사")
       expect(event_log).to include("투표 완료")
       expect(event_log).to include("#{voters[0].number}번 #{voters[0].name}")

@@ -32,7 +32,7 @@ module Polls
           started_at: Time.current
         )
         record_event(
-          "election_started",
+          "poll_started",
           poll_participant: first_poll_participant,
           details: {
             voter_count: poll.poll_participants.count,
