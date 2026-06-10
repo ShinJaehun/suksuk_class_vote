@@ -40,7 +40,7 @@ module Polls
 
     def guidance_message
       if poll.draft?
-        "투표 시작 전 상태입니다. 시작 후 투표자 명단과 후보별 집계가 생성됩니다."
+        "투표 시작 전 상태입니다."
       elsif poll.in_progress? && ok?
         "진행 상태가 정상입니다."
       elsif poll.in_progress?

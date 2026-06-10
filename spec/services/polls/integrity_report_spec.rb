@@ -173,7 +173,7 @@ RSpec.describe Polls::IntegrityReport do
     it "returns draft guidance" do
       report = described_class.new(create_startable_poll)
 
-      expect(report.guidance_message).to eq("투표 시작 전 상태입니다. 시작 후 투표자 명단과 후보별 집계가 생성됩니다.")
+      expect(report.guidance_message).to eq("투표 시작 전 상태입니다.")
     end
 
     it "returns in-progress ok guidance" do

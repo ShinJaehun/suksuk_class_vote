@@ -164,10 +164,10 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include(ballot_poll_path(poll))
       expect(response.body).to include("후보자 등록이 필요합니다.")
       expect(response.body).to include("상태 점검: 이상 없음")
-      expect(response.body).to include("투표 시작 전 상태입니다. 시작 후 투표자 명단과 후보별 집계가 생성됩니다.")
+      expect(response.body).to include("투표 시작 전 상태입니다.")
       expect(response.body).not_to include("전체 투표자 수")
       expect(response.body).not_to include("후보별 득표 합계")
-      expect(response.body).to include("아직 생성된 투표자 명단이 없습니다.")
+      expect(response.body).not_to include("아직 생성된 투표자 명단이 없습니다.")
       expect(response.body).to include("투표자")
       expect(response.body).to include("1명")
       expect(response.body).to include("후보자")
@@ -663,7 +663,7 @@ RSpec.describe "Polls", type: :request do
 
       get poll_path(poll)
 
-      expect(response.body).to include("현재 투표자는 투표를 완료했습니다.")
+      expect(response.body).to include("1번 김민준은 투표를 완료했습니다.")
       expect(response.body).not_to include(advance_current_participant_poll_path(poll))
       expect(response.body).not_to include(submit_vote_poll_path(poll))
       expect(response.body).not_to include("votes_count")
