@@ -1,4 +1,4 @@
-class ElectionEvent < ApplicationRecord
+class PollEvent < ApplicationRecord
   EVENT_TYPES = %w[
     election_started
     vote_completed

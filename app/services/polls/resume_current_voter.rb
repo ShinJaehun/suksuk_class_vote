@@ -60,7 +60,7 @@ module Polls
     end
 
     def record_event(event_type, poll_participant: nil, details: {})
-      poll.election_events.create!(
+      poll.poll_events.create!(
         actor: actor,
         poll_participant: poll_participant,
         event_type: event_type,

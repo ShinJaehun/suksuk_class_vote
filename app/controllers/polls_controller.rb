@@ -159,8 +159,8 @@ class PollsController < ApplicationController
   end
 
   def operation_event_log_events
-    @poll.election_events
-      .where(event_type: ElectionEvent::DISPLAYABLE_EVENT_TYPES)
+    @poll.poll_events
+      .where(event_type: PollEvent::DISPLAYABLE_EVENT_TYPES)
       .includes(:actor, :poll_participant)
       .order(occurred_at: :desc)
       .limit(10)

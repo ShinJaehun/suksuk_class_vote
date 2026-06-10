@@ -11,7 +11,7 @@ RSpec.describe Polls::RecordParticipationOutcome do
       expect(result).to be_success
       expect(current_voter.reload.poll_participation).to be_absent
       expect(current_voter.poll_participation.recorded_at).to be_present
-      expect(election.election_events.last).to have_attributes(
+      expect(election.poll_events.last).to have_attributes(
         event_type: "voter_marked_absent",
         poll_participant: current_voter
       )
@@ -26,7 +26,7 @@ RSpec.describe Polls::RecordParticipationOutcome do
       expect(result).to be_success
       expect(current_voter.reload.poll_participation).to be_abstained
       expect(current_voter.poll_participation.recorded_at).to be_present
-      expect(election.election_events.last).to have_attributes(
+      expect(election.poll_events.last).to have_attributes(
         event_type: "voter_marked_abstained",
         poll_participant: current_voter
       )

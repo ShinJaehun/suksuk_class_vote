@@ -227,12 +227,12 @@ RSpec.describe "Polls", type: :request do
       election = create_started_election(user: teacher)
       poll_option = election.poll_options.order(:number).first
       voters = election.poll_participants.order(:number)
-      create(:election_event, poll: election, actor: teacher, event_type: "election_started", details: { voter_count: 2, poll_option_count: 2 })
-      create(:election_event, poll: election, actor: teacher, event_type: "election_closed")
-      create(:election_event, poll: election, actor: teacher, poll_participant: voters[0], event_type: "vote_completed")
-      create(:election_event, poll: election, actor: teacher, poll_participant: voters[0], event_type: "voter_marked_absent")
-      create(:election_event, poll: election, actor: teacher, poll_participant: voters[1], event_type: "voter_marked_abstained")
-      create(:election_event, poll: election, actor: teacher, poll_participant: voters[1], event_type: "current_voter_advanced", details: { from_poll_participant_id: voters[0].id, to_poll_participant_id: voters[1].id })
+      create(:poll_event, poll: election, actor: teacher, event_type: "election_started", details: { voter_count: 2, poll_option_count: 2 })
+      create(:poll_event, poll: election, actor: teacher, event_type: "election_closed")
+      create(:poll_event, poll: election, actor: teacher, poll_participant: voters[0], event_type: "vote_completed")
+      create(:poll_event, poll: election, actor: teacher, poll_participant: voters[0], event_type: "voter_marked_absent")
+      create(:poll_event, poll: election, actor: teacher, poll_participant: voters[1], event_type: "voter_marked_abstained")
+      create(:poll_event, poll: election, actor: teacher, poll_participant: voters[1], event_type: "current_voter_advanced", details: { from_poll_participant_id: voters[0].id, to_poll_participant_id: voters[1].id })
       sign_in teacher
 
       get poll_path(election)

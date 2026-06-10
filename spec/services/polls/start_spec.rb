@@ -28,11 +28,11 @@ RSpec.describe Polls::Start do
         status: "active"
       )
       expect(election.poll_progress.started_at).to be_present
-      expect(election.election_events.last).to have_attributes(
+      expect(election.poll_events.last).to have_attributes(
         event_type: "election_started",
         poll_participant: election.poll_participants.order(:number).first
       )
-      expect(election.election_events.last.details).to include(
+      expect(election.poll_events.last.details).to include(
         "voter_count" => 2,
         "poll_option_count" => 2
       )
@@ -45,7 +45,7 @@ RSpec.describe Polls::Start do
       result = described_class.new(election, actor: actor).call
 
       expect(result).to be_success
-      expect(election.election_events.last.actor).to eq(actor)
+      expect(election.poll_events.last.actor).to eq(actor)
     end
 
     it "preserves voter slot values from the start moment" do

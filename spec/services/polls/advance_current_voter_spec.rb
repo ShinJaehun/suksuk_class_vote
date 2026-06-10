@@ -13,11 +13,11 @@ RSpec.describe Polls::AdvanceCurrentVoter do
       expect(result).to be_success
       expect(election.poll_progress.reload.current_poll_participant).to eq(next_voter)
       expect(next_voter.poll_participation).to be_nil
-      expect(election.election_events.last).to have_attributes(
+      expect(election.poll_events.last).to have_attributes(
         event_type: "current_voter_advanced",
         poll_participant: next_voter
       )
-      expect(election.election_events.last.details).to include(
+      expect(election.poll_events.last.details).to include(
         "from_poll_participant_id" => first_voter.id,
         "to_poll_participant_id" => next_voter.id
       )

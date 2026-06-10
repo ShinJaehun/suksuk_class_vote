@@ -12,7 +12,7 @@ RSpec.describe Polls::SubmitVote do
       expect(result).to be_success
       expect(election.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(1)
       expect(current_poll_participant.reload.poll_participation).to have_attributes(status: "completed")
-      expect(election.election_events.last).to have_attributes(
+      expect(election.poll_events.last).to have_attributes(
         event_type: "vote_completed",
         poll_participant: current_poll_participant
       )
@@ -26,7 +26,7 @@ RSpec.describe Polls::SubmitVote do
 
       participation = election.poll_progress.current_poll_participant.poll_participation
       poll_option_tally = election.poll_option_tallies.find_by(poll_option: poll_option)
-      event = election.election_events.last
+      event = election.poll_events.last
 
       expect(participation).not_to respond_to(:poll_option_id)
       expect(poll_option_tally).not_to respond_to(:poll_participant_id)
@@ -47,7 +47,7 @@ RSpec.describe Polls::SubmitVote do
       expect(result).not_to be_success
       expect(result.error_message).to include("이미 투표 완료")
       expect(election.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(0)
-      expect(election.election_events.where(event_type: "vote_completed")).to be_empty
+      expect(election.poll_events.where(event_type: "vote_completed")).to be_empty
     end
 
     it "fails when poll_option belongs to another election" do
@@ -151,7 +151,7 @@ RSpec.describe Polls::SubmitVote do
       election = create_in_progress_election
       poll_option = election.poll_options.order(:number).first
       current_poll_participant = election.poll_progress.current_poll_participant
-      allow(election.election_events).to receive(:create!).and_raise(ActiveRecord::RecordInvalid)
+      allow(election.poll_events).to receive(:create!).and_raise(ActiveRecord::RecordInvalid)
 
       result = described_class.new(poll: election, poll_option: poll_option).call
 

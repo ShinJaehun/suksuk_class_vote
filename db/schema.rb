@@ -10,11 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_10_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_10_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
-  create_table "election_events", force: :cascade do |t|
+  create_table "poll_events", force: :cascade do |t|
     t.bigint "actor_id"
     t.datetime "created_at", null: false
     t.jsonb "details", default: {}, null: false
@@ -23,11 +23,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_10_010000) do
     t.bigint "poll_id", null: false
     t.bigint "poll_participant_id"
     t.datetime "updated_at", null: false
-    t.index ["actor_id"], name: "index_election_events_on_actor_id"
-    t.index ["event_type"], name: "index_election_events_on_event_type"
-    t.index ["poll_id", "occurred_at"], name: "index_election_events_on_poll_id_and_occurred_at"
-    t.index ["poll_id"], name: "index_election_events_on_poll_id"
-    t.index ["poll_participant_id"], name: "index_election_events_on_poll_participant_id"
+    t.index ["actor_id"], name: "index_poll_events_on_actor_id"
+    t.index ["event_type"], name: "index_poll_events_on_event_type"
+    t.index ["poll_id", "occurred_at"], name: "index_poll_events_on_poll_id_and_occurred_at"
+    t.index ["poll_id"], name: "index_poll_events_on_poll_id"
+    t.index ["poll_participant_id"], name: "index_poll_events_on_poll_participant_id"
   end
 
   create_table "poll_option_tallies", force: :cascade do |t|
@@ -130,9 +130,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_10_010000) do
     t.index ["voter_group_id"], name: "index_voter_slots_on_voter_group_id"
   end
 
-  add_foreign_key "election_events", "poll_participants"
-  add_foreign_key "election_events", "polls"
-  add_foreign_key "election_events", "users", column: "actor_id"
+  add_foreign_key "poll_events", "poll_participants"
+  add_foreign_key "poll_events", "polls"
+  add_foreign_key "poll_events", "users", column: "actor_id"
   add_foreign_key "poll_option_tallies", "poll_options"
   add_foreign_key "poll_option_tallies", "polls"
   add_foreign_key "poll_options", "polls"
