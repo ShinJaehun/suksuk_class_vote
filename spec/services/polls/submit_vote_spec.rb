@@ -2,7 +2,7 @@ require "rails_helper"
 
 RSpec.describe Polls::SubmitVote do
   describe "#call" do
-    it "increments poll_option tally and creates completed participation for the current election voter" do
+    it "increments poll_option tally and creates completed participation for the current poll participant" do
       election = create_in_progress_election
       poll_option = election.poll_options.order(:number).first
       current_poll_participant = election.poll_progress.current_poll_participant
@@ -37,7 +37,7 @@ RSpec.describe Polls::SubmitVote do
       expect(event.details.values).not_to include(poll_option.id, poll_option.name, poll_option.number)
     end
 
-    it "fails when the current election voter already has participation" do
+    it "fails when the current poll participant already has participation" do
       election = create_in_progress_election
       poll_option = election.poll_options.order(:number).first
       create(:poll_participation, poll_participant: election.poll_progress.current_poll_participant)
@@ -97,7 +97,7 @@ RSpec.describe Polls::SubmitVote do
       expect(election.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(0)
     end
 
-    it "fails when current election voter is missing" do
+    it "fails when current poll participant is missing" do
       election = create_in_progress_election
       election.poll_progress.update!(current_poll_participant: nil)
       poll_option = election.poll_options.order(:number).first

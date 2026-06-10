@@ -1,5 +1,5 @@
 module Polls
-  class AdvanceCurrentVoter
+  class AdvanceCurrentParticipant
     Result = Struct.new(:success?, :errors, keyword_init: true) do
       def error_message
         errors.join("\n")

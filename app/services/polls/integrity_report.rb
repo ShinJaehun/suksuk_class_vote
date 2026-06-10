@@ -52,12 +52,12 @@ module Polls
       end
     end
 
-    def resumable_current_voter?
+    def resumable_current_participant?
       poll.in_progress? &&
         poll_progress.present? &&
         poll_progress.active? &&
         current_poll_participant.blank? &&
-        current_voter_missing_only_issue? &&
+        current_participant_missing_only_issue? &&
         first_unprocessed_poll_participant.present?
     end
 
@@ -131,7 +131,7 @@ module Polls
         .first
     end
 
-    def current_voter_missing_only_issue?
+    def current_participant_missing_only_issue?
       issues.map(&:message) == ["진행 중인 투표의 현재 참여자를 찾을 수 없습니다."]
     end
 

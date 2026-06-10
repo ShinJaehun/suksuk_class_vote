@@ -6,8 +6,8 @@ Rails.application.routes.draw do
     post :start, on: :member
     post :submit_vote, on: :member
     post :record_participation_outcome, on: :member
-    post :advance_current_voter, on: :member
-    post :resume_current_voter, on: :member
+    post :advance_current_participant, on: :member
+    post :resume_current_participant, on: :member
     post :close, on: :member
     resources :poll_options, path: "options", only: %i[new create edit update destroy]
   end

@@ -27,11 +27,11 @@ class PollPolicy < ApplicationPolicy
     admin? || owner?
   end
 
-  def advance_current_voter?
+  def advance_current_participant?
     admin? || owner?
   end
 
-  def resume_current_voter?
+  def resume_current_participant?
     admin? || owner?
   end
 

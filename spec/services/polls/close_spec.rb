@@ -2,7 +2,7 @@ require "rails_helper"
 
 RSpec.describe Polls::Close do
   describe "#call" do
-    it "closes the election and poll progress when the last current voter is completed" do
+    it "closes the election and poll progress when the last current participant is completed" do
       election = create_in_progress_election
       last_voter = move_to_last_voter(election)
       create(:poll_participation, poll_participant: last_voter)
@@ -57,7 +57,7 @@ RSpec.describe Polls::Close do
       expect(election.reload).to be_in_progress
     end
 
-    it "fails when current voter is missing" do
+    it "fails when current participant is missing" do
       election = create_in_progress_election
       election.poll_progress.update!(current_poll_participant: nil)
 
@@ -68,7 +68,7 @@ RSpec.describe Polls::Close do
       expect(election.reload).to be_in_progress
     end
 
-    it "fails when current voter has no participation" do
+    it "fails when current participant has no participation" do
       election = create_in_progress_election
       last_voter = move_to_last_voter(election)
 
@@ -80,7 +80,7 @@ RSpec.describe Polls::Close do
       expect(election.poll_progress.reload.current_poll_participant).to eq(last_voter)
     end
 
-    it "fails when current voter is not the last voter" do
+    it "fails when current participant is not the last participant" do
       election = create_in_progress_election
       current_voter = election.poll_progress.current_poll_participant
       create(:poll_participation, poll_participant: current_voter)

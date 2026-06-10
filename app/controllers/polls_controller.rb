@@ -1,6 +1,6 @@
 class PollsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_poll, only: %i[show ballot start submit_vote record_participation_outcome advance_current_voter resume_current_voter close]
+  before_action :set_poll, only: %i[show ballot start submit_vote record_participation_outcome advance_current_participant resume_current_participant close]
 
   def index
     @polls = policy_scope(Poll).includes(voter_group: :voter_slots).order(created_at: :desc)
@@ -70,10 +70,10 @@ class PollsController < ApplicationController
     end
   end
 
-  def advance_current_voter
-    authorize @poll, :advance_current_voter?
+  def advance_current_participant
+    authorize @poll, :advance_current_participant?
 
-    result = Polls::AdvanceCurrentVoter.new(poll: @poll, actor: current_user).call
+    result = Polls::AdvanceCurrentParticipant.new(poll: @poll, actor: current_user).call
 
     if result.success?
       broadcast_operation_progress
@@ -83,10 +83,10 @@ class PollsController < ApplicationController
     end
   end
 
-  def resume_current_voter
-    authorize @poll, :resume_current_voter?
+  def resume_current_participant
+    authorize @poll, :resume_current_participant?
 
-    result = Polls::ResumeCurrentVoter.new(poll: @poll, actor: current_user).call
+    result = Polls::ResumeCurrentParticipant.new(poll: @poll, actor: current_user).call
 
     if result.success?
       redirect_to @poll, notice: "첫 미처리 참여자로 재개했습니다."

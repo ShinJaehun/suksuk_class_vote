@@ -17,7 +17,7 @@
         <p class="text-stone-600">현재 참여자는 이미 처리되었습니다.</p>
         <% if @next_poll_participant.present? %>
           <%= button_to "다음 참여자는 #{@next_poll_participant.number}번 #{@next_poll_participant.name}입니다",
-                        advance_current_voter_poll_path(@poll),
+                        advance_current_participant_poll_path(@poll),
                         method: :post,
                         params: { return_to: "ballot" },
                         class: "rounded-md bg-stone-900 px-4 py-3 text-sm font-medium text-white" %>

@@ -39,7 +39,7 @@ RSpec.describe Polls::IntegrityReport do
       expect(report.issues.map(&:message)).to include("진행 중인 투표의 투표 진행 정보가 active 상태가 아닙니다.")
     end
 
-    it "requires current election voter for in-progress elections" do
+    it "requires current poll participant for in-progress elections" do
       election = create_in_progress_election
       election.poll_progress.update!(current_poll_participant: nil)
 
@@ -49,7 +49,7 @@ RSpec.describe Polls::IntegrityReport do
       expect(report.issues.map(&:message)).to include("진행 중인 투표의 현재 참여자를 찾을 수 없습니다.")
     end
 
-    it "requires current election voter to belong to the same election" do
+    it "requires current poll participant to belong to the same election" do
       election = create_in_progress_election
       other_election = create_in_progress_election
       election.poll_progress.update!(current_poll_participant: other_election.poll_participants.first)
@@ -119,7 +119,7 @@ RSpec.describe Polls::IntegrityReport do
       expect(report).to be_ok
     end
 
-    it "requires closed poll progress for closed elections but allows current voter to remain" do
+    it "requires closed poll progress for closed elections but allows current participant to remain" do
       election = create_closed_election
 
       report = described_class.new(election)
@@ -205,20 +205,20 @@ RSpec.describe Polls::IntegrityReport do
     end
   end
 
-  describe "#resumable_current_voter?" do
-    it "returns true when current voter is missing and an unprocessed voter exists" do
+  describe "#resumable_current_participant?" do
+    it "returns true when current participant is missing and an unprocessed voter exists" do
       election = create_in_progress_election
       election.poll_progress.update!(current_poll_participant: nil)
 
       report = described_class.new(election)
 
-      expect(report).to be_resumable_current_voter
+      expect(report).to be_resumable_current_participant
     end
 
-    it "returns false when current voter exists" do
+    it "returns false when current participant exists" do
       report = described_class.new(create_in_progress_election)
 
-      expect(report).not_to be_resumable_current_voter
+      expect(report).not_to be_resumable_current_participant
     end
 
     it "returns false when poll progress is missing" do
@@ -227,7 +227,7 @@ RSpec.describe Polls::IntegrityReport do
 
       report = described_class.new(election.reload)
 
-      expect(report).not_to be_resumable_current_voter
+      expect(report).not_to be_resumable_current_participant
     end
 
     it "returns false when no unprocessed voter exists" do
@@ -239,7 +239,7 @@ RSpec.describe Polls::IntegrityReport do
 
       report = described_class.new(election)
 
-      expect(report).not_to be_resumable_current_voter
+      expect(report).not_to be_resumable_current_participant
     end
 
     it "returns false when another integrity issue is present" do
@@ -249,7 +249,7 @@ RSpec.describe Polls::IntegrityReport do
 
       report = described_class.new(election.reload)
 
-      expect(report).not_to be_resumable_current_voter
+      expect(report).not_to be_resumable_current_participant
     end
   end
 

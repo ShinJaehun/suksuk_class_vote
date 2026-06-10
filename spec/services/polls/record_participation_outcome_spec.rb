@@ -2,7 +2,7 @@ require "rails_helper"
 
 RSpec.describe Polls::RecordParticipationOutcome do
   describe "#call" do
-    it "records absent participation for the current election voter" do
+    it "records absent participation for the current poll participant" do
       election = create_in_progress_election
       current_voter = election.poll_progress.current_poll_participant
 
@@ -17,7 +17,7 @@ RSpec.describe Polls::RecordParticipationOutcome do
       )
     end
 
-    it "records abstained participation for the current election voter" do
+    it "records abstained participation for the current poll participant" do
       election = create_in_progress_election
       current_voter = election.poll_progress.current_poll_participant
 
@@ -41,7 +41,7 @@ RSpec.describe Polls::RecordParticipationOutcome do
       expect(election.poll_option_tallies.order(:poll_option_id).pluck(:votes_count)).to eq(tally_counts)
     end
 
-    it "fails when current voter already has participation" do
+    it "fails when current participant already has participation" do
       election = create_in_progress_election
       current_voter = election.poll_progress.current_poll_participant
       create(:poll_participation, poll_participant: current_voter)
@@ -92,7 +92,7 @@ RSpec.describe Polls::RecordParticipationOutcome do
       expect(result.error_message).to include("진행 중인 투표 진행 정보")
     end
 
-    it "fails when current election voter is missing" do
+    it "fails when current poll participant is missing" do
       election = create_in_progress_election
       election.poll_progress.update!(current_poll_participant: nil)
 
