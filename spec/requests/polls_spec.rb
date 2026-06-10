@@ -704,7 +704,7 @@ RSpec.describe "Polls", type: :request do
 
       get poll_path(poll)
 
-      expect(response.body).to include("현재 투표자는 미참여 처리되었습니다.")
+      expect(response.body).to include("1번 김민준은 미참여 처리되었습니다.")
       expect(response.body).not_to include(advance_current_participant_poll_path(poll))
       expect(response.body).not_to include(submit_vote_poll_path(poll))
     end
@@ -723,7 +723,7 @@ RSpec.describe "Polls", type: :request do
 
       get poll_path(poll)
 
-      expect(response.body).to include("현재 투표자는 기권 처리되었습니다.")
+      expect(response.body).to include("1번 김민준은 기권 처리되었습니다.")
       expect(response.body).not_to include(advance_current_participant_poll_path(poll))
       expect(response.body).not_to include(submit_vote_poll_path(poll))
     end

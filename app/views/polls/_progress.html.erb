@@ -28,9 +28,9 @@
               <% if participation.completed? %>
                 <p class="text-lg font-medium text-stone-800"><%= current_participant_label %>은 투표를 완료했습니다.</p>
               <% elsif participation.absent? %>
-                <p class="text-lg font-medium text-stone-800">현재 투표자는 미참여 처리되었습니다.</p>
+                <p class="text-lg font-medium text-stone-800"><%= current_participant_label %>은 미참여 처리되었습니다.</p>
               <% elsif participation.abstained? %>
-                <p class="text-lg font-medium text-stone-800">현재 투표자는 기권 처리되었습니다.</p>
+                <p class="text-lg font-medium text-stone-800"><%= current_participant_label %>은 기권 처리되었습니다.</p>
               <% end %>
               <% next_participant = poll.poll_participants.where("number > ?", current_participant.number).order(:number).first %>
               <% unless next_participant.present? %>
