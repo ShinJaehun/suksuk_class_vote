@@ -114,7 +114,7 @@ RSpec.describe Polls::Start do
         result = described_class.new(poll).call
 
         expect(result).not_to be_success
-        expect(result.error_message).to include("참여자 명단이 1명 이상")
+        expect(result.error_message).to include("투표자 명단이 1명 이상")
       end.not_to change(PollOptionTally, :count)
 
       expect(poll.reload).to be_draft
@@ -130,7 +130,7 @@ RSpec.describe Polls::Start do
       result = described_class.new(poll).call
 
       expect(result).not_to be_success
-      expect(result.error_message).to include("이미 투표 참여자 명단")
+      expect(result.error_message).to include("이미 투표자 명단")
       expect(poll.reload).to be_draft
       expect(poll.poll_participants.count).to eq(1)
       expect(poll.poll_option_tallies).to be_empty

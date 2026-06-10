@@ -99,7 +99,7 @@ RSpec.describe Polls::RecordParticipationOutcome do
       result = described_class.new(poll: poll, status: :absent).call
 
       expect(result).not_to be_success
-      expect(result.error_message).to include("현재 참여자")
+      expect(result.error_message).to include("현재 투표자")
     end
   end
 

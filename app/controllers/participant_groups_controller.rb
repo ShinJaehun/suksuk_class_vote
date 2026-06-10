@@ -26,7 +26,7 @@ class ParticipantGroupsController < ApplicationController
     authorize @participant_group
 
     if @participant_group.save
-      redirect_to @participant_group, notice: "참여자 그룹을 만들었습니다."
+      redirect_to @participant_group, notice: "투표자 명단을 만들었습니다."
     else
       render :new, status: :unprocessable_entity
     end
@@ -37,7 +37,7 @@ class ParticipantGroupsController < ApplicationController
     return if redirect_if_locked_for_poll_progress
 
     if @participant_group.update(participant_group_params)
-      redirect_to @participant_group, notice: "참여자 그룹을 수정했습니다."
+      redirect_to @participant_group, notice: "투표자 명단을 수정했습니다."
     else
       render :edit, status: :unprocessable_entity
     end
@@ -47,7 +47,7 @@ class ParticipantGroupsController < ApplicationController
     authorize @participant_group
 
     if @participant_group.destroy
-      redirect_to participant_groups_path, notice: "참여자 그룹을 삭제했습니다."
+      redirect_to participant_groups_path, notice: "투표자 명단을 삭제했습니다."
     else
       redirect_to @participant_group, alert: @participant_group.errors.full_messages.to_sentence
     end

@@ -43,8 +43,8 @@ module Polls
       errors << "진행 중인 투표에서만 재개할 수 있습니다." unless poll.in_progress?
       errors << "진행 중인 투표 진행 정보를 찾을 수 없습니다." if station.blank?
       errors << "진행 중인 투표 진행 정보에서만 재개할 수 있습니다." if station.present? && !station.active?
-      errors << "현재 참여자가 이미 지정되어 있습니다." if station&.current_poll_participant.present?
-      errors << "미처리 참여자를 찾을 수 없습니다." if station.present? && first_unprocessed_poll_participant.blank?
+      errors << "현재 투표자가 이미 지정되어 있습니다." if station&.current_poll_participant.present?
+      errors << "미처리 투표자를 찾을 수 없습니다." if station.present? && first_unprocessed_poll_participant.blank?
     end
 
     def poll_progress

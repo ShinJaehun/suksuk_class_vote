@@ -61,8 +61,8 @@ module Polls
         errors << SINGLE_CANDIDATE_MESSAGE
       end
 
-      errors << "참여자 명단이 1명 이상 있어야 투표를 시작할 수 있습니다." if participant_slots.empty?
-      errors << "이미 투표 참여자 명단이 생성된 투표입니다." if poll.poll_participants.exists?
+      errors << "투표자 명단이 1명 이상 있어야 투표를 시작할 수 있습니다." if participant_slots.empty?
+      errors << "이미 투표자 명단이 생성된 투표입니다." if poll.poll_participants.exists?
       errors << "이미 투표 진행 정보가 생성된 투표입니다." if poll.poll_progress.present?
       errors << "이미 후보별 집계 정보가 생성된 투표입니다." if poll.poll_option_tallies.exists?
     end

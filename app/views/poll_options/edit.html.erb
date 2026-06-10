@@ -7,7 +7,7 @@
 
   <% if @poll_option.errors.any? %>
     <div class="rounded-md border border-red-200 bg-red-50 p-4 text-red-800">
-      <h2 class="font-medium"><%= @poll.election? ? "후보자를" : "#{@poll.choice_label}을" %> 수정할 수 없습니다.</h2>
+      <h2 class="font-medium"><%= @poll.election? ? "후보자 정보를" : "#{@poll.choice_label}을" %> 수정할 수 없습니다.</h2>
       <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
         <% @poll_option.errors.full_messages.each do |message| %>
           <li><%= message %></li>

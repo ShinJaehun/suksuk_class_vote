@@ -1,8 +1,6 @@
 <div class="space-y-6">
   <div class="space-y-2">
     <h1 class="text-2xl font-semibold">새 투표</h1>
-
-    <p class="text-sm text-stone-600">학생이 등록된 참여자 그룹만 사용할 수 있습니다.</p>
   </div>
 
   <% if @poll.errors.any? %>
@@ -28,14 +26,13 @@
                       [["선거", "election"], ["토의", "discussion"]],
                       {},
                       class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
-      <p class="text-sm text-stone-600">선거 또는 토의 중 하나를 선택하세요.</p>
     </div>
 
     <div class="space-y-1">
-      <%= form.label :participant_group_id, "참여자 그룹", class: "text-sm font-medium text-stone-700" %>
+      <%= form.label :participant_group_id, "투표자 명단", class: "text-sm font-medium text-stone-700" %>
       <%= form.select :participant_group_id,
                       @selectable_participant_groups.map { |participant_group| ["#{participant_group.name} (학생 #{participant_group.participant_slots.size}명)", participant_group.id] },
-                      { prompt: "참여자 그룹을 선택하세요" },
+                      { prompt: "투표자 명단을 선택하세요" },
                       class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
     </div>
 

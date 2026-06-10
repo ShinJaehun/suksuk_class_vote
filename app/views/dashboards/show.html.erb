@@ -6,10 +6,10 @@
 <% else %>
   <h1>쑥쑥교실투표 교사 홈</h1>
   <p>현재는 교사용 투표 기능을 준비하기 위한 placeholder 화면입니다.</p>
-  <p>참여자 그룹과 투표 진행 기능은 추후 작업에서 다룹니다.</p>
+  <p>투표자 명단과 투표 진행 기능은 추후 작업에서 다룹니다.</p>
 <% end %>
 
-<p><%= link_to "참여자 그룹 관리", participant_groups_path %></p>
+<p><%= link_to "투표자 명단 관리", participant_groups_path %></p>
 <p><%= link_to "투표 관리", polls_path %></p>
 
 <%= button_to "로그아웃", destroy_user_session_path, method: :delete %>

@@ -14,7 +14,7 @@ class PollEvent < ApplicationRecord
     "vote_completed" => "투표 완료",
     "participant_marked_absent" => "미참여",
     "participant_marked_abstained" => "기권",
-    "current_participant_resumed" => "첫 미처리 참여자로 재개",
+    "current_participant_resumed" => "첫 미처리 투표자로 재개",
     "poll_closed" => "투표 종료"
   }.freeze
 

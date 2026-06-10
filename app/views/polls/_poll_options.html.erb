@@ -32,7 +32,7 @@
                                   class: "text-sm font-medium text-stone-700 underline" %>
                   </div>
                 <% else %>
-                  <span class="text-stone-600"><%= poll.election? ? "후보자를" : "#{poll.choice_label}을" %> 수정할 수 없습니다.</span>
+                  <span class="text-stone-600"><%= poll.election? ? "후보자 정보를" : "#{poll.choice_label}을" %> 수정할 수 없습니다.</span>
                 <% end %>
               </td>
             </tr>

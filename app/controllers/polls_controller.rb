@@ -64,7 +64,7 @@ class PollsController < ApplicationController
     if result.success?
       broadcast_operation_progress
       broadcast_operation_event_log
-      redirect_to operation_redirect_path, notice: "참여자 상태를 처리했습니다."
+      redirect_to operation_redirect_path, notice: "투표자 상태를 처리했습니다."
     else
       redirect_to operation_redirect_path, alert: result.error_message
     end
@@ -77,7 +77,7 @@ class PollsController < ApplicationController
 
     if result.success?
       broadcast_operation_progress
-      redirect_to operation_redirect_path, notice: "다음 참여자로 이동했습니다."
+      redirect_to operation_redirect_path, notice: "다음 투표자로 이동했습니다."
     else
       redirect_to operation_redirect_path, alert: result.error_message
     end
@@ -89,7 +89,7 @@ class PollsController < ApplicationController
     result = Polls::ResumeCurrentParticipant.new(poll: @poll, actor: current_user).call
 
     if result.success?
-      redirect_to @poll, notice: "첫 미처리 참여자로 재개했습니다."
+      redirect_to @poll, notice: "첫 미처리 투표자로 재개했습니다."
     else
       redirect_to @poll, alert: result.error_message
     end

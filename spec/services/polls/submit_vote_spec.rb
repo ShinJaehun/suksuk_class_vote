@@ -105,7 +105,7 @@ RSpec.describe Polls::SubmitVote do
       result = described_class.new(poll: poll, poll_option: poll_option).call
 
       expect(result).not_to be_success
-      expect(result.error_message).to include("현재 참여자")
+      expect(result.error_message).to include("현재 투표자")
       expect(poll.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(0)
     end
 
