@@ -83,7 +83,7 @@ RSpec.describe "Voter groups", type: :request do
       expect(response.body).to include(participant_group_participant_slot_path(participant_group, participant_slot))
     end
 
-    it "hides group and student change links while used by an in-progress election" do
+    it "hides group and student change links while used by an in-progress poll" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       participant_slot = create(:participant_slot, participant_group: participant_group)
@@ -142,7 +142,7 @@ RSpec.describe "Voter groups", type: :request do
       expect(response.body).to include("관리자 수정 그룹")
     end
 
-    it "does not allow editing while used by an in-progress election" do
+    it "does not allow editing while used by an in-progress poll" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       create(:participant_slot, participant_group: participant_group)
@@ -191,7 +191,7 @@ RSpec.describe "Voter groups", type: :request do
       expect(participant_group.reload.name).to eq("기존 그룹")
     end
 
-    it "does not update while used by an in-progress election" do
+    it "does not update while used by an in-progress poll" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher, name: "기존 그룹")
       create(:participant_slot, participant_group: participant_group)
@@ -205,7 +205,7 @@ RSpec.describe "Voter groups", type: :request do
       expect(participant_group.reload.name).to eq("기존 그룹")
     end
 
-    it "allows update when only closed elections use the group" do
+    it "allows update when only closed polls use the group" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher, name: "기존 그룹")
       create(:poll, user: teacher, participant_group: participant_group, status: :closed)
@@ -265,7 +265,7 @@ RSpec.describe "Voter groups", type: :request do
       expect(response).to redirect_to(participant_groups_path)
     end
 
-    it "does not destroy a participant group used by a draft election" do
+    it "does not destroy a participant group used by a draft poll" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       create(:participant_slot, participant_group: participant_group)
@@ -279,7 +279,7 @@ RSpec.describe "Voter groups", type: :request do
       expect(response).to redirect_to(participant_group_path(participant_group))
     end
 
-    it "does not destroy a participant group used by an in-progress election" do
+    it "does not destroy a participant group used by an in-progress poll" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       create(:participant_slot, participant_group: participant_group)
@@ -293,10 +293,10 @@ RSpec.describe "Voter groups", type: :request do
       expect(response).to redirect_to(participant_group_path(participant_group))
     end
 
-    it "allows destroying a participant group used only by closed elections" do
+    it "allows destroying a participant group used only by closed polls" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
-      election = create(:poll, user: teacher, participant_group: participant_group, status: :closed, participant_group_name_snapshot: participant_group.name)
+      poll = create(:poll, user: teacher, participant_group: participant_group, status: :closed, participant_group_name_snapshot: participant_group.name)
       sign_in teacher
 
       expect do
@@ -304,7 +304,7 @@ RSpec.describe "Voter groups", type: :request do
       end.to change(ParticipantGroup, :count).by(-1)
 
       expect(response).to redirect_to(participant_groups_path)
-      expect(election.reload.participant_group).to be_nil
+      expect(poll.reload.participant_group).to be_nil
     end
   end
 end

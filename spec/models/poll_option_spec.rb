@@ -39,9 +39,9 @@ RSpec.describe PollOption, type: :model do
     end
 
     it "does not allow duplicate numbers in the same poll" do
-      election = create(:poll)
-      create(:poll_option, poll: election, number: 1)
-      poll_option = build(:poll_option, poll: election, number: 1)
+      poll = create(:poll)
+      create(:poll_option, poll: poll, number: 1)
+      poll_option = build(:poll_option, poll: poll, number: 1)
 
       expect(poll_option).not_to be_valid
       expect(poll_option.errors[:number]).to be_present

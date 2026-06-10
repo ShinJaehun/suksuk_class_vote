@@ -53,7 +53,7 @@ RSpec.describe ParticipantSlot, type: :model do
   end
 
   describe "destroy guard" do
-    it "does not destroy while the participant group is used by an in-progress election" do
+    it "does not destroy while the participant group is used by an in-progress poll" do
       participant_group = create(:participant_group)
       participant_slot = create(:participant_slot, participant_group: participant_group)
       create(:poll, participant_group: participant_group, status: :in_progress)

@@ -1,4 +1,4 @@
-# Classroom Election MVP
+# Classroom Poll MVP
 
 ## 목적
 
@@ -17,7 +17,7 @@
 교사는 다음 작업을 수행한다.
 
 1. 로그인
-2. 투표자 그룹 등록
+2. 참여자 그룹 등록
 3. 선거 생성
 4. 후보자 등록
 5. 투표 진행
@@ -46,7 +46,7 @@ admin의 상세 관리 기능은 별도 문서에서 다룬다.
 
 ```text
 교사 로그인
-→ 투표자 그룹 등록
+→ 참여자 그룹 등록
 → 선거 생성
 → 후보자 등록
 → 투표 진행
@@ -56,7 +56,7 @@ admin의 상세 관리 기능은 별도 문서에서 다룬다.
 
 ---
 
-## 투표자 그룹 등록
+## 참여자 그룹 등록
 
 교사는 선거에 참여할 학생 명단을 등록한다.
 
@@ -79,7 +79,7 @@ admin의 상세 관리 기능은 별도 문서에서 다룬다.
 3 박지호
 ```
 
-투표자 그룹 등록 상세는 다음 문서를 따른다.
+참여자 그룹 등록 상세는 다음 문서를 따른다.
 
 - `docs/specs/bulk_student_import.md`
 
@@ -87,22 +87,22 @@ admin의 상세 관리 기능은 별도 문서에서 다룬다.
 
 ## 선거 생성
 
-교사는 투표자 그룹을 대상으로 선거를 생성한다.
+교사는 참여자 그룹을 대상으로 선거를 생성한다.
 
 초기 MVP에서 선거는 학급 단위 선거다.
 
-선거 생성 화면에서는 교사가 본인이 소유한 투표자 그룹 중 하나를 선택한다.
-선택 목록에는 투표자 그룹 이름과 학생 수를 함께 보여주는 방향이 좋다.
-현재 구현에서는 학생이 1명도 없는 투표자 그룹은 선거 생성에 사용할 수 없다.
+선거 생성 화면에서는 교사가 본인이 소유한 참여자 그룹 중 하나를 선택한다.
+선택 목록에는 참여자 그룹 이름과 학생 수를 함께 보여주는 방향이 좋다.
+현재 구현에서는 학생이 1명도 없는 참여자 그룹은 선거 생성에 사용할 수 없다.
 
-투표자 그룹은 원본 명단이다.
-선거가 원본 투표자 그룹을 계속 직접 참조하면, 선거 생성 뒤 원본 명단 변경이 이미 만든 선거에 영향을 줄 수 있다.
-이번 단계에서는 선거 생성 시점에 원본 투표자 그룹만 연결한다.
-선거용 명단 snapshot은 선거 시작 시점에 만든다.
-선거용 명단 snapshot 모델명은 `ElectionVoter`로 확정한다.
-현재 `ElectionVoter` 모델과 migration은 구현되어 있으며, 선거 시작 시점에 원본 명단을 snapshot한다.
+참여자 그룹은 원본 명단이다.
+선거가 원본 참여자 그룹을 계속 직접 참조하면, 선거 생성 뒤 원본 명단 변경이 이미 만든 선거에 영향을 줄 수 있다.
+이번 단계에서는 선거 생성 시점에 원본 참여자 그룹만 연결한다.
+투표 참여자 명단 snapshot은 선거 시작 시점에 만든다.
+투표 참여자 명단 snapshot 모델명은 `PollParticipant`로 확정한다.
+현재 `PollParticipant` 모델과 migration은 구현되어 있으며, 선거 시작 시점에 원본 명단을 snapshot한다.
 
-투표가 시작된 뒤에는 해당 선거의 투표자 명단을 수정하지 않는다.
+투표가 시작된 뒤에는 해당 선거의 참여자 명단을 수정하지 않는다.
 
 예시:
 
@@ -115,7 +115,7 @@ admin의 상세 관리 기능은 별도 문서에서 다룬다.
 필수 정보:
 
 - 선거 이름
-- 투표자 그룹
+- 참여자 그룹
 - 선거 종류
   - 반장 선거
   - 부반장 선거
@@ -149,7 +149,7 @@ admin의 상세 관리 기능은 별도 문서에서 다룬다.
 기호는 선거 안에서 서버가 자동 부여하며, 후보자를 삭제해도 기존 번호를 재정렬하지 않는다.
 
 선거가 시작된 뒤에는 후보자 수정/삭제를 제한한다.
-같은 이유로 투표자 명단의 학생 추가/삭제/번호 변경도 선거 시작 뒤에는 제한한다.
+같은 이유로 참여자 명단의 학생 추가/삭제/번호 변경도 선거 시작 뒤에는 제한한다.
 
 후보자 수 정책 검토 항목:
 
@@ -158,7 +158,7 @@ admin의 상세 관리 기능은 별도 문서에서 다룬다.
 - 다만 학교나 선거 규정에 따라 후보자 1명이어도 찬성/반대 투표를 진행할 수 있다.
 - 후보자 2명 이상은 여러 후보 중 선택하는 일반 경쟁 투표로 본다.
 
-후속 Election 설계에서는 단순히 후보자 수만 보지 않고, 선거 방식 또는 투표 방식 개념을 검토한다.
+후속 Poll 설계에서는 단순히 후보자 수만 보지 않고, 선거 방식 또는 투표 방식 개념을 검토한다.
 
 컬럼명 후보:
 
@@ -180,7 +180,7 @@ admin의 상세 관리 기능은 별도 문서에서 다룬다.
 
 선거 시작 기능은 후보자 2명 이상 일반 경쟁 투표에 한해 구현되어 있다.
 
-교사가 선거를 시작하면 `Election`은 준비 중 상태에서 투표 진행 상태로 전이한다.
+교사가 선거를 시작하면 `Poll`은 준비 중 상태에서 투표 진행 상태로 전이한다.
 
 상태 전이 초안:
 
@@ -193,11 +193,11 @@ draft -> in_progress -> closed
 
 선거 시작 전 검증 조건:
 
-- `Election`이 `draft` 상태일 것
-- 연결된 투표자 그룹에 학생 명단이 1명 이상 있을 것
+- `Poll`이 `draft` 상태일 것
+- 연결된 참여자 그룹에 학생 명단이 1명 이상 있을 것
 - 후보자가 2명 이상 있을 것
 - 후보자 이름이 모두 유효할 것
-- 선거용 명단 snapshot이 아직 생성되지 않았을 것
+- 투표 참여자 명단 snapshot이 아직 생성되지 않았을 것
 
 후보자가 1명인 경우에는 일반 경쟁 투표로 시작하지 않는다.
 현재는 무투표 당선/찬반 투표 정책 결정 후 지원 예정이라는 안내를 제공하고, 후속 정책 결정 대상으로 남긴다.
@@ -205,41 +205,41 @@ draft -> in_progress -> closed
 선거 시작 시 명단 snapshot 생성 방향:
 
 - 선거 생성 시점에는 snapshot을 만들지 않는다.
-- 선거 시작 시점에 원본 투표자 그룹의 학생 명단을 선거용 명단 snapshot으로 복사한다.
+- 선거 시작 시점에 원본 참여자 그룹의 학생 명단을 투표 참여자 명단 snapshot으로 복사한다.
 - 시작 버튼을 누른 순간의 명단을 해당 선거의 투표 대상 명단으로 고정한다.
-- 이후 원본 투표자 그룹이 바뀌어도 이미 시작된 선거에는 영향을 주지 않는다.
-- snapshot 생성과 `Election` 상태 변경은 transaction 안에서 함께 처리한다.
-- snapshot 생성, `Election` 상태 변경, `PollingStation` 생성 중 하나라도 실패하면 선거 시작 전체가 실패해야 한다.
+- 이후 원본 참여자 그룹이 바뀌어도 이미 시작된 선거에는 영향을 주지 않는다.
+- snapshot 생성과 `Poll` 상태 변경은 transaction 안에서 함께 처리한다.
+- snapshot 생성, `Poll` 상태 변경, `PollProgress` 생성 중 하나라도 실패하면 선거 시작 전체가 실패해야 한다.
 - 이미 snapshot이 있으면 중복 생성하지 않아야 한다.
 
 사용자 기능 관점의 snapshot 흐름:
 
 - 교사가 선거 시작을 누른다.
-- 시스템은 시작 시점의 원본 학생 명단을 `ElectionVoter`로 복사한다.
-- 각 `ElectionVoter`에는 시작 시점의 출석번호와 이름이 보존된다.
-- 이후 교사가 원본 투표자 그룹을 수정하더라도 이미 시작된 선거의 투표 대상은 바뀌지 않는다.
-- 투표 진행 화면은 원본 `VoterSlot`이 아니라 `ElectionVoter` 명단을 기준으로 복구되어야 한다.
+- 시스템은 시작 시점의 원본 학생 명단을 `PollParticipant`로 복사한다.
+- 각 `PollParticipant`에는 시작 시점의 출석번호와 이름이 보존된다.
+- 이후 교사가 원본 참여자 그룹을 수정하더라도 이미 시작된 선거의 투표 대상은 바뀌지 않는다.
+- 투표 진행 화면은 원본 `ParticipantSlot`이 아니라 `PollParticipant` 명단을 기준으로 복구되어야 한다.
 
 선거 시작 뒤 제한 원칙:
 
 - 후보자 추가/수정/삭제를 금지한다.
 - 선거에 연결된 snapshot 명단 수정도 금지한다.
-- 원본 투표자 그룹 변경은 이미 시작된 선거의 투표 대상에 영향을 주지 않는다.
+- 원본 참여자 그룹 변경은 이미 시작된 선거의 투표 대상에 영향을 주지 않는다.
 
-`ElectionVoter` 컬럼:
+`PollParticipant` 컬럼:
 
-- `election_id`
-- `source_voter_slot_id`
+- `poll_id`
+- `source_participant_slot_id`
 - `number`
 - `name`
 
-초기 `ElectionVoter`에는 진행 상태 `status`를 두지 않는다.
-`ElectionVoter`는 고정된 선거용 명단이며, 실제 투표 결과도 저장하지 않는다.
-투표 진행 상태는 `PollingStation`을 기준으로 설계한다.
+초기 `PollParticipant`에는 진행 상태 `status`를 두지 않는다.
+`PollParticipant`는 고정된 투표 참여자 명단이며, 실제 투표 결과도 저장하지 않는다.
+투표 진행 상태는 `PollProgress`을 기준으로 설계한다.
 `VoteSession`은 학생 투표 제출 흐름이 복잡해질 때 후속 검토한다.
 
-선거 시작 로직은 `Elections::Start` service로 분리되어 있다.
-controller는 권한 확인과 결과 처리에 집중하고, snapshot 생성, 상태 전이, `PollingStation` 생성은 service가 담당한다.
+선거 시작 로직은 `Polls::Start` service로 분리되어 있다.
+controller는 권한 확인과 결과 처리에 집중하고, snapshot 생성, 상태 전이, `PollProgress` 생성은 service가 담당한다.
 
 start route 위치 초안:
 
@@ -259,11 +259,11 @@ end
 교사는 출석번호 순서에 따라 투표를 진행한다.
 
 투표 진행 화면과 상태 모델은 아직 구현하지 않았다.
-선거 시작 이후 다음 단계는 원본 `VoterGroup`이 아니라 `ElectionVoter` snapshot을 기준으로 진행 상태를 모델링하는 것이다.
+선거 시작 이후 다음 단계는 원본 `ParticipantGroup`이 아니라 `PollParticipant` snapshot을 기준으로 진행 상태를 모델링하는 것이다.
 진행 상태 모델은 현재 투표 중인 학생, 완료된 학생, 다음 투표할 학생을 서버 DB 기준으로 복구할 수 있어야 한다.
-초기 MVP의 진행 상태 모델명은 `PollingStation`으로 확정한다.
-초기 MVP에서는 `Election` 1개당 `PollingStation` 1개를 둔다.
-`PollingStation.current_election_voter_id`가 현재 투표 위치 복구 기준이다.
+초기 MVP의 진행 상태 모델명은 `PollProgress`으로 확정한다.
+초기 MVP에서는 `Poll` 1개당 `PollProgress` 1개를 둔다.
+`PollProgress.current_poll_participant_id`가 현재 투표 위치 복구 기준이다.
 
 교사용 진행 화면에는 다음 정보가 표시된다.
 
@@ -286,40 +286,40 @@ end
 
 진행 상태 모델 기준:
 
-- `PollingStation`: 초기 MVP 진행 상태 모델로 사용한다.
+- `PollProgress`: 초기 MVP 진행 상태 모델로 사용한다.
 - `VoteSession`: 학생 투표 제출 흐름이 복잡해질 때 후속 검토한다.
-- `ElectionVoterProgress` 또는 `PollingSlot`: 이번 단계에서는 만들지 않는다.
+- `PollParticipantProgress` 또는 `PollingSlot`: 이번 단계에서는 만들지 않는다.
 
 진행 상태와 실제 투표 결과는 분리한다.
 교사용 진행 화면은 “누가 대기/투표 중/완료인지”를 보여주지만, 누가 어떤 후보를 선택했는지를 직접 연결하면 안 된다.
-`ElectionVoter`에는 진행 상태를 넣지 않는다.
-완료된 학생 목록은 `ElectionVoterParticipation` 또는 `ElectionVoterReceipt` 같은 별도 진행 기록 모델에서 다룬다.
-이 모델은 투표 완료/미참여/기권 같은 확정 상태만 저장하며, `candidate_id`는 저장하지 않는다.
-현재 구현 모델명은 `ElectionVoterParticipation`이며, 대기 상태는 participation row를 미리 만들지 않고 row 부재로 표현한다.
-득표 집계는 후보별 count-only `CandidateTally`에서 다루며, `CandidateTally`는 `ElectionVoter`와 직접 연결하지 않는다.
-현재 구현에서는 선거 시작 성공 시 후보자별 `CandidateTally`가 0표로 생성된다.
+`PollParticipant`에는 진행 상태를 넣지 않는다.
+완료된 학생 목록은 `PollParticipation` 또는 `PollParticipantReceipt` 같은 별도 진행 기록 모델에서 다룬다.
+이 모델은 투표 완료/미참여/기권 같은 확정 상태만 저장하며, `poll_option_id`는 저장하지 않는다.
+현재 구현 모델명은 `PollParticipation`이며, 대기 상태는 participation row를 미리 만들지 않고 row 부재로 표현한다.
+득표 집계는 후보별 count-only `PollOptionTally`에서 다루며, `PollOptionTally`는 `PollParticipant`와 직접 연결하지 않는다.
+현재 구현에서는 선거 시작 성공 시 후보자별 `PollOptionTally`가 0표로 생성된다.
 
-현재 구현에서 선거 시작이 성공하면 `Elections::Start` transaction 안에서 `PollingStation`도 함께 생성한다.
-이때 `current_election_voter`는 첫 번째 `ElectionVoter`로 설정한다.
-현재 `Elections::SubmitVote` service는 현재 투표자의 투표 완료 기록과 후보별 tally 증가를 transaction으로 처리한다.
-현재 선거 상세 화면에서 현재 투표자의 후보 선택 제출을 연결한다.
-현재 `Elections::AdvanceCurrentVoter` service와 선거 상세 화면의 다음 학생 진행 버튼으로 확정 상태인 현재 투표자에서 다음 `ElectionVoter`로 이동할 수 있다.
-현재 투표자를 미참여 또는 기권으로 확정 처리할 수 있으며, 이 처리는 후보별 tally를 증가시키지 않는다.
-현재 마지막 투표자 확정 뒤 교사가 선거를 종료할 수 있으며, 종료 후 후보별 count-only 결과를 확인할 수 있다.
+현재 구현에서 선거 시작이 성공하면 `Polls::Start` transaction 안에서 `PollProgress`도 함께 생성한다.
+이때 `current_poll_participant`는 첫 번째 `PollParticipant`로 설정한다.
+현재 `Polls::SubmitVote` service는 현재 참여자의 투표 완료 기록과 후보별 tally 증가를 transaction으로 처리한다.
+현재 선거 상세 화면에서 현재 참여자의 후보 선택 제출을 연결한다.
+현재 `Polls::AdvanceCurrentVoter` service와 선거 상세 화면의 다음 학생 진행 버튼으로 확정 상태인 현재 참여자에서 다음 `PollParticipant`로 이동할 수 있다.
+현재 참여자를 미참여 또는 기권으로 확정 처리할 수 있으며, 이 처리는 후보별 tally를 증가시키지 않는다.
+현재 마지막 참여자 확정 뒤 교사가 선거를 종료할 수 있으며, 종료 후 후보별 count-only 결과를 확인할 수 있다.
 closed 결과 화면은 참여 요약과 최다 득표 후보를 표시한다.
 학생별 후보 선택은 표시하지 않는다.
 
 다음 학생 진행은 현재 학생이 `completed`, `absent`, `abstained` 등 확정 상태가 된 뒤에만 허용한다.
 단순히 출석번호를 1 증가시키는 방식은 중복 제출, 새로고침, 뒤로가기, 미참여 처리 실패 상황에서 진행 위치와 완료 상태가 어긋날 수 있으므로 피한다.
-`PollingStation`은 현재 위치만 저장하고, 완료 목록이나 후보 선택 결과를 저장하지 않는다.
+`PollProgress`은 현재 위치만 저장하고, 완료 목록이나 후보 선택 결과를 저장하지 않는다.
 
 명시적으로 배제하는 구조:
 
-- `ElectionVoter`에 `candidate_id` 저장
-- `VoteRecord(election_voter_id, candidate_id)` 형태
-- `PollingStation`에 후보 선택 결과 저장
-- `PollingStation`에 완료 목록 저장
-- `CandidateTally`와 `ElectionVoter` 직접 연결
+- `PollParticipant`에 `poll_option_id` 저장
+- `VoteRecord(poll_participant_id, poll_option_id)` 형태
+- `PollProgress`에 후보 선택 결과 저장
+- `PollProgress`에 완료 목록 저장
+- `PollOptionTally`와 `PollParticipant` 직접 연결
 - 학생 `completed_at`과 후보별 득표 증가 정보를 화면에서 직접 연결해 보여주는 구조
 
 ---
@@ -394,7 +394,7 @@ closed 결과 화면은 참여 요약과 최다 득표 후보를 표시한다.
 
 종료 조건:
 
-- 모든 voter slot이 다음 중 하나의 상태여야 한다.
+- 모든 participant slot이 다음 중 하나의 상태여야 한다.
   - 투표완료
   - 미참여
   - 기권/무투표
@@ -402,7 +402,7 @@ closed 결과 화면은 참여 요약과 최다 득표 후보를 표시한다.
 투표 종료 후에는 다음 작업을 제한한다.
 
 - 후보자 수정
-- 투표자 그룹 수정
+- 참여자 그룹 수정
 - 투표 재진행
 - 득표수 수정
 
@@ -425,7 +425,7 @@ closed 결과 화면은 참여 요약과 최다 득표 후보를 표시한다.
 2번 이서연: 12표
 3번 박지호: 5표
 
-총 투표자: 25명
+총 참여자: 25명
 투표 완료: 25명
 미참여: 0명
 ```
@@ -486,7 +486,7 @@ closed 결과 화면은 참여 요약과 최다 득표 후보를 표시한다.
 
 초기 MVP는 다음이 가능하면 완료로 본다.
 
-- 교사가 투표자 그룹을 등록할 수 있다.
+- 교사가 참여자 그룹을 등록할 수 있다.
 - 교사가 선거를 생성할 수 있다.
 - 교사가 후보자를 등록할 수 있다.
 - 교사가 출석번호 순서대로 투표를 진행할 수 있다.

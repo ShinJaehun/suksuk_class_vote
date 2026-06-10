@@ -10,7 +10,7 @@ RSpec.describe PollProgress, type: :model do
   end
 
   describe "associations" do
-    it "allows current election voter to be blank" do
+    it "allows current poll voter to be blank" do
       poll_progress = build(:poll_progress, current_poll_participant: nil)
 
       expect(poll_progress).to be_valid
@@ -18,10 +18,10 @@ RSpec.describe PollProgress, type: :model do
   end
 
   describe "validations" do
-    it "requires one poll progress per election" do
-      election = create(:poll)
-      create(:poll_progress, poll: election)
-      poll_progress = build(:poll_progress, poll: election)
+    it "requires one poll progress per poll" do
+      poll = create(:poll)
+      create(:poll_progress, poll: poll)
+      poll_progress = build(:poll_progress, poll: poll)
 
       expect(poll_progress).not_to be_valid
       expect(poll_progress.errors[:poll_id]).to be_present

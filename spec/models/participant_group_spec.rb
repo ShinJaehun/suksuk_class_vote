@@ -26,7 +26,7 @@ RSpec.describe ParticipantGroup, type: :model do
   end
 
   describe "destroy guard" do
-    it "does not destroy while used by a draft or in-progress election" do
+    it "does not destroy while used by a draft or in-progress poll" do
       draft_group = create(:participant_group, :with_participant_slot)
       in_progress_group = create(:participant_group, :with_participant_slot)
       create(:poll, participant_group: draft_group, status: :draft)
@@ -36,12 +36,12 @@ RSpec.describe ParticipantGroup, type: :model do
       expect(in_progress_group.destroy).to be false
     end
 
-    it "destroys when used only by closed elections" do
+    it "destroys when used only by closed polls" do
       participant_group = create(:participant_group, :with_participant_slot)
-      election = create(:poll, participant_group: participant_group, status: :closed, participant_group_name_snapshot: participant_group.name)
+      poll = create(:poll, participant_group: participant_group, status: :closed, participant_group_name_snapshot: participant_group.name)
 
       expect(participant_group.destroy).to be_truthy
-      expect(election.reload.participant_group).to be_nil
+      expect(poll.reload.participant_group).to be_nil
     end
   end
 end

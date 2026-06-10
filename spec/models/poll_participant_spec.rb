@@ -2,7 +2,7 @@ require "rails_helper"
 
 RSpec.describe PollParticipant, type: :model do
   describe "factory" do
-    it "builds a valid election voter" do
+    it "builds a valid poll voter" do
       poll_participant = build(:poll_participant)
 
       expect(poll_participant).to be_valid
@@ -18,8 +18,8 @@ RSpec.describe PollParticipant, type: :model do
     end
 
     it "allows a missing source participant slot" do
-      election = create(:poll)
-      poll_participant = build(:poll_participant, poll: election, source_participant_slot: nil, number: 1, name: "김민준")
+      poll = create(:poll)
+      poll_participant = build(:poll_participant, poll: poll, source_participant_slot: nil, number: 1, name: "김민준")
 
       expect(poll_participant).to be_valid
     end
@@ -46,9 +46,9 @@ RSpec.describe PollParticipant, type: :model do
     end
 
     it "does not allow duplicate numbers in the same poll" do
-      election = create(:poll)
-      create(:poll_participant, poll: election, number: 1)
-      poll_participant = build(:poll_participant, poll: election, number: 1)
+      poll = create(:poll)
+      create(:poll_participant, poll: poll, number: 1)
+      poll_participant = build(:poll_participant, poll: poll, number: 1)
 
       expect(poll_participant).not_to be_valid
       expect(poll_participant.errors[:number]).to be_present
@@ -75,9 +75,9 @@ RSpec.describe PollParticipant, type: :model do
     end
 
     it "allows multiple missing source participant slots in the same poll" do
-      election = create(:poll)
-      create(:poll_participant, poll: election, source_participant_slot: nil, number: 1)
-      poll_participant = build(:poll_participant, poll: election, source_participant_slot: nil, number: 2)
+      poll = create(:poll)
+      create(:poll_participant, poll: poll, source_participant_slot: nil, number: 1)
+      poll_participant = build(:poll_participant, poll: poll, source_participant_slot: nil, number: 2)
 
       expect(poll_participant).to be_valid
     end

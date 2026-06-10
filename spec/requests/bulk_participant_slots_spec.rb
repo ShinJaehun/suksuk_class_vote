@@ -94,7 +94,7 @@ RSpec.describe "Bulk participant slots", type: :request do
       expect(response.body).to include("40명 이하")
     end
 
-    it "does not allow access while the group is used by an in-progress election" do
+    it "does not allow access while the group is used by an in-progress poll" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       create(:participant_slot, participant_group: participant_group)
@@ -147,7 +147,7 @@ RSpec.describe "Bulk participant slots", type: :request do
       expect(response.body).to include("김민준")
     end
 
-    it "does not create while the group is used by an in-progress election" do
+    it "does not create while the group is used by an in-progress poll" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       create(:participant_slot, participant_group: participant_group)
@@ -163,7 +163,7 @@ RSpec.describe "Bulk participant slots", type: :request do
       expect(response).to redirect_to(participant_group_path(participant_group))
     end
 
-    it "creates when only closed elections use the group" do
+    it "creates when only closed polls use the group" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       create(:poll, user: teacher, participant_group: participant_group, status: :closed)

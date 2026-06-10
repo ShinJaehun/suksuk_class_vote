@@ -56,7 +56,7 @@ RSpec.describe "Voter slots", type: :request do
       expect(response.body).to include("3번 학생을 추가합니다.")
     end
 
-    it "does not allow access while the group is used by an in-progress election" do
+    it "does not allow access while the group is used by an in-progress poll" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       create(:participant_slot, participant_group: participant_group)
@@ -109,7 +109,7 @@ RSpec.describe "Voter slots", type: :request do
       expect(response.body).to include("학생을 추가할 수 없습니다.")
     end
 
-    it "does not create while the group is used by an in-progress election" do
+    it "does not create while the group is used by an in-progress poll" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       create(:participant_slot, participant_group: participant_group)
@@ -123,7 +123,7 @@ RSpec.describe "Voter slots", type: :request do
       expect(response).to redirect_to(participant_group_path(participant_group))
     end
 
-    it "allows create when only closed elections use the group" do
+    it "allows create when only closed polls use the group" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       create(:poll, user: teacher, participant_group: participant_group, status: :closed)
@@ -181,7 +181,7 @@ RSpec.describe "Voter slots", type: :request do
       expect(response.body).to include("학생 이름 수정")
     end
 
-    it "does not allow access while the group is used by an in-progress election" do
+    it "does not allow access while the group is used by an in-progress poll" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       participant_slot = create(:participant_slot, participant_group: participant_group)
@@ -232,7 +232,7 @@ RSpec.describe "Voter slots", type: :request do
       expect(participant_slot.reload.name).to eq("수정 전")
     end
 
-    it "does not update while the group is used by an in-progress election" do
+    it "does not update while the group is used by an in-progress poll" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       participant_slot = create(:participant_slot, participant_group: participant_group, name: "수정 전")
@@ -245,7 +245,7 @@ RSpec.describe "Voter slots", type: :request do
       expect(participant_slot.reload.name).to eq("수정 전")
     end
 
-    it "allows update when only closed elections use the group" do
+    it "allows update when only closed polls use the group" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       participant_slot = create(:participant_slot, participant_group: participant_group, name: "수정 전")
@@ -306,7 +306,7 @@ RSpec.describe "Voter slots", type: :request do
       expect(participant_group.participant_slots.order(:number).pluck(:number)).to eq([1, 3])
     end
 
-    it "does not delete while the group is used by an in-progress election" do
+    it "does not delete while the group is used by an in-progress poll" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       participant_slot = create(:participant_slot, participant_group: participant_group)
@@ -320,12 +320,12 @@ RSpec.describe "Voter slots", type: :request do
       expect(response).to redirect_to(participant_group_path(participant_group))
     end
 
-    it "allows delete when only closed elections use the group and keeps election voter snapshot" do
+    it "allows delete when only closed polls use the group and keeps poll voter snapshot" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       participant_slot = create(:participant_slot, participant_group: participant_group, number: 7, name: "투표 당시 이름")
-      election = create(:poll, user: teacher, participant_group: participant_group, status: :closed, participant_group_name_snapshot: participant_group.name)
-      poll_participant = create(:poll_participant, poll: election, source_participant_slot: participant_slot, number: 7, name: "투표 당시 이름")
+      poll = create(:poll, user: teacher, participant_group: participant_group, status: :closed, participant_group_name_snapshot: participant_group.name)
+      poll_participant = create(:poll_participant, poll: poll, source_participant_slot: participant_slot, number: 7, name: "투표 당시 이름")
       sign_in teacher
 
       expect do

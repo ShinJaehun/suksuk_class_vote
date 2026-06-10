@@ -3,30 +3,30 @@ require "rails_helper"
 RSpec.describe Polls::SubmitVote do
   describe "#call" do
     it "increments poll_option tally and creates completed participation for the current poll participant" do
-      election = create_in_progress_election
-      poll_option = election.poll_options.order(:number).first
-      current_poll_participant = election.poll_progress.current_poll_participant
+      poll = create_in_progress_poll
+      poll_option = poll.poll_options.order(:number).first
+      current_poll_participant = poll.poll_progress.current_poll_participant
 
-      result = described_class.new(poll: election, poll_option: poll_option).call
+      result = described_class.new(poll: poll, poll_option: poll_option).call
 
       expect(result).to be_success
-      expect(election.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(1)
+      expect(poll.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(1)
       expect(current_poll_participant.reload.poll_participation).to have_attributes(status: "completed")
-      expect(election.poll_events.last).to have_attributes(
+      expect(poll.poll_events.last).to have_attributes(
         event_type: "vote_completed",
         poll_participant: current_poll_participant
       )
     end
 
     it "does not store poll_option information on participation, tally, or event details" do
-      election = create_in_progress_election
-      poll_option = election.poll_options.order(:number).first
+      poll = create_in_progress_poll
+      poll_option = poll.poll_options.order(:number).first
 
-      described_class.new(poll: election, poll_option: poll_option).call
+      described_class.new(poll: poll, poll_option: poll_option).call
 
-      participation = election.poll_progress.current_poll_participant.poll_participation
-      poll_option_tally = election.poll_option_tallies.find_by(poll_option: poll_option)
-      event = election.poll_events.last
+      participation = poll.poll_progress.current_poll_participant.poll_participation
+      poll_option_tally = poll.poll_option_tallies.find_by(poll_option: poll_option)
+      event = poll.poll_events.last
 
       expect(participation).not_to respond_to(:poll_option_id)
       expect(poll_option_tally).not_to respond_to(:poll_participant_id)
@@ -38,138 +38,138 @@ RSpec.describe Polls::SubmitVote do
     end
 
     it "fails when the current poll participant already has participation" do
-      election = create_in_progress_election
-      poll_option = election.poll_options.order(:number).first
-      create(:poll_participation, poll_participant: election.poll_progress.current_poll_participant)
+      poll = create_in_progress_poll
+      poll_option = poll.poll_options.order(:number).first
+      create(:poll_participation, poll_participant: poll.poll_progress.current_poll_participant)
 
-      result = described_class.new(poll: election, poll_option: poll_option).call
+      result = described_class.new(poll: poll, poll_option: poll_option).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("이미 투표 완료")
-      expect(election.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(0)
-      expect(election.poll_events.where(event_type: "vote_completed")).to be_empty
+      expect(poll.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(0)
+      expect(poll.poll_events.where(event_type: "vote_completed")).to be_empty
     end
 
-    it "fails when poll_option belongs to another election" do
-      election = create_in_progress_election
+    it "fails when poll_option belongs to another poll" do
+      poll = create_in_progress_poll
       poll_option = create(:poll_option)
 
-      result = described_class.new(poll: election, poll_option: poll_option).call
+      result = described_class.new(poll: poll, poll_option: poll_option).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("이 투표의 선택지")
-      expect(election.poll_progress.current_poll_participant.poll_participation).to be_nil
+      expect(poll.poll_progress.current_poll_participant.poll_participation).to be_nil
     end
 
-    it "fails when election is not in progress" do
-      election = create_in_progress_election
-      election.update!(status: :draft)
-      poll_option = election.poll_options.order(:number).first
+    it "fails when poll is not in progress" do
+      poll = create_in_progress_poll
+      poll.update!(status: :draft)
+      poll_option = poll.poll_options.order(:number).first
 
-      result = described_class.new(poll: election, poll_option: poll_option).call
+      result = described_class.new(poll: poll, poll_option: poll_option).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("진행 중인 투표")
-      expect(election.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(0)
+      expect(poll.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(0)
     end
 
     it "fails when poll progress is missing" do
-      election = create_in_progress_election
-      election.poll_progress.destroy!
-      poll_option = election.poll_options.order(:number).first
+      poll = create_in_progress_poll
+      poll.poll_progress.destroy!
+      poll_option = poll.poll_options.order(:number).first
 
-      result = described_class.new(poll: election.reload, poll_option: poll_option).call
+      result = described_class.new(poll: poll.reload, poll_option: poll_option).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("투표 진행 정보를 찾을 수 없습니다")
-      expect(election.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(0)
+      expect(poll.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(0)
     end
 
     it "fails when poll progress is closed" do
-      election = create_in_progress_election
-      election.poll_progress.update!(status: :closed)
-      poll_option = election.poll_options.order(:number).first
+      poll = create_in_progress_poll
+      poll.poll_progress.update!(status: :closed)
+      poll_option = poll.poll_options.order(:number).first
 
-      result = described_class.new(poll: election, poll_option: poll_option).call
+      result = described_class.new(poll: poll, poll_option: poll_option).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("진행 중인 투표 진행 정보")
-      expect(election.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(0)
+      expect(poll.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(0)
     end
 
     it "fails when current poll participant is missing" do
-      election = create_in_progress_election
-      election.poll_progress.update!(current_poll_participant: nil)
-      poll_option = election.poll_options.order(:number).first
+      poll = create_in_progress_poll
+      poll.poll_progress.update!(current_poll_participant: nil)
+      poll_option = poll.poll_options.order(:number).first
 
-      result = described_class.new(poll: election, poll_option: poll_option).call
+      result = described_class.new(poll: poll, poll_option: poll_option).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("현재 참여자")
-      expect(election.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(0)
+      expect(poll.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(0)
     end
 
     it "fails when poll_option tally is missing" do
-      election = create_in_progress_election
-      poll_option = election.poll_options.order(:number).first
-      election.poll_option_tallies.find_by(poll_option: poll_option).destroy!
+      poll = create_in_progress_poll
+      poll_option = poll.poll_options.order(:number).first
+      poll.poll_option_tallies.find_by(poll_option: poll_option).destroy!
 
-      result = described_class.new(poll: election, poll_option: poll_option).call
+      result = described_class.new(poll: poll, poll_option: poll_option).call
 
       expect(result).not_to be_success
       expect(result.error_message).to include("후보별 집계 정보")
-      expect(election.poll_progress.current_poll_participant.poll_participation).to be_nil
+      expect(poll.poll_progress.current_poll_participant.poll_participation).to be_nil
     end
 
     it "rolls back tally increment when participation creation fails" do
-      election = create_in_progress_election
-      poll_option = election.poll_options.order(:number).first
-      current_poll_participant = election.poll_progress.current_poll_participant
+      poll = create_in_progress_poll
+      poll_option = poll.poll_options.order(:number).first
+      current_poll_participant = poll.poll_progress.current_poll_participant
       allow_any_instance_of(PollParticipant).to receive(:create_poll_participation!).and_raise(ActiveRecord::RecordInvalid)
 
-      result = described_class.new(poll: election, poll_option: poll_option).call
+      result = described_class.new(poll: poll, poll_option: poll_option).call
 
       expect(result).not_to be_success
-      expect(election.poll_option_tallies.find_by(poll_option: poll_option).reload.votes_count).to eq(0)
+      expect(poll.poll_option_tallies.find_by(poll_option: poll_option).reload.votes_count).to eq(0)
       expect(current_poll_participant.reload.poll_participation).to be_nil
     end
 
     it "does not create participation when tally update fails" do
-      election = create_in_progress_election
-      poll_option = election.poll_options.order(:number).first
-      poll_option_tally = election.poll_option_tallies.find_by(poll_option: poll_option)
+      poll = create_in_progress_poll
+      poll_option = poll.poll_options.order(:number).first
+      poll_option_tally = poll.poll_option_tallies.find_by(poll_option: poll_option)
       allow(poll_option_tally).to receive(:update!).and_raise(ActiveRecord::RecordInvalid)
-      allow(election.poll_option_tallies).to receive(:find_by).and_return(poll_option_tally)
+      allow(poll.poll_option_tallies).to receive(:find_by).and_return(poll_option_tally)
 
-      result = described_class.new(poll: election, poll_option: poll_option).call
+      result = described_class.new(poll: poll, poll_option: poll_option).call
 
       expect(result).not_to be_success
-      expect(election.poll_progress.current_poll_participant.poll_participation).to be_nil
+      expect(poll.poll_progress.current_poll_participant.poll_participation).to be_nil
     end
 
     it "rolls back vote changes when event logging fails" do
-      election = create_in_progress_election
-      poll_option = election.poll_options.order(:number).first
-      current_poll_participant = election.poll_progress.current_poll_participant
-      allow(election.poll_events).to receive(:create!).and_raise(ActiveRecord::RecordInvalid)
+      poll = create_in_progress_poll
+      poll_option = poll.poll_options.order(:number).first
+      current_poll_participant = poll.poll_progress.current_poll_participant
+      allow(poll.poll_events).to receive(:create!).and_raise(ActiveRecord::RecordInvalid)
 
-      result = described_class.new(poll: election, poll_option: poll_option).call
+      result = described_class.new(poll: poll, poll_option: poll_option).call
 
       expect(result).not_to be_success
-      expect(election.poll_option_tallies.find_by(poll_option: poll_option).reload.votes_count).to eq(0)
+      expect(poll.poll_option_tallies.find_by(poll_option: poll_option).reload.votes_count).to eq(0)
       expect(current_poll_participant.reload.poll_participation).to be_nil
     end
   end
 
-  def create_in_progress_election
+  def create_in_progress_poll
     teacher = create(:user)
     participant_group = create(:participant_group, user: teacher)
     create(:participant_slot, participant_group: participant_group, number: 1, name: "김민준")
     create(:participant_slot, participant_group: participant_group, number: 2, name: "이서연")
-    election = create(:poll, user: teacher, participant_group: participant_group)
-    create(:poll_option, poll: election, number: 1)
-    create(:poll_option, poll: election, number: 2)
-    Polls::Start.new(election).call
-    election.reload
+    poll = create(:poll, user: teacher, participant_group: participant_group)
+    create(:poll_option, poll: poll, number: 1)
+    create(:poll_option, poll: poll, number: 2)
+    Polls::Start.new(poll).call
+    poll.reload
   end
 end

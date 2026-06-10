@@ -41,9 +41,9 @@ RSpec.describe PollOptionTally, type: :model do
     end
 
     it "requires the poll_option to belong to the poll" do
-      election = create(:poll)
+      poll = create(:poll)
       poll_option = create(:poll_option)
-      poll_option_tally = build(:poll_option_tally, poll: election, poll_option: poll_option)
+      poll_option_tally = build(:poll_option_tally, poll: poll, poll_option: poll_option)
 
       expect(poll_option_tally).not_to be_valid
       expect(poll_option_tally.errors[:poll_option]).to be_present

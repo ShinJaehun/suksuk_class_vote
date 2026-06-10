@@ -27,31 +27,31 @@
 
 ---
 
-## ElectionVoter와 비밀투표
+## PollParticipant와 비밀투표
 
-`ElectionVoter`는 선거 시작 시점에 고정된 선거용 명단이다.
+`PollParticipant`는 선거 시작 시점에 고정된 투표 참여자 명단이다.
 
-`ElectionVoter`가 저장하는 정보:
+`PollParticipant`가 저장하는 정보:
 
-- `election_id`
-- `source_voter_slot_id`
+- `poll_id`
+- `source_participant_slot_id`
 - `number`
 - `name`
 
-`ElectionVoter`가 저장하지 않는 정보:
+`PollParticipant`가 저장하지 않는 정보:
 
 - 진행 상태
 - 실제 후보 선택 결과
 - 후보자별 득표 정보
-- 학생이 선택한 `candidate_id`
+- 학생이 선택한 `poll_option_id`
 
-현재 투표 진행 상태 모델은 `ElectionVoter`를 참조한다.
-하지만 실제 표를 저장하는 모델이 `election_voter_id`와 `candidate_id`를 직접 함께 저장하면 누가 누구에게 투표했는지 연결될 수 있다.
+현재 투표 진행 상태 모델은 `PollParticipant`를 참조한다.
+하지만 실제 표를 저장하는 모델이 `poll_participant_id`와 `poll_option_id`를 직접 함께 저장하면 누가 누구에게 투표했는지 연결될 수 있다.
 이 구조는 비밀투표 원칙에 맞지 않을 수 있으므로 신중히 피하거나, 별도의 정책 결정과 감사 목적을 명확히 해야 한다.
 
-`PollingStation`은 초기 MVP의 투표 진행 상태 모델이다.
-`PollingStation`은 현재 투표 위치 복구를 위해 `current_election_voter_id`를 저장하지만, 후보 선택 결과나 득표수, 익명 vote record는 저장하지 않는다.
-즉 `PollingStation`은 “지금 누구 차례인가”를 다루고, “그 학생이 누구에게 투표했는가”를 다루지 않는다.
+`PollProgress`은 초기 MVP의 투표 진행 상태 모델이다.
+`PollProgress`은 현재 투표 위치 복구를 위해 `current_poll_participant_id`를 저장하지만, 후보 선택 결과나 득표수, 익명 vote record는 저장하지 않는다.
+즉 `PollProgress`은 “지금 누구 차례인가”를 다루고, “그 학생이 누구에게 투표했는가”를 다루지 않는다.
 
 ---
 
@@ -61,8 +61,8 @@
 
 ```text
 VoteRecord
-- election_voter_id
-- candidate_id
+- poll_participant_id
+- poll_option_id
 ```
 
 위 구조는 구현이 단순하지만, 특정 출석번호 학생이 어떤 후보에게 투표했는지 직접 조회할 수 있다.
@@ -73,7 +73,7 @@ VoteRecord
 ## 현재 집계 방향
 
 현재 MVP는 후보자별 count-only 집계를 사용한다.
-`ElectionVoterParticipation`은 투표자별 완료/미참여/기권 여부만 저장하고, `CandidateTally`는 후보별 득표수만 저장한다.
+`PollParticipation`은 참여자별 완료/미참여/기권 여부만 저장하고, `PollOptionTally`는 후보별 득표수만 저장한다.
 두 모델은 같은 transaction에서 함께 처리될 수 있지만 학생별 후보 선택 결과를 직접 연결하지 않는다.
 
 후속 검토 후보:
@@ -88,7 +88,7 @@ VoteRecord
 방향:
 
 - 제출 transaction 안에서 후보자별 득표 count를 증가시킨다.
-- 동시에 해당 `ElectionVoter`의 진행 상태를 완료 처리한다.
+- 동시에 해당 `PollParticipant`의 진행 상태를 완료 처리한다.
 - 개별 학생과 후보 선택 결과를 직접 연결하는 row는 남기지 않는다.
 
 장점:
@@ -105,8 +105,8 @@ VoteRecord
 
 방향:
 
-- 개별 표 기록을 남기되 `election_voter_id`를 저장하지 않는다.
-- 후보자와 선거 또는 투표소 정도만 연결한다.
+- 개별 표 기록을 남기되 `poll_participant_id`를 저장하지 않는다.
+- 후보자와 선거 또는 투표 진행 정보 정도만 연결한다.
 
 장점:
 
@@ -122,7 +122,7 @@ VoteRecord
 
 방향:
 
-- 진행 상태 또는 receipt는 `ElectionVoter` 기준으로 완료 여부만 저장한다.
+- 진행 상태 또는 receipt는 `PollParticipant` 기준으로 완료 여부만 저장한다.
 - 실제 후보 선택 결과는 tally 또는 익명 vote record에 반영한다.
 - 둘은 같은 transaction에서 처리하되, 직접 조회 가능한 식별 연결은 만들지 않는다.
 
@@ -143,10 +143,10 @@ VoteRecord
 
 최소 확인:
 
-- 현재 투표 대상 `ElectionVoter`가 맞는지 확인한다.
+- 현재 투표 대상 `PollParticipant`가 맞는지 확인한다.
 - 해당 학생이 아직 완료 처리되지 않았는지 확인한다.
-- 선택한 후보자가 해당 `Election`의 후보자인지 확인한다.
-- 투표소 또는 진행 상태가 제출 가능한 상태인지 확인한다.
+- 선택한 후보자가 해당 `Poll`의 후보자인지 확인한다.
+- 투표 진행 정보 또는 진행 상태가 제출 가능한 상태인지 확인한다.
 - 진행 완료 처리와 득표 반영을 같은 transaction에서 처리한다.
 - 실패하면 전체 rollback한다.
 
@@ -154,15 +154,15 @@ VoteRecord
 
 - transaction 내부에서 상태를 다시 확인한다.
 - 필요한 row에 lock을 건다.
-- 같은 `ElectionVoter` 완료 처리가 두 번 일어나지 않도록 unique constraint를 검토한다.
+- 같은 `PollParticipant` 완료 처리가 두 번 일어나지 않도록 unique constraint를 검토한다.
 - 같은 제출 요청이 후보별 count를 두 번 증가시키지 않도록 DB 제약 또는 idempotency key를 검토한다.
 
 ---
 
 ## 운영 기록과 비밀투표
 
-`ElectionEvent`는 운영 이벤트만 기록한다.
-`vote_completed` event details에는 `candidate_id`, `candidate_name`, `candidate_number`를 저장하지 않는다.
+`PollEvent`는 운영 이벤트만 기록한다.
+`vote_completed` event details에는 `poll_option_id`, `candidate_name`, `candidate_number`를 저장하지 않는다.
 후보별 득표 변화 상세도 로그에 남기지 않는다.
 학생별 후보 선택은 저장, 표시, 로그 어느 쪽으로도 남기지 않는다.
 

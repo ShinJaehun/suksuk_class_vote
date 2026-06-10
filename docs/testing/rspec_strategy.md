@@ -51,21 +51,21 @@ Coverage 수치 자체를 목표로 삼지 않는다.
 ### 인증/권한
 
 * guest는 주요 리소스에 접근할 수 없다.
-* teacher는 본인 투표자 그룹만 볼 수 있다.
-* teacher는 다른 teacher의 투표자 그룹을 볼 수 없다.
+* teacher는 본인 참여자 그룹만 볼 수 있다.
+* teacher는 다른 teacher의 참여자 그룹을 볼 수 없다.
 * teacher는 본인 선거만 만들고 관리할 수 있다.
 * teacher는 다른 teacher의 선거를 수정할 수 없다.
-* teacher는 본인 투표소만 진행할 수 있다.
+* teacher는 본인 투표 진행 정보만 진행할 수 있다.
 * teacher는 다른 teacher의 결과를 볼 수 없다.
-* admin은 전체 투표자 그룹, 선거, 결과에 접근할 수 있다.
+* admin은 전체 참여자 그룹, 선거, 결과에 접근할 수 있다.
 
-### 투표자 그룹
+### 참여자 그룹
 
-* teacher가 투표자 그룹을 생성할 수 있다.
-* teacher가 본인 투표자 그룹을 수정할 수 있다.
-* 다른 teacher의 투표자 그룹 수정은 차단된다.
-* 투표자 그룹 안에서 출석번호가 중복될 수 없다.
-* 이미 선거에 사용 중인 투표자 그룹의 수정/삭제 정책을 spec에 맞게 고정한다.
+* teacher가 참여자 그룹을 생성할 수 있다.
+* teacher가 본인 참여자 그룹을 수정할 수 있다.
+* 다른 teacher의 참여자 그룹 수정은 차단된다.
+* 참여자 그룹 안에서 출석번호가 중복될 수 없다.
+* 이미 선거에 사용 중인 참여자 그룹의 수정/삭제 정책을 spec에 맞게 고정한다.
 
 ### 학생 명단 bulk import
 
@@ -77,11 +77,11 @@ Coverage 수치 자체를 목표로 삼지 않는다.
 * 이름 없음 row를 오류로 표시한다.
 * 번호 없음 row를 오류로 표시한다.
 * 오류가 있으면 저장하지 않는다.
-* 정상 입력은 voter slots로 저장된다.
+* 정상 입력은 participant slots로 저장된다.
 
 ### 선거/후보
 
-* teacher가 본인 투표자 그룹을 대상으로 선거를 생성할 수 있다.
+* teacher가 본인 참여자 그룹을 대상으로 선거를 생성할 수 있다.
 * teacher가 본인 선거에 후보를 등록할 수 있다.
 * 선거 시작 전에는 후보를 수정할 수 있다.
 * 선거 시작 후에는 후보 수정/삭제가 제한된다.
@@ -89,15 +89,15 @@ Coverage 수치 자체를 목표로 삼지 않는다.
 
 ### 투표 진행 상태
 
-* `Election`은 draft / in_progress / closed 상태를 가진다.
-* `PollingStation`은 active / closed 상태를 가지며, ready 상태를 두지 않는다.
-* `PollingStation`은 `Election`이 in_progress가 된 뒤 생성되므로 active부터 시작한다.
-* `ElectionVoterParticipation` 또는 `ElectionVoterReceipt`는 completed / absent / abstained 같은 확정 상태를 가진다.
-* 한 투표소에서 open vote session은 하나만 허용한다.
-* 완료된 `ElectionVoter`는 다시 투표할 수 없다.
+* `Poll`은 draft / in_progress / closed 상태를 가진다.
+* `PollProgress`은 active / closed 상태를 가지며, ready 상태를 두지 않는다.
+* `PollProgress`은 `Poll`이 in_progress가 된 뒤 생성되므로 active부터 시작한다.
+* `PollParticipation` 또는 `PollParticipantReceipt`는 completed / absent / abstained 같은 확정 상태를 가진다.
+* 한 투표 진행 정보에서 open vote session은 하나만 허용한다.
+* 완료된 `PollParticipant`는 다시 투표할 수 없다.
 * 종료된 polling station에는 추가 투표를 할 수 없다.
-* participation/receipt에는 `candidate_id`를 저장하지 않는다.
-* `CandidateTally`는 `ElectionVoter`와 직접 연결하지 않는다.
+* participation/receipt에는 `poll_option_id`를 저장하지 않는다.
+* `PollOptionTally`는 `PollParticipant`와 직접 연결하지 않는다.
 
 ### 투표 제출 / 멱등성
 
@@ -105,14 +105,14 @@ Coverage 수치 자체를 목표로 삼지 않는다.
 * 같은 vote session을 두 번 제출해도 득표수는 한 번만 증가한다.
 * 제출 성공 시 participation/receipt 완료와 tally 증가가 함께 반영된다.
 * 제출 실패 시 participation/receipt 완료와 tally 증가가 모두 반영되지 않는다.
-* 종료된 투표소에 들어온 제출 요청은 거부된다.
+* 종료된 투표 진행 정보에 들어온 제출 요청은 거부된다.
 * 학생 completed_at과 후보별 득표 증가 정보를 화면에서 직접 연결해 보여주지 않는다.
 
 ### 중단 복구
 
-* 교사 진행 화면을 새로고침해도 현재 `ElectionVoter` 위치로 복구된다.
+* 교사 진행 화면을 새로고침해도 현재 `PollParticipant` 위치로 복구된다.
 * 학생 투표 화면을 새로고침해도 open vote session으로 복구된다.
-* 교사 재로그인 후 진행 중인 `ElectionVoter` 위치로 복구된다.
+* 교사 재로그인 후 진행 중인 `PollParticipant` 위치로 복구된다.
 * 제출 요청이 성공했지만 브라우저가 완료 화면을 받지 못한 경우, 재접속 시 completed 상태로 보인다.
 * 제출 요청이 실패한 경우, 재접속 시 기존 voting 상태로 다시 투표할 수 있다.
 
@@ -125,7 +125,7 @@ Coverage 수치 자체를 목표로 삼지 않는다.
 * 결과 화면의 후보별 득표 표시
 * 투표 종료 조건 검증
 * 미참여/무투표 처리 되돌림 정책
-* 선거 시작 후 투표자 그룹 수정 제한
+* 선거 시작 후 참여자 그룹 수정 제한
 * locale이 개입되는 핵심 사용자 메시지
 * Turbo/HTML 응답 분기
 * admin 관리 화면
@@ -158,11 +158,11 @@ Coverage 수치 자체를 목표로 삼지 않는다.
 
 대상 예시:
 
-* VoterGroup
-* VoterSlot
-* Election
-* Candidate
-* PollingStation
+* ParticipantGroup
+* ParticipantSlot
+* Poll
+* PollOption
+* PollProgress
 * VoteSession
 * Tally
 
@@ -171,7 +171,7 @@ Coverage 수치 자체를 목표로 삼지 않는다.
 * 출석번호 중복 금지
 * 상태 enum 전이 규칙
 * 종료된 선거 수정 제한
-* 완료된 voter slot 재투표 방지
+* 완료된 participant slot 재투표 방지
 * 후보별 tally uniqueness
 
 ---
@@ -184,16 +184,16 @@ Coverage 수치 자체를 목표로 삼지 않는다.
 
 * `VoteSessions::Open`
 * `Votes::Submit`
-* `VoterSlots::MarkAbsent`
-* `PollingStations::Close`
+* `ParticipantSlots::MarkAbsent`
+* `PollProgresss::Close`
 * `BulkStudentImport::Parser`
 * `BulkStudentImport::Preview`
 * `BulkStudentImport::Commit`
 
 검증 예시:
 
-* 투표 시작 시 voter slot과 vote session 상태가 함께 바뀐다.
-* 투표 제출 시 tally 증가, voter slot 완료, vote session 제출이 하나의 transaction으로 처리된다.
+* 투표 시작 시 participant slot과 vote session 상태가 함께 바뀐다.
+* 투표 제출 시 tally 증가, participant slot 완료, vote session 제출이 하나의 transaction으로 처리된다.
 * 중복 제출이 득표수 중복 증가로 이어지지 않는다.
 * import preview가 오류를 올바르게 표시한다.
 * import commit은 오류가 있을 때 저장하지 않는다.
@@ -208,7 +208,7 @@ Coverage 수치 자체를 목표로 삼지 않는다.
 
 * admin은 전체 리소스에 접근할 수 있다.
 * teacher는 본인 리소스에만 접근할 수 있다.
-* teacher는 다른 teacher의 voter group/election/result에 접근할 수 없다.
+* teacher는 다른 teacher의 participant group/poll/result에 접근할 수 없다.
 * guest는 주요 리소스에 접근할 수 없다.
 * 학생은 인증 사용자로 취급하지 않는다.
 
@@ -221,7 +221,7 @@ Coverage 수치 자체를 목표로 삼지 않는다.
 검증 예시:
 
 * 로그인하지 않은 사용자는 redirect된다.
-* teacher가 voter group을 생성한다.
+* teacher가 participant group을 생성한다.
 * teacher가 bulk import preview를 요청한다.
 * teacher가 선거를 생성한다.
 * teacher가 후보를 등록한다.
@@ -238,7 +238,7 @@ Coverage 수치 자체를 목표로 삼지 않는다.
 
 후보:
 
-* 교사 로그인 후 투표자 그룹 생성
+* 교사 로그인 후 참여자 그룹 생성
 * 학생 명단 붙여넣기 import
 * 선거 생성
 * 후보 등록
@@ -255,20 +255,20 @@ system spec은 초기에는 최소화한다.
 ### Step 1: import와 기본 도메인
 
 * bulk import parser/preview spec
-* VoterGroup / VoterSlot validation spec
+* ParticipantGroup / ParticipantSlot validation spec
 * teacher 소유권 기본 policy spec
 
 ### Step 2: 선거 생성
 
-* Election / Candidate model spec
-* teacher election request spec
+* Poll / PollOption model spec
+* teacher poll request spec
 * 후보 등록 request spec
 * 선거 시작 후 후보 수정 제한 spec
 
 ### Step 3: 투표 진행 상태
 
-* PollingStation 상태 전이 spec
-* VoterSlot 상태 전이 spec
+* PollProgress 상태 전이 spec
+* ParticipantSlot 상태 전이 spec
 * VoteSession open service spec
 * open vote session 중복 방지 spec
 
@@ -278,12 +278,12 @@ system spec은 초기에는 최소화한다.
 * tally 증가 spec
 * 중복 제출 방지 spec
 * transaction rollback spec
-* completed voter slot 재투표 차단 spec
+* completed participant slot 재투표 차단 spec
 
 ### Step 5: 복구 흐름
 
-* 진행 중인 voter slot 복구 request spec
-* 교사 재로그인 후 진행 중인 투표소 접근 spec
+* 진행 중인 participant slot 복구 request spec
+* 교사 재로그인 후 진행 중인 투표 진행 정보 접근 spec
 * 제출 성공/실패 후 재접속 시 상태 spec
 
 ### Step 6: 결과 확인
@@ -299,7 +299,7 @@ system spec은 초기에는 최소화한다.
 자동 테스트와 별도로 브라우저에서 짧게 확인할 항목이다.
 
 * 교사가 로그인한다.
-* 투표자 그룹을 생성한다.
+* 참여자 그룹을 생성한다.
 * Excel/HWP에서 복사한 학생 명단을 붙여넣는다.
 * 미리보기에서 정상/오류가 구분된다.
 * 정상 명단을 저장한다.
