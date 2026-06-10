@@ -92,7 +92,7 @@ RSpec.describe "Voter groups", type: :request do
 
       get voter_group_path(voter_group)
 
-      expect(response.body).to include("진행 중인 선거에서 사용 중입니다.")
+      expect(response.body).to include("진행 중인 투표에서 사용 중입니다.")
       expect(response.body).not_to include(edit_voter_group_path(voter_group))
       expect(response.body).not_to include(new_voter_group_voter_slot_path(voter_group))
       expect(response.body).not_to include(new_voter_group_bulk_voter_slots_path(voter_group))
@@ -152,7 +152,7 @@ RSpec.describe "Voter groups", type: :request do
       get edit_voter_group_path(voter_group)
 
       expect(response).to redirect_to(voter_group_path(voter_group))
-      expect(flash[:alert]).to eq("진행 중인 선거에서 사용 중인 그룹은 수정할 수 없습니다.")
+      expect(flash[:alert]).to eq("진행 중인 투표에서 사용 중인 그룹은 수정할 수 없습니다.")
     end
   end
 
@@ -201,7 +201,7 @@ RSpec.describe "Voter groups", type: :request do
       patch voter_group_path(voter_group), params: { voter_group: { name: "수정 후" } }
 
       expect(response).to redirect_to(voter_group_path(voter_group))
-      expect(flash[:alert]).to eq("진행 중인 선거에서 사용 중인 그룹은 수정할 수 없습니다.")
+      expect(flash[:alert]).to eq("진행 중인 투표에서 사용 중인 그룹은 수정할 수 없습니다.")
       expect(voter_group.reload.name).to eq("기존 그룹")
     end
 

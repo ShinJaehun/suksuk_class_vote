@@ -21,7 +21,7 @@ class VoterGroup < ApplicationRecord
   def ensure_not_used_by_open_elections
     return unless used_by_open_election?
 
-    errors.add(:base, "draft 또는 진행 중인 선거에서 사용 중인 그룹은 삭제할 수 없습니다.")
+    errors.add(:base, "draft 또는 진행 중인 투표에서 사용 중인 그룹은 삭제할 수 없습니다.")
     throw :abort
   end
 end

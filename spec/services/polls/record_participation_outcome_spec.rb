@@ -69,7 +69,7 @@ RSpec.describe Polls::RecordParticipationOutcome do
       result = described_class.new(poll: election, status: :absent).call
 
       expect(result).not_to be_success
-      expect(result.error_message).to include("진행 중인 선거")
+      expect(result.error_message).to include("진행 중인 투표")
     end
 
     it "fails when poll progress is missing" do
@@ -79,7 +79,7 @@ RSpec.describe Polls::RecordParticipationOutcome do
       result = described_class.new(poll: election.reload, status: :absent).call
 
       expect(result).not_to be_success
-      expect(result.error_message).to include("투표소를 찾을 수 없습니다")
+      expect(result.error_message).to include("투표 진행 정보를 찾을 수 없습니다")
     end
 
     it "fails when poll progress is closed" do
@@ -89,7 +89,7 @@ RSpec.describe Polls::RecordParticipationOutcome do
       result = described_class.new(poll: election, status: :absent).call
 
       expect(result).not_to be_success
-      expect(result.error_message).to include("진행 중인 투표소")
+      expect(result.error_message).to include("진행 중인 투표 진행 정보")
     end
 
     it "fails when current election voter is missing" do

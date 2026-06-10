@@ -6,7 +6,7 @@ module Polls
       end
     end
 
-    SINGLE_CANDIDATE_MESSAGE = "후보자가 1명인 선거는 무투표 당선/찬반 투표 정책 결정 후 지원 예정입니다."
+    SINGLE_CANDIDATE_MESSAGE = "후보자가 1명인 투표는 무투표 당선/찬반 투표 정책 결정 후 지원 예정입니다."
 
     def initialize(poll, actor: nil)
       @poll = poll
@@ -52,19 +52,19 @@ module Polls
     attr_reader :poll, :actor, :errors
 
     def validate_startable
-      errors << "draft 상태의 선거만 시작할 수 있습니다." unless poll.draft?
+      errors << "draft 상태의 투표만 시작할 수 있습니다." unless poll.draft?
 
       poll_option_count = poll.poll_options.count
       if poll_option_count.zero?
-        errors << "후보자가 2명 이상 있어야 선거를 시작할 수 있습니다."
+        errors << "후보자가 2명 이상 있어야 투표를 시작할 수 있습니다."
       elsif poll_option_count == 1
         errors << SINGLE_CANDIDATE_MESSAGE
       end
 
-      errors << "참여자 명단이 1명 이상 있어야 선거를 시작할 수 있습니다." if voter_slots.empty?
-      errors << "이미 투표 참여자 명단이 생성된 선거입니다." if poll.poll_participants.exists?
-      errors << "이미 투표 진행 정보가 생성된 선거입니다." if poll.poll_progress.present?
-      errors << "이미 후보별 집계 정보가 생성된 선거입니다." if poll.poll_option_tallies.exists?
+      errors << "참여자 명단이 1명 이상 있어야 투표를 시작할 수 있습니다." if voter_slots.empty?
+      errors << "이미 투표 참여자 명단이 생성된 투표입니다." if poll.poll_participants.exists?
+      errors << "이미 투표 진행 정보가 생성된 투표입니다." if poll.poll_progress.present?
+      errors << "이미 후보별 집계 정보가 생성된 투표입니다." if poll.poll_option_tallies.exists?
     end
 
     def create_snapshot

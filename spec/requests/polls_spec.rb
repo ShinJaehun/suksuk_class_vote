@@ -163,7 +163,7 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include(ballot_poll_path(election))
       expect(response.body).to include("후보자 등록이 필요합니다.")
       expect(response.body).to include("상태 점검: 이상 없음")
-      expect(response.body).to include("선거 시작 전 상태입니다. 시작 후 투표 참여자 명단과 후보별 집계가 생성됩니다.")
+      expect(response.body).to include("투표 시작 전 상태입니다. 시작 후 투표 참여자 명단과 후보별 집계가 생성됩니다.")
       expect(response.body).not_to include("전체 참여자 수")
       expect(response.body).not_to include("후보별 득표 합계")
       expect(response.body).to include("아직 생성된 투표 참여자 명단이 없습니다.")
@@ -185,7 +185,7 @@ RSpec.describe "Polls", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("1번")
       expect(response.body).to include("김민준")
-      expect(response.body).to include("선거 시작")
+      expect(response.body).to include("투표 시작")
     end
 
     it "shows draft readiness as not startable with one poll_option" do
@@ -217,7 +217,7 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("후보자")
       expect(response.body).to include("2명")
       expect(response.body).to include("시작 가능")
-      expect(response.body).to include("선거 시작")
+      expect(response.body).to include("투표 시작")
       expect(response.body).to include(start_poll_path(election))
       expect(response.body).to include("data-turbo-frame=\"_top\"")
     end
@@ -248,7 +248,7 @@ RSpec.describe "Polls", type: :request do
       expect(event_log).not_to include("미참여 처리")
       expect(event_log).to include("기권")
       expect(event_log).not_to include("기권 처리")
-      expect(event_log).not_to include("다음 학생으로 이동")
+      expect(event_log).not_to include("다음 참여자로 이동")
       expect(event_log).not_to include("poll_option_id")
       expect(event_log).not_to include("poll_option_name")
       expect(event_log).not_to include("poll_option_number")
@@ -393,7 +393,7 @@ RSpec.describe "Polls", type: :request do
       get ballot_poll_path(election)
 
       expect(response.body).to include("모든 참여자가 처리되었습니다. 창을 닫아주세요.")
-      expect(response.body).not_to include("모든 참여자가 처리되었습니다. 운영 화면에서 선거를 종료하세요.")
+      expect(response.body).not_to include("모든 참여자가 처리되었습니다. 운영 화면에서 투표를 종료하세요.")
       expect(response.body).not_to include(submit_vote_poll_path(election))
       expect(response.body).not_to include(advance_current_voter_poll_path(election))
       expect(response.body).not_to include(close_poll_path(election))
@@ -407,7 +407,7 @@ RSpec.describe "Polls", type: :request do
       get ballot_poll_path(election)
 
       expect(response).to redirect_to(poll_path(election))
-      expect(flash[:alert]).to eq("진행 중인 선거에서만 투표 화면을 사용할 수 있습니다.")
+      expect(flash[:alert]).to eq("진행 중인 투표에서만 투표 화면을 사용할 수 있습니다.")
     end
 
     it "redirects closed elections to the operation screen" do
@@ -422,7 +422,7 @@ RSpec.describe "Polls", type: :request do
       get ballot_poll_path(election)
 
       expect(response).to redirect_to(poll_path(election))
-      expect(flash[:alert]).to eq("진행 중인 선거에서만 투표 화면을 사용할 수 있습니다.")
+      expect(flash[:alert]).to eq("진행 중인 투표에서만 투표 화면을 사용할 수 있습니다.")
     end
   end
 
@@ -445,7 +445,7 @@ RSpec.describe "Polls", type: :request do
       end.to change(PollParticipant, :count).by(2).and change(PollProgress, :count).by(1)
 
       expect(response).to redirect_to(poll_path(election))
-      expect(flash[:notice]).to eq("선거를 시작했습니다.")
+      expect(flash[:notice]).to eq("투표를 시작했습니다.")
       expect(election.reload).to be_in_progress
       expect(election.voter_group_name_snapshot).to eq(election.voter_group.name)
       expect(election.poll_progress.current_poll_participant).to eq(election.poll_participants.order(:number).first)
@@ -504,7 +504,7 @@ RSpec.describe "Polls", type: :request do
 
       expect(response.body).to include("진행")
       expect(response.body).not_to include("in_progress")
-      expect(response.body).to include("선거가 진행 중입니다.")
+      expect(response.body).to include("투표가 진행 중입니다.")
       expect(response.body).to include("현재 참여자")
       expect(response.body).to include("1번 김민준")
       expect(response.body).to include("진행 상태가 정상입니다. 화면을 닫거나 새로고침해도 현재 참여자 기준으로 이어갈 수 있습니다.")
@@ -523,7 +523,7 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include(submit_vote_poll_path(election))
       expect(response.body).not_to include("미참여 처리")
       expect(response.body).not_to include("기권 처리")
-      expect(response.body).not_to include("다음 학생으로")
+      expect(response.body).not_to include("다음 참여자로")
       expect(response.body).to include("투표 참여자 명단")
       expect(response.body).to include("김민준")
       expect(response.body).to include("이서연")
@@ -549,10 +549,10 @@ RSpec.describe "Polls", type: :request do
 
       get poll_path(election)
 
-      expect(response.body).to include("선거가 진행 중입니다.")
+      expect(response.body).to include("투표가 진행 중입니다.")
       expect(response.body).to include("투표 진행 정보를 찾을 수 없습니다.")
       expect(response.body).to include("상태 점검: 확인 필요")
-      expect(response.body).to include("진행 중인 선거의 투표소 정보를 찾을 수 없습니다.")
+      expect(response.body).to include("진행 중인 투표의 투표 진행 정보를 찾을 수 없습니다.")
       expect(response.body).to include("진행 상태 확인이 필요합니다. 자동 복구는 아직 제공하지 않습니다.")
     end
 
@@ -564,7 +564,7 @@ RSpec.describe "Polls", type: :request do
 
       get poll_path(election)
 
-      expect(response.body).to include("첫 미처리 학생으로 재개")
+      expect(response.body).to include("첫 미처리 참여자로 재개")
       expect(response.body).to include(resume_current_voter_poll_path(election))
       expect(response.body).to include("현재 참여자 정보가 비어 있을 때만 사용할 수 있습니다.")
     end
@@ -576,7 +576,7 @@ RSpec.describe "Polls", type: :request do
 
       get poll_path(election)
 
-      expect(response.body).not_to include("첫 미처리 학생으로 재개")
+      expect(response.body).not_to include("첫 미처리 참여자로 재개")
       expect(response.body).not_to include(resume_current_voter_poll_path(election))
     end
 
@@ -637,7 +637,7 @@ RSpec.describe "Polls", type: :request do
       post submit_vote_poll_path(election), params: { poll_option_id: poll_option.id }
 
       expect(response).to redirect_to(poll_path(election))
-      expect(flash[:alert]).to include("이 선거의 후보자")
+      expect(flash[:alert]).to include("이 투표의 선택지")
       expect(election.poll_progress.current_poll_participant.poll_participation).to be_nil
     end
 
@@ -650,7 +650,7 @@ RSpec.describe "Polls", type: :request do
       post submit_vote_poll_path(election), params: { poll_option_id: poll_option.id }
 
       expect(response).to redirect_to(poll_path(election))
-      expect(flash[:alert]).to include("진행 중인 선거")
+      expect(flash[:alert]).to include("진행 중인 투표")
     end
 
     it "does not show vote submit buttons or private vote details after completion" do
@@ -740,7 +740,7 @@ RSpec.describe "Polls", type: :request do
       post advance_current_voter_poll_path(election)
 
       expect(response).to redirect_to(poll_path(election))
-      expect(flash[:notice]).to eq("다음 학생으로 이동했습니다.")
+      expect(flash[:notice]).to eq("다음 참여자로 이동했습니다.")
       expect(election.poll_progress.reload.current_poll_participant).to eq(next_voter)
 
       get poll_path(election)
@@ -771,7 +771,7 @@ RSpec.describe "Polls", type: :request do
       get poll_path(election)
 
       expect(response.body).to include(close_poll_path(election))
-      expect(response.body).to include("선거를 종료할까요?")
+      expect(response.body).to include("투표를 종료할까요?")
       expect(response.body).to include("data-turbo-frame=\"_top\"")
       expect(response.body).not_to include(advance_current_voter_poll_path(election))
     end
@@ -802,7 +802,7 @@ RSpec.describe "Polls", type: :request do
       post resume_current_voter_poll_path(election)
 
       expect(response).to redirect_to(poll_path(election))
-      expect(flash[:notice]).to eq("첫 미처리 학생으로 재개했습니다.")
+      expect(flash[:notice]).to eq("첫 미처리 참여자로 재개했습니다.")
       expect(election.poll_progress.reload.current_poll_participant).to eq(voters[1])
     end
   end
@@ -821,13 +821,13 @@ RSpec.describe "Polls", type: :request do
       post close_poll_path(election)
 
       expect(response).to redirect_to(poll_path(election))
-      expect(flash[:notice]).to eq("선거를 종료했습니다.")
+      expect(flash[:notice]).to eq("투표를 종료했습니다.")
       expect(election.reload).to be_closed
       expect(election.poll_progress).to be_closed
 
       get poll_path(election)
 
-      expect(response.body).to include("선거가 종료되었습니다.")
+      expect(response.body).to include("투표가 종료되었습니다.")
       expect(response.body).to include("참여 요약")
       expect(response.body).to include("전체 참여자 수")
       expect(response.body).to include("투표 완료 수")
@@ -846,8 +846,8 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("이서연")
       expect(response.body).not_to include("후보자 추가")
       expect(response.body).not_to include("후보자 관리가 종료되었습니다.")
-      expect(response.body).not_to include("선거 진행")
-      expect(response.body).not_to include("다음 학생으로")
+      expect(response.body).not_to include("투표 진행")
+      expect(response.body).not_to include("다음 참여자로")
       expect(response.body).not_to include("미참여 처리")
       expect(response.body).not_to include("기권 처리")
       expect(response.body).not_to include("투표 화면 열기")
@@ -876,7 +876,7 @@ RSpec.describe "Polls", type: :request do
 
       get poll_path(election)
 
-      expect(response.body).to include("토의가 종료되었습니다.")
+      expect(response.body).to include("투표가 종료되었습니다.")
       expect(response.body).to include("토의 결과")
       expect(response.body).to include("가장 많이 선택된 의견:")
       expect(response.body).to include("의견")

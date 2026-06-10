@@ -18,7 +18,7 @@ class PollsController < ApplicationController
     authorize @poll, :show?
 
     unless @poll.in_progress?
-      redirect_to @poll, alert: "진행 중인 선거에서만 투표 화면을 사용할 수 있습니다."
+      redirect_to @poll, alert: "진행 중인 투표에서만 투표 화면을 사용할 수 있습니다."
       return
     end
 
@@ -35,7 +35,7 @@ class PollsController < ApplicationController
     result = Polls::Start.new(@poll, actor: current_user).call
 
     if result.success?
-      redirect_to @poll, notice: "선거를 시작했습니다."
+      redirect_to @poll, notice: "투표를 시작했습니다."
     else
       redirect_to @poll, alert: result.error_message
     end
@@ -77,7 +77,7 @@ class PollsController < ApplicationController
 
     if result.success?
       broadcast_operation_progress
-      redirect_to operation_redirect_path, notice: "다음 학생으로 이동했습니다."
+      redirect_to operation_redirect_path, notice: "다음 참여자로 이동했습니다."
     else
       redirect_to operation_redirect_path, alert: result.error_message
     end
@@ -89,7 +89,7 @@ class PollsController < ApplicationController
     result = Polls::ResumeCurrentVoter.new(poll: @poll, actor: current_user).call
 
     if result.success?
-      redirect_to @poll, notice: "첫 미처리 학생으로 재개했습니다."
+      redirect_to @poll, notice: "첫 미처리 참여자로 재개했습니다."
     else
       redirect_to @poll, alert: result.error_message
     end
@@ -101,7 +101,7 @@ class PollsController < ApplicationController
     result = Polls::Close.new(poll: @poll, actor: current_user).call
 
     if result.success?
-      redirect_to @poll, notice: "선거를 종료했습니다."
+      redirect_to @poll, notice: "투표를 종료했습니다."
     else
       redirect_to @poll, alert: result.error_message
     end

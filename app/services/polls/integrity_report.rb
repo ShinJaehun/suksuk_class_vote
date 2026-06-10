@@ -40,15 +40,15 @@ module Polls
 
     def guidance_message
       if poll.draft?
-        "선거 시작 전 상태입니다. 시작 후 투표 참여자 명단과 후보별 집계가 생성됩니다."
+        "투표 시작 전 상태입니다. 시작 후 투표 참여자 명단과 후보별 집계가 생성됩니다."
       elsif poll.in_progress? && ok?
         "진행 상태가 정상입니다. 화면을 닫거나 새로고침해도 현재 참여자 기준으로 이어갈 수 있습니다."
       elsif poll.in_progress?
         "진행 상태 확인이 필요합니다. 자동 복구는 아직 제공하지 않습니다."
       elsif poll.closed? && ok?
-        "종료된 선거의 결과 상태가 정상입니다."
+        "종료된 투표의 결과 상태가 정상입니다."
       elsif poll.closed?
-        "종료된 선거 결과 상태 확인이 필요합니다."
+        "종료된 투표 결과 상태 확인이 필요합니다."
       end
     end
 
@@ -75,15 +75,15 @@ module Polls
 
     def add_poll_progress_issues(report_issues)
       if poll.in_progress?
-        report_issues << issue("진행 중인 선거의 투표소 정보를 찾을 수 없습니다.") if poll_progress.blank?
-        report_issues << issue("진행 중인 선거의 투표소가 active 상태가 아닙니다.") if poll_progress.present? && !poll_progress.active?
-        report_issues << issue("진행 중인 선거의 현재 참여자를 찾을 수 없습니다.") if current_poll_participant.blank?
+        report_issues << issue("진행 중인 투표의 투표 진행 정보를 찾을 수 없습니다.") if poll_progress.blank?
+        report_issues << issue("진행 중인 투표의 투표 진행 정보가 active 상태가 아닙니다.") if poll_progress.present? && !poll_progress.active?
+        report_issues << issue("진행 중인 투표의 현재 참여자를 찾을 수 없습니다.") if current_poll_participant.blank?
         if current_poll_participant.present? && current_poll_participant.poll_id != poll.id
-          report_issues << issue("현재 참여자가 이 선거의 투표 참여자 명단에 속하지 않습니다.")
+          report_issues << issue("현재 참여자가 이 투표의 참여자 명단에 속하지 않습니다.")
         end
       elsif poll.closed?
-        report_issues << issue("종료된 선거의 투표소 정보를 찾을 수 없습니다.") if poll_progress.blank?
-        report_issues << issue("종료된 선거의 투표소가 closed 상태가 아닙니다.") if poll_progress.present? && !poll_progress.closed?
+        report_issues << issue("종료된 투표의 투표 진행 정보를 찾을 수 없습니다.") if poll_progress.blank?
+        report_issues << issue("종료된 투표의 투표 진행 정보가 closed 상태가 아닙니다.") if poll_progress.present? && !poll_progress.closed?
       end
     end
 
@@ -93,7 +93,7 @@ module Polls
       end
 
       if mismatched_poll_option_tallies?
-        report_issues << issue("다른 선거의 후보자가 연결된 후보별 집계 정보가 있습니다.")
+        report_issues << issue("다른 투표의 후보자가 연결된 후보별 집계 정보가 있습니다.")
       end
     end
 
@@ -107,7 +107,7 @@ module Polls
       end
 
       if poll.closed? && unprocessed_count.positive?
-        report_issues << issue("종료된 선거에 미처리 참여자가 남아 있습니다.")
+        report_issues << issue("종료된 투표에 미처리 참여자가 남아 있습니다.")
       end
     end
 
@@ -132,7 +132,7 @@ module Polls
     end
 
     def current_voter_missing_only_issue?
-      issues.map(&:message) == ["진행 중인 선거의 현재 참여자를 찾을 수 없습니다."]
+      issues.map(&:message) == ["진행 중인 투표의 현재 참여자를 찾을 수 없습니다."]
     end
 
     def mismatched_poll_option_tallies?

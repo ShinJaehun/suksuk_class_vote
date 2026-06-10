@@ -57,7 +57,7 @@ RSpec.describe Polls::SubmitVote do
       result = described_class.new(poll: election, poll_option: poll_option).call
 
       expect(result).not_to be_success
-      expect(result.error_message).to include("이 선거의 후보자")
+      expect(result.error_message).to include("이 투표의 선택지")
       expect(election.poll_progress.current_poll_participant.poll_participation).to be_nil
     end
 
@@ -69,7 +69,7 @@ RSpec.describe Polls::SubmitVote do
       result = described_class.new(poll: election, poll_option: poll_option).call
 
       expect(result).not_to be_success
-      expect(result.error_message).to include("진행 중인 선거")
+      expect(result.error_message).to include("진행 중인 투표")
       expect(election.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(0)
     end
 
@@ -81,7 +81,7 @@ RSpec.describe Polls::SubmitVote do
       result = described_class.new(poll: election.reload, poll_option: poll_option).call
 
       expect(result).not_to be_success
-      expect(result.error_message).to include("투표소를 찾을 수 없습니다")
+      expect(result.error_message).to include("투표 진행 정보를 찾을 수 없습니다")
       expect(election.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(0)
     end
 
@@ -93,7 +93,7 @@ RSpec.describe Polls::SubmitVote do
       result = described_class.new(poll: election, poll_option: poll_option).call
 
       expect(result).not_to be_success
-      expect(result.error_message).to include("진행 중인 투표소")
+      expect(result.error_message).to include("진행 중인 투표 진행 정보")
       expect(election.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(0)
     end
 

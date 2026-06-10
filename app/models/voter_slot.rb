@@ -15,7 +15,7 @@ class VoterSlot < ApplicationRecord
   def ensure_voter_group_not_locked_for_election_progress
     return unless voter_group&.locked_for_election_progress?
 
-    errors.add(:base, "진행 중인 선거에서 사용 중인 그룹은 수정할 수 없습니다.")
+    errors.add(:base, "진행 중인 투표에서 사용 중인 그룹은 수정할 수 없습니다.")
     throw :abort
   end
 end

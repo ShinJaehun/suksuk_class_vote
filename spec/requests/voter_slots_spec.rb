@@ -66,7 +66,7 @@ RSpec.describe "Voter slots", type: :request do
       get new_voter_group_voter_slot_path(voter_group)
 
       expect(response).to redirect_to(voter_group_path(voter_group))
-      expect(flash[:alert]).to eq("진행 중인 선거에서 사용 중인 그룹은 수정할 수 없습니다.")
+      expect(flash[:alert]).to eq("진행 중인 투표에서 사용 중인 그룹은 수정할 수 없습니다.")
     end
   end
 
@@ -191,7 +191,7 @@ RSpec.describe "Voter slots", type: :request do
       get edit_voter_group_voter_slot_path(voter_group, voter_slot)
 
       expect(response).to redirect_to(voter_group_path(voter_group))
-      expect(flash[:alert]).to eq("진행 중인 선거에서 사용 중인 그룹은 수정할 수 없습니다.")
+      expect(flash[:alert]).to eq("진행 중인 투표에서 사용 중인 그룹은 수정할 수 없습니다.")
     end
   end
 
@@ -323,9 +323,9 @@ RSpec.describe "Voter slots", type: :request do
     it "allows delete when only closed elections use the group and keeps election voter snapshot" do
       teacher = create(:user)
       voter_group = create(:voter_group, user: teacher)
-      voter_slot = create(:voter_slot, voter_group: voter_group, number: 7, name: "선거 당시 이름")
+      voter_slot = create(:voter_slot, voter_group: voter_group, number: 7, name: "투표 당시 이름")
       election = create(:poll, user: teacher, voter_group: voter_group, status: :closed, voter_group_name_snapshot: voter_group.name)
-      poll_participant = create(:poll_participant, poll: election, source_voter_slot: voter_slot, number: 7, name: "선거 당시 이름")
+      poll_participant = create(:poll_participant, poll: election, source_voter_slot: voter_slot, number: 7, name: "투표 당시 이름")
       sign_in teacher
 
       expect do
@@ -334,7 +334,7 @@ RSpec.describe "Voter slots", type: :request do
 
       expect(response).to redirect_to(voter_group_path(voter_group))
       expect(poll_participant.reload.source_voter_slot).to be_nil
-      expect(poll_participant).to have_attributes(number: 7, name: "선거 당시 이름")
+      expect(poll_participant).to have_attributes(number: 7, name: "투표 당시 이름")
     end
   end
 end

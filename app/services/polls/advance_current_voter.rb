@@ -42,9 +42,9 @@ module Polls
     attr_reader :poll, :actor, :errors
 
     def validate_advancable
-      errors << "진행 중인 선거에서만 다음 참여자로 이동할 수 있습니다." unless poll.in_progress?
-      errors << "진행 중인 투표소를 찾을 수 없습니다." if poll_progress.blank?
-      errors << "진행 중인 투표소에서만 다음 참여자로 이동할 수 있습니다." if poll_progress.present? && !poll_progress.active?
+      errors << "진행 중인 투표에서만 다음 참여자로 이동할 수 있습니다." unless poll.in_progress?
+      errors << "진행 중인 투표 진행 정보를 찾을 수 없습니다." if poll_progress.blank?
+      errors << "진행 중인 투표 진행 정보에서만 다음 참여자로 이동할 수 있습니다." if poll_progress.present? && !poll_progress.active?
       errors << "현재 참여자를 찾을 수 없습니다." if current_poll_participant.blank?
       errors << "현재 참여자가 아직 확정 상태가 아닙니다." unless final_participation?
       errors << "다음 참여자를 찾을 수 없습니다." if next_poll_participant.blank?

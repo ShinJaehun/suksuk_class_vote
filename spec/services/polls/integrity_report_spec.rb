@@ -26,7 +26,7 @@ RSpec.describe Polls::IntegrityReport do
       report = described_class.new(election.reload)
 
       expect(report).not_to be_ok
-      expect(report.issues.map(&:message)).to include("진행 중인 선거의 투표소 정보를 찾을 수 없습니다.")
+      expect(report.issues.map(&:message)).to include("진행 중인 투표의 투표 진행 정보를 찾을 수 없습니다.")
     end
 
     it "requires active poll progress for in-progress elections" do
@@ -36,7 +36,7 @@ RSpec.describe Polls::IntegrityReport do
       report = described_class.new(election)
 
       expect(report).not_to be_ok
-      expect(report.issues.map(&:message)).to include("진행 중인 선거의 투표소가 active 상태가 아닙니다.")
+      expect(report.issues.map(&:message)).to include("진행 중인 투표의 투표 진행 정보가 active 상태가 아닙니다.")
     end
 
     it "requires current election voter for in-progress elections" do
@@ -46,7 +46,7 @@ RSpec.describe Polls::IntegrityReport do
       report = described_class.new(election)
 
       expect(report).not_to be_ok
-      expect(report.issues.map(&:message)).to include("진행 중인 선거의 현재 참여자를 찾을 수 없습니다.")
+      expect(report.issues.map(&:message)).to include("진행 중인 투표의 현재 참여자를 찾을 수 없습니다.")
     end
 
     it "requires current election voter to belong to the same election" do
@@ -57,7 +57,7 @@ RSpec.describe Polls::IntegrityReport do
       report = described_class.new(election)
 
       expect(report).not_to be_ok
-      expect(report.issues.map(&:message)).to include("현재 참여자가 이 선거의 투표 참여자 명단에 속하지 않습니다.")
+      expect(report.issues.map(&:message)).to include("현재 참여자가 이 투표의 참여자 명단에 속하지 않습니다.")
     end
 
     it "checks poll_option tally count only after draft" do
@@ -79,7 +79,7 @@ RSpec.describe Polls::IntegrityReport do
       report = described_class.new(election.reload)
 
       expect(report).not_to be_ok
-      expect(report.issues.map(&:message)).to include("다른 선거의 후보자가 연결된 후보별 집계 정보가 있습니다.")
+      expect(report.issues.map(&:message)).to include("다른 투표의 후보자가 연결된 후보별 집계 정보가 있습니다.")
     end
 
     it "compares completed participation count with tally vote sum without voter-poll_option linkage" do
@@ -135,7 +135,7 @@ RSpec.describe Polls::IntegrityReport do
       report = described_class.new(election)
 
       expect(report).not_to be_ok
-      expect(report.issues.map(&:message)).to include("종료된 선거의 투표소가 closed 상태가 아닙니다.")
+      expect(report.issues.map(&:message)).to include("종료된 투표의 투표 진행 정보가 closed 상태가 아닙니다.")
     end
 
     it "reports unprocessed voters for closed elections" do
@@ -145,7 +145,7 @@ RSpec.describe Polls::IntegrityReport do
       report = described_class.new(election.reload)
 
       expect(report).not_to be_ok
-      expect(report.issues.map(&:message)).to include("종료된 선거에 미처리 참여자가 남아 있습니다.")
+      expect(report.issues.map(&:message)).to include("종료된 투표에 미처리 참여자가 남아 있습니다.")
     end
   end
 
@@ -173,7 +173,7 @@ RSpec.describe Polls::IntegrityReport do
     it "returns draft guidance" do
       report = described_class.new(create_startable_election)
 
-      expect(report.guidance_message).to eq("선거 시작 전 상태입니다. 시작 후 투표 참여자 명단과 후보별 집계가 생성됩니다.")
+      expect(report.guidance_message).to eq("투표 시작 전 상태입니다. 시작 후 투표 참여자 명단과 후보별 집계가 생성됩니다.")
     end
 
     it "returns in-progress ok guidance" do
@@ -193,7 +193,7 @@ RSpec.describe Polls::IntegrityReport do
     it "returns closed ok guidance" do
       report = described_class.new(create_closed_election)
 
-      expect(report.guidance_message).to eq("종료된 선거의 결과 상태가 정상입니다.")
+      expect(report.guidance_message).to eq("종료된 투표의 결과 상태가 정상입니다.")
     end
 
     it "returns closed issue guidance" do
@@ -201,7 +201,7 @@ RSpec.describe Polls::IntegrityReport do
       election.poll_progress.update!(status: :active)
       report = described_class.new(election)
 
-      expect(report.guidance_message).to eq("종료된 선거 결과 상태 확인이 필요합니다.")
+      expect(report.guidance_message).to eq("종료된 투표 결과 상태 확인이 필요합니다.")
     end
   end
 

@@ -104,7 +104,7 @@ RSpec.describe "Bulk voter slots", type: :request do
       get new_voter_group_bulk_voter_slots_path(voter_group)
 
       expect(response).to redirect_to(voter_group_path(voter_group))
-      expect(flash[:alert]).to eq("진행 중인 선거에서 사용 중인 그룹은 수정할 수 없습니다.")
+      expect(flash[:alert]).to eq("진행 중인 투표에서 사용 중인 그룹은 수정할 수 없습니다.")
     end
   end
 

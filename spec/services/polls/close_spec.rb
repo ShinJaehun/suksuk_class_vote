@@ -28,7 +28,7 @@ RSpec.describe Polls::Close do
       result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
-      expect(result.error_message).to include("진행 중인 선거")
+      expect(result.error_message).to include("진행 중인 투표")
       expect(election.reload).to be_draft
       expect(election.poll_progress).to be_active
     end
@@ -40,7 +40,7 @@ RSpec.describe Polls::Close do
       result = described_class.new(poll: election.reload).call
 
       expect(result).not_to be_success
-      expect(result.error_message).to include("투표소를 찾을 수 없습니다")
+      expect(result.error_message).to include("투표 진행 정보를 찾을 수 없습니다")
       expect(election.reload).to be_in_progress
     end
 
@@ -53,7 +53,7 @@ RSpec.describe Polls::Close do
       result = described_class.new(poll: election).call
 
       expect(result).not_to be_success
-      expect(result.error_message).to include("진행 중인 투표소")
+      expect(result.error_message).to include("진행 중인 투표 진행 정보")
       expect(election.reload).to be_in_progress
     end
 

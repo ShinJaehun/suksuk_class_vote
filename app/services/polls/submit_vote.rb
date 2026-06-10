@@ -42,11 +42,11 @@ module Polls
     attr_reader :poll, :poll_option, :actor, :errors
 
     def validate_submittable
-      errors << "진행 중인 선거에만 투표할 수 있습니다." unless poll.in_progress?
-      errors << "진행 중인 투표소를 찾을 수 없습니다." if poll_progress.blank?
-      errors << "진행 중인 투표소에만 투표할 수 있습니다." if poll_progress.present? && !poll_progress.active?
+      errors << "진행 중인 투표에만 투표할 수 있습니다." unless poll.in_progress?
+      errors << "진행 중인 투표 진행 정보를 찾을 수 없습니다." if poll_progress.blank?
+      errors << "진행 중인 투표 진행 정보에서만 투표할 수 있습니다." if poll_progress.present? && !poll_progress.active?
       errors << "현재 참여자를 찾을 수 없습니다." if current_poll_participant.blank?
-      errors << "이 선거의 후보자에게만 투표할 수 있습니다." unless poll_option_belongs_to_poll?
+      errors << "이 투표의 선택지에만 투표할 수 있습니다." unless poll_option_belongs_to_poll?
       errors << "이미 투표 완료 처리된 참여자입니다." if current_poll_participant&.poll_participation.present?
       errors << "후보별 집계 정보를 찾을 수 없습니다." if poll_option_tally.blank?
     end

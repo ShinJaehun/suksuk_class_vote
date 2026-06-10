@@ -16,7 +16,7 @@
 
   <% if integrity_report.resumable_current_voter? %>
     <div class="space-y-2">
-      <%= button_to "첫 미처리 학생으로 재개",
+      <%= button_to "첫 미처리 참여자로 재개",
                     resume_current_voter_poll_path(poll),
                     method: :post,
                     class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>

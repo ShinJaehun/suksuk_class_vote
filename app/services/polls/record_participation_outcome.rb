@@ -39,9 +39,9 @@ module Polls
     attr_reader :poll, :status, :actor, :errors
 
     def validate_recordable
-      errors << "진행 중인 선거에서만 처리할 수 있습니다." unless poll.in_progress?
-      errors << "진행 중인 투표소를 찾을 수 없습니다." if poll_progress.blank?
-      errors << "진행 중인 투표소에서만 처리할 수 있습니다." if poll_progress.present? && !poll_progress.active?
+      errors << "진행 중인 투표에서만 처리할 수 있습니다." unless poll.in_progress?
+      errors << "진행 중인 투표 진행 정보를 찾을 수 없습니다." if poll_progress.blank?
+      errors << "진행 중인 투표 진행 정보에서만 처리할 수 있습니다." if poll_progress.present? && !poll_progress.active?
       errors << "현재 참여자를 찾을 수 없습니다." if current_poll_participant.blank?
       errors << "이미 확정 처리된 참여자입니다." if current_poll_participant&.poll_participation.present?
       errors << "지원하지 않는 처리 상태입니다." unless status.in?(ALLOWED_STATUSES)
