@@ -3,25 +3,21 @@ class ParticipantGroup < ApplicationRecord
   has_many :participant_slots, dependent: :destroy
   has_many :polls, dependent: :nullify
 
-  before_destroy :ensure_not_used_by_open_polls, prepend: true
+  before_destroy :ensure_not_used_by_draft_polls, prepend: true
 
   validates :name, presence: true
   validates :user, presence: true
 
-  def locked_for_poll_progress?
-    polls.in_progress.exists?
-  end
-
-  def used_by_open_poll?
-    polls.where(status: [Poll.statuses[:draft], Poll.statuses[:in_progress]]).exists?
+  def used_by_draft_poll?
+    polls.draft.exists?
   end
 
   private
 
-  def ensure_not_used_by_open_polls
-    return unless used_by_open_poll?
+  def ensure_not_used_by_draft_polls
+    return unless used_by_draft_poll?
 
-    errors.add(:base, "draft 또는 진행 중인 투표에서 사용 중인 그룹은 삭제할 수 없습니다.")
+    errors.add(:base, "시작 전 투표에서 사용 중인 투표자 명단은 삭제할 수 없습니다.")
     throw :abort
   end
 end

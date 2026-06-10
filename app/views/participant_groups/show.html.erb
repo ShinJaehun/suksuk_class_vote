@@ -5,19 +5,15 @@
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <h1 class="text-2xl font-semibold"><%= @participant_group.name %></h1>
 
-      <% if @participant_group.locked_for_poll_progress? %>
-        <p class="text-sm text-stone-600">진행 중인 투표에서 사용 중입니다.</p>
-      <% else %>
-        <div class="flex flex-wrap items-center gap-2">
-          <%= link_to "투표자 명단 수정",
-                      edit_participant_group_path(@participant_group),
+      <div class="flex flex-wrap items-center gap-2">
+        <%= link_to "투표자 명단 수정",
+                    edit_participant_group_path(@participant_group),
+                    class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
+        <%= button_to "투표자 명단 삭제",
+                      participant_group_path(@participant_group),
+                      method: :delete,
                       class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
-          <%= button_to "투표자 명단 삭제",
-                        participant_group_path(@participant_group),
-                        method: :delete,
-                        class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
-        </div>
-      <% end %>
+      </div>
     </div>
   </div>
 
@@ -25,16 +21,14 @@
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <h2 class="text-xl font-semibold">학생 명단</h2>
 
-      <% unless @participant_group.locked_for_poll_progress? %>
-        <div class="flex flex-wrap items-center gap-2">
-          <%= link_to "학생 1명 추가",
-                      new_participant_group_participant_slot_path(@participant_group),
-                      class: "rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white" %>
-          <%= link_to "여러 명 추가",
-                      new_participant_group_bulk_participant_slots_path(@participant_group),
-                      class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
-        </div>
-      <% end %>
+      <div class="flex flex-wrap items-center gap-2">
+        <%= link_to "학생 1명 추가",
+                    new_participant_group_participant_slot_path(@participant_group),
+                    class: "rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white" %>
+        <%= link_to "여러 명 추가",
+                    new_participant_group_bulk_participant_slots_path(@participant_group),
+                    class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
+      </div>
     </div>
 
     <% if @participant_group.participant_slots.any? %>
@@ -53,17 +47,15 @@
                 <td class="px-3 py-3"><%= participant_slot.number %>번</td>
                 <td class="px-3 py-3 font-medium"><%= participant_slot.name %></td>
                 <td class="px-3 py-3">
-                  <% unless @participant_group.locked_for_poll_progress? %>
-                    <div class="flex flex-wrap items-center gap-2">
-                      <%= link_to "수정",
-                                  edit_participant_group_participant_slot_path(@participant_group, participant_slot),
+                  <div class="flex flex-wrap items-center gap-2">
+                    <%= link_to "수정",
+                                edit_participant_group_participant_slot_path(@participant_group, participant_slot),
+                                class: "text-sm font-medium text-stone-700 underline" %>
+                    <%= button_to "삭제",
+                                  participant_group_participant_slot_path(@participant_group, participant_slot),
+                                  method: :delete,
                                   class: "text-sm font-medium text-stone-700 underline" %>
-                      <%= button_to "삭제",
-                                    participant_group_participant_slot_path(@participant_group, participant_slot),
-                                    method: :delete,
-                                    class: "text-sm font-medium text-stone-700 underline" %>
-                    </div>
-                  <% end %>
+                  </div>
                 </td>
               </tr>
             <% end %>

@@ -13,7 +13,6 @@ class ParticipantGroupsController < ApplicationController
 
   def edit
     authorize @participant_group
-    redirect_if_locked_for_poll_progress
   end
 
   def new
@@ -34,7 +33,6 @@ class ParticipantGroupsController < ApplicationController
 
   def update
     authorize @participant_group
-    return if redirect_if_locked_for_poll_progress
 
     if @participant_group.update(participant_group_params)
       redirect_to @participant_group, notice: "투표자 명단을 수정했습니다."
@@ -61,12 +59,5 @@ class ParticipantGroupsController < ApplicationController
 
   def participant_group_params
     params.require(:participant_group).permit(:name)
-  end
-
-  def redirect_if_locked_for_poll_progress
-    return false unless @participant_group.locked_for_poll_progress?
-
-    redirect_to @participant_group, alert: "진행 중인 투표에서 사용 중인 그룹은 수정할 수 없습니다."
-    true
   end
 end

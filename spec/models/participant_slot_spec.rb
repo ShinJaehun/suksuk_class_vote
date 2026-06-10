@@ -52,14 +52,16 @@ RSpec.describe ParticipantSlot, type: :model do
     end
   end
 
-  describe "destroy guard" do
-    it "does not destroy while the participant group is used by an in-progress poll" do
+  describe "destroy" do
+    it "nullifies poll participant source while keeping the snapshot" do
       participant_group = create(:participant_group)
-      participant_slot = create(:participant_slot, participant_group: participant_group)
-      create(:poll, participant_group: participant_group, status: :in_progress)
+      participant_slot = create(:participant_slot, participant_group: participant_group, number: 1, name: "111")
+      poll = create(:poll, participant_group: participant_group, status: :in_progress)
+      poll_participant = create(:poll_participant, poll: poll, source_participant_slot: participant_slot, number: 1, name: "111")
 
-      expect(participant_slot.destroy).to be false
-      expect(participant_slot.errors[:base]).to be_present
+      expect(participant_slot.destroy).to be_truthy
+      expect(poll_participant.reload.source_participant_slot).to be_nil
+      expect(poll_participant).to have_attributes(number: 1, name: "111")
     end
   end
 end

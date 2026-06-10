@@ -6,14 +6,12 @@ class BulkParticipantSlotsController < ApplicationController
 
   def new
     authorize @participant_group, :show?
-    return if redirect_if_locked_for_poll_progress
 
     prepare_form
   end
 
   def create
     authorize @participant_group, :show?
-    return if redirect_if_locked_for_poll_progress
 
     @names = submitted_names
     @count = @names.size if @names.present?
@@ -75,12 +73,5 @@ class BulkParticipantSlotsController < ApplicationController
         @participant_group.participant_slots.create!(number: next_number + index, name: name)
       end
     end
-  end
-
-  def redirect_if_locked_for_poll_progress
-    return false unless @participant_group.locked_for_poll_progress?
-
-    redirect_to @participant_group, alert: "진행 중인 투표에서 사용 중인 그룹은 수정할 수 없습니다."
-    true
   end
 end

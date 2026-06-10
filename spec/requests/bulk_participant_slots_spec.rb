@@ -94,7 +94,7 @@ RSpec.describe "Bulk participant slots", type: :request do
       expect(response.body).to include("40명 이하")
     end
 
-    it "does not allow access while the group is used by an in-progress poll" do
+    it "allows access while the group is used by an in-progress poll" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       create(:participant_slot, participant_group: participant_group)
@@ -103,8 +103,8 @@ RSpec.describe "Bulk participant slots", type: :request do
 
       get new_participant_group_bulk_participant_slots_path(participant_group)
 
-      expect(response).to redirect_to(participant_group_path(participant_group))
-      expect(flash[:alert]).to eq("진행 중인 투표에서 사용 중인 그룹은 수정할 수 없습니다.")
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("여러 명 추가")
     end
   end
 
@@ -147,7 +147,7 @@ RSpec.describe "Bulk participant slots", type: :request do
       expect(response.body).to include("김민준")
     end
 
-    it "does not create while the group is used by an in-progress poll" do
+    it "creates while the group is used by an in-progress poll" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       create(:participant_slot, participant_group: participant_group)
@@ -158,7 +158,7 @@ RSpec.describe "Bulk participant slots", type: :request do
         post participant_group_bulk_participant_slots_path(participant_group), params: {
           bulk_participant_slots: { names: ["김민준", "이서연"] }
         }
-      end.not_to change(ParticipantSlot, :count)
+      end.to change(ParticipantSlot, :count).by(2)
 
       expect(response).to redirect_to(participant_group_path(participant_group))
     end

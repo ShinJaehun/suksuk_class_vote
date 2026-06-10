@@ -56,7 +56,7 @@ RSpec.describe "Voter slots", type: :request do
       expect(response.body).to include("3번 학생을 추가합니다.")
     end
 
-    it "does not allow access while the group is used by an in-progress poll" do
+    it "allows access while the group is used by an in-progress poll" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       create(:participant_slot, participant_group: participant_group)
@@ -65,8 +65,8 @@ RSpec.describe "Voter slots", type: :request do
 
       get new_participant_group_participant_slot_path(participant_group)
 
-      expect(response).to redirect_to(participant_group_path(participant_group))
-      expect(flash[:alert]).to eq("진행 중인 투표에서 사용 중인 그룹은 수정할 수 없습니다.")
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("학생 추가")
     end
   end
 
@@ -109,7 +109,7 @@ RSpec.describe "Voter slots", type: :request do
       expect(response.body).to include("학생을 추가할 수 없습니다.")
     end
 
-    it "does not create while the group is used by an in-progress poll" do
+    it "creates while the group is used by an in-progress poll" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       create(:participant_slot, participant_group: participant_group)
@@ -118,7 +118,7 @@ RSpec.describe "Voter slots", type: :request do
 
       expect do
         post participant_group_participant_slots_path(participant_group), params: { participant_slot: { name: "새 학생" } }
-      end.not_to change(ParticipantSlot, :count)
+      end.to change(ParticipantSlot, :count).by(1)
 
       expect(response).to redirect_to(participant_group_path(participant_group))
     end
@@ -181,7 +181,7 @@ RSpec.describe "Voter slots", type: :request do
       expect(response.body).to include("학생 이름 수정")
     end
 
-    it "does not allow access while the group is used by an in-progress poll" do
+    it "allows access while the group is used by an in-progress poll" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       participant_slot = create(:participant_slot, participant_group: participant_group)
@@ -190,8 +190,8 @@ RSpec.describe "Voter slots", type: :request do
 
       get edit_participant_group_participant_slot_path(participant_group, participant_slot)
 
-      expect(response).to redirect_to(participant_group_path(participant_group))
-      expect(flash[:alert]).to eq("진행 중인 투표에서 사용 중인 그룹은 수정할 수 없습니다.")
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("학생 이름 수정")
     end
   end
 
@@ -232,17 +232,19 @@ RSpec.describe "Voter slots", type: :request do
       expect(participant_slot.reload.name).to eq("수정 전")
     end
 
-    it "does not update while the group is used by an in-progress poll" do
+    it "updates while the group is used by an in-progress poll without changing the poll snapshot" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
-      participant_slot = create(:participant_slot, participant_group: participant_group, name: "수정 전")
-      create(:poll, user: teacher, participant_group: participant_group, status: :in_progress)
+      participant_slot = create(:participant_slot, participant_group: participant_group, number: 1, name: "111")
+      poll = create(:poll, user: teacher, participant_group: participant_group, status: :in_progress, participant_group_name_snapshot: participant_group.name)
+      poll_participant = create(:poll_participant, poll: poll, source_participant_slot: participant_slot, number: 1, name: "111")
       sign_in teacher
 
-      patch participant_group_participant_slot_path(participant_group, participant_slot), params: { participant_slot: { name: "수정 후" } }
+      patch participant_group_participant_slot_path(participant_group, participant_slot), params: { participant_slot: { name: "222" } }
 
       expect(response).to redirect_to(participant_group_path(participant_group))
-      expect(participant_slot.reload.name).to eq("수정 전")
+      expect(participant_slot.reload.name).to eq("222")
+      expect(poll_participant.reload).to have_attributes(number: 1, name: "111")
     end
 
     it "allows update when only closed polls use the group" do
@@ -306,18 +308,21 @@ RSpec.describe "Voter slots", type: :request do
       expect(participant_group.participant_slots.order(:number).pluck(:number)).to eq([1, 3])
     end
 
-    it "does not delete while the group is used by an in-progress poll" do
+    it "deletes while the group is used by an in-progress poll and keeps the poll voter snapshot" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
-      participant_slot = create(:participant_slot, participant_group: participant_group)
-      create(:poll, user: teacher, participant_group: participant_group, status: :in_progress)
+      participant_slot = create(:participant_slot, participant_group: participant_group, number: 7, name: "투표 당시 이름")
+      poll = create(:poll, user: teacher, participant_group: participant_group, status: :in_progress, participant_group_name_snapshot: participant_group.name)
+      poll_participant = create(:poll_participant, poll: poll, source_participant_slot: participant_slot, number: 7, name: "투표 당시 이름")
       sign_in teacher
 
       expect do
         delete participant_group_participant_slot_path(participant_group, participant_slot)
-      end.not_to change(ParticipantSlot, :count)
+      end.to change(ParticipantSlot, :count).by(-1)
 
       expect(response).to redirect_to(participant_group_path(participant_group))
+      expect(poll_participant.reload.source_participant_slot).to be_nil
+      expect(poll_participant).to have_attributes(number: 7, name: "투표 당시 이름")
     end
 
     it "allows delete when only closed polls use the group and keeps poll voter snapshot" do
