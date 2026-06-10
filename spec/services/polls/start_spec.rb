@@ -2,18 +2,18 @@ require "rails_helper"
 
 RSpec.describe Polls::Start do
   describe "#call" do
-    it "starts a draft election with at least two poll_options, snapshots voter slots, creates tallies, and creates a poll progress" do
+    it "starts a draft election with at least two poll_options, snapshots participant slots, creates tallies, and creates a poll progress" do
       election = create_startable_election
-      first_slot = election.voter_group.voter_slots.order(:number).first
+      first_slot = election.participant_group.participant_slots.order(:number).first
 
       result = described_class.new(election).call
 
       expect(result).to be_success
       expect(election.reload).to be_in_progress
-      expect(election.voter_group_name_snapshot).to eq(election.voter_group.name)
+      expect(election.participant_group_name_snapshot).to eq(election.participant_group.name)
       expect(election.poll_participants.count).to eq(2)
       expect(election.poll_participants.order(:number).first).to have_attributes(
-        source_voter_slot: first_slot,
+        source_participant_slot: first_slot,
         number: first_slot.number,
         name: first_slot.name
       )
@@ -48,12 +48,12 @@ RSpec.describe Polls::Start do
       expect(election.poll_events.last.actor).to eq(actor)
     end
 
-    it "preserves voter slot values from the start moment" do
+    it "preserves participant slot values from the start moment" do
       election = create_startable_election
-      voter_slot = election.voter_group.voter_slots.order(:number).first
+      participant_slot = election.participant_group.participant_slots.order(:number).first
 
       described_class.new(election).call
-      voter_slot.update!(name: "변경된 이름")
+      participant_slot.update!(name: "변경된 이름")
 
       expect(election.poll_participants.order(:number).first.name).not_to eq("변경된 이름")
     end
@@ -102,10 +102,10 @@ RSpec.describe Polls::Start do
       expect(election.poll_option_tallies).to be_empty
     end
 
-    it "fails when voter slots are empty" do
+    it "fails when participant slots are empty" do
       teacher = create(:user)
-      voter_group = create(:voter_group, user: teacher)
-      election = build(:poll, user: teacher, voter_group: voter_group)
+      participant_group = create(:participant_group, user: teacher)
+      election = build(:poll, user: teacher, participant_group: participant_group)
       election.save!(validate: false)
       create(:poll_option, poll: election, number: 1)
       create(:poll_option, poll: election, number: 2)
@@ -124,8 +124,8 @@ RSpec.describe Polls::Start do
 
     it "fails when the snapshot already exists" do
       election = create_startable_election
-      voter_slot = election.voter_group.voter_slots.order(:number).first
-      create(:poll_participant, poll: election, source_voter_slot: voter_slot, number: voter_slot.number)
+      participant_slot = election.participant_group.participant_slots.order(:number).first
+      create(:poll_participant, poll: election, source_participant_slot: participant_slot, number: participant_slot.number)
 
       result = described_class.new(election).call
 
@@ -168,7 +168,7 @@ RSpec.describe Polls::Start do
 
     it "rolls back status when snapshot creation fails" do
       election = create_startable_election
-      election.voter_group.voter_slots.order(:number).first.update_column(:name, "")
+      election.participant_group.participant_slots.order(:number).first.update_column(:name, "")
 
       result = described_class.new(election).call
 
@@ -208,10 +208,10 @@ RSpec.describe Polls::Start do
 
   def create_startable_election(status: :draft)
     teacher = create(:user)
-    voter_group = create(:voter_group, user: teacher)
-    create(:voter_slot, voter_group: voter_group, number: 1, name: "김민준")
-    create(:voter_slot, voter_group: voter_group, number: 2, name: "이서연")
-    election = create(:poll, user: teacher, voter_group: voter_group, status: status)
+    participant_group = create(:participant_group, user: teacher)
+    create(:participant_slot, participant_group: participant_group, number: 1, name: "김민준")
+    create(:participant_slot, participant_group: participant_group, number: 2, name: "이서연")
+    election = create(:poll, user: teacher, participant_group: participant_group, status: status)
     create(:poll_option, poll: election, number: 1)
     create(:poll_option, poll: election, number: 2)
     election

@@ -61,12 +61,12 @@ RSpec.describe Polls::ResultSummary do
 
   def create_closed_election
     teacher = create(:user)
-    voter_group = create(:voter_group, user: teacher)
-    create(:voter_slot, voter_group: voter_group, number: 1, name: "김민준")
-    create(:voter_slot, voter_group: voter_group, number: 2, name: "이서연")
-    create(:voter_slot, voter_group: voter_group, number: 3, name: "박지호")
-    create(:voter_slot, voter_group: voter_group, number: 4, name: "최지우")
-    election = create(:poll, user: teacher, voter_group: voter_group)
+    participant_group = create(:participant_group, user: teacher)
+    create(:participant_slot, participant_group: participant_group, number: 1, name: "김민준")
+    create(:participant_slot, participant_group: participant_group, number: 2, name: "이서연")
+    create(:participant_slot, participant_group: participant_group, number: 3, name: "박지호")
+    create(:participant_slot, participant_group: participant_group, number: 4, name: "최지우")
+    election = create(:poll, user: teacher, participant_group: participant_group)
     create(:poll_option, poll: election, number: 1, name: "후보자1")
     create(:poll_option, poll: election, number: 2, name: "후보자2")
     Polls::Start.new(election).call

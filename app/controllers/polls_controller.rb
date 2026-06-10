@@ -3,7 +3,7 @@ class PollsController < ApplicationController
   before_action :set_poll, only: %i[show ballot start submit_vote record_participation_outcome advance_current_participant resume_current_participant close]
 
   def index
-    @polls = policy_scope(Poll).includes(voter_group: :voter_slots).order(created_at: :desc)
+    @polls = policy_scope(Poll).includes(participant_group: :participant_slots).order(created_at: :desc)
     authorize Poll
   end
 
@@ -110,18 +110,18 @@ class PollsController < ApplicationController
   def new
     @poll = Poll.new
     authorize Poll
-    set_selectable_voter_groups
+    set_selectable_participant_groups
   end
 
   def create
-    @poll = current_user.polls.build(poll_params.except(:voter_group_id))
-    @poll.voter_group = selectable_voter_groups.find_by(id: poll_params[:voter_group_id])
+    @poll = current_user.polls.build(poll_params.except(:participant_group_id))
+    @poll.participant_group = selectable_participant_groups.find_by(id: poll_params[:participant_group_id])
     authorize @poll
 
     if @poll.save
       redirect_to @poll, notice: "투표를 생성했습니다."
     else
-      set_selectable_voter_groups
+      set_selectable_participant_groups
       render :new, status: :unprocessable_entity
     end
   end
@@ -166,19 +166,19 @@ class PollsController < ApplicationController
       .limit(10)
   end
 
-  def set_selectable_voter_groups
-    @selectable_voter_groups = selectable_voter_groups
+  def set_selectable_participant_groups
+    @selectable_participant_groups = selectable_participant_groups
   end
 
-  def selectable_voter_groups
-    policy_scope(VoterGroup)
-      .left_joins(:voter_slots)
-      .group("voter_groups.id")
-      .having("COUNT(voter_slots.id) > 0")
+  def selectable_participant_groups
+    policy_scope(ParticipantGroup)
+      .left_joins(:participant_slots)
+      .group("participant_groups.id")
+      .having("COUNT(participant_slots.id) > 0")
       .order(:name)
   end
 
   def poll_params
-    params.require(:poll).permit(:title, :kind, :voter_group_id)
+    params.require(:poll).permit(:title, :kind, :participant_group_id)
   end
 end

@@ -1,6 +1,6 @@
 class Poll < ApplicationRecord
   belongs_to :user
-  belongs_to :voter_group, optional: true
+  belongs_to :participant_group, optional: true
   has_many :poll_options, dependent: :destroy
   has_many :poll_participants, dependent: :destroy
   has_many :poll_option_tallies, dependent: :destroy
@@ -54,15 +54,15 @@ class Poll < ApplicationRecord
 
   validates :title, presence: true
   validates :user, presence: true
-  validates :voter_group, presence: true, unless: :closed?
-  validate :voter_group_has_voter_slots, unless: :closed?
+  validates :participant_group, presence: true, unless: :closed?
+  validate :participant_group_has_participant_slots, unless: :closed?
 
   def readiness_poll_option_count
     poll_options.count
   end
 
   def readiness_voter_count
-    voter_group&.voter_slots&.count.to_i
+    participant_group&.participant_slots&.count.to_i
   end
 
   def startable_by_configuration?
@@ -97,16 +97,16 @@ class Poll < ApplicationRecord
     VOTE_COUNT_LABELS.fetch(kind, kind)
   end
 
-  def voter_group_display_name
-    voter_group_name_snapshot.presence || voter_group&.name
+  def participant_group_display_name
+    participant_group_name_snapshot.presence || participant_group&.name
   end
 
   private
 
-  def voter_group_has_voter_slots
-    return if voter_group.blank?
-    return if voter_group.voter_slots.exists?
+  def participant_group_has_participant_slots
+    return if participant_group.blank?
+    return if participant_group.participant_slots.exists?
 
-    errors.add(:voter_group, "must have at least one voter slot")
+    errors.add(:participant_group, "must have at least one participant slot")
   end
 end

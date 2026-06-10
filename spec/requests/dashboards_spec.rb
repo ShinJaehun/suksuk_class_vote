@@ -29,7 +29,7 @@ RSpec.describe "Dashboards", type: :request do
       expect(response.body).to include("교사 계정 관리")
       expect(response.body).to include(admin_teachers_path)
       expect(response.body).to include("참여자 그룹 관리")
-      expect(response.body).to include(voter_groups_path)
+      expect(response.body).to include(participant_groups_path)
       expect(response.body).to include("투표 관리")
       expect(response.body).to include(polls_path)
     end
@@ -45,7 +45,7 @@ RSpec.describe "Dashboards", type: :request do
       expect(response.body).to include("쑥쑥교실투표 교사 홈")
       expect(response.body).not_to include("교사 계정 관리")
       expect(response.body).to include("참여자 그룹 관리")
-      expect(response.body).to include(voter_groups_path)
+      expect(response.body).to include(participant_groups_path)
       expect(response.body).to include("투표 관리")
       expect(response.body).to include(polls_path)
     end

@@ -1,19 +1,19 @@
-class BulkVoterSlotsController < ApplicationController
+class BulkParticipantSlotsController < ApplicationController
   MAX_COUNT = 40
 
   before_action :authenticate_user!
-  before_action :set_voter_group
+  before_action :set_participant_group
 
   def new
-    authorize @voter_group, :show?
-    return if redirect_if_locked_for_election_progress
+    authorize @participant_group, :show?
+    return if redirect_if_locked_for_poll_progress
 
     prepare_form
   end
 
   def create
-    authorize @voter_group, :show?
-    return if redirect_if_locked_for_election_progress
+    authorize @participant_group, :show?
+    return if redirect_if_locked_for_poll_progress
 
     @names = submitted_names
     @count = @names.size if @names.present?
@@ -30,8 +30,8 @@ class BulkVoterSlotsController < ApplicationController
       return
     end
 
-    create_voter_slots!
-    redirect_to @voter_group, notice: "학생 명단을 저장했습니다."
+    create_participant_slots!
+    redirect_to @participant_group, notice: "학생 명단을 저장했습니다."
   rescue ActiveRecord::RecordInvalid => e
     @errors = [e.record.errors.full_messages.to_sentence]
     render :new, status: :unprocessable_entity
@@ -39,8 +39,8 @@ class BulkVoterSlotsController < ApplicationController
 
   private
 
-  def set_voter_group
-    @voter_group = VoterGroup.find(params[:voter_group_id])
+  def set_participant_group
+    @participant_group = ParticipantGroup.find(params[:participant_group_id])
   end
 
   def prepare_form
@@ -64,23 +64,23 @@ class BulkVoterSlotsController < ApplicationController
   end
 
   def submitted_names
-    Array(params.dig(:bulk_voter_slots, :names)).map { |name| name.to_s.strip }
+    Array(params.dig(:bulk_participant_slots, :names)).map { |name| name.to_s.strip }
   end
 
-  def create_voter_slots!
-    next_number = @voter_group.voter_slots.maximum(:number).to_i + 1
+  def create_participant_slots!
+    next_number = @participant_group.participant_slots.maximum(:number).to_i + 1
 
-    VoterSlot.transaction do
+    ParticipantSlot.transaction do
       @names.each_with_index do |name, index|
-        @voter_group.voter_slots.create!(number: next_number + index, name: name)
+        @participant_group.participant_slots.create!(number: next_number + index, name: name)
       end
     end
   end
 
-  def redirect_if_locked_for_election_progress
-    return false unless @voter_group.locked_for_election_progress?
+  def redirect_if_locked_for_poll_progress
+    return false unless @participant_group.locked_for_poll_progress?
 
-    redirect_to @voter_group, alert: "진행 중인 투표에서 사용 중인 그룹은 수정할 수 없습니다."
+    redirect_to @participant_group, alert: "진행 중인 투표에서 사용 중인 그룹은 수정할 수 없습니다."
     true
   end
 end

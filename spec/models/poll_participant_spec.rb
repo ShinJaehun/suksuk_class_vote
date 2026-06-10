@@ -17,9 +17,9 @@ RSpec.describe PollParticipant, type: :model do
       expect(poll_participant.errors[:poll]).to be_present
     end
 
-    it "allows a missing source voter slot" do
+    it "allows a missing source participant slot" do
       election = create(:poll)
-      poll_participant = build(:poll_participant, poll: election, source_voter_slot: nil, number: 1, name: "김민준")
+      poll_participant = build(:poll_participant, poll: election, source_participant_slot: nil, number: 1, name: "김민준")
 
       expect(poll_participant).to be_valid
     end
@@ -61,23 +61,23 @@ RSpec.describe PollParticipant, type: :model do
       expect(poll_participant).to be_valid
     end
 
-    it "does not allow duplicate source voter slots in the same poll" do
+    it "does not allow duplicate source participant slots in the same poll" do
       poll_participant = create(:poll_participant)
       duplicate = build(
         :poll_participant,
         poll: poll_participant.poll,
-        source_voter_slot: poll_participant.source_voter_slot,
+        source_participant_slot: poll_participant.source_participant_slot,
         number: poll_participant.number + 1
       )
 
       expect(duplicate).not_to be_valid
-      expect(duplicate.errors[:source_voter_slot_id]).to be_present
+      expect(duplicate.errors[:source_participant_slot_id]).to be_present
     end
 
-    it "allows multiple missing source voter slots in the same poll" do
+    it "allows multiple missing source participant slots in the same poll" do
       election = create(:poll)
-      create(:poll_participant, poll: election, source_voter_slot: nil, number: 1)
-      poll_participant = build(:poll_participant, poll: election, source_voter_slot: nil, number: 2)
+      create(:poll_participant, poll: election, source_participant_slot: nil, number: 1)
+      poll_participant = build(:poll_participant, poll: election, source_participant_slot: nil, number: 2)
 
       expect(poll_participant).to be_valid
     end

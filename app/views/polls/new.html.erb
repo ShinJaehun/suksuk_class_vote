@@ -32,9 +32,9 @@
     </div>
 
     <div class="space-y-1">
-      <%= form.label :voter_group_id, "참여자 그룹", class: "text-sm font-medium text-stone-700" %>
-      <%= form.select :voter_group_id,
-                      @selectable_voter_groups.map { |voter_group| ["#{voter_group.name} (학생 #{voter_group.voter_slots.size}명)", voter_group.id] },
+      <%= form.label :participant_group_id, "참여자 그룹", class: "text-sm font-medium text-stone-700" %>
+      <%= form.select :participant_group_id,
+                      @selectable_participant_groups.map { |participant_group| ["#{participant_group.name} (학생 #{participant_group.participant_slots.size}명)", participant_group.id] },
                       { prompt: "참여자 그룹을 선택하세요" },
                       class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
     </div>

@@ -11,9 +11,9 @@ Rails.application.routes.draw do
     post :close, on: :member
     resources :poll_options, path: "options", only: %i[new create edit update destroy]
   end
-  resources :voter_groups, only: %i[index show new create edit update destroy] do
-    resources :voter_slots, only: %i[new create edit update destroy]
-    resource :bulk_voter_slots, only: %i[new create], controller: "bulk_voter_slots"
+  resources :participant_groups, only: %i[index show new create edit update destroy] do
+    resources :participant_slots, only: %i[new create edit update destroy]
+    resource :bulk_participant_slots, only: %i[new create], controller: "bulk_participant_slots"
   end
 
   namespace :admin do

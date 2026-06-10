@@ -18,40 +18,40 @@ RSpec.describe Poll, type: :model do
     end
 
     it "requires a user" do
-      voter_group = create(:voter_group, :with_voter_slot)
-      election = build(:poll, user: nil, voter_group: voter_group)
+      participant_group = create(:participant_group, :with_participant_slot)
+      election = build(:poll, user: nil, participant_group: participant_group)
 
       expect(election).not_to be_valid
       expect(election.errors[:user]).to be_present
     end
 
-    it "requires a voter group" do
-      election = build(:poll, voter_group: nil)
+    it "requires a participant group" do
+      election = build(:poll, participant_group: nil)
 
       expect(election).not_to be_valid
-      expect(election.errors[:voter_group]).to be_present
+      expect(election.errors[:participant_group]).to be_present
     end
 
-    it "allows a closed election without a voter group" do
-      election = build(:poll, status: :closed, voter_group: nil)
+    it "allows a closed election without a participant group" do
+      election = build(:poll, status: :closed, participant_group: nil)
 
       expect(election).to be_valid
     end
 
-    it "does not allow an empty voter group" do
+    it "does not allow an empty participant group" do
       teacher = create(:user)
-      voter_group = create(:voter_group, user: teacher)
-      election = build(:poll, user: teacher, voter_group: voter_group)
+      participant_group = create(:participant_group, user: teacher)
+      election = build(:poll, user: teacher, participant_group: participant_group)
 
       expect(election).not_to be_valid
-      expect(election.errors[:voter_group]).to be_present
+      expect(election.errors[:participant_group]).to be_present
     end
 
-    it "allows a voter group with voter slots" do
+    it "allows a participant group with participant slots" do
       teacher = create(:user)
-      voter_group = create(:voter_group, user: teacher)
-      create(:voter_slot, voter_group: voter_group)
-      election = build(:poll, user: teacher, voter_group: voter_group)
+      participant_group = create(:participant_group, user: teacher)
+      create(:participant_slot, participant_group: participant_group)
+      election = build(:poll, user: teacher, participant_group: participant_group)
 
       expect(election).to be_valid
     end

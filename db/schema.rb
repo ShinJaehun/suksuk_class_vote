@@ -10,9 +10,27 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_10_030000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_10_041000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "participant_groups", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["user_id"], name: "index_participant_groups_on_user_id"
+  end
+
+  create_table "participant_slots", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.integer "number", null: false
+    t.bigint "participant_group_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["participant_group_id", "number"], name: "index_participant_slots_on_participant_group_id_and_number", unique: true
+    t.index ["participant_group_id"], name: "index_participant_slots_on_participant_group_id"
+  end
 
   create_table "poll_events", force: :cascade do |t|
     t.bigint "actor_id"
@@ -56,12 +74,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_10_030000) do
     t.string "name", null: false
     t.integer "number", null: false
     t.bigint "poll_id", null: false
-    t.bigint "source_voter_slot_id"
+    t.bigint "source_participant_slot_id"
     t.datetime "updated_at", null: false
     t.index ["poll_id", "number"], name: "index_poll_participants_on_poll_id_and_number", unique: true
-    t.index ["poll_id", "source_voter_slot_id"], name: "index_poll_participants_on_poll_id_and_source_voter_slot_id", unique: true
+    t.index ["poll_id", "source_participant_slot_id"], name: "idx_on_poll_id_source_participant_slot_id_4913eb3601", unique: true
     t.index ["poll_id"], name: "index_poll_participants_on_poll_id"
-    t.index ["source_voter_slot_id"], name: "index_poll_participants_on_source_voter_slot_id"
+    t.index ["source_participant_slot_id"], name: "index_poll_participants_on_source_participant_slot_id"
   end
 
   create_table "poll_participations", force: :cascade do |t|
@@ -88,14 +106,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_10_030000) do
   create_table "polls", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "kind", default: 0, null: false
+    t.bigint "participant_group_id"
+    t.string "participant_group_name_snapshot"
     t.integer "status", default: 0, null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
-    t.bigint "voter_group_id"
-    t.string "voter_group_name_snapshot"
+    t.index ["participant_group_id"], name: "index_polls_on_participant_group_id"
     t.index ["user_id"], name: "index_polls_on_user_id"
-    t.index ["voter_group_id"], name: "index_polls_on_voter_group_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -112,37 +130,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_10_030000) do
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
-  create_table "voter_groups", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "name", null: false
-    t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
-    t.index ["user_id"], name: "index_voter_groups_on_user_id"
-  end
-
-  create_table "voter_slots", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "name", null: false
-    t.integer "number", null: false
-    t.datetime "updated_at", null: false
-    t.bigint "voter_group_id", null: false
-    t.index ["voter_group_id", "number"], name: "index_voter_slots_on_voter_group_id_and_number", unique: true
-    t.index ["voter_group_id"], name: "index_voter_slots_on_voter_group_id"
-  end
-
+  add_foreign_key "participant_groups", "users"
+  add_foreign_key "participant_slots", "participant_groups"
   add_foreign_key "poll_events", "poll_participants"
   add_foreign_key "poll_events", "polls"
   add_foreign_key "poll_events", "users", column: "actor_id"
   add_foreign_key "poll_option_tallies", "poll_options"
   add_foreign_key "poll_option_tallies", "polls"
   add_foreign_key "poll_options", "polls"
+  add_foreign_key "poll_participants", "participant_slots", column: "source_participant_slot_id", on_delete: :nullify
   add_foreign_key "poll_participants", "polls"
-  add_foreign_key "poll_participants", "voter_slots", column: "source_voter_slot_id", on_delete: :nullify
   add_foreign_key "poll_participations", "poll_participants"
   add_foreign_key "poll_progresses", "poll_participants", column: "current_poll_participant_id"
   add_foreign_key "poll_progresses", "polls"
+  add_foreign_key "polls", "participant_groups", on_delete: :nullify
   add_foreign_key "polls", "users"
-  add_foreign_key "polls", "voter_groups", on_delete: :nullify
-  add_foreign_key "voter_groups", "users"
-  add_foreign_key "voter_slots", "voter_groups"
 end

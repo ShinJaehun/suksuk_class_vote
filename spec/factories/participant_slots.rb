@@ -1,6 +1,6 @@
 FactoryBot.define do
-  factory :voter_slot do
-    association :voter_group
+  factory :participant_slot do
+    association :participant_group
     sequence(:number) { |n| n }
     name { "학생#{number}" }
   end

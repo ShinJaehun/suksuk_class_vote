@@ -21,12 +21,12 @@ RSpec.describe "Polls", type: :request do
   end
 
   describe "GET /polls/new" do
-    it "shows only non-empty voter groups teachers can select" do
+    it "shows only non-empty participant groups teachers can select" do
       teacher = create(:user)
-      selectable_group = create(:voter_group, user: teacher, name: "선택 가능 그룹")
-      create(:voter_slot, voter_group: selectable_group)
-      create(:voter_group, user: teacher, name: "빈 그룹")
-      create(:voter_group, :with_voter_slot, name: "다른 교사 그룹")
+      selectable_group = create(:participant_group, user: teacher, name: "선택 가능 그룹")
+      create(:participant_slot, participant_group: selectable_group)
+      create(:participant_group, user: teacher, name: "빈 그룹")
+      create(:participant_group, :with_participant_slot, name: "다른 교사 그룹")
       sign_in teacher
 
       get new_poll_path
@@ -42,17 +42,17 @@ RSpec.describe "Polls", type: :request do
   end
 
   describe "POST /polls" do
-    it "allows teachers to create elections with their own voter group" do
+    it "allows teachers to create elections with their own participant group" do
       teacher = create(:user)
-      voter_group = create(:voter_group, user: teacher)
-      create(:voter_slot, voter_group: voter_group)
+      participant_group = create(:participant_group, user: teacher)
+      create(:participant_slot, participant_group: participant_group)
       sign_in teacher
 
       expect do
         post polls_path, params: {
           poll: {
             title: "4학년 1반 반장 선거",
-            voter_group_id: voter_group.id,
+            participant_group_id: participant_group.id,
             user_id: create(:user).id
           }
         }
@@ -60,22 +60,22 @@ RSpec.describe "Polls", type: :request do
 
       election = Poll.find_by!(title: "4학년 1반 반장 선거")
       expect(election.user).to eq(teacher)
-      expect(election.voter_group).to eq(voter_group)
+      expect(election.participant_group).to eq(participant_group)
       expect(election).to be_election
       expect(response).to redirect_to(poll_path(election))
     end
 
     it "allows teachers to create discussion elections and shows the activity label" do
       teacher = create(:user)
-      voter_group = create(:voter_group, user: teacher)
-      create(:voter_slot, voter_group: voter_group)
+      participant_group = create(:participant_group, user: teacher)
+      create(:participant_slot, participant_group: participant_group)
       sign_in teacher
 
       post polls_path, params: {
         poll: {
           title: "급식 메뉴 토의",
           kind: "discussion",
-          voter_group_id: voter_group.id
+          participant_group_id: participant_group.id
         }
       }
 
@@ -90,15 +90,15 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("토의")
     end
 
-    it "does not allow teachers to create elections with another teacher's voter group" do
+    it "does not allow teachers to create elections with another teacher's participant group" do
       sign_in create(:user)
-      other_group = create(:voter_group, :with_voter_slot)
+      other_group = create(:participant_group, :with_participant_slot)
 
       expect do
         post polls_path, params: {
           poll: {
             title: "권한 없는 선거",
-            voter_group_id: other_group.id
+            participant_group_id: other_group.id
           }
         }
       end.not_to change(Poll, :count)
@@ -107,16 +107,16 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("투표를 생성할 수 없습니다.")
     end
 
-    it "does not create elections with an empty voter group" do
+    it "does not create elections with an empty participant group" do
       teacher = create(:user)
-      empty_group = create(:voter_group, user: teacher)
+      empty_group = create(:participant_group, user: teacher)
       sign_in teacher
 
       expect do
         post polls_path, params: {
           poll: {
             title: "빈 명단 선거",
-            voter_group_id: empty_group.id
+            participant_group_id: empty_group.id
           }
         }
       end.not_to change(Poll, :count)
@@ -447,7 +447,7 @@ RSpec.describe "Polls", type: :request do
       expect(response).to redirect_to(poll_path(election))
       expect(flash[:notice]).to eq("투표를 시작했습니다.")
       expect(election.reload).to be_in_progress
-      expect(election.voter_group_name_snapshot).to eq(election.voter_group.name)
+      expect(election.participant_group_name_snapshot).to eq(election.participant_group.name)
       expect(election.poll_progress.current_poll_participant).to eq(election.poll_participants.order(:number).first)
     end
 
@@ -918,36 +918,36 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("최다 득표 후보 없음")
     end
 
-    it "keeps the poll participant snapshot after the source voter group changes" do
+    it "keeps the poll participant snapshot after the source participant group changes" do
       teacher = create(:user)
       election = create_started_election(user: teacher)
       first_poll_participant = election.poll_participants.order(:number).first
-      source_voter_slot = first_poll_participant.source_voter_slot
+      source_participant_slot = first_poll_participant.source_participant_slot
       last_voter = election.poll_participants.order(:number).last
       election.poll_progress.update!(current_poll_participant: last_voter)
       create(:poll_participation, poll_participant: last_voter, status: :absent)
       Polls::Close.new(poll: election).call
       sign_in teacher
 
-      patch voter_group_voter_slot_path(election.voter_group, source_voter_slot), params: {
-        voter_slot: { name: "원본 수정" }
+      patch participant_group_participant_slot_path(election.participant_group, source_participant_slot), params: {
+        participant_slot: { name: "원본 수정" }
       }
 
-      expect(response).to redirect_to(voter_group_path(election.voter_group))
-      expect(source_voter_slot.reload.name).to eq("원본 수정")
+      expect(response).to redirect_to(participant_group_path(election.participant_group))
+      expect(source_participant_slot.reload.name).to eq("원본 수정")
       expect(first_poll_participant.reload.name).not_to eq("원본 수정")
     end
 
-    it "shows a closed election after the source voter group is deleted" do
+    it "shows a closed election after the source participant group is deleted" do
       teacher = create(:user)
       election = create_started_election(user: teacher)
-      voter_group = election.voter_group
-      group_name = election.voter_group_name_snapshot
+      participant_group = election.participant_group
+      group_name = election.participant_group_name_snapshot
       last_voter = election.poll_participants.order(:number).last
       election.poll_progress.update!(current_poll_participant: last_voter)
       create(:poll_participation, poll_participant: last_voter, status: :absent)
       Polls::Close.new(poll: election).call
-      voter_group.destroy!
+      participant_group.destroy!
       sign_in teacher
 
       get poll_path(election)
@@ -956,7 +956,7 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include(group_name)
       expect(response.body).to include("김민준")
       expect(response.body).to include("이서연")
-      expect(election.reload.voter_group).to be_nil
+      expect(election.reload.participant_group).to be_nil
       expect(election.poll_participants.order(:number).pluck(:name)).to eq([ "김민준", "이서연" ])
     end
 
@@ -979,10 +979,10 @@ RSpec.describe "Polls", type: :request do
   end
 
   def create_startable_election(user: create(:user), kind: :election)
-    voter_group = create(:voter_group, user: user)
-    create(:voter_slot, voter_group: voter_group, number: 1, name: "김민준")
-    create(:voter_slot, voter_group: voter_group, number: 2, name: "이서연")
-    election = create(:poll, user: user, voter_group: voter_group, kind: kind)
+    participant_group = create(:participant_group, user: user)
+    create(:participant_slot, participant_group: participant_group, number: 1, name: "김민준")
+    create(:participant_slot, participant_group: participant_group, number: 2, name: "이서연")
+    election = create(:poll, user: user, participant_group: participant_group, kind: kind)
     create(:poll_option, poll: election, number: 1)
     create(:poll_option, poll: election, number: 2)
     election

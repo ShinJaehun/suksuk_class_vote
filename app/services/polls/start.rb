@@ -24,7 +24,7 @@ module Polls
         first_poll_participant = poll.poll_participants.order(:number).first
         poll.update!(
           status: :in_progress,
-          voter_group_name_snapshot: poll.voter_group.name
+          participant_group_name_snapshot: poll.participant_group.name
         )
         poll.create_poll_progress!(
           current_poll_participant: first_poll_participant,
@@ -61,18 +61,18 @@ module Polls
         errors << SINGLE_CANDIDATE_MESSAGE
       end
 
-      errors << "참여자 명단이 1명 이상 있어야 투표를 시작할 수 있습니다." if voter_slots.empty?
+      errors << "참여자 명단이 1명 이상 있어야 투표를 시작할 수 있습니다." if participant_slots.empty?
       errors << "이미 투표 참여자 명단이 생성된 투표입니다." if poll.poll_participants.exists?
       errors << "이미 투표 진행 정보가 생성된 투표입니다." if poll.poll_progress.present?
       errors << "이미 후보별 집계 정보가 생성된 투표입니다." if poll.poll_option_tallies.exists?
     end
 
     def create_snapshot
-      voter_slots.each do |voter_slot|
+      participant_slots.each do |participant_slot|
         poll.poll_participants.create!(
-          source_voter_slot: voter_slot,
-          number: voter_slot.number,
-          name: voter_slot.name
+          source_participant_slot: participant_slot,
+          number: participant_slot.number,
+          name: participant_slot.name
         )
       end
     end
@@ -86,8 +86,8 @@ module Polls
       end
     end
 
-    def voter_slots
-      @voter_slots ||= poll.voter_group&.voter_slots&.order(:number) || VoterSlot.none
+    def participant_slots
+      @participant_slots ||= poll.participant_group&.participant_slots&.order(:number) || ParticipantSlot.none
     end
 
     def record_event(event_type, poll_participant: nil, details: {})
