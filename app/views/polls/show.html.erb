@@ -3,11 +3,33 @@
     <%= turbo_stream_from @poll, :operation_screen %>
   <% end %>
 
+  <% activity_badge_class =
+    case @poll.kind
+    when "election" then "border-indigo-200 bg-indigo-50 text-indigo-700"
+    when "discussion" then "border-sky-200 bg-sky-50 text-sky-700"
+    when "debate" then "border-violet-200 bg-violet-50 text-violet-700"
+    else "border-stone-200 bg-stone-50 text-stone-700"
+    end %>
+  <% status_badge_class =
+    if @poll.draft?
+      "border-amber-200 bg-amber-50 text-amber-700"
+    elsif @poll.in_progress?
+      "border-emerald-200 bg-emerald-50 text-emerald-700"
+    elsif @poll.closed?
+      "border-stone-300 bg-stone-100 text-stone-700"
+    else
+      "border-stone-200 bg-stone-50 text-stone-700"
+    end %>
+
   <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
     <div class="space-y-2">
       <p><%= link_to "투표 목록으로 돌아가기", polls_path, class: "text-sm font-medium text-stone-600 underline" %></p>
 
-      <h1 class="text-3xl font-semibold"><%= @poll.title %></h1>
+      <div class="flex flex-wrap items-center gap-2">
+        <h1 class="text-3xl font-semibold"><%= @poll.title %></h1>
+        <span class="rounded-md border px-2 py-1 text-sm font-medium <%= activity_badge_class %>"><%= @poll.activity_label %></span>
+        <span class="rounded-md border px-2 py-1 text-sm font-medium <%= status_badge_class %>"><%= @poll.display_status %></span>
+      </div>
     </div>
 
     <% if @poll.in_progress? %>
@@ -18,30 +40,6 @@
                   class: "inline-flex rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
     <% end %>
   </div>
-
-  <dl class="grid gap-4 rounded-md border border-stone-200 bg-white p-4 sm:grid-cols-4">
-    <div class="space-y-1">
-      <dt class="text-sm font-medium text-stone-500">활동 유형</dt>
-      <dd class="font-medium"><%= @poll.activity_label %></dd>
-    </div>
-
-    <div class="space-y-1">
-      <dt class="text-sm font-medium text-stone-500">상태</dt>
-      <dd class="font-medium"><%= @poll.display_status %></dd>
-    </div>
-
-    <div class="space-y-1">
-      <dt class="text-sm font-medium text-stone-500">투표자 명단</dt>
-      <dd class="font-medium"><%= @poll.participant_group_display_name || "-" %></dd>
-    </div>
-
-    <div class="space-y-1">
-      <dt class="text-sm font-medium text-stone-500">투표자 수</dt>
-      <dd class="font-medium">
-        <%= @poll.poll_participants.exists? ? @poll.poll_participants.count : @poll.readiness_voter_count %>명
-      </dd>
-    </div>
-  </dl>
 
   <% if @poll.draft? %>
     <%= render "readiness", poll: @poll, integrity_report: @integrity_report %>
@@ -58,5 +56,5 @@
     <%= render "progress", poll: @poll %>
   <% end %>
   <%= render "poll_participants", poll: @poll %>
-  <%= render "event_log", poll: @poll, poll_events: @poll_events %>
+  <%= render "event_log", poll: @poll, poll_events: @poll_events unless @poll.draft? %>
 </div>

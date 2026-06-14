@@ -84,7 +84,6 @@ RSpec.describe "Polls", type: :request do
       expect(poll).to be_discussion
 
       get poll_path(poll)
-      expect(response.body).to include("활동 유형")
       expect(response.body).to include("토의")
 
       get polls_path
@@ -168,6 +167,7 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include("전체 투표자 2명")
       expect(response.body).not_to include("제출</dt>")
       expect(response.body).not_to include("아직 생성된 투표자 명단이 없습니다.")
+      expect(response.body).not_to include("운영 기록")
       expect(response.body).to include("투표자")
       expect(response.body).to include("1명")
       expect(response.body).to include("후보자")
