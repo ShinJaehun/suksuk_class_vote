@@ -851,7 +851,7 @@ RSpec.describe "Polls", type: :request do
       get poll_path(poll)
 
       expect(response.body).to include("투표가 종료되었습니다.")
-      expect(response.body).to include("참여 요약")
+      expect(response.body).not_to include("참여 요약")
       expect(response.body).to include("전체 투표자</dt>")
       expect(response.body).to include("투표 완료</dt>")
       expect(response.body).to include("미참여</dt>")
