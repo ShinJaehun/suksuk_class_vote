@@ -41,12 +41,6 @@
     <% end %>
   </div>
 
-  <% if @poll.draft? %>
-    <%= render "readiness", poll: @poll, integrity_report: @integrity_report %>
-  <% else %>
-    <%= render "integrity_report", poll: @poll, integrity_report: @integrity_report %>
-  <% end %>
-
   <%= render "poll_options", poll: @poll unless @poll.closed? %>
   <% if @poll.closed? %>
     <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
@@ -55,6 +49,11 @@
   <% else %>
     <%= render "progress", poll: @poll %>
   <% end %>
-  <%= render "poll_participants", poll: @poll %>
   <%= render "event_log", poll: @poll, poll_events: @poll_events unless @poll.draft? %>
+  <% if @poll.draft? %>
+    <%= render "readiness", poll: @poll, integrity_report: @integrity_report %>
+  <% else %>
+    <%= render "integrity_report", poll: @poll, integrity_report: @integrity_report %>
+  <% end %>
+  <%= render "poll_participants", poll: @poll %>
 </div>
