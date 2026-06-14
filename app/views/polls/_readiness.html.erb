@@ -1,8 +1,11 @@
 <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
+  <% choice_label = poll.election? ? "후보자" : (poll.discussion? || poll.debate? ? "의견" : poll.choice_label.presence || "선택지") %>
+  <% choice_subject_label = poll.election? ? "후보자는" : "#{choice_label}은" %>
+  <% choice_unit = poll.election? ? "명" : "개" %>
   <% readiness_issues = [] %>
   <% readiness_issues << "투표자 명단을 선택해야 합니다." if poll.participant_group.blank? %>
   <% readiness_issues << "투표자가 1명 이상 필요합니다." if poll.participant_group.present? && poll.readiness_voter_count.zero? %>
-  <% readiness_issues << "후보자는 2명 이상이어야 합니다." if poll.readiness_poll_option_count < 2 %>
+  <% readiness_issues << "#{choice_subject_label} 2#{choice_unit} 이상이어야 합니다." if poll.readiness_poll_option_count < 2 %>
   <% readiness_ok = local_assigns[:integrity_report].present? ? integrity_report.ok? && readiness_issues.empty? : readiness_issues.empty? %>
 
   <% if local_assigns[:integrity_report].present? %>
@@ -47,8 +50,8 @@
     </div>
 
     <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
-      <dt class="text-stone-500">후보자</dt>
-      <dd class="mt-1 font-semibold"><%= poll.readiness_poll_option_count %>명</dd>
+      <dt class="text-stone-500"><%= choice_label %></dt>
+      <dd class="mt-1 font-semibold"><%= poll.readiness_poll_option_count %><%= choice_unit %></dd>
     </div>
 
     <div class="rounded-md border border-stone-200 bg-stone-50 p-3">

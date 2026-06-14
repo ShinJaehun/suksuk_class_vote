@@ -209,6 +209,20 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("후보자는 2명 이상이어야 합니다.")
     end
 
+    it "shows discussion readiness with opinion labels" do
+      teacher = create(:user)
+      poll = create(:poll, user: teacher, kind: :discussion)
+      create(:poll_option, poll: poll, number: 1)
+      sign_in teacher
+
+      get poll_path(poll)
+
+      expect(response.body).to include("의견")
+      expect(response.body).to include("1개")
+      expect(response.body).to include("의견은 2개 이상이어야 합니다.")
+      expect(response.body).not_to include("후보자는 2명 이상이어야 합니다.")
+    end
+
     it "shows draft readiness as startable with at least two poll_options and participants" do
       teacher = create(:user)
       poll = create_startable_poll(user: teacher)
