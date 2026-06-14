@@ -5,27 +5,27 @@
 
   <dl class="grid gap-3 sm:grid-cols-5">
     <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
-      <dt class="text-sm font-medium text-stone-500">전체 투표자 수</dt>
+      <dt class="text-sm font-medium text-stone-500">전체 투표자</dt>
       <dd class="mt-1 font-semibold"><%= result_summary.total_voters %>명</dd>
     </div>
 
     <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
-      <dt class="text-sm font-medium text-stone-500">투표 완료 수</dt>
+      <dt class="text-sm font-medium text-stone-500">투표 완료</dt>
       <dd class="mt-1 font-semibold"><%= result_summary.completed_count %>명</dd>
     </div>
 
     <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
-      <dt class="text-sm font-medium text-stone-500">미참여 수</dt>
+      <dt class="text-sm font-medium text-stone-500">미참여</dt>
       <dd class="mt-1 font-semibold"><%= result_summary.absent_count %>명</dd>
     </div>
 
     <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
-      <dt class="text-sm font-medium text-stone-500">기권 수</dt>
+      <dt class="text-sm font-medium text-stone-500">기권</dt>
       <dd class="mt-1 font-semibold"><%= result_summary.abstained_count %>명</dd>
     </div>
 
     <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
-      <dt class="text-sm font-medium text-stone-500">미처리 수</dt>
+      <dt class="text-sm font-medium text-stone-500">대기</dt>
       <dd class="mt-1 font-semibold"><%= result_summary.unprocessed_count %>명</dd>
     </div>
   </dl>

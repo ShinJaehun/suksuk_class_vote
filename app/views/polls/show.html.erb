@@ -44,10 +44,11 @@
   </dl>
 
   <% if @poll.draft? %>
-    <%= render "readiness", poll: @poll %>
+    <%= render "readiness", poll: @poll, integrity_report: @integrity_report %>
+  <% else %>
+    <%= render "integrity_report", poll: @poll, integrity_report: @integrity_report %>
   <% end %>
 
-  <%= render "integrity_report", poll: @poll, integrity_report: @integrity_report %>
   <%= render "poll_options", poll: @poll unless @poll.closed? %>
   <% if @poll.closed? %>
     <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
