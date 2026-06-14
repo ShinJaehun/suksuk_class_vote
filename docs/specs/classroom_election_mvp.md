@@ -102,7 +102,9 @@ admin의 상세 관리 기능은 별도 문서에서 다룬다.
 투표 참여자 명단 snapshot 모델명은 `PollParticipant`로 확정한다.
 현재 `PollParticipant` 모델과 migration은 구현되어 있으며, 선거 시작 시점에 원본 명단을 snapshot한다.
 
-투표가 시작된 뒤에는 해당 선거의 참여자 명단을 수정하지 않는다.
+투표가 시작된 뒤에는 원본 명단이 아니라 `PollParticipant` snapshot을 해당 선거의 투표 참여자 명단으로 사용한다.
+따라서 진행 중/종료된 투표가 있어도 원본 참여자 그룹 이름 수정, 학생 추가, 학생 이름 수정, 학생 삭제, 원본 명단 삭제는 가능하다.
+단, draft 투표는 아직 원본 참여자 그룹을 참조하므로 해당 명단 삭제는 차단한다.
 
 예시:
 
@@ -149,7 +151,8 @@ admin의 상세 관리 기능은 별도 문서에서 다룬다.
 기호는 선거 안에서 서버가 자동 부여하며, 후보자를 삭제해도 기존 번호를 재정렬하지 않는다.
 
 선거가 시작된 뒤에는 후보자 수정/삭제를 제한한다.
-같은 이유로 참여자 명단의 학생 추가/삭제/번호 변경도 선거 시작 뒤에는 제한한다.
+선거에 연결된 `PollParticipant` snapshot 명단도 시작 뒤에는 수정하지 않는다.
+다만 원본 참여자 명단 변경은 이미 시작된 선거의 투표 대상에 영향을 주지 않는다.
 
 후보자 수 정책 검토 항목:
 
@@ -218,13 +221,15 @@ draft -> in_progress -> closed
 - 시스템은 시작 시점의 원본 학생 명단을 `PollParticipant`로 복사한다.
 - 각 `PollParticipant`에는 시작 시점의 출석번호와 이름이 보존된다.
 - 이후 교사가 원본 참여자 그룹을 수정하더라도 이미 시작된 선거의 투표 대상은 바뀌지 않는다.
+- 이후 교사가 원본 참여자 그룹을 삭제하더라도 이미 시작된 선거는 `PollParticipant` snapshot 기준으로 진행·보존된다.
 - 투표 진행 화면은 원본 `ParticipantSlot`이 아니라 `PollParticipant` 명단을 기준으로 복구되어야 한다.
 
 선거 시작 뒤 제한 원칙:
 
 - 후보자 추가/수정/삭제를 금지한다.
 - 선거에 연결된 snapshot 명단 수정도 금지한다.
-- 원본 참여자 그룹 변경은 이미 시작된 선거의 투표 대상에 영향을 주지 않는다.
+- 원본 참여자 그룹 변경/삭제는 이미 시작된 선거의 투표 대상에 영향을 주지 않는다.
+- draft 투표가 참조 중인 원본 참여자 그룹 삭제는 금지한다.
 
 `PollParticipant` 컬럼:
 
@@ -232,6 +237,9 @@ draft -> in_progress -> closed
 - `source_participant_slot_id`
 - `number`
 - `name`
+
+`source_participant_slot_id`는 원본 `ParticipantSlot` 추적용 링크다.
+원본 slot이 삭제되면 `nil`이 될 수 있으며, 투표 참여자 표시와 복구 기준은 `PollParticipant.number/name`이다.
 
 초기 `PollParticipant`에는 진행 상태 `status`를 두지 않는다.
 `PollParticipant`는 고정된 투표 참여자 명단이며, 실제 투표 결과도 저장하지 않는다.

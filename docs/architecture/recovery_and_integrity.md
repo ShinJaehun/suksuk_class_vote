@@ -26,9 +26,9 @@
 선거가 시작된 뒤의 복구 기준은 원본 `ParticipantGroup`이 아니다.
 복구는 선거 시작 시점에 고정된 `PollParticipant` snapshot과 후속 투표 진행 상태 모델을 기준으로 한다.
 원본 `ParticipantGroup`이나 `ParticipantSlot`이 변경되어도 이미 시작된 선거의 투표 순서와 투표 대상은 바뀌면 안 된다.
-진행 중인 선거가 참조 중인 원본 `ParticipantGroup`과 학생 명단은 편집/추가/삭제하지 못하게 막는다.
-draft 선거가 참조 중인 원본 `ParticipantGroup`도 삭제하지 못하게 막는다.
-선거 종료 뒤에는 `PollParticipant` snapshot과 선거 시작 당시 그룹명 snapshot이 선거 자료 보존 기준이므로 원본 그룹/명단 편집/추가/삭제를 다시 허용한다.
+진행 중이거나 종료된 선거는 `PollParticipant` snapshot 기준으로 진행·보존하므로 원본 그룹 이름 수정, 학생 추가/수정/삭제, 원본 명단 삭제를 허용한다.
+draft 선거는 아직 원본 `ParticipantGroup`을 참조하므로 해당 원본 명단 삭제를 막는다.
+선거 종료 뒤에도 `PollParticipant` snapshot과 선거 시작 당시 그룹명 snapshot이 선거 자료 보존 기준이다.
 closed 선거는 `participant_group` 또는 `source_participant_slot` 참조가 비어도 `PollParticipant.number/name` 기준으로 투표 참여자 명단을 유지한다.
 
 ---
@@ -382,7 +382,8 @@ PollOptionTally: 변화 없음
 
 - `poll_participants`
   - `[poll_id, number]` unique
-  - `[poll_id, source_participant_slot_id]` unique
+  - `[poll_id, source_participant_slot_id]` unique는 원본 slot 링크가 남아 있을 때 중복 snapshot을 막기 위한 제약
+  - 원본 `ParticipantSlot` 삭제 시 `source_participant_slot_id`는 `nil`이 될 수 있음
 
 - `poll_progresses`
   - `[poll_id]` unique

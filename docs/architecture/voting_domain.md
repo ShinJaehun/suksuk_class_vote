@@ -166,7 +166,7 @@ draft -> in_progress -> closed
 
 `Poll`이 원본 `ParticipantGroup`을 계속 직접 참조하면, 선거 생성 뒤 원본 명단 변경이 이미 만든 선거에 영향을 줄 수 있다.
 
-예상 문제:
+snapshot 없이 원본 명단을 직접 진행 기준으로 삼을 때의 예상 문제:
 
 - 선거 생성 후 학생이 추가되거나 삭제되면 투표 대상이 바뀜
 - 출석번호 변경이나 삭제가 진행 순서와 복구 상태에 영향을 줌
@@ -190,7 +190,7 @@ draft -> in_progress -> closed
 
 의미:
 
-- `PollParticipant`는 원본 `ParticipantSlot`의 복사본이다.
+- `PollParticipant`는 원본 `ParticipantSlot`의 snapshot 복사본이다.
 - `PollParticipant`는 선거 안에서 실제 투표 대상이 되는 학생 row다.
 - 학생 계정이 아니다.
 - 원본 `ParticipantSlot`이 수정되거나 삭제되어도 이미 시작된 `PollParticipant`에는 영향을 주지 않는다.
@@ -204,7 +204,7 @@ draft -> in_progress -> closed
 컬럼 초안:
 
 - `poll:references, null: false, foreign_key: true`
-- `source_participant_slot:references, null: false, foreign_key to participant_slots`
+- `source_participant_slot:references, null: true, foreign_key to participant_slots`
 - `number:integer, null: false`
 - `name:string, null: false`
 
@@ -217,7 +217,8 @@ DB index:
 
 - `number`는 선거 안의 투표 진행 순서를 고정한다.
 - `name`은 시작 시점의 이름을 보존한다.
-- `source_participant_slot_id`는 원본 명단 추적용이다.
+- `source_participant_slot_id`는 원본 명단 추적용 링크다.
+- 원본 `ParticipantSlot`이 삭제되면 `source_participant_slot_id`는 `nil`이 될 수 있다.
 - 같은 원본 `ParticipantSlot`이 같은 `Poll`에 중복 snapshot되면 안 된다.
 
 초기 `PollParticipant`에는 `status`를 두지 않는다.
@@ -569,21 +570,23 @@ snapshot을 사용하지 않고 원본을 직접 참조한다면, 선거 생성 
 
 ### 선거 시작 후
 
-해당 선거의 참여자 명단은 수정하지 않는다.
+이미 시작된 선거의 투표 진행 기준은 원본 명단이 아니라 `PollParticipant` snapshot이다.
+따라서 `in_progress` / `closed` 선거가 있어도 원본 `ParticipantGroup` 이름 수정, 학생 추가, 학생 이름 수정, 학생 삭제, 원본 명단 삭제는 가능하다.
+원본 명단 변경은 이미 시작된 선거의 투표 순서와 투표 대상에 영향을 주지 않는다.
 
 금지 방향:
 
-- 학생 추가
-- 학생 삭제
-- 출석번호 변경
-- 투표 진행 상태와 연결된 이름 변경
+- 선거에 연결된 `PollParticipant` snapshot 명단 수정
+- 참여자별 후보 선택 저장/표시
+- 진행 중 선택지별 집계 노출
 
 ### 투표 종료 후
 
 투표 종료 후에는 결과 보존과 감사 가능성을 우선한다.
 
-따라서 투표 참여자 명단은 수정하지 않는다.
-예외가 필요하다면 관리자 권한, 확인 절차, 감사 로그가 함께 필요하다.
+종료된 선거도 `PollParticipant` snapshot과 선거 시작 당시 그룹명 snapshot이 보존 기준이다.
+원본 `ParticipantGroup` 또는 `ParticipantSlot`이 수정/삭제되어도 종료된 선거의 투표 참여자 명단은 `PollParticipant.number/name` 기준으로 유지한다.
+단, draft 선거는 아직 원본 `ParticipantGroup`을 참조하므로 해당 원본 명단 삭제를 차단한다.
 
 ---
 

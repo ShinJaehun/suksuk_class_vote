@@ -38,12 +38,23 @@
 - `number`
 - `name`
 
+`source_participant_slot_id`는 원본 `ParticipantSlot` 추적용 링크다.
+원본 slot 삭제 시 `nil`이 될 수 있으며, 비밀투표 판단이나 결과 표시 기준으로 사용하지 않는다.
+
 `PollParticipant`가 저장하지 않는 정보:
 
 - 진행 상태
 - 실제 후보 선택 결과
 - 후보자별 득표 정보
 - 학생이 선택한 `poll_option_id`
+
+비밀투표 원칙상 화면과 운영 기록에도 다음 정보를 노출하지 않는다.
+
+- 참여자별 후보 선택
+- 진행 중 선택지별 집계
+- raw details
+- internal id
+- 선택지 정보와 참여자 식별 정보를 함께 복원할 수 있는 정보
 
 현재 투표 진행 상태 모델은 `PollParticipant`를 참조한다.
 하지만 실제 표를 저장하는 모델이 `poll_participant_id`와 `poll_option_id`를 직접 함께 저장하면 누가 누구에게 투표했는지 연결될 수 있다.
