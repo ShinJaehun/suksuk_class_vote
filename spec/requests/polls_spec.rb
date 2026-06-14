@@ -18,6 +18,34 @@ RSpec.describe "Polls", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("투표")
     end
+
+    it "hides archived polls from the default list" do
+      teacher = create(:user)
+      active_poll = create(:poll, user: teacher, title: "진행할 투표")
+      archived_poll = create(:poll, user: teacher, title: "지난 학급 선거", status: :closed, archived_at: Time.current)
+      sign_in teacher
+
+      get polls_path
+
+      expect(response.body).to include(active_poll.title)
+      expect(response.body).not_to include(archived_poll.title)
+      expect(response.body).to include(archived_polls_path)
+    end
+  end
+
+  describe "GET /polls/archived" do
+    it "shows only archived polls" do
+      teacher = create(:user)
+      active_poll = create(:poll, user: teacher, title: "진행할 투표")
+      archived_poll = create(:poll, user: teacher, title: "지난 학급 선거", status: :closed, archived_at: Time.current)
+      sign_in teacher
+
+      get archived_polls_path
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include(archived_poll.title)
+      expect(response.body).not_to include(active_poll.title)
+    end
   end
 
   describe "GET /polls/new" do
@@ -525,6 +553,8 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("진행")
       expect(response.body).not_to include("in_progress")
       expect(response.body).to include("투표가 진행 중입니다.")
+      expect(response.body).to include("투표 중단")
+      expect(response.body).to include(stop_poll_path(poll))
       expect(response.body).to include("현재 투표자")
       expect(response.body).to include("1번 김민준")
       expect(response.body).to include("진행 상태가 정상입니다.")
@@ -542,6 +572,7 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("turbo-cable-stream-source")
       expect(response.body).to include("progress_poll_#{poll.id}")
       expect(response.body).to include("event_log_poll_#{poll.id}")
+      expect(response.body).not_to include("투표 삭제")
       expect(response.body).not_to include(submit_vote_poll_path(poll))
       expect(response.body).not_to include("미참여 처리")
       expect(response.body).not_to include("기권 처리")
@@ -851,6 +882,8 @@ RSpec.describe "Polls", type: :request do
       get poll_path(poll)
 
       expect(response.body).to include("투표가 종료되었습니다.")
+      expect(response.body).to include("보관")
+      expect(response.body).to include(archive_poll_path(poll))
       expect(response.body).not_to include("참여 요약")
       expect(response.body).to include("전체 투표자</dt>")
       expect(response.body).to include("투표 완료</dt>")
@@ -878,6 +911,7 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include(submit_vote_poll_path(poll))
       expect(response.body).not_to include(advance_current_participant_poll_path(poll))
       expect(response.body).not_to include(close_poll_path(poll))
+      expect(response.body).not_to include("투표 삭제")
       expect(response.body).not_to include("선택한 후보")
       expect(response.body).not_to include("#{last_participant.name} #{poll_option.name}")
     end
@@ -998,6 +1032,138 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include("후보자 추가")
       expect(response.body).not_to include(edit_poll_poll_option_path(poll, poll_option))
       expect(response.body).not_to include(poll_poll_option_path(poll, poll_option))
+    end
+  end
+
+  describe "POST /polls/:id/stop" do
+    it "stops an in progress poll and shows stopped state without progress actions" do
+      teacher = create(:user)
+      poll = create_started_poll(user: teacher)
+      sign_in teacher
+
+      expect do
+        post stop_poll_path(poll)
+      end.to change { poll.reload.status }.from("in_progress").to("stopped")
+        .and change(PollEvent.where(event_type: "poll_stopped"), :count).by(1)
+
+      expect(response).to redirect_to(poll_path(poll))
+      expect(flash[:notice]).to eq("투표를 중단했습니다.")
+
+      get poll_path(poll)
+
+      expect(response.body).to include("중단")
+      expect(response.body).to include("투표가 중단되었습니다.")
+      expect(response.body).to include("중단된 투표는 다시 시작할 수 없습니다.")
+      expect(response.body).to include("투표 진행 상황")
+      expect(response.body).to include("투표 중단")
+      expect(response.body).to include("투표자 명단")
+      expect(response.body).to include("투표 삭제")
+      expect(response.body).not_to include("투표 화면 열기")
+      expect(response.body).not_to include(ballot_poll_path(poll))
+      expect(response.body).not_to include("투표 진행</h2>")
+      expect(response.body).not_to include("다음 투표자로")
+      expect(response.body).not_to include("투표가 종료되었습니다.")
+      expect(response.body).not_to include("보관")
+      expect(response.body).not_to include(archive_poll_path(poll))
+    end
+
+    it "does not allow teachers to stop another teacher's poll" do
+      teacher = create(:user)
+      poll = create_started_poll
+      sign_in teacher
+
+      post stop_poll_path(poll)
+
+      expect(response).to redirect_to(dashboard_path)
+      expect(poll.reload).to be_in_progress
+    end
+  end
+
+  describe "POST /polls/:id/archive" do
+    it "archives closed polls without changing status" do
+      teacher = create(:user)
+      poll = create_started_poll(user: teacher)
+      last_participant = poll.poll_participants.order(:number).last
+      poll.poll_progress.update!(current_poll_participant: last_participant)
+      create(:poll_participation, poll_participant: last_participant, status: :absent)
+      Polls::Close.new(poll: poll).call
+      sign_in teacher
+
+      post archive_poll_path(poll)
+
+      expect(response).to redirect_to(poll_path(poll))
+      expect(flash[:notice]).to eq("투표를 보관했습니다.")
+      expect(poll.reload).to be_closed
+      expect(poll.archived_at).to be_present
+
+      get polls_path
+      expect(response.body).not_to include(poll.title)
+
+      get archived_polls_path
+      expect(response.body).to include(poll.title)
+
+      get poll_path(poll)
+      expect(response).to have_http_status(:ok)
+      expect(response.body).not_to include("투표 삭제")
+    end
+  end
+
+  describe "DELETE /polls/:id" do
+    it "allows teachers to delete draft and stopped polls" do
+      teacher = create(:user)
+      draft_poll = create(:poll, user: teacher)
+      stopped_poll = create(:poll, user: teacher, status: :stopped)
+      sign_in teacher
+
+      delete poll_path(draft_poll)
+      expect(response).to redirect_to(polls_path)
+      expect(Poll.exists?(draft_poll.id)).to be(false)
+
+      delete poll_path(stopped_poll)
+      expect(response).to redirect_to(polls_path)
+      expect(Poll.exists?(stopped_poll.id)).to be(false)
+    end
+    it "deletes a stopped poll with progress pointing to the current participant" do
+      teacher = create(:user)
+      poll = create_started_poll(user: teacher)
+      poll_id = poll.id
+      current_poll_participant_id = poll.poll_progress.current_poll_participant_id
+      sign_in teacher
+
+      expect(current_poll_participant_id).to be_present
+
+      post stop_poll_path(poll)
+
+      poll.reload
+      expect(poll).to be_stopped
+      expect(poll.poll_progress.current_poll_participant_id).to eq(current_poll_participant_id)
+
+      expect do
+        delete poll_path(poll)
+      end.to change(Poll, :count).by(-1)
+
+      expect(response).to redirect_to(polls_path)
+      expect(Poll.exists?(poll_id)).to be(false)
+      expect(PollProgress.where(poll_id: poll_id)).not_to exist
+      expect(PollParticipant.where(poll_id: poll_id)).not_to exist
+      expect(PollEvent.where(poll_id: poll_id)).not_to exist
+      expect(PollOption.where(poll_id: poll_id)).not_to exist
+      expect(PollOptionTally.where(poll_id: poll_id)).not_to exist
+    end
+
+    it "does not allow teachers to delete in progress or closed polls" do
+      teacher = create(:user)
+      in_progress_poll = create_started_poll(user: teacher)
+      closed_poll = create(:poll, user: teacher, status: :closed)
+      sign_in teacher
+
+      delete poll_path(in_progress_poll)
+      expect(response).to redirect_to(dashboard_path)
+      expect(Poll.exists?(in_progress_poll.id)).to be(true)
+
+      delete poll_path(closed_poll)
+      expect(response).to redirect_to(dashboard_path)
+      expect(Poll.exists?(closed_poll.id)).to be(true)
     end
   end
 

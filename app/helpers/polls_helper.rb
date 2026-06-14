@@ -25,6 +25,8 @@ module PollsHelper
       "border-emerald-200 bg-emerald-50 text-emerald-700"
     elsif poll.closed?
       "border-stone-300 bg-stone-100 text-stone-700"
+    elsif poll.stopped?
+      "border-rose-200 bg-rose-50 text-rose-700"
     else
       "border-stone-200 bg-stone-50 text-stone-700"
     end

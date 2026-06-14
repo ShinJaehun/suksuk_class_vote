@@ -1,9 +1,14 @@
 <div class="flex items-center justify-between gap-4">
   <h1 class="text-2xl font-semibold">투표</h1>
 
-  <%= link_to "새 투표",
-              new_poll_path,
-              class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+  <div class="flex items-center gap-3">
+    <%= link_to "보관된 투표",
+                archived_polls_path,
+                class: "text-sm font-medium text-stone-700 underline" %>
+    <%= link_to "새 투표",
+                new_poll_path,
+                class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+  </div>
 </div>
 
 <% if @polls.any? %>

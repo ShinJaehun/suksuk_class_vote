@@ -13,7 +13,14 @@
         <p class="text-stone-600">투표를 시작할 수 없습니다.</p>
       <% end %>
     <% elsif poll.in_progress? %>
-      <p class="text-stone-600">투표가 진행 중입니다.</p>
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p class="text-stone-600">투표가 진행 중입니다.</p>
+        <%= button_to "투표 중단",
+                      stop_poll_path(poll),
+                      method: :post,
+                      data: { turbo_frame: "_top", turbo_confirm: "투표를 중단할까요? 중단된 투표는 다시 시작할 수 없습니다." },
+                      class: "rounded-md bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700" %>
+      </div>
       <% if poll.poll_progress.present? %>
         <% current_participant = poll.poll_progress.current_poll_participant %>
         <% if current_participant.present? %>

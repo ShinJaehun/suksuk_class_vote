@@ -41,6 +41,14 @@ RSpec.describe PollEvent, type: :model do
       expect(event.occurred_at).to be_present
     end
 
+    it "supports poll stopped events" do
+      event = build(:poll_event, event_type: "poll_stopped")
+
+      expect(event).to be_valid
+      expect(event.display_label).to eq("투표 중단")
+      expect(event).to be_poll_level_event
+    end
+
     it "does not allow poll_option information in details" do
       event = build(:poll_event, details: { poll_option_id: 1 })
 

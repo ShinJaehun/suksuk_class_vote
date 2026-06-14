@@ -64,11 +64,17 @@ RSpec.describe Poll, type: :model do
       expect(poll).to be_draft
     end
 
-    it "supports in progress and closed statuses" do
+    it "supports in progress, closed, and stopped statuses" do
       poll = build(:poll, status: :in_progress)
 
       expect(poll).to be_in_progress
-      expect(Poll.statuses).to include("closed" => 20)
+      expect(Poll.statuses).to include("closed" => 20, "stopped" => 30)
+    end
+
+    it "allows a stopped poll without a participant group" do
+      poll = build(:poll, status: :stopped, participant_group: nil)
+
+      expect(poll).to be_valid
     end
   end
 
@@ -121,6 +127,26 @@ RSpec.describe Poll, type: :model do
       expect(poll.choice_number_label).to eq("번호")
       expect(poll.winner_label).to eq("가장 많이 선택된 입장")
       expect(poll.vote_count_label).to eq("선택 수")
+    end
+  end
+
+  describe "destroy policy" do
+    it "allows draft and stopped polls to be destroyed" do
+      draft_poll = create(:poll)
+      stopped_poll = create(:poll, status: :stopped)
+
+      expect(draft_poll.destroy).to be_truthy
+      expect(stopped_poll.destroy).to be_truthy
+    end
+
+    it "blocks in progress and closed polls from being destroyed" do
+      in_progress_poll = create(:poll, status: :in_progress)
+      closed_poll = create(:poll, status: :closed)
+
+      expect(in_progress_poll.destroy).to be_falsey
+      expect(closed_poll.destroy).to be_falsey
+      expect(in_progress_poll.errors[:base]).to include("진행 중이거나 종료된 투표는 삭제할 수 없습니다.")
+      expect(closed_poll.errors[:base]).to include("진행 중이거나 종료된 투표는 삭제할 수 없습니다.")
     end
   end
 end

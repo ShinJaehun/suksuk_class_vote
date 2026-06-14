@@ -8,7 +8,7 @@ class Poll < ApplicationRecord
   has_one :poll_progress, dependent: :destroy
 
   enum :kind, { election: 0, discussion: 10, debate: 20 }
-  enum :status, { draft: 0, in_progress: 10, closed: 20 }
+  enum :status, { draft: 0, in_progress: 10, closed: 20, stopped: 30 }
 
   ACTIVITY_LABELS = {
     "election" => "선거",
@@ -49,13 +49,19 @@ class Poll < ApplicationRecord
   DISPLAY_STATUSES = {
     "draft" => "준비",
     "in_progress" => "진행",
-    "closed" => "종료"
+    "closed" => "종료",
+    "stopped" => "중단"
   }.freeze
+
+  scope :active_list, -> { where(archived_at: nil) }
+  scope :archived, -> { where.not(archived_at: nil) }
+
+  before_destroy :prepare_for_destroy, prepend: true
 
   validates :title, presence: true
   validates :user, presence: true
-  validates :participant_group, presence: true, unless: :closed?
-  validate :participant_group_has_participant_slots, unless: :closed?
+  validates :participant_group, presence: true, unless: :participant_group_optional?
+  validate :participant_group_has_participant_slots, unless: :participant_group_optional?
 
   def readiness_poll_option_count
     poll_options.count
@@ -101,7 +107,28 @@ class Poll < ApplicationRecord
     participant_group_name_snapshot.presence || participant_group&.name
   end
 
+  def destroyable_by_status?
+    draft? || stopped?
+  end
+
+  def archived?
+    archived_at.present?
+  end
+
   private
+
+  def participant_group_optional?
+    closed? || stopped?
+  end
+
+  def prepare_for_destroy
+    unless destroyable_by_status?
+      errors.add(:base, "진행 중이거나 종료된 투표는 삭제할 수 없습니다.")
+      throw :abort
+    end
+
+    poll_progress&.destroy!
+  end
 
   def participant_group_has_participant_slots
     return if participant_group.blank?

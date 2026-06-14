@@ -7,6 +7,7 @@ class PollEvent < ApplicationRecord
     current_participant_advanced
     current_participant_resumed
     poll_closed
+    poll_stopped
   ].freeze
 
   DISPLAY_LABELS = {
@@ -15,11 +16,12 @@ class PollEvent < ApplicationRecord
     "participant_marked_absent" => "미참여",
     "participant_marked_abstained" => "기권",
     "current_participant_resumed" => "첫 미처리 투표자로 재개",
-    "poll_closed" => "투표 종료"
+    "poll_closed" => "투표 종료",
+    "poll_stopped" => "투표 중단"
   }.freeze
 
   DISPLAYABLE_EVENT_TYPES = DISPLAY_LABELS.keys.freeze
-  POLL_LEVEL_EVENT_TYPES = %w[poll_started poll_closed].freeze
+  POLL_LEVEL_EVENT_TYPES = %w[poll_started poll_closed poll_stopped].freeze
   PARTICIPANT_LEVEL_EVENT_TYPES = %w[
     vote_completed
     participant_marked_absent

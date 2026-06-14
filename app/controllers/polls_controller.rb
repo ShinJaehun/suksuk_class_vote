@@ -1,10 +1,15 @@
 class PollsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_poll, only: %i[show ballot start submit_vote record_participation_outcome advance_current_participant resume_current_participant close]
+  before_action :set_poll, only: %i[show ballot start submit_vote record_participation_outcome advance_current_participant resume_current_participant close stop archive destroy]
 
   def index
-    @polls = policy_scope(Poll).includes(participant_group: :participant_slots).order(created_at: :desc)
+    @polls = policy_scope(Poll).active_list.includes(participant_group: :participant_slots).order(created_at: :desc)
     authorize Poll
+  end
+
+  def archived
+    @polls = policy_scope(Poll).archived.includes(participant_group: :participant_slots).order(archived_at: :desc)
+    authorize Poll, :index?
   end
 
   def show
@@ -104,6 +109,37 @@ class PollsController < ApplicationController
       redirect_to @poll, notice: "투표를 종료했습니다."
     else
       redirect_to @poll, alert: result.error_message
+    end
+  end
+
+  def stop
+    authorize @poll
+
+    @poll.transaction do
+      @poll.update!(status: :stopped)
+      @poll.poll_events.create!(event_type: "poll_stopped", actor: current_user)
+    end
+
+    redirect_to @poll, notice: "투표를 중단했습니다."
+  end
+
+  def archive
+    authorize @poll
+
+    if @poll.update(archived_at: Time.current)
+      redirect_to @poll, notice: "투표를 보관했습니다."
+    else
+      redirect_to @poll, alert: "투표를 보관할 수 없습니다."
+    end
+  end
+
+  def destroy
+    authorize @poll
+
+    if @poll.destroy
+      redirect_to polls_path, notice: "투표를 삭제했습니다."
+    else
+      redirect_to @poll, alert: @poll.errors.full_messages.to_sentence
     end
   end
 

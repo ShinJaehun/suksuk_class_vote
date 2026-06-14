@@ -39,8 +39,16 @@ class PollPolicy < ApplicationPolicy
     admin? || owner?
   end
 
+  def stop?
+    (admin? || owner?) && record.in_progress?
+  end
+
+  def archive?
+    (admin? || owner?) && record.closed? && record.archived_at.blank?
+  end
+
   def destroy?
-    admin? || owner?
+    (admin? || owner?) && record.destroyable_by_status?
   end
 
   class Scope < ApplicationPolicy::Scope

@@ -1,7 +1,8 @@
 Rails.application.routes.draw do
   devise_for :users
   resource :dashboard, only: :show
-  resources :polls, only: %i[index show new create] do
+  resources :polls, only: %i[index show new create destroy] do
+    get :archived, on: :collection
     get :ballot, on: :member
     post :start, on: :member
     post :submit_vote, on: :member
@@ -9,6 +10,8 @@ Rails.application.routes.draw do
     post :advance_current_participant, on: :member
     post :resume_current_participant, on: :member
     post :close, on: :member
+    post :stop, on: :member
+    post :archive, on: :member
     resources :poll_options, path: "options", only: %i[new create edit update destroy]
   end
   resources :participant_groups, only: %i[index show new create edit update destroy] do
