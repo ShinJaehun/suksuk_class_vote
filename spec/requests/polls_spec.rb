@@ -162,9 +162,9 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include(start_poll_path(poll))
       expect(response.body).not_to include("투표 화면 열기")
       expect(response.body).not_to include(ballot_poll_path(poll))
-      expect(response.body).to include("후보자 등록이 필요합니다.")
-      expect(response.body).to include("상태 점검: 이상 없음")
-      expect(response.body).to include("투표 시작 전 상태입니다.")
+      expect(response.body).to include("투표를 시작할 수 없습니다.")
+      expect(response.body).to include("상태 점검: 확인 필요")
+      expect(response.body).to include("후보자는 2명 이상이어야 합니다.")
       expect(response.body).not_to include("전체 투표자 2명")
       expect(response.body).not_to include("제출</dt>")
       expect(response.body).not_to include("아직 생성된 투표자 명단이 없습니다.")
@@ -186,7 +186,7 @@ RSpec.describe "Polls", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("1번")
       expect(response.body).to include("김민준")
-      expect(response.body).to include("투표 시작")
+      expect(response.body).to include("투표를 시작할 수 없습니다.")
     end
 
     it "shows draft readiness as not startable with one poll_option" do
@@ -203,7 +203,8 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("1명")
       expect(response.body).to include("시작 불가")
       expect(response.body).not_to include(start_poll_path(poll))
-      expect(response.body).to include("후보자 등록이 필요합니다.")
+      expect(response.body).to include("투표를 시작할 수 없습니다.")
+      expect(response.body).to include("후보자는 2명 이상이어야 합니다.")
     end
 
     it "shows draft readiness as startable with at least two poll_options and participants" do
@@ -218,6 +219,7 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("후보자")
       expect(response.body).to include("2명")
       expect(response.body).to include("시작 가능")
+      expect(response.body).to include("투표를 시작할 수 있습니다.")
       expect(response.body).to include("투표 시작")
       expect(response.body).to include(start_poll_path(poll))
       expect(response.body).to include("data-turbo-frame=\"_top\"")

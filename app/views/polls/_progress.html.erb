@@ -8,9 +8,9 @@
                       start_poll_path(poll),
                       method: :post,
                       data: { turbo_frame: "_top" },
-                      class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+                      class: "rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700" %>
       <% else %>
-        <p class="text-stone-600">후보자 등록이 필요합니다.</p>
+        <p class="text-stone-600">투표를 시작할 수 없습니다.</p>
       <% end %>
     <% elsif poll.in_progress? %>
       <p class="text-stone-600">투표가 진행 중입니다.</p>

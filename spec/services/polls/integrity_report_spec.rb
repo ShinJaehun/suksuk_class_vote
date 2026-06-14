@@ -89,7 +89,7 @@ RSpec.describe Polls::IntegrityReport do
       report = described_class.new(poll)
 
       expect(report).not_to be_ok
-      expect(report.issues.map(&:message)).to include("투표 완료 수와 후보별 득표 합계가 일치하지 않습니다.")
+      expect(report.issues.map(&:message)).to include("투표 완료 수와 제출된 표 수가 일치하지 않습니다.")
     end
 
     it "reports negative unprocessed counts" do
