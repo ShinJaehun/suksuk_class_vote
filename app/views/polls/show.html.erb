@@ -3,32 +3,14 @@
     <%= turbo_stream_from @poll, :operation_screen %>
   <% end %>
 
-  <% activity_badge_class =
-    case @poll.kind
-    when "election" then "border-indigo-200 bg-indigo-50 text-indigo-700"
-    when "discussion" then "border-sky-200 bg-sky-50 text-sky-700"
-    when "debate" then "border-violet-200 bg-violet-50 text-violet-700"
-    else "border-stone-200 bg-stone-50 text-stone-700"
-    end %>
-  <% status_badge_class =
-    if @poll.draft?
-      "border-amber-200 bg-amber-50 text-amber-700"
-    elsif @poll.in_progress?
-      "border-emerald-200 bg-emerald-50 text-emerald-700"
-    elsif @poll.closed?
-      "border-stone-300 bg-stone-100 text-stone-700"
-    else
-      "border-stone-200 bg-stone-50 text-stone-700"
-    end %>
-
   <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
     <div class="space-y-2">
       <p><%= link_to "투표 목록으로 돌아가기", polls_path, class: "text-sm font-medium text-stone-600 underline" %></p>
 
       <div class="flex flex-wrap items-center gap-2">
         <h1 class="text-3xl font-semibold"><%= @poll.title %></h1>
-        <span class="rounded-md border px-2 py-1 text-sm font-medium <%= activity_badge_class %>"><%= @poll.activity_label %></span>
-        <span class="rounded-md border px-2 py-1 text-sm font-medium <%= status_badge_class %>"><%= @poll.display_status %></span>
+        <%= poll_activity_badge(@poll) %>
+        <%= poll_status_badge(@poll) %>
       </div>
     </div>
 
