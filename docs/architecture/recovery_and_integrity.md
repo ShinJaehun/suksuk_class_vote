@@ -27,7 +27,9 @@
 복구는 선거 시작 시점에 고정된 `PollParticipant` snapshot과 후속 투표 진행 상태 모델을 기준으로 한다.
 원본 `ParticipantGroup`이나 `ParticipantSlot`이 변경되어도 이미 시작된 선거의 투표 순서와 투표 대상은 바뀌면 안 된다.
 진행 중이거나 종료된 선거는 `PollParticipant` snapshot 기준으로 진행·보존하므로 원본 그룹 이름 수정, 학생 추가/수정/삭제, 원본 명단 삭제를 허용한다.
-draft 선거는 아직 원본 `ParticipantGroup`을 참조하므로 해당 원본 명단 삭제를 막는다.
+draft 선거는 아직 `PollParticipant` snapshot이 없고 원본 `ParticipantGroup`을 직접 참조한다.
+draft 상태에서도 원본 그룹 이름 수정과 `ParticipantSlot` 학생 추가/수정/삭제는 허용한다.
+다만 draft 선거가 현재 참조 중인 원본 `ParticipantGroup` 자체 삭제는 준비 중인 `Poll`이 필수 명단 설정을 잃지 않게 막는다.
 선거 종료 뒤에도 `PollParticipant` snapshot과 선거 시작 당시 그룹명 snapshot이 선거 자료 보존 기준이다.
 closed 선거는 `participant_group` 또는 `source_participant_slot` 참조가 비어도 `PollParticipant.number/name` 기준으로 투표 참여자 명단을 유지한다.
 

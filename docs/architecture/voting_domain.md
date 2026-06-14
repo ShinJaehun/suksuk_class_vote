@@ -97,6 +97,7 @@ debate: 20
 
 - `draft`는 투표 준비 중 상태다.
 - `draft` 상태에서는 투표 제목, `ParticipantGroup` 선택, 선택지 등록/수정/삭제가 가능하다.
+- `draft` 상태에서는 아직 `PollParticipant` snapshot이 없고 원본 `ParticipantGroup`을 직접 참조한다.
 - `in_progress`는 투표가 시작되어 투표 참여자 명단 snapshot이 생성된 상태다.
 - 교사용 진행, 선택 제출, 참여 처리, 집계가 구현되어 있다.
 
@@ -179,6 +180,8 @@ snapshot 없이 원본 명단을 직접 진행 기준으로 삼을 때의 예상
 - `ParticipantGroup`은 원본 명단으로 유지
 - `Poll` 생성 시 `ParticipantGroup`을 선택
 - `Poll` 생성 시점에는 원본 `ParticipantGroup`만 연결
+- `draft` 상태에서도 원본 `ParticipantGroup` 이름 수정과 `ParticipantSlot` 학생 추가/수정/삭제는 가능
+- 단, draft `Poll`이 현재 참조 중인 `ParticipantGroup` 자체 삭제는 차단
 - `Poll` 시작 시점에 원본 `ParticipantGroup`의 `ParticipantSlot`들을 복사해 투표 참여자 snapshot 생성
 - 시작 버튼을 누른 순간의 명단을 투표 참여자 명단으로 고정
 - 이후 원본 `ParticipantGroup`이 바뀌어도 이미 시작된 `Poll`에는 영향을 주지 않음
@@ -565,8 +568,8 @@ teacher가 “다음 참여자”를 누르면 다음 흐름을 따른다.
 
 원본 `ParticipantGroup` 수정은 가능하더라도 이미 생성된 선거에는 영향을 주지 않는 방향이 안전하다.
 
-이를 위해 투표 참여자 snapshot 정책을 우선 검토한다.
-snapshot을 사용하지 않고 원본을 직접 참조한다면, 선거 생성 후 원본 명단 수정/삭제 제한 guard가 필요하다.
+이를 위해 투표 시작 시점에 투표 참여자 snapshot을 생성한다.
+draft 선거는 아직 snapshot이 없으므로 원본 명단 수정은 허용하되, 현재 참조 중인 원본 `ParticipantGroup` 자체 삭제만 차단한다.
 
 ### 선거 시작 후
 
@@ -586,7 +589,8 @@ snapshot을 사용하지 않고 원본을 직접 참조한다면, 선거 생성 
 
 종료된 선거도 `PollParticipant` snapshot과 선거 시작 당시 그룹명 snapshot이 보존 기준이다.
 원본 `ParticipantGroup` 또는 `ParticipantSlot`이 수정/삭제되어도 종료된 선거의 투표 참여자 명단은 `PollParticipant.number/name` 기준으로 유지한다.
-단, draft 선거는 아직 원본 `ParticipantGroup`을 참조하므로 해당 원본 명단 삭제를 차단한다.
+단, draft 선거는 아직 snapshot이 없고 원본 `ParticipantGroup`을 직접 참조하므로 해당 원본 명단 자체 삭제를 차단한다.
+이 삭제 차단은 비밀투표나 결과 보존 때문이 아니라, 준비 중인 `Poll`이 필수 명단 설정을 잃지 않게 하는 안전장치다.
 
 ---
 

@@ -163,11 +163,11 @@ dashboard는 역할별 진입점만 제공한다.
 | 목록 조회             | 전체 가능 |  본인 것만 가능 |    불가 | `ParticipantGroupPolicy::Scope` 구현 |
 | 상세 조회             | 전체 가능 |  본인 것만 가능 |    불가 | `show` 구현             |
 | 생성                |    가능 |        가능 |    불가 | `new/create` 구현, 현재 로그인 사용자 소유로 생성 |
-| 수정                |    가능 | 본인 그룹에 가능 |    불가 | `edit/update` 구현, 선거 연결 후 제한 예정 |
-| 삭제                |    가능 | 본인 그룹에 가능 |    불가 | `destroy` 구현, 하위 `ParticipantSlot` 함께 삭제, 선거 연결 후 제한 예정 |
+| 수정                |    가능 | 본인 그룹에 가능 |    불가 | `edit/update` 구현, draft/in_progress/closed 참조 여부와 무관하게 원본 그룹 이름 수정 가능 |
+| 삭제                |    가능 | 본인 그룹에 가능 |    불가 | `destroy` 구현, draft 선거가 현재 참조 중이면 그룹 자체 삭제 차단 |
 | 학생 1명 추가          |    가능 | 본인 그룹에 가능 |    불가 | `ParticipantSlot` 단건 `new/create` 구현 |
 | 학생 명단 bulk import |    가능 | 본인 그룹에 가능 |    불가 | 학생 수 기반 bulk 추가 구현, HWP/Excel 붙여넣기는 후속 |
-| 학생 이름 수정          |    가능 | 본인 그룹에 가능 |    불가 | `ParticipantSlot` `edit/update` 구현, 선거 연결 전만 허용하는 방향 |
+| 학생 이름 수정          |    가능 | 본인 그룹에 가능 |    불가 | `ParticipantSlot` `edit/update` 구현, draft/in_progress/closed 참조 여부와 무관하게 원본 수정 가능 |
 | 학생 삭제              |    가능 | 본인 그룹에 가능 |    불가 | `ParticipantSlot` `destroy` 구현, 삭제 후 번호 재정렬 없음 |
 | 학생 번호 재정렬         |  미구현 |        미구현 |    불가 | 투표 진행 순서와 연결되므로 별도 정책 필요 |
 
@@ -177,8 +177,10 @@ ParticipantGroup은 현재 원본 명단으로 취급한다.
 Poll 생성 시 teacher는 본인 ParticipantGroup 중 하나를 선택하는 흐름을 우선한다.
 선거 시작 시점에는 원본 명단을 투표 참여자 snapshot으로 복사한다.
 snapshot 모델과 생성 로직은 `PollParticipant`와 `Polls::Start`로 구현되어 있다.
+draft 선거는 아직 snapshot이 없고 원본 ParticipantGroup을 직접 참조한다.
+draft 상태에서도 원본 참여자 그룹 이름 수정과 학생 추가/수정/삭제는 가능하다.
 투표 시작 뒤에는 `PollParticipant` snapshot이 투표 진행 기준이므로 원본 참여자 그룹과 학생 명단 수정/삭제는 이미 시작된 선거에 영향을 주지 않는다.
-단, draft 선거가 참조 중인 원본 참여자 그룹 삭제는 차단한다.
+단, draft 선거가 현재 참조 중인 원본 참여자 그룹 자체 삭제는 준비 중인 Poll이 필수 명단 설정을 잃지 않게 차단한다.
 
 ---
 
@@ -231,7 +233,7 @@ Poll 시작 권한 초안:
 * 원본 `ParticipantGroup` 변경은 이미 시작된 선거의 snapshot 명단에 영향을 주지 않는다.
 * 진행 중/종료된 선거가 있어도 원본 그룹 이름 수정, 학생 추가/수정/삭제, 원본 명단 삭제는 가능하다.
 * 선거에 연결된 snapshot 명단은 수정하지 않는다.
-* draft 선거가 참조 중인 원본 명단 삭제는 차단한다.
+* draft 선거가 현재 참조 중인 원본 명단 자체 삭제는 차단한다.
 
 ---
 

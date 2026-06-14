@@ -40,6 +40,7 @@
 
 `source_participant_slot_id`는 원본 `ParticipantSlot` 추적용 링크다.
 원본 slot 삭제 시 `nil`이 될 수 있으며, 비밀투표 판단이나 결과 표시 기준으로 사용하지 않는다.
+draft `Poll`이 참조 중인 원본 `ParticipantGroup` 자체 삭제 차단도 비밀투표 정책이 아니라, snapshot 생성 전 필수 명단 설정을 보호하기 위한 안전장치다.
 
 `PollParticipant`가 저장하지 않는 정보:
 
