@@ -36,7 +36,7 @@
     </div>
 
     <div class="space-y-1">
-      <dt class="text-sm font-medium text-stone-500">학생 수</dt>
+      <dt class="text-sm font-medium text-stone-500">투표자 수</dt>
       <dd class="font-medium">
         <%= @poll.poll_participants.exists? ? @poll.poll_participants.count : @poll.readiness_voter_count %>명
       </dd>

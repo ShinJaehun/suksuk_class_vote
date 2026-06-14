@@ -20,7 +20,7 @@
                     resume_current_participant_poll_path(poll),
                     method: :post,
                     class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
-      <p class="text-sm text-stone-600">현재 투표자 정보가 비어 있을 때만 사용할 수 있습니다. 득표수와 참여 기록은 변경하지 않습니다.</p>
+      <p class="text-sm text-stone-600">현재 투표자 정보가 비어 있을 때만 사용할 수 있습니다. 제출된 표 수와 참여 기록은 변경하지 않습니다.</p>
     </div>
   <% end %>
 
@@ -53,7 +53,7 @@
       </div>
 
       <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
-        <dt class="text-sm font-medium text-stone-500">후보별 득표 합계</dt>
+        <dt class="text-sm font-medium text-stone-500">제출된 표 수</dt>
         <dd class="mt-1 font-semibold"><%= summary.votes_count %>표</dd>
       </div>
     </dl>

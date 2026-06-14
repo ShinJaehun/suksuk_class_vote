@@ -20,8 +20,8 @@ RSpec.describe "Voter slots", type: :request do
       get new_participant_group_participant_slot_path(participant_group)
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("학생 1명 추가")
-      expect(response.body).to include("1번 학생을 추가합니다.")
+      expect(response.body).to include("투표자 1명 추가")
+      expect(response.body).to include("1번 투표자를 추가합니다.")
     end
 
     it "does not allow teachers to access another teacher's participant group single add form" do
@@ -41,7 +41,7 @@ RSpec.describe "Voter slots", type: :request do
       get new_participant_group_participant_slot_path(participant_group)
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("학생 1명 추가")
+      expect(response.body).to include("투표자 1명 추가")
     end
 
     it "shows the next number after existing participant slots" do
@@ -53,7 +53,7 @@ RSpec.describe "Voter slots", type: :request do
 
       get new_participant_group_participant_slot_path(participant_group)
 
-      expect(response.body).to include("3번 학생을 추가합니다.")
+      expect(response.body).to include("3번 투표자를 추가합니다.")
     end
 
     it "allows access while the group is used by an in-progress poll" do
@@ -66,7 +66,7 @@ RSpec.describe "Voter slots", type: :request do
       get new_participant_group_participant_slot_path(participant_group)
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("학생 추가")
+      expect(response.body).to include("투표자 추가")
     end
   end
 
@@ -106,7 +106,7 @@ RSpec.describe "Voter slots", type: :request do
       end.not_to change(ParticipantSlot, :count)
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(response.body).to include("학생을 추가할 수 없습니다.")
+      expect(response.body).to include("투표자를 추가할 수 없습니다.")
     end
 
     it "creates while the group is used by an in-progress poll" do
@@ -156,8 +156,8 @@ RSpec.describe "Voter slots", type: :request do
       get edit_participant_group_participant_slot_path(participant_group, participant_slot)
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("학생 이름 수정")
-      expect(response.body).to include("1번 학생입니다.")
+      expect(response.body).to include("투표자 이름 수정")
+      expect(response.body).to include("1번 투표자입니다.")
       expect(response.body).to include("수정 전")
     end
 
@@ -178,7 +178,7 @@ RSpec.describe "Voter slots", type: :request do
       get edit_participant_group_participant_slot_path(participant_slot.participant_group, participant_slot)
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("학생 이름 수정")
+      expect(response.body).to include("투표자 이름 수정")
     end
 
     it "allows access while the group is used by an in-progress poll" do
@@ -191,7 +191,7 @@ RSpec.describe "Voter slots", type: :request do
       get edit_participant_group_participant_slot_path(participant_group, participant_slot)
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("학생 이름 수정")
+      expect(response.body).to include("투표자 이름 수정")
     end
   end
 
@@ -228,7 +228,7 @@ RSpec.describe "Voter slots", type: :request do
       }
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(response.body).to include("학생 정보를 수정할 수 없습니다.")
+      expect(response.body).to include("투표자 정보를 수정할 수 없습니다.")
       expect(participant_slot.reload.name).to eq("수정 전")
     end
 

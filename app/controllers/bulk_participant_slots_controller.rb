@@ -17,19 +17,19 @@ class BulkParticipantSlotsController < ApplicationController
     @count = @names.size if @names.present?
 
     if @names.blank?
-      @errors = ["학생 이름을 입력해 주세요."]
+      @errors = ["투표자 이름을 입력해 주세요."]
       render :new, status: :unprocessable_entity
       return
     end
 
     if @names.any?(&:blank?)
-      @errors = ["학생 이름을 모두 입력해 주세요."]
+      @errors = ["투표자 이름을 모두 입력해 주세요."]
       render :new, status: :unprocessable_entity
       return
     end
 
     create_participant_slots!
-    redirect_to @participant_group, notice: "학생 명단을 저장했습니다."
+    redirect_to @participant_group, notice: "투표자 명단을 저장했습니다."
   rescue ActiveRecord::RecordInvalid => e
     @errors = [e.record.errors.full_messages.to_sentence]
     render :new, status: :unprocessable_entity
@@ -53,12 +53,12 @@ class BulkParticipantSlotsController < ApplicationController
     return nil if value.blank?
 
     count = Integer(value)
-    raise ArgumentError, "추가할 학생 수는 1명 이상이어야 합니다." if count < 1
-    raise ArgumentError, "추가할 학생 수는 #{MAX_COUNT}명 이하여야 합니다." if count > MAX_COUNT
+    raise ArgumentError, "추가할 투표자 수는 1명 이상이어야 합니다." if count < 1
+    raise ArgumentError, "추가할 투표자 수는 #{MAX_COUNT}명 이하여야 합니다." if count > MAX_COUNT
 
     count
   rescue ArgumentError
-    raise ArgumentError, "추가할 학생 수는 1명 이상 #{MAX_COUNT}명 이하의 숫자여야 합니다."
+    raise ArgumentError, "추가할 투표자 수는 1명 이상 #{MAX_COUNT}명 이하의 숫자여야 합니다."
   end
 
   def submitted_names

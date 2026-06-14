@@ -16,7 +16,7 @@ class ParticipantSlotsController < ApplicationController
     @participant_slot.number = next_number
 
     if @participant_slot.save
-      redirect_to @participant_group, notice: "학생을 추가했습니다."
+      redirect_to @participant_group, notice: "투표자를 추가했습니다."
     else
       render :new, status: :unprocessable_entity
     end
@@ -30,7 +30,7 @@ class ParticipantSlotsController < ApplicationController
     authorize @participant_group, :show?
 
     if @participant_slot.update(participant_slot_params)
-      redirect_to @participant_group, notice: "학생 정보를 수정했습니다."
+      redirect_to @participant_group, notice: "투표자 정보를 수정했습니다."
     else
       render :edit, status: :unprocessable_entity
     end
@@ -41,7 +41,7 @@ class ParticipantSlotsController < ApplicationController
 
     @participant_slot.destroy!
 
-    redirect_to @participant_group, notice: "학생을 삭제했습니다."
+    redirect_to @participant_group, notice: "투표자를 삭제했습니다."
   end
 
   private

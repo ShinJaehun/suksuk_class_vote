@@ -15,14 +15,15 @@
                       class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
       </div>
     </div>
+    <p class="text-sm text-stone-600">준비 중인 투표가 사용하는 명단은 삭제할 수 없습니다. 명단 이름과 투표자는 수정할 수 있습니다.</p>
   </div>
 
   <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <h2 class="text-xl font-semibold">학생 명단</h2>
+      <h2 class="text-xl font-semibold">투표자</h2>
 
       <div class="flex flex-wrap items-center gap-2">
-        <%= link_to "학생 1명 추가",
+        <%= link_to "투표자 1명 추가",
                     new_participant_group_participant_slot_path(@participant_group),
                     class: "rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white" %>
         <%= link_to "여러 명 추가",
@@ -63,7 +64,7 @@
         </table>
       </div>
     <% else %>
-      <p class="text-stone-600">아직 등록된 학생이 없습니다.</p>
+      <p class="text-stone-600">아직 등록된 투표자가 없습니다.</p>
     <% end %>
   </section>
 </div>

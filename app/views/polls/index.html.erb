@@ -18,7 +18,7 @@
               ·
               <%= poll.display_status %>
               · <%= poll.participant_group_display_name || "-" %>
-              · 학생 <%= poll.poll_participants.exists? ? poll.poll_participants.count : poll.readiness_voter_count %>명
+              · 투표자 <%= poll.poll_participants.exists? ? poll.poll_participants.count : poll.readiness_voter_count %>명
             </p>
           </div>
 

@@ -99,7 +99,7 @@ module Polls
 
     def add_participation_issues(report_issues)
       if completed_count != votes_count
-        report_issues << issue("투표 완료 수와 후보별 득표 합계가 일치하지 않습니다.")
+        report_issues << issue("투표 완료 수와 제출된 표 수가 일치하지 않습니다.")
       end
 
       if unprocessed_count.negative?

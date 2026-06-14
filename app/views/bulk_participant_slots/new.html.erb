@@ -7,7 +7,7 @@
 
   <% if @errors.present? %>
     <div class="rounded-md border border-red-200 bg-red-50 p-4 text-red-800">
-      <h2 class="font-medium">학생 명단을 저장할 수 없습니다.</h2>
+      <h2 class="font-medium">투표자 명단을 저장할 수 없습니다.</h2>
       <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
         <% @errors.each do |message| %>
           <li><%= message %></li>
@@ -20,7 +20,7 @@
     <% if @count.blank? %>
       <%= form_with url: new_participant_group_bulk_participant_slots_path(@participant_group), method: :get, class: "space-y-4" do |form| %>
         <div class="space-y-1">
-          <%= form.label :count, "추가할 학생 수", class: "text-sm font-medium text-stone-700" %>
+          <%= form.label :count, "추가할 투표자 수", class: "text-sm font-medium text-stone-700" %>
           <%= form.number_field :count,
                                 min: 1,
                                 max: BulkParticipantSlotsController::MAX_COUNT,
@@ -45,7 +45,7 @@
           <% end %>
         </div>
 
-        <%= form.submit "학생 명단 저장", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+        <%= form.submit "투표자 명단 저장", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
       <% end %>
     <% end %>
   </div>

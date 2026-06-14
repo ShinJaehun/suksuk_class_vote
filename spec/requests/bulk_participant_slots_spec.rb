@@ -21,7 +21,7 @@ RSpec.describe "Bulk participant slots", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("여러 명 추가")
-      expect(response.body).to include("추가할 학생 수")
+      expect(response.body).to include("추가할 투표자 수")
     end
 
     it "does not allow teachers to access another teacher's participant group bulk form" do
@@ -55,7 +55,7 @@ RSpec.describe "Bulk participant slots", type: :request do
       expect(response.body).to include("1번")
       expect(response.body).to include("2번")
       expect(response.body).to include("3번")
-      expect(response.body).to include("학생 명단 저장")
+      expect(response.body).to include("투표자 명단 저장")
     end
 
     it "starts input numbers after existing participant slots" do
@@ -79,8 +79,8 @@ RSpec.describe "Bulk participant slots", type: :request do
 
       get new_participant_group_bulk_participant_slots_path(participant_group), params: { count: 0 }
 
-      expect(response.body).to include("학생 명단을 저장할 수 없습니다.")
-      expect(response.body).to include("추가할 학생 수는 1명 이상")
+      expect(response.body).to include("투표자 명단을 저장할 수 없습니다.")
+      expect(response.body).to include("추가할 투표자 수는 1명 이상")
     end
 
     it "shows an error for too large count" do
@@ -90,7 +90,7 @@ RSpec.describe "Bulk participant slots", type: :request do
 
       get new_participant_group_bulk_participant_slots_path(participant_group), params: { count: 41 }
 
-      expect(response.body).to include("학생 명단을 저장할 수 없습니다.")
+      expect(response.body).to include("투표자 명단을 저장할 수 없습니다.")
       expect(response.body).to include("40명 이하")
     end
 
@@ -143,7 +143,7 @@ RSpec.describe "Bulk participant slots", type: :request do
       end.not_to change(ParticipantSlot, :count)
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(response.body).to include("학생 이름을 모두 입력해 주세요.")
+      expect(response.body).to include("투표자 이름을 모두 입력해 주세요.")
       expect(response.body).to include("김민준")
     end
 
