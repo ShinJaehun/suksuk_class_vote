@@ -1,21 +1,26 @@
 <div class="space-y-6">
   <div class="space-y-2">
-    <p><%= link_to "투표자 명단 목록으로 돌아가기", participant_groups_path, class: "text-sm font-medium text-stone-600 underline" %></p>
+    <% if @return_poll.present? %>
+      <p><%= link_to "#{@return_poll.title} 투표로 돌아가기", poll_path(@return_poll), class: "text-sm font-medium text-stone-600 underline" %></p>
+    <% else %>
+      <p><%= link_to "투표자 명단 목록으로 돌아가기", participant_groups_path, class: "text-sm font-medium text-stone-600 underline" %></p>
+    <% end %>
 
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <h1 class="text-2xl font-semibold"><%= @participant_group.name %></h1>
 
       <div class="flex flex-wrap items-center gap-2">
-        <%= link_to "투표자 명단 수정",
-                    edit_participant_group_path(@participant_group),
+        <%= link_to "투표자 명단 이름 수정",
+                    edit_participant_group_path(@participant_group, return_to_poll_id: @return_poll&.id),
                     class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
-        <%= button_to "투표자 명단 삭제",
-                      participant_group_path(@participant_group),
-                      method: :delete,
-                      class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
+        <% unless @participant_group.used_by_draft_poll? %>
+          <%= button_to "투표자 명단 삭제",
+                        participant_group_path(@participant_group),
+                        method: :delete,
+                        class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
+        <% end %>
       </div>
     </div>
-    <p class="text-sm text-stone-600">준비 중인 투표가 사용하는 명단은 삭제할 수 없습니다. 명단 이름과 투표자는 수정할 수 있습니다.</p>
   </div>
 
   <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
@@ -24,10 +29,10 @@
 
       <div class="flex flex-wrap items-center gap-2">
         <%= link_to "투표자 1명 추가",
-                    new_participant_group_participant_slot_path(@participant_group),
+                    new_participant_group_participant_slot_path(@participant_group, return_to_poll_id: @return_poll&.id),
                     class: "rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white" %>
         <%= link_to "여러 명 추가",
-                    new_participant_group_bulk_participant_slots_path(@participant_group),
+                    new_participant_group_bulk_participant_slots_path(@participant_group, return_to_poll_id: @return_poll&.id),
                     class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
       </div>
     </div>
@@ -50,10 +55,10 @@
                 <td class="px-3 py-3">
                   <div class="flex flex-wrap items-center gap-2">
                     <%= link_to "수정",
-                                edit_participant_group_participant_slot_path(@participant_group, participant_slot),
+                                edit_participant_group_participant_slot_path(@participant_group, participant_slot, return_to_poll_id: @return_poll&.id),
                                 class: "text-sm font-medium text-stone-700 underline" %>
                     <%= button_to "삭제",
-                                  participant_group_participant_slot_path(@participant_group, participant_slot),
+                                  participant_group_participant_slot_path(@participant_group, participant_slot, return_to_poll_id: @return_poll&.id),
                                   method: :delete,
                                   class: "text-sm font-medium text-stone-700 underline" %>
                   </div>

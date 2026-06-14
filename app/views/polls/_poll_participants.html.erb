@@ -2,7 +2,14 @@
 
 <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
   <div class="space-y-1">
-    <h2 class="text-xl font-semibold"><%= poll.closed? ? "투표 당시 투표자 명단" : "투표자 명단" %></h2>
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <h2 class="text-xl font-semibold"><%= poll.closed? ? "투표 당시 투표자 명단" : "투표자 명단" %></h2>
+      <% if poll.draft? && poll.participant_group.present? %>
+        <%= link_to "투표자 명단 수정",
+                    participant_group_path(poll.participant_group, return_to_poll_id: poll.id),
+                    class: "text-sm font-medium text-stone-700 underline" %>
+      <% end %>
+    </div>
     <p class="text-sm text-stone-600">
       <%= poll.participant_group_display_name || "선택된 투표자 명단이 없습니다." %>
       · 투표자 <%= participant_rows&.size.to_i %>명

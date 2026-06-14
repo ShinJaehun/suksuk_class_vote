@@ -170,6 +170,8 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include("운영 기록")
       expect(response.body).to include("투표자")
       expect(response.body).to include("1명")
+      expect(response.body).to include("투표자 명단 수정")
+      expect(response.body).to include(participant_group_path(poll.participant_group, return_to_poll_id: poll.id))
       expect(response.body).to include("후보자")
       expect(response.body).to include("0명")
       expect(response.body).to include("시작 불가")
@@ -532,6 +534,7 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("투표자 명단")
       expect(response.body).to include("김민준")
       expect(response.body).to include("이서연")
+      expect(response.body).not_to include(participant_group_path(poll.participant_group, return_to_poll_id: poll.id))
       expect(response.body).not_to include("후보자 추가")
     end
 

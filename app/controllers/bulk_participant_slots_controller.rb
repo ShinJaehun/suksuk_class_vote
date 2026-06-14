@@ -29,7 +29,7 @@ class BulkParticipantSlotsController < ApplicationController
     end
 
     create_participant_slots!
-    redirect_to @participant_group, notice: "투표자 명단을 저장했습니다."
+    redirect_to participant_group_return_path, notice: "투표자 명단을 저장했습니다."
   rescue ActiveRecord::RecordInvalid => e
     @errors = [e.record.errors.full_messages.to_sentence]
     render :new, status: :unprocessable_entity
@@ -73,5 +73,9 @@ class BulkParticipantSlotsController < ApplicationController
         @participant_group.participant_slots.create!(number: next_number + index, name: name)
       end
     end
+  end
+
+  def participant_group_return_path
+    participant_group_path(@participant_group, return_to_poll_id: params[:return_to_poll_id])
   end
 end

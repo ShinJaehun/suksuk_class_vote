@@ -92,6 +92,22 @@ RSpec.describe "Voter slots", type: :request do
       expect(response).to redirect_to(participant_group_path(participant_group))
     end
 
+    it "keeps return poll context after creating from a draft poll group" do
+      teacher = create(:user)
+      participant_group = create(:participant_group, user: teacher)
+      create(:participant_slot, participant_group: participant_group)
+      poll = create(:poll, user: teacher, participant_group: participant_group, status: :draft)
+      sign_in teacher
+
+      expect do
+        post participant_group_participant_slots_path(participant_group, return_to_poll_id: poll.id), params: {
+          participant_slot: { name: "새 학생" }
+        }
+      end.to change(ParticipantSlot, :count).by(1)
+
+      expect(response).to redirect_to(participant_group_path(participant_group, return_to_poll_id: poll.id))
+    end
+
     it "does not create a participant slot when the name is blank" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)

@@ -73,7 +73,7 @@ RSpec.describe "Voter groups", type: :request do
       expect(response.body).to include(new_participant_group_participant_slot_path(participant_group))
       expect(response.body).to include("여러 명 추가")
       expect(response.body).to include(new_participant_group_bulk_participant_slots_path(participant_group))
-      expect(response.body).to include("투표자 명단 수정")
+      expect(response.body).to include("투표자 명단 이름 수정")
       expect(response.body).to include(edit_participant_group_path(participant_group))
       expect(response.body).to include("투표자 명단 삭제")
       expect(response.body).to include(participant_group_path(participant_group))
@@ -81,6 +81,38 @@ RSpec.describe "Voter groups", type: :request do
       expect(response.body).to include(edit_participant_group_participant_slot_path(participant_group, participant_slot))
       expect(response.body).to include("삭제")
       expect(response.body).to include(participant_group_participant_slot_path(participant_group, participant_slot))
+    end
+
+    it "shows a return link and hides destroy while used by a draft poll" do
+      teacher = create(:user)
+      participant_group = create(:participant_group, user: teacher)
+      participant_slot = create(:participant_slot, participant_group: participant_group)
+      poll = create(:poll, user: teacher, participant_group: participant_group, status: :draft)
+      sign_in teacher
+
+      get participant_group_path(participant_group, return_to_poll_id: poll.id)
+
+      expect(response.body).to include("#{poll.title} 투표로 돌아가기")
+      expect(response.body).to include(poll_path(poll))
+      expect(response.body).to include(edit_participant_group_path(participant_group, return_to_poll_id: poll.id))
+      expect(response.body).to include(new_participant_group_participant_slot_path(participant_group, return_to_poll_id: poll.id))
+      expect(response.body).to include(new_participant_group_bulk_participant_slots_path(participant_group, return_to_poll_id: poll.id))
+      expect(response.body).to include(edit_participant_group_participant_slot_path(participant_group, participant_slot, return_to_poll_id: poll.id))
+      expect(response.body).not_to include("투표자 명단 삭제")
+    end
+
+    it "ignores return poll ids for other participant groups" do
+      teacher = create(:user)
+      participant_group = create(:participant_group, user: teacher)
+      other_group = create(:participant_group, user: teacher)
+      create(:participant_slot, participant_group: other_group)
+      poll = create(:poll, user: teacher, participant_group: other_group, status: :draft)
+      sign_in teacher
+
+      get participant_group_path(participant_group, return_to_poll_id: poll.id)
+
+      expect(response.body).to include("투표자 명단 목록으로 돌아가기")
+      expect(response.body).not_to include("투표로 돌아가기")
     end
 
     it "shows group and student change links while used by an in-progress poll" do
