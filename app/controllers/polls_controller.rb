@@ -90,7 +90,11 @@ class PollsController < ApplicationController
   def advance_current_participant
     authorize @poll, :advance_current_participant?
 
-    result = Polls::AdvanceCurrentParticipant.new(poll: @poll, actor: current_user).call
+    result = Polls::AdvanceCurrentParticipant.new(
+      poll: @poll,
+      current_poll_participant_id: params[:current_poll_participant_id],
+      actor: current_user
+    ).call
 
     if result.success?
       broadcast_operation_progress
@@ -115,7 +119,11 @@ class PollsController < ApplicationController
   def close
     authorize @poll, :close?
 
-    result = Polls::Close.new(poll: @poll, actor: current_user).call
+    result = Polls::Close.new(
+      poll: @poll,
+      current_poll_participant_id: params[:current_poll_participant_id],
+      actor: current_user
+    ).call
 
     if result.success?
       redirect_to @poll, notice: "투표를 종료했습니다."

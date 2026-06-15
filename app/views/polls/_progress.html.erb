@@ -44,7 +44,8 @@
                 <%= button_to "투표 종료",
                               close_poll_path(poll),
                               method: :post,
-                              data: { turbo_frame: "_top", turbo_confirm: "투표를 종료할까요?" },
+                              params: { current_poll_participant_id: current_participant.id },
+                              data: { turbo_frame: "_top", turbo_confirm: "투표를 종료할까요?", turbo_submits_with: "종료 중..." },
                               class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
               <% end %>
             </div>

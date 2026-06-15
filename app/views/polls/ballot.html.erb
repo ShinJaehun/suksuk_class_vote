@@ -18,7 +18,8 @@
           <%= button_to "다음 투표자는 #{@next_poll_participant.number}번 #{@next_poll_participant.name}입니다",
                         advance_current_participant_poll_path(@poll),
                         method: :post,
-                        params: { return_to: "ballot" },
+                        params: { current_poll_participant_id: @current_poll_participant.id, return_to: "ballot" },
+                        data: { turbo_submits_with: "이동 중..." },
                         class: "rounded-md bg-stone-900 px-4 py-3 text-sm font-medium text-white" %>
         <% else %>
           <div class="rounded-md border border-stone-200 bg-stone-50 p-5">

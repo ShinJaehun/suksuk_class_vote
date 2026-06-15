@@ -461,6 +461,9 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include("현재 투표자는 이미 처리되었습니다.")
       expect(response.body).to include("다음 투표자는 #{next_participant.number}번 #{next_participant.name}입니다")
       expect(response.body).to include(advance_current_participant_poll_path(poll))
+      expect(response.body).to include("current_poll_participant_id")
+      expect(response.body).to include("value=\"#{current_participant.id}\"")
+      expect(response.body).to include("data-turbo-submits-with=\"이동 중...\"")
       expect(response.body).not_to include(submit_vote_poll_path(poll))
       expect(response.body).not_to include("기권 처리")
       expect(response.body).not_to include("미참여 처리")
@@ -473,7 +476,7 @@ RSpec.describe "Polls", type: :request do
       create(:poll_participation, poll_participant: current_participant)
       sign_in teacher
 
-      post advance_current_participant_poll_path(poll), params: { return_to: "ballot" }
+      post advance_current_participant_poll_path(poll), params: { current_poll_participant_id: current_participant.id, return_to: "ballot" }
 
       expect(response).to redirect_to(ballot_poll_path(poll))
     end
@@ -930,7 +933,7 @@ RSpec.describe "Polls", type: :request do
       create(:poll_participation, poll_participant: first_participant)
       sign_in teacher
 
-      post advance_current_participant_poll_path(poll)
+      post advance_current_participant_poll_path(poll), params: { current_poll_participant_id: first_participant.id }
 
       expect(response).to redirect_to(poll_path(poll))
       expect(flash[:notice]).to eq("다음 투표자로 이동했습니다.")
@@ -943,6 +946,40 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("투표 화면 열기")
       expect(response.body).to include(ballot_poll_path(poll))
       expect(response.body).not_to include(submit_vote_poll_path(poll))
+    end
+
+    it "rejects stale advance requests for a previous current poll participant" do
+      teacher = create(:user)
+      poll = create_started_poll(user: teacher)
+      stale_participant = poll.poll_progress.current_poll_participant
+      current_participant = poll.poll_participants.where("number > ?", stale_participant.number).order(:number).first
+      create(:poll_participation, poll_participant: stale_participant)
+      poll.poll_progress.update!(current_poll_participant: current_participant)
+      event_count = poll.poll_events.where(event_type: "current_participant_advanced").count
+      sign_in teacher
+
+      post advance_current_participant_poll_path(poll), params: { current_poll_participant_id: stale_participant.id }
+
+      expect(response).to redirect_to(poll_path(poll))
+      expect(flash[:alert]).to include("현재 투표자가 변경되었습니다. 화면을 새로고침해주세요.")
+      expect(poll.poll_progress.reload.current_poll_participant).to eq(current_participant)
+      expect(poll.poll_events.where(event_type: "current_participant_advanced").count).to eq(event_count)
+    end
+
+    it "rejects advance requests without the expected current poll participant id" do
+      teacher = create(:user)
+      poll = create_started_poll(user: teacher)
+      current_participant = poll.poll_progress.current_poll_participant
+      create(:poll_participation, poll_participant: current_participant)
+      event_count = poll.poll_events.where(event_type: "current_participant_advanced").count
+      sign_in teacher
+
+      post advance_current_participant_poll_path(poll)
+
+      expect(response).to redirect_to(poll_path(poll))
+      expect(flash[:alert]).to include("현재 투표자가 변경되었습니다. 화면을 새로고침해주세요.")
+      expect(poll.poll_progress.reload.current_poll_participant).to eq(current_participant)
+      expect(poll.poll_events.where(event_type: "current_participant_advanced").count).to eq(event_count)
     end
 
     it "shows close button only when the completed current participant is the last participant" do
@@ -965,7 +1002,10 @@ RSpec.describe "Polls", type: :request do
 
       expect(response.body).to include(close_poll_path(poll))
       expect(response.body).to include("투표를 종료할까요?")
+      expect(response.body).to include("current_poll_participant_id")
+      expect(response.body).to include("value=\"#{last_participant.id}\"")
       expect(response.body).to include("data-turbo-frame=\"_top\"")
+      expect(response.body).to include("data-turbo-submits-with=\"종료 중...\"")
       expect(response.body).not_to include(advance_current_participant_poll_path(poll))
     end
 
@@ -975,7 +1015,7 @@ RSpec.describe "Polls", type: :request do
       current_participant = poll.poll_progress.current_poll_participant
       sign_in teacher
 
-      post advance_current_participant_poll_path(poll)
+      post advance_current_participant_poll_path(poll), params: { current_poll_participant_id: current_participant.id }
 
       expect(response).to redirect_to(poll_path(poll))
       expect(flash[:alert]).to include("확정 상태")
@@ -1011,7 +1051,7 @@ RSpec.describe "Polls", type: :request do
       poll.poll_option_tallies.find_by(poll_option: poll_option).update!(votes_count: 1)
       sign_in teacher
 
-      post close_poll_path(poll)
+      post close_poll_path(poll), params: { current_poll_participant_id: last_participant.id }
 
       expect(response).to redirect_to(poll_path(poll))
       expect(flash[:notice]).to eq("투표를 종료했습니다.")
@@ -1053,6 +1093,44 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("투표 삭제")
       expect(response.body).not_to include("선택한 후보")
       expect(response.body).not_to include("#{last_participant.name} #{poll_option.name}")
+    end
+
+    it "rejects stale close requests for a different current poll participant" do
+      teacher = create(:user)
+      poll = create_started_poll(user: teacher)
+      stale_participant = poll.poll_progress.current_poll_participant
+      last_participant = poll.poll_participants.order(:number).last
+      poll.poll_progress.update!(current_poll_participant: last_participant)
+      create(:poll_participation, poll_participant: last_participant)
+      event_count = poll.poll_events.where(event_type: "poll_closed").count
+      sign_in teacher
+
+      post close_poll_path(poll), params: { current_poll_participant_id: stale_participant.id }
+
+      expect(response).to redirect_to(poll_path(poll))
+      expect(flash[:alert]).to include("현재 투표자가 변경되었습니다. 화면을 새로고침해주세요.")
+      expect(poll.reload).to be_in_progress
+      expect(poll.poll_progress.reload).to be_active
+      expect(poll.poll_progress.current_poll_participant).to eq(last_participant)
+      expect(poll.poll_events.where(event_type: "poll_closed").count).to eq(event_count)
+    end
+
+    it "rejects close requests without the expected current poll participant id" do
+      teacher = create(:user)
+      poll = create_started_poll(user: teacher)
+      last_participant = poll.poll_participants.order(:number).last
+      poll.poll_progress.update!(current_poll_participant: last_participant)
+      create(:poll_participation, poll_participant: last_participant)
+      event_count = poll.poll_events.where(event_type: "poll_closed").count
+      sign_in teacher
+
+      post close_poll_path(poll)
+
+      expect(response).to redirect_to(poll_path(poll))
+      expect(flash[:alert]).to include("현재 투표자가 변경되었습니다. 화면을 새로고침해주세요.")
+      expect(poll.reload).to be_in_progress
+      expect(poll.poll_progress.reload).to be_active
+      expect(poll.poll_events.where(event_type: "poll_closed").count).to eq(event_count)
     end
 
     it "shows discussion result labels for closed discussion polls" do
