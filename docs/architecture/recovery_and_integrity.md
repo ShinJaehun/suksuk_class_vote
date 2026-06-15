@@ -2,7 +2,7 @@
 
 ## 목적
 
-이 문서는 `쑥쑥교실투표`의 가장 중요한 품질 목표인 투표 중단 복구와 데이터 무결성 원칙을 정의한다.
+이 문서는 `쑥쑥교실투표`의 가장 중요한 품질 목표인 투표 도중 장애 복구와 데이터 무결성 원칙을 정의한다.
 
 이 프로젝트는 많은 기능보다 안정적인 투표 진행을 우선한다.  
 투표 도중 어떤 이유로 화면이 끊기더라도, 교사가 다시 로그인하면 정확히 이전 진행 위치로 돌아올 수 있어야 한다.
@@ -20,7 +20,7 @@
 - 현재 몇 번 학생이 투표 중인지
 - 어떤 학생이 투표 완료인지
 - 어떤 학생이 미참여 처리되었는지
-- 투표 진행 정보가 진행 중인지 종료되었는지
+- 투표 진행 정보가 진행 중인지, 중단되었는지, 종료되었는지
 - 현재 복구 기준 참여자가 누구인지
 
 선거가 시작된 뒤의 복구 기준은 원본 `ParticipantGroup`이 아니다.
@@ -30,8 +30,12 @@
 draft 선거는 아직 `PollParticipant` snapshot이 없고 원본 `ParticipantGroup`을 직접 참조한다.
 draft 상태에서도 원본 그룹 이름 수정과 `ParticipantSlot` 학생 추가/수정/삭제는 허용한다.
 다만 draft 선거가 현재 참조 중인 원본 `ParticipantGroup` 자체 삭제는 준비 중인 `Poll`이 필수 명단 설정을 잃지 않게 막는다.
-선거 종료 뒤에도 `PollParticipant` snapshot과 선거 시작 당시 그룹명 snapshot이 선거 자료 보존 기준이다.
+선거 중단 뒤에는 진행 중간 데이터를 보존 대상으로 보지 않는다.
+`stopped` 선거는 결과 확정 상태가 아니며 복구 또는 재개 대상이 아니다.
+`stopped` 선거를 삭제할 때는 `poll_progress`가 `poll_participants`를 참조하는 FK 문제를 피하기 위해 `poll_progress`를 먼저 정리한다.
+선거 종료 뒤에는 `PollParticipant` snapshot과 선거 시작 당시 그룹명 snapshot이 선거 자료 보존 기준이다.
 closed 선거는 `participant_group` 또는 `source_participant_slot` 참조가 비어도 `PollParticipant.number/name` 기준으로 투표 참여자 명단을 유지한다.
+closed 선거는 삭제하지 않고 `archived_at` 기반으로 보관한다.
 
 ---
 
@@ -41,6 +45,7 @@ closed 선거는 `participant_group` 또는 `source_participant_slot` 참조가 
 
 - 아직 투표가 시작되지 않음
 - 특정 출석번호 학생이 투표 중
+- 투표가 중단되어 재개하지 않음
 - 마지막 학생까지 처리되었고 투표 종료 전
 - 투표 종료 완료
 - 결과 확인 가능
@@ -156,8 +161,8 @@ DB index:
 - 처리 상태 합계가 전체 참여자 수를 초과하는 문제
 - 종료된 선거에 미처리 참여자가 남은 문제
 
-상태 점검 카드는 `draft`, `in_progress`, `closed` 모두에서 표시한다.
-다만 숫자 운영 요약은 선거 시작 전에는 숨기고, `in_progress`와 `closed`에서만 표시한다.
+상태 점검 카드는 `draft`, `in_progress`, `stopped`, `closed` 모두에서 표시한다.
+다만 숫자 운영 요약은 선거 시작 전에는 숨기고, `in_progress`, `stopped`, `closed`에서 표시한다.
 운영 요약은 전체 참여자 수, 투표 완료 수, 미참여 수, 기권 수, 미처리 수, 후보별 득표 합계를 보여준다.
 
 `Polls::ResumeCurrentVoter`는 매우 제한적인 복구 액션이다.
@@ -165,6 +170,7 @@ DB index:
 다른 무결성 문제가 없고, 미처리 학생이 남아 있을 때만 첫 미처리 학생을 현재 참여자로 지정한다.
 이 서비스는 `PollProgress.current_poll_participant_id` 포인터만 복원한다.
 `PollParticipation`과 `PollOptionTally`는 변경하지 않는다.
+`stopped` 선거에는 적용하지 않는다.
 
 ### PollEvent / 운영 기록
 
@@ -177,6 +183,7 @@ DB index:
 - `voter_marked_abstained`
 - `current_participant_advanced`
 - `current_participant_resumed`
+- `election_stopped`
 - `election_closed`
 
 각 이벤트는 성공 transaction 안에서 함께 기록된다.
@@ -323,6 +330,22 @@ PollOptionTally: 변화 없음
 
 ---
 
+### 8. 중단된 투표 진행 정보에 제출 요청
+
+상황:
+
+- 투표가 중단되었는데 이전 화면에서 제출 요청이 다시 들어온다.
+
+기대 동작:
+
+- 제출을 거부한다.
+- 득표수를 변경하지 않는다.
+- 중단된 투표라는 안내를 제공한다.
+
+`stopped`는 복구/재개 대상이 아니므로 현재 참여자 포인터를 복원하지 않는다.
+
+---
+
 ## 트랜잭션 원칙
 
 투표 제출은 반드시 하나의 DB 트랜잭션 안에서 처리한다.
@@ -441,6 +464,10 @@ PollOptionTally: 변화 없음
 - 서버 재시작 후 DB 상태 기준 재진입
 - `current_poll_participant`가 nil이고, 다른 무결성 문제가 없으며, 미처리 학생이 남아 있는 경우 첫 미처리 학생으로 재개
 
+위 복구 가능 범위는 `in_progress` 선거에만 적용한다.
+`stopped` 선거는 진행 중단 상태이며 재시작하지 않는다.
+중단된 투표의 삭제는 결과 보존이 아니라 진행 중간 데이터 폐기 성격이다.
+
 현재 자동 복구하지 않는 것:
 
 - `poll_option_tallies` 수 불일치
@@ -450,6 +477,7 @@ PollOptionTally: 변화 없음
 - `poll_progress` 자체가 없는 경우
 - `poll_progress` 상태 불일치
 - 후보별 득표 재계산
+- `stopped` 선거 재시작
 
 위 문제는 상태 점검 카드에서 확인 대상으로 표시하되, 자동 수정하지 않는다.
 추가 복구 액션은 비밀투표와 무결성에 영향을 줄 수 있으므로 별도 설계 후 도입한다.
@@ -481,6 +509,8 @@ PollOptionTally: 변화 없음
 - 결과 snapshot / 인쇄 또는 export
 - 추가 복구 액션
 - `VoteSession` 후속 검토
+- `stopped` 재시작은 현재 도입하지 않음
+- 보관 해제와 종료 후 30일 자동 보관
 
 ---
 
@@ -491,7 +521,7 @@ PollOptionTally: 변화 없음
 초기 목표는 다음이다.
 
 - 교실에서 안정적으로 투표가 진행될 것
-- 중단 후 복구될 것
+- 투표 도중 장애 후 복구될 것
 - 중복 제출되지 않을 것
 - DB 상태가 꼬이지 않을 것
 

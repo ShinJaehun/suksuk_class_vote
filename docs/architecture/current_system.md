@@ -41,8 +41,9 @@
 - 미참여/무투표 처리
 - 투표 종료
 - 결과 확인
-- 투표 중단 후 복구
+- 투표 도중 장애 복구
 - 중복 제출 방지
+- 종료 투표 수동 보관
 
 초기 MVP 제외 범위:
 
@@ -83,7 +84,7 @@
 - `PollOption` 최소 모델 추가
 - draft 상태 투표의 선택지 new/create/edit/update/destroy 추가
 - 선거 시작 조건과 투표 참여자 명단 snapshot 정책 문서화
-- `Poll` status enum을 `draft`, `in_progress`, `closed`로 확장
+- `Poll` status enum을 `draft`, `in_progress`, `stopped`, `closed`로 확장
 - `PollParticipant` snapshot 모델 추가
 - 선택지 2개 이상 일반 경쟁 투표에 한해 투표 시작 기능 추가
 - `Polls::Start` service로 투표 참여자 명단 snapshot 생성과 `in_progress` 상태 전이를 transaction 처리
@@ -111,7 +112,25 @@
 - 현재 참여자 포인터가 비어 있는 제한 상황에서 첫 미처리 학생으로 재개하는 기능 추가
 - `PollEvent` 모델과 투표 운영 이벤트 기록 추가
 - 투표 상세 화면에 최근 운영 기록 표시 추가
+- 진행 중인 투표 중단 기능 추가
+- draft와 stopped 투표 삭제 기능 추가
+- closed 투표 수동 보관 기능 추가
+- 보관은 status가 아니라 `archived_at`으로 관리
+- 기본 투표 목록 `/polls`에서는 보관된 투표를 숨기고, 보관 목록 `/polls/archived`에서 확인
+- 보관된 투표 상세 `/polls/:id` 접근 가능
 - 문서 기반 설계 정리 중
+
+현재 `Poll` 상태 흐름:
+
+- `draft`: 준비
+- `in_progress`: 진행
+- `stopped`: 중단
+- `closed`: 종료
+
+`stopped`는 결과 확정 상태가 아니며 재시작하지 않는다.
+`closed`는 결과와 기록 보존 대상이며 삭제하지 않고 보관한다.
+보관된 종료 투표는 `closed` 상태이면서 `archived_at`이 있는 투표다.
+보관 해제와 종료 후 30일 자동 보관은 아직 구현하지 않았다.
 
 ---
 
@@ -131,7 +150,7 @@
   - 현재 구현 상태와 문서 허브
 
 - `docs/architecture/recovery_and_integrity.md`
-  - 투표 중단 복구
+  - 투표 도중 장애 복구
   - 중복 제출 방지
   - DB source of truth
   - 트랜잭션 기반 집계 원칙
@@ -190,7 +209,7 @@
    - draft 선거에서 후보자 이름 등록/수정/삭제 구현
    - 후보자 번호는 선거 안에서 자동 부여하며 삭제 후 재정렬하지 않음
 7. 선거 시작 조건과 투표 참여자 명단 snapshot 구현
-   - 구현됨: `Poll` enum을 `draft`, `in_progress`, `closed`로 확장
+   - 구현됨: `Poll` enum을 `draft`, `in_progress`, `stopped`, `closed`로 확장
    - 구현됨: `PollParticipant` 모델 추가
    - 구현됨: `Polls::Start` service 추가
    - 구현됨: 후보자 2명 이상 일반 경쟁 투표 start 조건 검증
@@ -216,6 +235,13 @@
 - 진행 중/종료 선거의 운영 요약
 - 제한 조건을 만족할 때 첫 미처리 학생으로 재개
 - 최근 운영 기록
+
+현재 구현된 목록/보관 정책:
+
+- 기본 투표 목록 `/polls`는 보관되지 않은 투표를 보여준다.
+- 보관 목록 `/polls/archived`는 `archived_at`이 있는 종료 투표를 보여준다.
+- 보관된 종료 투표도 상세 화면 `/polls/:id`로 접근할 수 있다.
+- 보관 해제와 종료 후 30일 자동 보관은 후속 과제다.
 
 ---
 
