@@ -35,7 +35,8 @@ draft 상태에서도 원본 그룹 이름 수정과 `ParticipantSlot` 학생 �
 `stopped` 선거를 삭제할 때는 `poll_progress`가 `poll_participants`를 참조하는 FK 문제를 피하기 위해 `poll_progress`를 먼저 정리한다.
 선거 종료 뒤에는 `PollParticipant` snapshot과 선거 시작 당시 그룹명 snapshot이 선거 자료 보존 기준이다.
 closed 선거는 `participant_group` 또는 `source_participant_slot` 참조가 비어도 `PollParticipant.number/name` 기준으로 투표 참여자 명단을 유지한다.
-closed 선거는 삭제하지 않고 `archived_at` 기반으로 보관한다.
+보관 전 closed 선거는 삭제 또는 `archived_at` 기반 보관을 선택할 수 있다.
+보관된 closed 선거는 기록으로 남기기로 한 상태이므로 삭제하지 않는다.
 
 ---
 
