@@ -8,6 +8,7 @@ module Polls
 
     FINAL_PARTICIPATION_STATUSES = %w[completed absent abstained].freeze
     STALE_CURRENT_PARTICIPANT_MESSAGE = "현재 투표자가 변경되었습니다. 화면을 새로고침해주세요."
+    CLOSING_INTEGRITY_MESSAGE = "투표 결과 상태 확인이 필요하여 종료할 수 없습니다."
     CURRENT_PARTICIPANT_ID_NOT_GIVEN = Object.new.freeze
 
     def initialize(poll:, current_poll_participant_id: CURRENT_PARTICIPANT_ID_NOT_GIVEN, actor: nil)
@@ -33,6 +34,9 @@ module Polls
         locked_next_poll_participant = next_poll_participant_for(locked_current_poll_participant)
 
         validate_locked_state(locked_poll_progress, locked_current_poll_participant, locked_next_poll_participant)
+        raise ActiveRecord::Rollback if errors.any?
+
+        validate_closing_integrity
         raise ActiveRecord::Rollback if errors.any?
 
         poll.update!(status: :closed)
@@ -75,6 +79,18 @@ module Polls
       errors << "아직 남은 투표자가 있어 투표를 종료할 수 없습니다." if locked_next_poll_participant.present?
     end
 
+    def validate_closing_integrity
+      add_closing_integrity_error unless processed_participation_count == poll.poll_participants.count
+      add_closing_integrity_error unless completed_participation_count == poll.poll_option_tallies.sum(:votes_count)
+      add_closing_integrity_error unless poll.poll_options.count == poll.poll_option_tallies.count
+      add_closing_integrity_error if mismatched_poll_option_tallies?
+      add_closing_integrity_error if poll.poll_option_tallies.where("votes_count < 0").exists?
+    end
+
+    def add_closing_integrity_error
+      errors << CLOSING_INTEGRITY_MESSAGE unless errors.include?(CLOSING_INTEGRITY_MESSAGE)
+    end
+
     def poll_progress
       @poll_progress ||= poll.poll_progress
     end
@@ -114,6 +130,26 @@ module Polls
 
     def expected_current_poll_participant?(poll_participant)
       poll_participant.present? && poll_participant.id.to_s == current_poll_participant_id.to_s
+    end
+
+    def processed_participation_count
+      participation_counts.values.sum
+    end
+
+    def completed_participation_count
+      participation_counts.fetch("completed", 0)
+    end
+
+    def participation_counts
+      @participation_counts ||= PollParticipation
+        .joins(:poll_participant)
+        .where(poll_participants: { poll_id: poll.id })
+        .group(:status)
+        .count
+    end
+
+    def mismatched_poll_option_tallies?
+      poll.poll_option_tallies.joins(:poll_option).where.not(poll_options: { poll_id: poll.id }).exists?
     end
 
     def record_event(event_type, poll_participant: nil, details: {})

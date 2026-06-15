@@ -512,8 +512,10 @@ RSpec.describe "Polls", type: :request do
     it "redirects closed polls to the operation screen" do
       teacher = create(:user)
       poll = create_started_poll(user: teacher)
+      first_participant = poll.poll_participants.order(:number).first
       last_participant = poll.poll_participants.order(:number).last
       poll.poll_progress.update!(current_poll_participant: last_participant)
+      create(:poll_participation, poll_participant: first_participant, status: :absent)
       create(:poll_participation, poll_participant: last_participant, status: :absent)
       Polls::Close.new(poll: poll).call
       sign_in teacher
@@ -1045,8 +1047,10 @@ RSpec.describe "Polls", type: :request do
       teacher = create(:user)
       poll = create_started_poll(user: teacher)
       poll_option = poll.poll_options.order(:number).first
+      first_participant = poll.poll_participants.order(:number).first
       last_participant = poll.poll_participants.order(:number).last
       poll.poll_progress.update!(current_poll_participant: last_participant)
+      create(:poll_participation, poll_participant: first_participant, status: :absent)
       create(:poll_participation, poll_participant: last_participant)
       poll.poll_option_tallies.find_by(poll_option: poll_option).update!(votes_count: 1)
       sign_in teacher
@@ -1141,8 +1145,10 @@ RSpec.describe "Polls", type: :request do
       first_opinion.update!(name: "점심시간을 10분 늘리자는 의견")
       second_opinion.update!(name: "청소 시간을 요일별로 나누자는 의견")
       Polls::Start.new(poll).call
+      first_participant = poll.poll_participants.order(:number).first
       last_participant = poll.poll_participants.order(:number).last
       poll.poll_progress.update!(current_poll_participant: last_participant)
+      create(:poll_participation, poll_participant: first_participant, status: :absent)
       create(:poll_participation, poll_participant: last_participant)
       poll.poll_option_tallies.find_by(poll_option: first_opinion).update!(votes_count: 1)
       Polls::Close.new(poll: poll).call
@@ -1164,8 +1170,10 @@ RSpec.describe "Polls", type: :request do
     it "shows multiple top vote poll_options when tied" do
       teacher = create(:user)
       poll = create_started_poll(user: teacher)
+      first_participant = poll.poll_participants.order(:number).first
       last_participant = poll.poll_participants.order(:number).last
       poll.poll_progress.update!(current_poll_participant: last_participant)
+      create(:poll_participation, poll_participant: first_participant)
       create(:poll_participation, poll_participant: last_participant)
       poll.poll_option_tallies.update_all(votes_count: 1)
       Polls::Close.new(poll: poll).call
@@ -1181,8 +1189,10 @@ RSpec.describe "Polls", type: :request do
     it "shows no top vote poll_option when all poll_options have zero votes" do
       teacher = create(:user)
       poll = create_started_poll(user: teacher)
+      first_participant = poll.poll_participants.order(:number).first
       last_participant = poll.poll_participants.order(:number).last
       poll.poll_progress.update!(current_poll_participant: last_participant)
+      create(:poll_participation, poll_participant: first_participant, status: :absent)
       create(:poll_participation, poll_participant: last_participant, status: :absent)
       Polls::Close.new(poll: poll).call
       sign_in teacher
@@ -1199,6 +1209,7 @@ RSpec.describe "Polls", type: :request do
       source_participant_slot = first_poll_participant.source_participant_slot
       last_participant = poll.poll_participants.order(:number).last
       poll.poll_progress.update!(current_poll_participant: last_participant)
+      create(:poll_participation, poll_participant: first_poll_participant, status: :absent)
       create(:poll_participation, poll_participant: last_participant, status: :absent)
       Polls::Close.new(poll: poll).call
       sign_in teacher
@@ -1217,8 +1228,10 @@ RSpec.describe "Polls", type: :request do
       poll = create_started_poll(user: teacher)
       participant_group = poll.participant_group
       group_name = poll.participant_group_name_snapshot
+      first_participant = poll.poll_participants.order(:number).first
       last_participant = poll.poll_participants.order(:number).last
       poll.poll_progress.update!(current_poll_participant: last_participant)
+      create(:poll_participation, poll_participant: first_participant, status: :absent)
       create(:poll_participation, poll_participant: last_participant, status: :absent)
       Polls::Close.new(poll: poll).call
       participant_group.destroy!
@@ -1238,8 +1251,10 @@ RSpec.describe "Polls", type: :request do
       teacher = create(:user)
       poll = create_started_poll(user: teacher)
       poll_option = poll.poll_options.first
+      first_participant = poll.poll_participants.order(:number).first
       last_participant = poll.poll_participants.order(:number).last
       poll.poll_progress.update!(current_poll_participant: last_participant)
+      create(:poll_participation, poll_participant: first_participant, status: :absent)
       create(:poll_participation, poll_participant: last_participant, status: :absent)
       Polls::Close.new(poll: poll).call
       sign_in teacher
@@ -1300,8 +1315,10 @@ RSpec.describe "Polls", type: :request do
     it "archives closed polls without changing status" do
       teacher = create(:user)
       poll = create_started_poll(user: teacher)
+      first_participant = poll.poll_participants.order(:number).first
       last_participant = poll.poll_participants.order(:number).last
       poll.poll_progress.update!(current_poll_participant: last_participant)
+      create(:poll_participation, poll_participant: first_participant, status: :absent)
       create(:poll_participation, poll_participant: last_participant, status: :absent)
       Polls::Close.new(poll: poll).call
       sign_in teacher
@@ -1374,8 +1391,10 @@ RSpec.describe "Polls", type: :request do
       teacher = create(:user)
       poll = create_started_poll(user: teacher)
       poll_id = poll.id
+      first_participant = poll.poll_participants.order(:number).first
       last_participant = poll.poll_participants.order(:number).last
       poll.poll_progress.update!(current_poll_participant: last_participant)
+      create(:poll_participation, poll_participant: first_participant, status: :absent)
       poll_participation = create(:poll_participation, poll_participant: last_participant, status: :absent)
       Polls::Close.new(poll: poll).call
       sign_in teacher
