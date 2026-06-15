@@ -135,12 +135,13 @@ class PollsController < ApplicationController
   def stop
     authorize @poll
 
-    @poll.transaction do
-      @poll.update!(status: :stopped)
-      @poll.poll_events.create!(event_type: "poll_stopped", actor: current_user)
-    end
+    result = Polls::Stop.new(poll: @poll, actor: current_user).call
 
-    redirect_to @poll, notice: "투표를 중단했습니다."
+    if result.success?
+      redirect_to @poll, notice: "투표를 중단했습니다."
+    else
+      redirect_to @poll, alert: result.error_message
+    end
   end
 
   def archive
