@@ -3,12 +3,14 @@ class PollsController < ApplicationController
   before_action :set_poll, only: %i[show ballot start submit_vote record_participation_outcome advance_current_participant resume_current_participant close stop archive destroy]
 
   def index
-    @polls = policy_scope(Poll).active_list.includes(participant_group: :participant_slots).order(created_at: :desc)
+    @polls = policy_scope(Poll).active_list.includes(:participant_group).order(created_at: :desc)
+    @poll_voter_counts = voter_counts_for(@polls)
     authorize Poll
   end
 
   def archived
-    @polls = policy_scope(Poll).archived.includes(participant_group: :participant_slots).order(archived_at: :desc)
+    @polls = policy_scope(Poll).archived.includes(:participant_group).order(archived_at: :desc)
+    @poll_voter_counts = voter_counts_for(@polls)
     authorize Poll, :index?
   end
 
@@ -212,6 +214,22 @@ class PollsController < ApplicationController
       .group("participant_groups.id")
       .having("COUNT(participant_slots.id) > 0")
       .order(:name)
+  end
+
+  def voter_counts_for(polls)
+    poll_records = polls.to_a
+    snapshot_counts = PollParticipant.where(poll_id: poll_records.map(&:id)).group(:poll_id).count
+    draft_group_ids = poll_records.select(&:draft?).filter_map(&:participant_group_id)
+    draft_slot_counts = ParticipantSlot.where(participant_group_id: draft_group_ids).group(:participant_group_id).count
+
+    poll_records.each_with_object({}) do |poll, counts|
+      counts[poll.id] =
+        if poll.draft?
+          draft_slot_counts.fetch(poll.participant_group_id, 0)
+        else
+          snapshot_counts.fetch(poll.id, 0)
+        end
+    end
   end
 
   def poll_params

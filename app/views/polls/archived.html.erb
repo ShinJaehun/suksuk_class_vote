@@ -19,7 +19,7 @@
               </div>
               <p class="text-sm text-stone-600">
                 <%= poll.participant_group_display_name || "-" %>
-                · 투표자 <%= poll.poll_participants.exists? ? poll.poll_participants.count : poll.readiness_voter_count %>명
+                · 투표자 <%= @poll_voter_counts.fetch(poll.id, 0) %>명
               </p>
             </div>
 

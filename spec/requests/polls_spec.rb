@@ -31,6 +31,36 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include(archived_poll.title)
       expect(response.body).to include(archived_polls_path)
     end
+
+    it "shows voter counts from participant slots for draft polls and snapshots for started polls" do
+      teacher = create(:user)
+      draft_group = create(:participant_group, user: teacher)
+      create(:participant_slot, participant_group: draft_group, number: 1)
+      create(:participant_slot, participant_group: draft_group, number: 2)
+      create(:participant_slot, participant_group: draft_group, number: 3)
+      draft_poll = create(:poll, user: teacher, title: "준비 투표", participant_group: draft_group)
+
+      in_progress_poll = create(:poll, user: teacher, title: "진행 투표", status: :in_progress)
+      create(:poll_participant, poll: in_progress_poll, teacher: teacher, participant_group: in_progress_poll.participant_group, number: 1)
+      create(:poll_participant, poll: in_progress_poll, teacher: teacher, participant_group: in_progress_poll.participant_group, number: 2)
+
+      stopped_poll = create(:poll, user: teacher, title: "중단 투표", status: :stopped)
+      create(:poll_participant, poll: stopped_poll, teacher: teacher, participant_group: stopped_poll.participant_group, number: 1)
+
+      closed_poll = create(:poll, user: teacher, title: "종료 투표", status: :closed)
+      create(:poll_participant, poll: closed_poll, teacher: teacher, participant_group: closed_poll.participant_group, number: 1)
+      create(:poll_participant, poll: closed_poll, teacher: teacher, participant_group: closed_poll.participant_group, number: 2)
+      create(:poll_participant, poll: closed_poll, teacher: teacher, participant_group: closed_poll.participant_group, number: 3)
+      create(:poll_participant, poll: closed_poll, teacher: teacher, participant_group: closed_poll.participant_group, number: 4)
+      sign_in teacher
+
+      get polls_path
+
+      expect(response.body).to match(/#{draft_poll.title}.*투표자 3명/m)
+      expect(response.body).to match(/#{in_progress_poll.title}.*투표자 2명/m)
+      expect(response.body).to match(/#{stopped_poll.title}.*투표자 1명/m)
+      expect(response.body).to match(/#{closed_poll.title}.*투표자 4명/m)
+    end
   end
 
   describe "GET /polls/archived" do
@@ -45,6 +75,18 @@ RSpec.describe "Polls", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include(archived_poll.title)
       expect(response.body).not_to include(active_poll.title)
+    end
+
+    it "shows voter counts from snapshots for archived polls" do
+      teacher = create(:user)
+      archived_poll = create(:poll, user: teacher, title: "보관된 종료 투표", status: :closed, archived_at: Time.current)
+      create(:poll_participant, poll: archived_poll, teacher: teacher, participant_group: archived_poll.participant_group, number: 1)
+      create(:poll_participant, poll: archived_poll, teacher: teacher, participant_group: archived_poll.participant_group, number: 2)
+      sign_in teacher
+
+      get archived_polls_path
+
+      expect(response.body).to match(/#{archived_poll.title}.*투표자 2명/m)
     end
   end
 
