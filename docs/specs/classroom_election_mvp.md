@@ -323,11 +323,17 @@ end
 이때 `current_poll_participant`는 첫 번째 `PollParticipant`로 설정한다.
 현재 `Polls::SubmitVote` service는 현재 참여자의 투표 완료 기록과 후보별 tally 증가를 transaction으로 처리한다.
 현재 선거 상세 화면에서 현재 참여자의 후보 선택 제출을 연결한다.
-현재 `Polls::AdvanceCurrentVoter` service와 선거 상세 화면의 다음 학생 진행 버튼으로 확정 상태인 현재 참여자에서 다음 `PollParticipant`로 이동할 수 있다.
+현재 `Polls::AdvanceCurrentParticipant` service와 선거 상세 화면의 다음 학생 진행 버튼으로 확정 상태인 현재 참여자에서 다음 `PollParticipant`로 이동할 수 있다.
 현재 참여자를 미참여 또는 기권으로 확정 처리할 수 있으며, 이 처리는 후보별 tally를 증가시키지 않는다.
 현재 마지막 참여자 확정 뒤 교사가 선거를 종료할 수 있으며, 종료 후 후보별 count-only 결과를 확인할 수 있다.
 closed 결과 화면은 참여 요약과 최다 득표 후보를 표시한다.
 학생별 후보 선택은 표시하지 않는다.
+
+후보 선택, 기권, 미참여, 다음 학생 진행, 투표 종료 요청은 요청 당시의 현재 참여자 id를 함께 보내고,
+service가 lock 이후 DB의 현재 참여자와 비교한다.
+현재 참여자가 바뀐 오래 열린 화면이나 늦게 도착한 요청은 처리하지 않는다.
+투표 종료는 `Polls::Close` 안에서 처리 상태 합계와 count-only tally 숫자 일관성을 확인한 뒤에만 `closed`로 전환한다.
+세부 원칙은 `docs/architecture/recovery_and_integrity.md`를 따른다.
 
 진행 중인 투표는 실수로 삭제할 수 없다.
 교사는 `in_progress` 상태에서만 투표를 중단할 수 있다.
@@ -490,6 +496,9 @@ closed 결과 화면은 참여 요약과 최다 득표 후보를 표시한다.
 - 교사 재로그인
 - 투표 완료 버튼 중복 클릭
 - 네트워크 오류
+
+현재 구현은 투표 제출/기권/미참여와 다음 학생 진행/투표 종료 요청에서 current participant를 lock 이후 재확인한다.
+투표 화면과 운영 액션 버튼은 Turbo submit 중 문구를 사용해 중복 클릭으로 인한 혼란을 줄인다.
 
 상세 원칙은 다음 문서를 따른다.
 

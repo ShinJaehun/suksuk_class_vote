@@ -173,6 +173,10 @@ DB index:
 `PollParticipation`과 `PollOptionTally`는 변경하지 않는다.
 `stopped` 선거에는 적용하지 않는다.
 
+`Polls::IntegrityReport`는 운영/점검용 report다.
+상세 화면에서 현재 상태를 설명하고 제한적인 재개 가능 여부를 판단하는 데 사용하지만, 그 자체가 `closed` 전환을 수행하거나 막는 transaction gate는 아니다.
+`Polls::Close`는 종료 전환 직전에 별도의 내부 무결성 gate를 실행한다.
+
 ### PollEvent / 운영 기록
 
 `PollEvent`는 선거 운영 이벤트를 DB에 기록한다.
@@ -192,6 +196,7 @@ DB index:
 교사용 운영 기록 화면은 표시 가능한 최근 10개 이벤트만 보여준다.
 선거 단위 이벤트는 actor를 대상으로 표시하고, 학생 처리 이벤트는 `PollParticipant`를 대상으로 표시한다.
 운영 기록은 후보 정보를 저장하거나 표시하지 않는다.
+`PollEvent.details`에도 선택지 id, 이름, 번호를 저장하지 않는다.
 
 ### VoteSession
 
@@ -358,13 +363,41 @@ PollOptionTally: 변화 없음
 3. 현재 투표 대상 `PollParticipant`가 있는지 확인
 4. 후보가 해당 선거에 속하는지 확인
 5. 후보별 `PollOptionTally`가 있는지 확인
-6. 해당 `PollParticipant`의 participation이 아직 없는지 확인
-7. `PollProgress`, 현재 `PollParticipant`, `PollOptionTally`를 transaction 안에서 lock
-8. 후보별 `PollOptionTally.votes_count` 증가
-9. `PollParticipation(completed)` 생성
+6. 요청의 `current_poll_participant_id`가 현재 참여자와 일치하는지 확인
+7. 해당 `PollParticipant`의 participation이 아직 없는지 확인
+8. `PollProgress`, 현재 `PollParticipant`, `PollOptionTally`를 transaction 안에서 lock
+9. lock 이후 `PollProgress.current_poll_participant`를 다시 읽어 요청 id와 일치하는지 재확인
+10. 후보별 `PollOptionTally.votes_count` 증가
+11. `PollParticipation(completed)` 생성
 
 이 중 하나라도 실패하면 전체가 rollback되어야 한다.
 `PollOptionTally` 증가와 `PollParticipation` 완료 기록은 함께 성공하거나 함께 실패해야 한다.
+
+기권/미참여 처리를 담당하는 `Polls::RecordParticipationOutcome`도 같은 current participant 재검증 원칙을 따른다.
+후보별 tally는 증가시키지 않고 `PollParticipation(abstained|absent)`만 transaction 안에서 생성한다.
+
+다음 학생 진행과 투표 종료도 stale 운영 요청을 방어한다.
+`Polls::AdvanceCurrentParticipant`와 `Polls::Close`는 요청의 `current_poll_participant_id`를 받고,
+transaction 안에서 `PollProgress`를 lock한 뒤 DB의 현재 참여자를 다시 읽어 요청 id와 비교한다.
+오래 열린 화면, 뒤로가기 화면, 늦게 도착한 요청처럼 current participant가 달라진 요청은 실패 처리한다.
+이때 다음 참여자 포인터 변경, 종료 전환, `PollEvent` 생성은 수행하지 않는다.
+
+### 종료 직전 무결성 gate
+
+`Polls::Close`는 `closed` 상태로 전환하기 직전에 transaction 내부에서 숫자 일관성을 검증한다.
+이 gate는 `Polls::IntegrityReport`와 같은 문제를 일부 다루지만, 목적은 운영 표시가 아니라 종료 전환을 막는 안전장치다.
+
+현재 검증 항목:
+
+- `completed`, `absent`, `abstained` 합계가 전체 `PollParticipant` 수와 일치
+- `completed` 수와 `PollOptionTally.votes_count` 합계 일치
+- `PollOption` 수와 `PollOptionTally` row 수 일치
+- 다른 투표의 `PollOption`에 연결된 `PollOptionTally` 없음
+- 음수 `votes_count` 없음
+
+검증에 실패하면 `Poll`은 `in_progress`, `PollProgress`는 active 상태로 남는다.
+`poll_closed` 이벤트도 생성하지 않는다.
+이 검증은 참여자별 선택을 저장하거나 비교하지 않고, count-only 숫자 일관성만 확인한다.
 
 ---
 
@@ -380,6 +413,7 @@ PollOptionTally: 변화 없음
 - 트랜잭션 내부 재확인
 - 같은 `PollParticipant`에 대한 participation 완료 처리 중복 방지
 - 같은 제출 요청이 후보별 득표를 두 번 증가시키지 않도록 하는 DB 제약
+- 화면 요청이 본 현재 참여자와 lock 이후 DB의 현재 참여자가 같은지 확인하는 stale 요청 방어
 
 ---
 
@@ -398,6 +432,7 @@ PollOptionTally: 변화 없음
 
 - 한 `PollParticipant`에 participation은 하나만 존재
 - 한 선거 후보에 `PollOptionTally`는 하나만 존재
+- 제출, 기권, 미참여, 다음 학생 진행, 종료는 lock 이후 현재 참여자를 다시 확인
 - 후속 `VoteSession` 도입 시 open/submitted session 중복 방지 제약 검토
 
 ---
@@ -451,8 +486,10 @@ PollOptionTally: 변화 없음
 
 `IntegrityReport`와 `ResumeCurrentVoter`도 학생별 후보 선택 정보를 다루지 않는다.
 `IntegrityReport`는 후보별 득표 합계와 `completed` 수의 숫자 비교만 수행한다.
+`Polls::Close`의 종료 직전 gate도 count-only 숫자 일관성만 확인한다.
 `ResumeCurrentVoter`는 현재 참여자 포인터만 복원한다.
 학생별 후보 선택은 저장, 표시, 로그 어느 쪽으로도 남기지 않는다.
+`PollEvent.details`에도 선택지 id, 이름, 번호를 남기지 않는다.
 
 ---
 

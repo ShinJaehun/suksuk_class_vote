@@ -113,6 +113,10 @@
 - `PollEvent` 모델과 투표 운영 이벤트 기록 추가
 - 투표 상세 화면에 최근 운영 기록 표시 추가
 - 진행 중인 투표 중단 기능 추가
+- 후보 선택/기권/미참여 요청에 현재 참여자 id를 포함하고, service가 lock 이후 현재 참여자를 재확인해 오래 열린 투표 화면의 stale 제출을 거부
+- 다음 참여자 이동/투표 종료 요청도 현재 참여자 id를 포함하고, service가 lock 이후 현재 참여자를 재확인해 늦게 도착한 운영 요청을 거부
+- 투표 화면과 운영 액션 버튼에 Turbo submit 중 문구를 적용해 중복 클릭으로 인한 혼란 완화
+- `Polls::Close`가 `closed` 전환 직전에 참여 처리 수, count-only tally 합계, 선택지/tally row 대응, 다른 투표 선택지 연결, 음수 득표수를 검증
 - draft, stopped, 보관 전 closed 투표 삭제 기능 추가
 - closed 투표 수동 보관 기능 추가
 - 보관은 status가 아니라 `archived_at`으로 관리
