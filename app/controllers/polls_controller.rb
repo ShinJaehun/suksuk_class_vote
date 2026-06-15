@@ -52,7 +52,12 @@ class PollsController < ApplicationController
     authorize @poll, :submit_vote?
 
     poll_option = @poll.poll_options.find_by(id: params[:poll_option_id])
-    result = Polls::SubmitVote.new(poll: @poll, poll_option: poll_option, actor: current_user).call
+    result = Polls::SubmitVote.new(
+      poll: @poll,
+      poll_option: poll_option,
+      current_poll_participant_id: params[:current_poll_participant_id],
+      actor: current_user
+    ).call
 
     if result.success?
       broadcast_operation_progress
@@ -66,7 +71,12 @@ class PollsController < ApplicationController
   def record_participation_outcome
     authorize @poll, :record_participation_outcome?
 
-    result = Polls::RecordParticipationOutcome.new(poll: @poll, status: params[:status], actor: current_user).call
+    result = Polls::RecordParticipationOutcome.new(
+      poll: @poll,
+      status: params[:status],
+      current_poll_participant_id: params[:current_poll_participant_id],
+      actor: current_user
+    ).call
 
     if result.success?
       broadcast_operation_progress

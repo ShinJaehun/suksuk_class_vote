@@ -375,6 +375,9 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include(record_participation_outcome_poll_path(poll))
       expect(response.body).to include("기권 처리")
       expect(response.body).to include("미참여 처리")
+      expect(response.body).to include("current_poll_participant_id")
+      expect(response.body).to include("value=\"#{current_participant.id}\"")
+      expect(response.body).to include("data-turbo-submits-with=\"처리 중...\"")
       expect(response.body).to include("return_to")
       expect(response.body).to include("ballot")
       expect(response.body).not_to include("운영 화면으로 돌아가기")
@@ -415,9 +418,10 @@ RSpec.describe "Polls", type: :request do
       teacher = create(:user)
       poll = create_started_poll(user: teacher)
       poll_option = poll.poll_options.order(:number).first
+      current_participant = poll.poll_progress.current_poll_participant
       sign_in teacher
 
-      post submit_vote_poll_path(poll), params: { poll_option_id: poll_option.id, return_to: "ballot" }
+      post submit_vote_poll_path(poll), params: { poll_option_id: poll_option.id, current_poll_participant_id: current_participant.id, return_to: "ballot" }
 
       expect(response).to redirect_to(ballot_poll_path(poll))
     end
@@ -425,9 +429,10 @@ RSpec.describe "Polls", type: :request do
     it "returns to the ballot after marking the current participant absent from the ballot screen" do
       teacher = create(:user)
       poll = create_started_poll(user: teacher)
+      current_participant = poll.poll_progress.current_poll_participant
       sign_in teacher
 
-      post record_participation_outcome_poll_path(poll), params: { status: "absent", return_to: "ballot" }
+      post record_participation_outcome_poll_path(poll), params: { status: "absent", current_poll_participant_id: current_participant.id, return_to: "ballot" }
 
       expect(response).to redirect_to(ballot_poll_path(poll))
     end
@@ -435,9 +440,10 @@ RSpec.describe "Polls", type: :request do
     it "returns to the ballot after marking the current participant abstained from the ballot screen" do
       teacher = create(:user)
       poll = create_started_poll(user: teacher)
+      current_participant = poll.poll_progress.current_poll_participant
       sign_in teacher
 
-      post record_participation_outcome_poll_path(poll), params: { status: "abstained", return_to: "ballot" }
+      post record_participation_outcome_poll_path(poll), params: { status: "abstained", current_poll_participant_id: current_participant.id, return_to: "ballot" }
 
       expect(response).to redirect_to(ballot_poll_path(poll))
     end
@@ -699,7 +705,7 @@ RSpec.describe "Polls", type: :request do
       sign_in teacher
 
       expect do
-        post submit_vote_poll_path(poll), params: { poll_option_id: poll_option.id }
+        post submit_vote_poll_path(poll), params: { poll_option_id: poll_option.id, current_poll_participant_id: current_poll_participant.id }
       end.to change(PollParticipation, :count).by(1)
 
       expect(response).to redirect_to(poll_path(poll))
@@ -713,24 +719,62 @@ RSpec.describe "Polls", type: :request do
       teacher = create(:user)
       poll = create_started_poll(user: teacher)
       poll_option = poll.poll_options.order(:number).first
-      create(:poll_participation, poll_participant: poll.poll_progress.current_poll_participant)
+      current_poll_participant = poll.poll_progress.current_poll_participant
+      create(:poll_participation, poll_participant: current_poll_participant)
       sign_in teacher
 
       expect do
-        post submit_vote_poll_path(poll), params: { poll_option_id: poll_option.id }
+        post submit_vote_poll_path(poll), params: { poll_option_id: poll_option.id, current_poll_participant_id: current_poll_participant.id }
       end.not_to change { poll.poll_option_tallies.find_by(poll_option: poll_option).reload.votes_count }
 
       expect(response).to redirect_to(poll_path(poll))
       expect(flash[:alert]).to include("이미 투표 완료")
     end
 
+    it "rejects stale ballot submissions for a previous current poll participant" do
+      teacher = create(:user)
+      poll = create_started_poll(user: teacher)
+      poll_option = poll.poll_options.order(:number).first
+      stale_participant = poll.poll_progress.current_poll_participant
+      current_participant = poll.poll_participants.where("number > ?", stale_participant.number).order(:number).first
+      poll.poll_progress.update!(current_poll_participant: current_participant)
+      vote_completed_event_count = poll.poll_events.where(event_type: "vote_completed").count
+      votes_count = poll.poll_option_tallies.find_by(poll_option: poll_option).votes_count
+      sign_in teacher
+
+      expect do
+        post submit_vote_poll_path(poll), params: { poll_option_id: poll_option.id, current_poll_participant_id: stale_participant.id }
+      end.not_to change(PollParticipation, :count)
+
+      expect(response).to redirect_to(poll_path(poll))
+      expect(flash[:alert]).to eq("현재 투표자가 변경되었습니다. 투표 화면을 새로고침해주세요.")
+      expect(poll.poll_events.where(event_type: "vote_completed").count).to eq(vote_completed_event_count)
+      expect(poll.poll_option_tallies.find_by(poll_option: poll_option).reload.votes_count).to eq(votes_count)
+      expect(poll.poll_progress.reload.current_poll_participant).to eq(current_participant)
+    end
+
+    it "rejects vote submissions without the expected current poll participant id" do
+      teacher = create(:user)
+      poll = create_started_poll(user: teacher)
+      poll_option = poll.poll_options.order(:number).first
+      sign_in teacher
+
+      expect do
+        post submit_vote_poll_path(poll), params: { poll_option_id: poll_option.id }
+      end.not_to change(PollParticipation, :count)
+
+      expect(response).to redirect_to(poll_path(poll))
+      expect(flash[:alert]).to eq("현재 투표자가 변경되었습니다. 투표 화면을 새로고침해주세요.")
+    end
+
     it "does not allow a poll_option from another poll" do
       teacher = create(:user)
       poll = create_started_poll(user: teacher)
       poll_option = create(:poll_option)
+      current_poll_participant = poll.poll_progress.current_poll_participant
       sign_in teacher
 
-      post submit_vote_poll_path(poll), params: { poll_option_id: poll_option.id }
+      post submit_vote_poll_path(poll), params: { poll_option_id: poll_option.id, current_poll_participant_id: current_poll_participant.id }
 
       expect(response).to redirect_to(poll_path(poll))
       expect(flash[:alert]).to include("이 투표의 선택지")
@@ -788,10 +832,11 @@ RSpec.describe "Polls", type: :request do
       teacher = create(:user)
       poll = create_started_poll(user: teacher)
       poll_option = poll.poll_options.order(:number).first
+      current_poll_participant = poll.poll_progress.current_poll_participant
       sign_in teacher
 
       expect do
-        post record_participation_outcome_poll_path(poll), params: { status: "absent" }
+        post record_participation_outcome_poll_path(poll), params: { status: "absent", current_poll_participant_id: current_poll_participant.id }
       end.not_to change { poll.poll_option_tallies.find_by(poll_option: poll_option).reload.votes_count }
 
       expect(response).to redirect_to(poll_path(poll))
@@ -808,10 +853,11 @@ RSpec.describe "Polls", type: :request do
       teacher = create(:user)
       poll = create_started_poll(user: teacher)
       poll_option = poll.poll_options.order(:number).first
+      current_poll_participant = poll.poll_progress.current_poll_participant
       sign_in teacher
 
       expect do
-        post record_participation_outcome_poll_path(poll), params: { status: "abstained" }
+        post record_participation_outcome_poll_path(poll), params: { status: "abstained", current_poll_participant_id: current_poll_participant.id }
       end.not_to change { poll.poll_option_tallies.find_by(poll_option: poll_option).reload.votes_count }
 
       expect(response).to redirect_to(poll_path(poll))
@@ -821,6 +867,57 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("1번 김민준은 기권 처리되었습니다.")
       expect(response.body).not_to include(advance_current_participant_poll_path(poll))
       expect(response.body).not_to include(submit_vote_poll_path(poll))
+    end
+
+    it "rejects stale absent outcome requests for a previous current poll participant" do
+      teacher = create(:user)
+      poll = create_started_poll(user: teacher)
+      stale_participant = poll.poll_progress.current_poll_participant
+      current_participant = poll.poll_participants.where("number > ?", stale_participant.number).order(:number).first
+      poll.poll_progress.update!(current_poll_participant: current_participant)
+      event_count = poll.poll_events.where(event_type: "participant_marked_absent").count
+      sign_in teacher
+
+      expect do
+        post record_participation_outcome_poll_path(poll), params: { status: "absent", current_poll_participant_id: stale_participant.id }
+      end.not_to change(PollParticipation, :count)
+
+      expect(response).to redirect_to(poll_path(poll))
+      expect(flash[:alert]).to eq("현재 투표자가 변경되었습니다. 투표 화면을 새로고침해주세요.")
+      expect(poll.poll_events.where(event_type: "participant_marked_absent").count).to eq(event_count)
+      expect(poll.poll_progress.reload.current_poll_participant).to eq(current_participant)
+    end
+
+    it "rejects stale abstained outcome requests for a previous current poll participant" do
+      teacher = create(:user)
+      poll = create_started_poll(user: teacher)
+      stale_participant = poll.poll_progress.current_poll_participant
+      current_participant = poll.poll_participants.where("number > ?", stale_participant.number).order(:number).first
+      poll.poll_progress.update!(current_poll_participant: current_participant)
+      event_count = poll.poll_events.where(event_type: "participant_marked_abstained").count
+      sign_in teacher
+
+      expect do
+        post record_participation_outcome_poll_path(poll), params: { status: "abstained", current_poll_participant_id: stale_participant.id }
+      end.not_to change(PollParticipation, :count)
+
+      expect(response).to redirect_to(poll_path(poll))
+      expect(flash[:alert]).to eq("현재 투표자가 변경되었습니다. 투표 화면을 새로고침해주세요.")
+      expect(poll.poll_events.where(event_type: "participant_marked_abstained").count).to eq(event_count)
+      expect(poll.poll_progress.reload.current_poll_participant).to eq(current_participant)
+    end
+
+    it "rejects outcome requests without the expected current poll participant id" do
+      teacher = create(:user)
+      poll = create_started_poll(user: teacher)
+      sign_in teacher
+
+      expect do
+        post record_participation_outcome_poll_path(poll), params: { status: "absent" }
+      end.not_to change(PollParticipation, :count)
+
+      expect(response).to redirect_to(poll_path(poll))
+      expect(flash[:alert]).to eq("현재 투표자가 변경되었습니다. 투표 화면을 새로고침해주세요.")
     end
   end
 
