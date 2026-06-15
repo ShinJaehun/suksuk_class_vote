@@ -108,7 +108,7 @@ class Poll < ApplicationRecord
   end
 
   def destroyable_by_status?
-    draft? || stopped?
+    draft? || stopped? || (closed? && archived_at.blank?)
   end
 
   def archived?
@@ -123,7 +123,7 @@ class Poll < ApplicationRecord
 
   def prepare_for_destroy
     unless destroyable_by_status?
-      errors.add(:base, "진행 중이거나 종료된 투표는 삭제할 수 없습니다.")
+      errors.add(:base, "진행 중이거나 보관된 투표는 삭제할 수 없습니다.")
       throw :abort
     end
 

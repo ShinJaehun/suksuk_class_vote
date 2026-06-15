@@ -953,7 +953,7 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include(submit_vote_poll_path(poll))
       expect(response.body).not_to include(advance_current_participant_poll_path(poll))
       expect(response.body).not_to include(close_poll_path(poll))
-      expect(response.body).not_to include("투표 삭제")
+      expect(response.body).to include("투표 삭제")
       expect(response.body).not_to include("선택한 후보")
       expect(response.body).not_to include("#{last_participant.name} #{poll_option.name}")
     end
@@ -1147,6 +1147,7 @@ RSpec.describe "Polls", type: :request do
       get poll_path(poll)
       expect(response).to have_http_status(:ok)
       expect(response.body).not_to include("투표 삭제")
+      expect(response.body).not_to include("보관")
     end
   end
 
@@ -1165,6 +1166,7 @@ RSpec.describe "Polls", type: :request do
       expect(response).to redirect_to(polls_path)
       expect(Poll.exists?(stopped_poll.id)).to be(false)
     end
+
     it "deletes a stopped poll with progress pointing to the current participant" do
       teacher = create(:user)
       poll = create_started_poll(user: teacher)
@@ -1193,19 +1195,51 @@ RSpec.describe "Polls", type: :request do
       expect(PollOptionTally.where(poll_id: poll_id)).not_to exist
     end
 
-    it "does not allow teachers to delete in progress or closed polls" do
+    it "deletes a closed poll with dependent data" do
+      teacher = create(:user)
+      poll = create_started_poll(user: teacher)
+      poll_id = poll.id
+      last_participant = poll.poll_participants.order(:number).last
+      poll.poll_progress.update!(current_poll_participant: last_participant)
+      poll_participation = create(:poll_participation, poll_participant: last_participant, status: :absent)
+      Polls::Close.new(poll: poll).call
+      sign_in teacher
+
+      expect(poll.reload).to be_closed
+
+      expect do
+        delete poll_path(poll)
+      end.to change(Poll, :count).by(-1)
+
+      expect(response).to redirect_to(polls_path)
+      expect(Poll.exists?(poll_id)).to be(false)
+      expect(PollProgress.where(poll_id: poll_id)).not_to exist
+      expect(PollParticipant.where(poll_id: poll_id)).not_to exist
+      expect(PollParticipation.exists?(poll_participation.id)).to be(false)
+      expect(PollEvent.where(poll_id: poll_id)).not_to exist
+      expect(PollOption.where(poll_id: poll_id)).not_to exist
+      expect(PollOptionTally.where(poll_id: poll_id)).not_to exist
+    end
+
+    it "does not allow teachers to delete archived closed polls" do
+      teacher = create(:user)
+      poll = create(:poll, user: teacher, status: :closed, archived_at: Time.current)
+      sign_in teacher
+
+      delete poll_path(poll)
+
+      expect(response).to redirect_to(dashboard_path)
+      expect(Poll.exists?(poll.id)).to be(true)
+    end
+
+    it "does not allow teachers to delete in progress polls" do
       teacher = create(:user)
       in_progress_poll = create_started_poll(user: teacher)
-      closed_poll = create(:poll, user: teacher, status: :closed)
       sign_in teacher
 
       delete poll_path(in_progress_poll)
       expect(response).to redirect_to(dashboard_path)
       expect(Poll.exists?(in_progress_poll.id)).to be(true)
-
-      delete poll_path(closed_poll)
-      expect(response).to redirect_to(dashboard_path)
-      expect(Poll.exists?(closed_poll.id)).to be(true)
     end
   end
 

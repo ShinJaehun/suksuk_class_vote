@@ -131,22 +131,24 @@ RSpec.describe Poll, type: :model do
   end
 
   describe "destroy policy" do
-    it "allows draft and stopped polls to be destroyed" do
+    it "allows draft, stopped, and unarchived closed polls to be destroyed" do
       draft_poll = create(:poll)
       stopped_poll = create(:poll, status: :stopped)
+      closed_poll = create(:poll, status: :closed)
 
       expect(draft_poll.destroy).to be_truthy
       expect(stopped_poll.destroy).to be_truthy
+      expect(closed_poll.destroy).to be_truthy
     end
 
-    it "blocks in progress and closed polls from being destroyed" do
+    it "blocks in progress and archived closed polls from being destroyed" do
       in_progress_poll = create(:poll, status: :in_progress)
-      closed_poll = create(:poll, status: :closed)
+      archived_closed_poll = create(:poll, status: :closed, archived_at: Time.current)
 
       expect(in_progress_poll.destroy).to be_falsey
-      expect(closed_poll.destroy).to be_falsey
-      expect(in_progress_poll.errors[:base]).to include("진행 중이거나 종료된 투표는 삭제할 수 없습니다.")
-      expect(closed_poll.errors[:base]).to include("진행 중이거나 종료된 투표는 삭제할 수 없습니다.")
+      expect(archived_closed_poll.destroy).to be_falsey
+      expect(in_progress_poll.errors[:base]).to include("진행 중이거나 보관된 투표는 삭제할 수 없습니다.")
+      expect(archived_closed_poll.errors[:base]).to include("진행 중이거나 보관된 투표는 삭제할 수 없습니다.")
     end
   end
 end

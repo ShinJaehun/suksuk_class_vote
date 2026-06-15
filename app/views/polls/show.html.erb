@@ -27,7 +27,9 @@
                       method: :post,
                       data: { turbo_confirm: "종료된 투표를 보관할까요?" },
                       class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
-      <% elsif @poll.destroyable_by_status? %>
+      <% end %>
+
+      <% if @poll.destroyable_by_status? %>
         <%= button_to "투표 삭제",
                       poll_path(@poll),
                       method: :delete,
