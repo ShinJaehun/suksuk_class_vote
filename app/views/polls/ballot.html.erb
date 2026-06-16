@@ -30,7 +30,7 @@
         <div class="space-y-4">
           <h2 class="text-xl font-semibold"><%= @poll.choice_label %> 선택</h2>
           <div class="<%= @poll.election? ? "grid gap-3 sm:grid-cols-2" : "space-y-3" %>">
-            <% @poll.poll_options.order(:number).each do |poll_option| %>
+            <% @poll.default_poll_options.order(:number).each do |poll_option| %>
               <%= button_to "#{poll_option.number}번 #{poll_option.name}",
                             submit_vote_poll_path(@poll),
                             method: :post,

@@ -27,7 +27,7 @@ module Polls
     end
 
     def poll_option_results
-      @poll_option_results ||= poll.poll_options.order(:number).map do |poll_option|
+      @poll_option_results ||= poll.default_poll_options.order(:number).map do |poll_option|
         PollOptionResult.new(
           poll_option: poll_option,
           votes_count: tally_counts.fetch(poll_option.id, 0)

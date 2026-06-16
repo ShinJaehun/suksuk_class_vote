@@ -88,7 +88,7 @@ module Polls
     end
 
     def add_tally_issues(report_issues)
-      if poll.poll_options.count != poll.poll_option_tallies.count
+      if poll.default_poll_options.count != poll.poll_option_tallies.count
         report_issues << issue("후보 수와 후보별 집계 정보 수가 일치하지 않습니다.")
       end
 
@@ -136,7 +136,10 @@ module Polls
     end
 
     def mismatched_poll_option_tallies?
-      poll.poll_option_tallies.joins(:poll_option).where.not(poll_options: { poll_id: poll.id }).exists?
+      poll.poll_option_tallies
+        .joins(:poll_option)
+        .where.not(poll_options: { poll_id: poll.id, poll_contest_id: poll.default_poll_contest&.id })
+        .exists?
     end
 
     def total_voters

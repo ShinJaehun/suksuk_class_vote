@@ -1,6 +1,7 @@
 class Poll < ApplicationRecord
   belongs_to :user
   belongs_to :participant_group, optional: true
+  has_many :poll_contests, dependent: :destroy
   has_many :poll_options, dependent: :destroy
   has_many :poll_participants, dependent: :destroy
   has_many :poll_option_tallies, dependent: :destroy
@@ -57,6 +58,7 @@ class Poll < ApplicationRecord
   scope :archived, -> { where.not(archived_at: nil) }
 
   before_destroy :prepare_for_destroy, prepend: true
+  after_create :ensure_default_poll_contest!
 
   validates :title, presence: true
   validates :user, presence: true
@@ -64,7 +66,7 @@ class Poll < ApplicationRecord
   validate :participant_group_has_participant_slots, unless: :participant_group_optional?
 
   def readiness_poll_option_count
-    poll_options.count
+    default_poll_contest&.poll_options&.count.to_i
   end
 
   def readiness_voter_count
@@ -113,6 +115,20 @@ class Poll < ApplicationRecord
 
   def archived?
     archived_at.present?
+  end
+
+  def default_poll_contest
+    poll_contests.order(:position).first
+  end
+
+  def default_poll_options
+    default_poll_contest&.poll_options || PollOption.none
+  end
+
+  def ensure_default_poll_contest!
+    poll_contests.find_or_create_by!(position: 1) do |poll_contest|
+      poll_contest.title = "기본"
+    end
   end
 
   private

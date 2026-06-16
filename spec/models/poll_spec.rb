@@ -57,6 +57,17 @@ RSpec.describe Poll, type: :model do
     end
   end
 
+  describe "poll contests" do
+    it "creates a default poll contest when a poll is created" do
+      poll = create(:poll)
+
+      expect(poll.default_poll_contest).to have_attributes(
+        title: "기본",
+        position: 1
+      )
+    end
+  end
+
   describe "status" do
     it "defaults to draft" do
       poll = Poll.new

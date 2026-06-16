@@ -7,7 +7,7 @@
     <% end %>
   </div>
 
-  <% if poll.poll_options.any? %>
+  <% if poll.default_poll_options.any? %>
     <div class="overflow-x-auto">
       <table class="min-w-full text-left text-sm">
         <thead class="border-b border-stone-200 text-stone-500">
@@ -18,7 +18,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-stone-100">
-          <% poll.poll_options.order(:number).each do |poll_option| %>
+          <% poll.default_poll_options.order(:number).each do |poll_option| %>
             <tr>
               <td class="px-3 py-3"><%= poll_option.number %>번</td>
               <td class="px-3 py-3 font-medium"><%= poll_option.name %></td>

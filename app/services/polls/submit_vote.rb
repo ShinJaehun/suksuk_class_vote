@@ -63,7 +63,7 @@ module Polls
       errors << "진행 중인 투표 진행 정보에서만 투표할 수 있습니다." if poll_progress.present? && !poll_progress.active?
       errors << "현재 투표자를 찾을 수 없습니다." if current_poll_participant.blank?
       errors << STALE_CURRENT_PARTICIPANT_MESSAGE if current_poll_participant_id.blank?
-      errors << "이 투표의 선택지에만 투표할 수 있습니다." unless poll_option_belongs_to_poll?
+      errors << "이 투표의 선택지에만 투표할 수 있습니다." unless poll_option_belongs_to_default_poll_contest?
       errors << "이미 투표 완료 처리된 투표자입니다." if current_poll_participant&.poll_participation.present?
       errors << "후보별 집계 정보를 찾을 수 없습니다." if poll_option_tally.blank?
     end
@@ -80,12 +80,14 @@ module Polls
       poll_participant.present? && poll_participant.id.to_s == current_poll_participant_id.to_s
     end
 
-    def poll_option_belongs_to_poll?
-      poll_option.present? && poll_option.poll_id == poll.id
+    def poll_option_belongs_to_default_poll_contest?
+      poll_option.present? &&
+        poll_option.poll_id == poll.id &&
+        poll_option.poll_contest_id == poll.default_poll_contest&.id
     end
 
     def poll_option_tally
-      return nil unless poll_option_belongs_to_poll?
+      return nil unless poll_option_belongs_to_default_poll_contest?
 
       @poll_option_tally ||= poll.poll_option_tallies.find_by(poll_option: poll_option)
     end

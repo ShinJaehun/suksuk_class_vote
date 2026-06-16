@@ -82,7 +82,7 @@ module Polls
     def validate_closing_integrity
       add_closing_integrity_error unless processed_participation_count == poll.poll_participants.count
       add_closing_integrity_error unless completed_participation_count == poll.poll_option_tallies.sum(:votes_count)
-      add_closing_integrity_error unless poll.poll_options.count == poll.poll_option_tallies.count
+      add_closing_integrity_error unless poll.default_poll_options.count == poll.poll_option_tallies.count
       add_closing_integrity_error if mismatched_poll_option_tallies?
       add_closing_integrity_error if poll.poll_option_tallies.where("votes_count < 0").exists?
     end
@@ -149,7 +149,10 @@ module Polls
     end
 
     def mismatched_poll_option_tallies?
-      poll.poll_option_tallies.joins(:poll_option).where.not(poll_options: { poll_id: poll.id }).exists?
+      poll.poll_option_tallies
+        .joins(:poll_option)
+        .where.not(poll_options: { poll_id: poll.id, poll_contest_id: poll.default_poll_contest&.id })
+        .exists?
     end
 
     def record_event(event_type, poll_participant: nil, details: {})

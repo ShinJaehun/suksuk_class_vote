@@ -54,7 +54,7 @@ module Polls
     def validate_startable
       errors << "draft 상태의 투표만 시작할 수 있습니다." unless poll.draft?
 
-      poll_option_count = poll.poll_options.count
+      poll_option_count = poll.default_poll_options.count
       if poll_option_count.zero?
         errors << "후보자가 2명 이상 있어야 투표를 시작할 수 있습니다."
       elsif poll_option_count == 1
@@ -78,7 +78,7 @@ module Polls
     end
 
     def create_poll_option_tallies
-      poll.poll_options.order(:number).each do |poll_option|
+      poll.default_poll_options.order(:number).each do |poll_option|
         poll.poll_option_tallies.create!(
           poll_option: poll_option,
           votes_count: 0

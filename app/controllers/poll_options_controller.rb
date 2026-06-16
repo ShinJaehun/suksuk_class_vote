@@ -6,11 +6,12 @@ class PollOptionsController < ApplicationController
   before_action :set_poll_option, only: %i[edit update destroy]
 
   def new
-    @poll_option = @poll.poll_options.build(number: next_number)
+    @poll_option = default_poll_contest.poll_options.build(poll: @poll, number: next_number)
   end
 
   def create
-    @poll_option = @poll.poll_options.build(poll_option_params)
+    @poll_option = default_poll_contest.poll_options.build(poll_option_params)
+    @poll_option.poll = @poll
     @poll_option.number = next_number
 
     if @poll_option.save
@@ -53,11 +54,11 @@ class PollOptionsController < ApplicationController
   end
 
   def set_poll_option
-    @poll_option = @poll.poll_options.find(params[:id])
+    @poll_option = default_poll_contest.poll_options.find(params[:id])
   end
 
   def next_number
-    @poll.poll_options.maximum(:number).to_i + 1
+    default_poll_contest.poll_options.maximum(:number).to_i + 1
   end
 
   def poll_option_params
@@ -68,5 +69,9 @@ class PollOptionsController < ApplicationController
     return "후보자를" if @poll.election?
 
     "#{@poll.choice_label}을"
+  end
+
+  def default_poll_contest
+    @default_poll_contest ||= @poll.default_poll_contest || @poll.ensure_default_poll_contest!
   end
 end

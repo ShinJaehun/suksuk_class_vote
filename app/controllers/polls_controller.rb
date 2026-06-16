@@ -51,7 +51,7 @@ class PollsController < ApplicationController
   def submit_vote
     authorize @poll, :submit_vote?
 
-    poll_option = @poll.poll_options.find_by(id: params[:poll_option_id])
+    poll_option = @poll.default_poll_options.find_by(id: params[:poll_option_id])
     result = Polls::SubmitVote.new(
       poll: @poll,
       poll_option: poll_option,
