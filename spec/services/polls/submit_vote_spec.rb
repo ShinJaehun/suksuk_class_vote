@@ -12,10 +12,23 @@ RSpec.describe Polls::SubmitVote do
       expect(result).to be_success
       expect(poll.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(1)
       expect(current_poll_participant.reload.poll_participation).to have_attributes(status: "completed")
+      expect(poll.poll_progress.reload).to be_ballot_locked
       expect(poll.poll_events.last).to have_attributes(
         event_type: "vote_completed",
         poll_participant: current_poll_participant
       )
+    end
+
+    it "fails when the ballot is locked" do
+      poll = create_in_progress_poll(ballot_status: :ballot_locked)
+      poll_option = poll.poll_options.order(:number).first
+
+      result = described_class.new(poll: poll, poll_option: poll_option).call
+
+      expect(result).not_to be_success
+      expect(result.error_message).to include("선생님이 투표를 시작")
+      expect(poll.poll_option_tallies.find_by(poll_option: poll_option).votes_count).to eq(0)
+      expect(poll.poll_progress.current_poll_participant.poll_participation).to be_nil
     end
 
     it "does not store poll_option information on participation, tally, or event details" do
@@ -161,7 +174,7 @@ RSpec.describe Polls::SubmitVote do
     end
   end
 
-  def create_in_progress_poll
+  def create_in_progress_poll(ballot_status: :ballot_open)
     teacher = create(:user)
     participant_group = create(:participant_group, user: teacher)
     create(:participant_slot, participant_group: participant_group, number: 1, name: "김민준")
@@ -170,6 +183,7 @@ RSpec.describe Polls::SubmitVote do
     create(:poll_option, poll: poll, number: 1)
     create(:poll_option, poll: poll, number: 2)
     Polls::Start.new(poll).call
+    poll.poll_progress.update!(ballot_status: ballot_status)
     poll.reload
   end
 end

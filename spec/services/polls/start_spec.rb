@@ -25,7 +25,8 @@ RSpec.describe Polls::Start do
       expect(poll.poll_option_tallies.map(&:poll_option)).to match_array(poll.poll_options)
       expect(poll.poll_progress).to have_attributes(
         current_poll_participant: poll.poll_participants.order(:number).first,
-        status: "active"
+        status: "active",
+        ballot_status: "ballot_locked"
       )
       expect(poll.poll_progress.started_at).to be_present
       expect(poll.poll_events.last).to have_attributes(

@@ -26,7 +26,7 @@
 
   <% if integrity_report.show_summary? %>
     <% summary = integrity_report.summary %>
-    <dl class="grid gap-2 text-sm sm:grid-cols-5">
+    <dl class="grid gap-2 text-sm sm:grid-cols-4">
       <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
         <dt class="text-stone-500">전체 투표자</dt>
         <dd class="mt-1 font-semibold"><%= summary.total_voters %>명</dd>
@@ -34,17 +34,12 @@
 
       <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
         <dt class="text-stone-500">투표 완료</dt>
-        <dd class="mt-1 font-semibold"><%= summary.completed_count %>명</dd>
+        <dd class="mt-1 font-semibold"><%= summary.display_completed_count %>명</dd>
       </div>
 
       <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
         <dt class="text-stone-500">미참여</dt>
         <dd class="mt-1 font-semibold"><%= summary.absent_count %>명</dd>
-      </div>
-
-      <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
-        <dt class="text-stone-500">기권</dt>
-        <dd class="mt-1 font-semibold"><%= summary.abstained_count %>명</dd>
       </div>
 
       <div class="rounded-md border border-stone-200 bg-stone-50 p-3">

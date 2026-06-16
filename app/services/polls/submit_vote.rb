@@ -29,6 +29,10 @@ module Polls
       ActiveRecord::Base.transaction do
         locked_poll_progress = poll_progress.lock!
         current_poll_participant = locked_poll_progress.current_poll_participant
+        unless locked_poll_progress.ballot_open?
+          errors << "선생님이 투표를 시작한 뒤 제출할 수 있습니다."
+          raise ActiveRecord::Rollback
+        end
         unless expected_current_poll_participant?(current_poll_participant)
           errors << STALE_CURRENT_PARTICIPANT_MESSAGE
           raise ActiveRecord::Rollback
@@ -42,6 +46,7 @@ module Polls
           status: :completed,
           recorded_at: Time.current
         )
+        locked_poll_progress.update!(ballot_status: :ballot_locked)
         record_event("vote_completed", poll_participant: current_poll_participant)
       end
 
@@ -63,6 +68,11 @@ module Polls
       errors << "진행 중인 투표 진행 정보에서만 투표할 수 있습니다." if poll_progress.present? && !poll_progress.active?
       errors << "현재 투표자를 찾을 수 없습니다." if current_poll_participant.blank?
       errors << STALE_CURRENT_PARTICIPANT_MESSAGE if current_poll_participant_id.blank?
+      if current_poll_participant.present? && current_poll_participant_id.present? && !expected_current_poll_participant?(current_poll_participant)
+        errors << STALE_CURRENT_PARTICIPANT_MESSAGE
+        return
+      end
+      errors << "선생님이 투표를 시작한 뒤 제출할 수 있습니다." if poll_progress.present? && !poll_progress.ballot_open?
       errors << "이 투표의 선택지에만 투표할 수 있습니다." unless poll_option_belongs_to_default_poll_contest?
       errors << "이미 투표 완료 처리된 투표자입니다." if current_poll_participant&.poll_participation.present?
       errors << "후보별 집계 정보를 찾을 수 없습니다." if poll_option_tally.blank?

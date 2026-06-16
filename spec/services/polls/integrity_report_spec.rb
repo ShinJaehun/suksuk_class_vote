@@ -119,6 +119,20 @@ RSpec.describe Polls::IntegrityReport do
       expect(report).to be_ok
     end
 
+    it "keeps internal completed count separate but exposes abstained as display completed count" do
+      poll = create_in_progress_poll
+      participants = poll.poll_participants.order(:number)
+      create(:poll_participation, poll_participant: participants[0], status: :completed)
+      create(:poll_participation, poll_participant: participants[1], status: :abstained)
+      poll.poll_option_tallies.first.update!(votes_count: 1)
+
+      summary = described_class.new(poll).summary
+
+      expect(summary.completed_count).to eq(1)
+      expect(summary.abstained_count).to eq(1)
+      expect(summary.display_completed_count).to eq(2)
+    end
+
     it "requires closed poll progress for closed polls but allows current participant to remain" do
       poll = create_closed_poll
 

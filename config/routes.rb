@@ -5,8 +5,10 @@ Rails.application.routes.draw do
     get :archived, on: :collection
     get :ballot, on: :member
     post :start, on: :member
+    post :open_current_participant_ballot, on: :member
     post :submit_vote, on: :member
     post :record_participation_outcome, on: :member
+    post :record_next_participant_absent, on: :member
     post :advance_current_participant, on: :member
     post :resume_current_participant, on: :member
     post :close, on: :member

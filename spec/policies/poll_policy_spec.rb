@@ -100,4 +100,50 @@ RSpec.describe PollPolicy do
       expect(described_class.new(nil, poll)).not_to be_start
     end
   end
+
+  describe "#open_current_participant_ballot?" do
+    it "allows admins to open another teacher's current participant ballot" do
+      admin = create(:user, :admin)
+      poll = create(:poll)
+
+      expect(described_class.new(admin, poll)).to be_open_current_participant_ballot
+    end
+
+    it "allows teachers to open their own current participant ballot" do
+      teacher = create(:user)
+      poll = create(:poll, user: teacher)
+
+      expect(described_class.new(teacher, poll)).to be_open_current_participant_ballot
+    end
+
+    it "does not allow teachers to open another teacher's current participant ballot" do
+      teacher = create(:user)
+      poll = create(:poll)
+
+      expect(described_class.new(teacher, poll)).not_to be_open_current_participant_ballot
+    end
+  end
+
+  describe "#record_next_participant_absent?" do
+    it "allows admins to mark another teacher's next participant absent" do
+      admin = create(:user, :admin)
+      poll = create(:poll)
+
+      expect(described_class.new(admin, poll)).to be_record_next_participant_absent
+    end
+
+    it "allows teachers to mark their own next participant absent" do
+      teacher = create(:user)
+      poll = create(:poll, user: teacher)
+
+      expect(described_class.new(teacher, poll)).to be_record_next_participant_absent
+    end
+
+    it "does not allow teachers to mark another teacher's next participant absent" do
+      teacher = create(:user)
+      poll = create(:poll)
+
+      expect(described_class.new(teacher, poll)).not_to be_record_next_participant_absent
+    end
+  end
 end

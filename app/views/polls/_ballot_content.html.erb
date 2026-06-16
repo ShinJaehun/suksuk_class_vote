@@ -1,0 +1,50 @@
+<%= turbo_frame_tag dom_id(poll, :ballot), class: "block" do %>
+  <% if current_poll_participant.present? %>
+    <section class="space-y-5 rounded-md border border-stone-200 bg-white p-5">
+      <div class="rounded-md border border-stone-200 bg-stone-50 p-5">
+        <p class="text-sm font-medium text-stone-500">현재 투표자</p>
+        <p class="mt-2 text-4xl font-semibold"><%= current_poll_participant.number %>번 <%= current_poll_participant.name %></p>
+      </div>
+
+      <% participation = current_poll_participant.poll_participation %>
+      <% if participation.present? %>
+        <div class="rounded-md border border-stone-200 bg-stone-50 p-5">
+          <% if participation.completed? || participation.abstained? %>
+            <p class="text-lg font-medium text-stone-800">투표가 완료되었습니다</p>
+          <% elsif participation.absent? %>
+            <p class="text-lg font-medium text-stone-800"><%= current_poll_participant.number %>번 <%= current_poll_participant.name %> 학생은 미참여 처리되었습니다.</p>
+          <% end %>
+        </div>
+      <% elsif !poll.poll_progress&.ballot_open? %>
+        <div class="rounded-md border border-stone-200 bg-stone-50 p-5">
+          <p class="text-lg font-medium text-stone-800">선생님이 투표를 시작할 때까지 기다려주세요.</p>
+        </div>
+      <% else %>
+        <div class="space-y-4">
+          <h2 class="text-xl font-semibold"><%= poll.choice_label %> 선택</h2>
+          <div class="<%= poll.election? ? "grid gap-3 sm:grid-cols-2" : "space-y-3" %>">
+            <% poll.default_poll_options.order(:number).each do |poll_option| %>
+              <%= button_to "#{poll_option.number}번 #{poll_option.name}",
+                            submit_vote_poll_path(poll),
+                            method: :post,
+                            params: { poll_option_id: poll_option.id, current_poll_participant_id: current_poll_participant.id, return_to: "ballot" },
+                            data: { turbo_submits_with: "처리 중..." },
+                            class: poll.election? ? "rounded-md bg-stone-900 px-4 py-5 text-xl font-medium text-white" : "w-full rounded-md bg-stone-900 px-5 py-4 text-left text-lg font-medium text-white" %>
+            <% end %>
+          </div>
+
+          <%= button_to "기권 처리",
+                        record_participation_outcome_poll_path(poll),
+                        method: :post,
+                        params: { status: "abstained", current_poll_participant_id: current_poll_participant.id, return_to: "ballot" },
+                        data: { turbo_submits_with: "처리 중..." },
+                        class: "rounded-md border border-stone-300 px-4 py-3 text-sm font-medium text-stone-700" %>
+        </div>
+      <% end %>
+    </section>
+  <% else %>
+    <section class="rounded-md border border-stone-200 bg-white p-4">
+      <p class="text-stone-600">현재 투표자를 찾을 수 없습니다.</p>
+    </section>
+  <% end %>
+<% end %>

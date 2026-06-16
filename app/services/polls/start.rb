@@ -29,6 +29,7 @@ module Polls
         poll.create_poll_progress!(
           current_poll_participant: first_poll_participant,
           status: :active,
+          ballot_status: :ballot_locked,
           started_at: Time.current
         )
         record_event(

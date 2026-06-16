@@ -33,6 +33,13 @@ RSpec.describe PollProgress, type: :model do
       expect(poll_progress).not_to be_valid
       expect(poll_progress.errors[:status]).to be_present
     end
+
+    it "requires a ballot status" do
+      poll_progress = build(:poll_progress, ballot_status: nil)
+
+      expect(poll_progress).not_to be_valid
+      expect(poll_progress.errors[:ballot_status]).to be_present
+    end
   end
 
   describe "status" do
@@ -46,6 +53,21 @@ RSpec.describe PollProgress, type: :model do
       poll_progress = build(:poll_progress, status: :closed)
 
       expect(poll_progress).to be_closed
+    end
+  end
+
+  describe "ballot status" do
+    it "defaults to ballot locked" do
+      poll_progress = described_class.new
+
+      expect(poll_progress).to be_ballot_locked
+    end
+
+    it "supports ballot open status" do
+      poll_progress = build(:poll_progress, ballot_status: :ballot_open)
+
+      expect(poll_progress).to be_ballot_open
+      expect(described_class.ballot_statuses).to include("ballot_locked" => 0, "ballot_open" => 10)
     end
   end
 end

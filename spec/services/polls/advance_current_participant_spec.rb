@@ -12,6 +12,7 @@ RSpec.describe Polls::AdvanceCurrentParticipant do
 
       expect(result).to be_success
       expect(poll.poll_progress.reload.current_poll_participant).to eq(next_participant)
+      expect(poll.poll_progress).to be_ballot_open
       expect(next_participant.poll_participation).to be_nil
       expect(poll.poll_events.last).to have_attributes(
         event_type: "current_participant_advanced",
@@ -116,6 +117,7 @@ RSpec.describe Polls::AdvanceCurrentParticipant do
     create(:poll_option, poll: poll, number: 1)
     create(:poll_option, poll: poll, number: 2)
     Polls::Start.new(poll).call
+    poll.poll_progress.update!(ballot_status: :ballot_open)
     poll.reload
   end
 end

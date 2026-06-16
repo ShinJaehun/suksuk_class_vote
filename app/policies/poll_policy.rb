@@ -23,7 +23,15 @@ class PollPolicy < ApplicationPolicy
     admin? || owner?
   end
 
+  def open_current_participant_ballot?
+    admin? || owner?
+  end
+
   def record_participation_outcome?
+    admin? || owner?
+  end
+
+  def record_next_participant_absent?
     admin? || owner?
   end
 

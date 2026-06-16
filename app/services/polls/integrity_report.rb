@@ -4,6 +4,7 @@ module Polls
     Summary = Struct.new(
       :total_voters,
       :completed_count,
+      :display_completed_count,
       :absent_count,
       :abstained_count,
       :unprocessed_count,
@@ -27,6 +28,7 @@ module Polls
       @summary ||= Summary.new(
         total_voters: total_voters,
         completed_count: completed_count,
+        display_completed_count: display_completed_count,
         absent_count: absent_count,
         abstained_count: abstained_count,
         unprocessed_count: unprocessed_count,
@@ -148,6 +150,10 @@ module Polls
 
     def completed_count
       participation_counts.fetch("completed", 0)
+    end
+
+    def display_completed_count
+      completed_count + abstained_count
     end
 
     def absent_count

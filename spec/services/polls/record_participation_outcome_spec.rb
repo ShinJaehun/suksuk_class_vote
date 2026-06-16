@@ -11,6 +11,7 @@ RSpec.describe Polls::RecordParticipationOutcome do
       expect(result).to be_success
       expect(current_participant.reload.poll_participation).to be_absent
       expect(current_participant.poll_participation.recorded_at).to be_present
+      expect(poll.poll_progress.reload).to be_ballot_locked
       expect(poll.poll_events.last).to have_attributes(
         event_type: "participant_marked_absent",
         poll_participant: current_participant
@@ -26,6 +27,7 @@ RSpec.describe Polls::RecordParticipationOutcome do
       expect(result).to be_success
       expect(current_participant.reload.poll_participation).to be_abstained
       expect(current_participant.poll_participation.recorded_at).to be_present
+      expect(poll.poll_progress.reload).to be_ballot_locked
       expect(poll.poll_events.last).to have_attributes(
         event_type: "participant_marked_abstained",
         poll_participant: current_participant
@@ -112,6 +114,7 @@ RSpec.describe Polls::RecordParticipationOutcome do
     create(:poll_option, poll: poll, number: 1)
     create(:poll_option, poll: poll, number: 2)
     Polls::Start.new(poll).call
+    poll.poll_progress.update!(ballot_status: :ballot_open)
     poll.reload
   end
 end

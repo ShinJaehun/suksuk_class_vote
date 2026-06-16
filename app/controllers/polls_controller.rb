@@ -1,6 +1,6 @@
 class PollsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_poll, only: %i[show ballot start submit_vote record_participation_outcome advance_current_participant resume_current_participant close stop archive destroy]
+  before_action :set_poll, only: %i[show ballot start open_current_participant_ballot submit_vote record_participation_outcome record_next_participant_absent advance_current_participant resume_current_participant close stop archive destroy]
 
   def index
     @polls = policy_scope(Poll).active_list.includes(:participant_group).order(created_at: :desc)
@@ -48,6 +48,24 @@ class PollsController < ApplicationController
     end
   end
 
+  def open_current_participant_ballot
+    authorize @poll, :open_current_participant_ballot?
+
+    result = Polls::OpenCurrentParticipantBallot.new(
+      poll: @poll,
+      current_poll_participant_id: params[:current_poll_participant_id],
+      actor: current_user
+    ).call
+
+    if result.success?
+      broadcast_operation_progress
+      broadcast_ballot
+      redirect_to @poll, notice: "현재 학생 투표 화면을 열었습니다."
+    else
+      redirect_to @poll, alert: result.error_message
+    end
+  end
+
   def submit_vote
     authorize @poll, :submit_vote?
 
@@ -62,6 +80,7 @@ class PollsController < ApplicationController
     if result.success?
       broadcast_operation_progress
       broadcast_operation_event_log
+      broadcast_ballot
       redirect_to operation_redirect_path, notice: "투표가 제출되었습니다."
     else
       redirect_to operation_redirect_path, alert: result.error_message
@@ -81,9 +100,29 @@ class PollsController < ApplicationController
     if result.success?
       broadcast_operation_progress
       broadcast_operation_event_log
+      broadcast_ballot
       redirect_to operation_redirect_path, notice: "투표자 상태를 처리했습니다."
     else
       redirect_to operation_redirect_path, alert: result.error_message
+    end
+  end
+
+  def record_next_participant_absent
+    authorize @poll, :record_next_participant_absent?
+
+    result = Polls::RecordNextParticipantAbsent.new(
+      poll: @poll,
+      current_poll_participant_id: params[:current_poll_participant_id],
+      actor: current_user
+    ).call
+
+    if result.success?
+      broadcast_operation_progress
+      broadcast_operation_event_log
+      broadcast_ballot
+      redirect_to @poll, notice: "투표자 상태를 처리했습니다."
+    else
+      redirect_to @poll, alert: result.error_message
     end
   end
 
@@ -98,7 +137,8 @@ class PollsController < ApplicationController
 
     if result.success?
       broadcast_operation_progress
-      redirect_to operation_redirect_path, notice: "다음 투표자로 이동했습니다."
+      broadcast_ballot
+      redirect_to operation_redirect_path, notice: "다음 투표자의 투표 화면을 열었습니다."
     else
       redirect_to operation_redirect_path, alert: result.error_message
     end
@@ -212,6 +252,17 @@ class PollsController < ApplicationController
       target: helpers.dom_id(@poll, :event_log),
       partial: "polls/event_log",
       locals: { poll: @poll, poll_events: operation_event_log_events }
+    )
+  end
+
+  def broadcast_ballot
+    @poll.reload
+    Turbo::StreamsChannel.broadcast_replace_to(
+      @poll,
+      :ballot_screen,
+      target: helpers.dom_id(@poll, :ballot),
+      partial: "polls/ballot_content",
+      locals: { poll: @poll, current_poll_participant: @poll.poll_progress&.current_poll_participant }
     )
   end
 
