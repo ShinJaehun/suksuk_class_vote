@@ -1408,6 +1408,46 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("최다 득표 후보 없음")
     end
 
+    it "shows closed multi-contest poll results grouped by contest" do
+      teacher = create(:user)
+      poll = create_closed_multi_contest_poll(user: teacher)
+      sign_in teacher
+
+      get poll_path(poll)
+
+      body = response.body.squish
+      expect(response.body).to include("회장")
+      expect(response.body).to include("6학년 부회장")
+      expect(response.body).to include("김회장")
+      expect(response.body).to include("박회장")
+      expect(response.body).to include("이부회장")
+      expect(response.body).to include("최부회장")
+      expect(response.body).to include("3표")
+      expect(response.body).to include("2표")
+      expect(response.body).to include("기권")
+      expect(response.body).to include("5표")
+      expect(body).to include("최다 득표 후보: 1번 김회장")
+      expect(body).to include("최다 득표 후보: 1번 이부회장")
+      expect(body).not_to include("최다 득표 후보: 기권")
+    end
+
+    it "shows classroom result guidance only for school election polls" do
+      teacher = create(:user)
+      poll = create_closed_multi_contest_poll(user: teacher, school_election: true)
+      sign_in teacher
+
+      get poll_path(poll)
+
+      expect(response.body).to include("학급별 선거 결과")
+      expect(response.body).to include("이 화면은 해당 학급 투표의 결과입니다. 전체 전교학생회 선거 최종 집계는 관리자 개표 화면에서 확인합니다.")
+
+      general_poll = create_closed_multi_contest_poll(user: teacher)
+
+      get poll_path(general_poll)
+
+      expect(response.body).not_to include("전체 전교학생회 선거 최종 집계")
+    end
+
     it "keeps the poll participant snapshot after the source participant group changes" do
       teacher = create(:user)
       poll = create_started_poll(user: teacher)
@@ -1657,6 +1697,39 @@ RSpec.describe "Polls", type: :request do
   def create_started_poll(user: create(:user), voter_count: 2)
     poll = create_startable_poll(user: user, voter_count: voter_count)
     Polls::Start.new(poll).call
+    poll.reload
+  end
+
+  def create_closed_multi_contest_poll(user: create(:user), school_election: false)
+    poll = create_startable_poll(user: user, voter_count: 1)
+    president_contest = poll.default_poll_contest
+    president_contest.update!(title: "회장")
+    president_winner, president_runner_up = president_contest.poll_options.order(:number)
+    president_winner.update!(name: "김회장")
+    president_runner_up.update!(name: "박회장")
+
+    vice_contest = create(:poll_contest, poll: poll, title: "6학년 부회장", position: 2)
+    vice_winner = create(:poll_option, poll: poll, poll_contest: vice_contest, number: 1, name: "이부회장")
+    vice_runner_up = create(:poll_option, poll: poll, poll_contest: vice_contest, number: 2, name: "최부회장")
+
+    Polls::Start.new(poll).call
+    poll.poll_option_tallies.find_by!(poll_option: president_winner).update!(votes_count: 3)
+    poll.poll_option_tallies.find_by!(poll_option: president_runner_up).update!(votes_count: 1)
+    poll.poll_option_tallies.find_by!(poll_option: vice_winner).update!(votes_count: 2)
+    poll.poll_option_tallies.find_by!(poll_option: vice_runner_up).update!(votes_count: 1)
+    poll.poll_contest_tallies.find_by!(poll_contest: vice_contest).update!(abstentions_count: 5)
+    poll.update!(status: :closed)
+    poll.poll_progress.update!(status: :closed, ballot_status: :ballot_locked, current_poll_participant: nil)
+
+    if school_election
+      create(
+        :school_election_classroom_session,
+        teacher: user,
+        participant_group: poll.participant_group,
+        poll: poll
+      )
+    end
+
     poll.reload
   end
 

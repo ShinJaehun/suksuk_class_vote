@@ -1,35 +1,56 @@
 <div class="space-y-4">
   <p class="text-stone-600">투표가 종료되었습니다.</p>
 
-  <% if result_summary.top_poll_option_results.any? %>
-    <p class="rounded-md bg-stone-100 p-3 font-medium">
-      <%= @poll.winner_label %>:
-      <%= result_summary.top_poll_option_results.map { |result| "#{result.poll_option.number}번 #{result.poll_option.name}" }.join(", ") %>
+  <% if @poll.school_election_poll? %>
+    <p class="rounded-md bg-amber-50 p-3 text-sm text-amber-900">
+      이 화면은 해당 학급 투표의 결과입니다. 전체 전교학생회 선거 최종 집계는 관리자 개표 화면에서 확인합니다.
     </p>
-  <% else %>
-    <p class="rounded-md bg-stone-100 p-3 font-medium"><%= @poll.winner_label %> 없음</p>
   <% end %>
 
-  <h2 class="text-xl font-semibold"><%= @poll.activity_label %> 결과</h2>
+  <h2 class="text-xl font-semibold"><%= @poll.school_election_poll? ? "학급별 #{@poll.activity_label} 결과" : "#{@poll.activity_label} 결과" %></h2>
 
-  <div class="overflow-x-auto">
-    <table class="min-w-full text-left text-sm">
-      <thead class="border-b border-stone-200 text-stone-500">
-      <tr>
-        <th class="px-3 py-2 font-medium"><%= @poll.choice_number_label %></th>
-        <th class="px-3 py-2 font-medium"><%= @poll.choice_label %></th>
-        <th class="px-3 py-2 font-medium"><%= @poll.vote_count_label %></th>
-      </tr>
-      </thead>
-      <tbody class="divide-y divide-stone-100">
-        <% result_summary.poll_option_results.each do |result| %>
+  <% result_summary.contest_results.each do |contest_result| %>
+    <section class="space-y-3">
+      <% if result_summary.contest_results.many? %>
+        <h3 class="text-lg font-semibold"><%= contest_result.poll_contest.title %></h3>
+      <% end %>
+
+      <% if contest_result.top_poll_option_results.any? %>
+        <p class="rounded-md bg-stone-100 p-3 font-medium">
+          <%= @poll.winner_label %>:
+          <%= contest_result.top_poll_option_results.map { |result| "#{result.poll_option.number}번 #{result.poll_option.name}" }.join(", ") %>
+        </p>
+      <% else %>
+        <p class="rounded-md bg-stone-100 p-3 font-medium"><%= @poll.winner_label %> 없음</p>
+      <% end %>
+
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-left text-sm">
+          <thead class="border-b border-stone-200 text-stone-500">
           <tr>
-            <td class="px-3 py-3"><%= result.poll_option.number %>번</td>
-            <td class="px-3 py-3 font-medium"><%= result.poll_option.name %></td>
-            <td class="px-3 py-3"><%= result.votes_count %>표</td>
+            <th class="px-3 py-2 font-medium"><%= @poll.choice_number_label %></th>
+            <th class="px-3 py-2 font-medium"><%= @poll.choice_label %></th>
+            <th class="px-3 py-2 font-medium"><%= @poll.vote_count_label %></th>
           </tr>
-        <% end %>
-      </tbody>
-    </table>
-  </div>
+          </thead>
+          <tbody class="divide-y divide-stone-100">
+          <% contest_result.poll_option_results.each do |result| %>
+            <tr>
+              <td class="px-3 py-3"><%= result.poll_option.number %>번</td>
+              <td class="px-3 py-3 font-medium"><%= result.poll_option.name %></td>
+              <td class="px-3 py-3"><%= result.votes_count %>표</td>
+            </tr>
+          <% end %>
+          <% if result_summary.contest_results.many? || @poll.school_election_poll? || contest_result.abstentions_count.positive? %>
+            <tr>
+              <td class="px-3 py-3 text-stone-500">-</td>
+              <td class="px-3 py-3 font-medium">기권</td>
+              <td class="px-3 py-3"><%= contest_result.abstentions_count %>표</td>
+            </tr>
+          <% end %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  <% end %>
 </div>
