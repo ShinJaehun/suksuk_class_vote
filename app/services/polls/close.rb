@@ -81,10 +81,13 @@ module Polls
 
     def validate_closing_integrity
       add_closing_integrity_error unless processed_participation_count == poll.poll_participants.count
-      add_closing_integrity_error unless completed_participation_count == poll.poll_option_tallies.sum(:votes_count)
-      add_closing_integrity_error unless poll.default_poll_options.count == poll.poll_option_tallies.count
+      add_closing_integrity_error unless expected_decisions_count == actual_decisions_count
+      add_closing_integrity_error unless poll.poll_options.count == poll.poll_option_tallies.count
       add_closing_integrity_error if mismatched_poll_option_tallies?
       add_closing_integrity_error if poll.poll_option_tallies.where("votes_count < 0").exists?
+      add_closing_integrity_error unless poll.poll_contests.count == poll.poll_contest_tallies.count
+      add_closing_integrity_error if mismatched_poll_contest_tallies?
+      add_closing_integrity_error if poll.poll_contest_tallies.where("abstentions_count < 0").exists?
     end
 
     def add_closing_integrity_error
@@ -151,8 +154,31 @@ module Polls
     def mismatched_poll_option_tallies?
       poll.poll_option_tallies
         .joins(:poll_option)
-        .where.not(poll_options: { poll_id: poll.id, poll_contest_id: poll.default_poll_contest&.id })
+        .where.not(poll_options: { poll_id: poll.id })
         .exists?
+    end
+
+    def mismatched_poll_contest_tallies?
+      poll.poll_contest_tallies
+        .joins(:poll_contest)
+        .where.not(poll_contests: { poll_id: poll.id })
+        .exists?
+    end
+
+    def contest_count
+      @contest_count ||= poll.poll_contests.count
+    end
+
+    def contest_abstentions_count
+      @contest_abstentions_count ||= poll.poll_contest_tallies.sum(:abstentions_count)
+    end
+
+    def expected_decisions_count
+      completed_participation_count * contest_count
+    end
+
+    def actual_decisions_count
+      poll.poll_option_tallies.sum(:votes_count) + contest_abstentions_count
     end
 
     def record_event(event_type, poll_participant: nil, details: {})
