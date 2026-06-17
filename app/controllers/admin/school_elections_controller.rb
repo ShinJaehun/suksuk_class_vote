@@ -18,6 +18,7 @@ module Admin
         .filter_map(&:poll)
         .select(&:closed?)
         .to_h { |poll| [poll.id, Polls::IntegrityReport.new(poll)] }
+      @school_election_result_summary = SchoolElections::ResultSummary.new(@school_election)
     end
 
     def new
