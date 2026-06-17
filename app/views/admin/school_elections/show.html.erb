@@ -1,0 +1,27 @@
+<h1><%= @school_election.title %></h1>
+
+<p><%= link_to "전교학생회 선거 목록으로 돌아가기", admin_school_elections_path %></p>
+
+<dl>
+  <dt>상태</dt>
+  <dd><%= @school_election.status %></dd>
+</dl>
+
+<section>
+  <h2>선거 항목</h2>
+
+  <% if @school_election_contests.any? %>
+    <ul>
+      <% @school_election_contests.each do |contest| %>
+        <li>
+          <%= contest.position %>. <%= contest.title %>
+          - 후보 <%= contest.school_election_candidates.size %>명
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p>아직 선거 항목이 없습니다.</p>
+  <% end %>
+
+  <p>후보 등록은 다음 단계에서 추가합니다.</p>
+</section>

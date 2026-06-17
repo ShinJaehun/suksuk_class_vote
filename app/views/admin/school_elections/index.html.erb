@@ -1,0 +1,27 @@
+<h1>전교학생회 선거 관리</h1>
+
+<p><%= link_to "대시보드로 돌아가기", dashboard_path %></p>
+<p><%= link_to "전교학생회 선거 만들기", new_admin_school_election_path %></p>
+
+<% if @school_elections.any? %>
+  <table>
+    <thead>
+      <tr>
+        <th>이름</th>
+        <th>상태</th>
+        <th>생성일</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @school_elections.each do |school_election| %>
+        <tr>
+          <td><%= link_to school_election.title, admin_school_election_path(school_election) %></td>
+          <td><%= school_election.status %></td>
+          <td><%= l school_election.created_at.to_date %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% else %>
+  <p>아직 만든 전교학생회 선거가 없습니다.</p>
+<% end %>

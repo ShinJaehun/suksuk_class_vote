@@ -22,6 +22,7 @@ Rails.application.routes.draw do
   end
 
   namespace :admin do
+    resources :school_elections, only: %i[index show new create]
     resources :teachers, only: %i[index new create]
   end
 
