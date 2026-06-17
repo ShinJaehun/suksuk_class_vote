@@ -14,6 +14,10 @@ module Admin
       @school_election_classroom_sessions = @school_election.school_election_classroom_sessions
         .includes(:teacher, :participant_group, :poll)
         .order(created_at: :asc)
+      @integrity_reports_by_poll_id = @school_election_classroom_sessions
+        .filter_map(&:poll)
+        .select(&:closed?)
+        .to_h { |poll| [poll.id, Polls::IntegrityReport.new(poll)] }
     end
 
     def new

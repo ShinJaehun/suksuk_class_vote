@@ -175,6 +175,57 @@ RSpec.describe "Admin school elections", type: :request do
       expect(response.body).not_to include("투표 세션 생성")
     end
 
+    it "shows classroom result review status for each session" do
+      sign_in create(:user, :admin)
+      school_election = create(:school_election)
+      teacher = create(:user, name: "김담임")
+      create(:school_election_classroom_session, school_election: school_election, teacher: teacher, participant_group: create(:participant_group, :with_participant_slot, user: teacher, name: "6학년 1반"))
+      draft_poll = create_classroom_poll(teacher: teacher, participant_group_name: "6학년 2반")
+      create(:school_election_classroom_session, school_election: school_election, teacher: teacher, participant_group: draft_poll.participant_group, poll: draft_poll)
+      in_progress_poll = create_classroom_poll(teacher: teacher, participant_group_name: "6학년 3반")
+      Polls::Start.new(in_progress_poll).call
+      create(:school_election_classroom_session, school_election: school_election, teacher: teacher, participant_group: in_progress_poll.participant_group, poll: in_progress_poll.reload)
+      closed_ok_poll = create_closed_classroom_poll(teacher: teacher, participant_group_name: "6학년 4반", integrity_ok: true)
+      create(:school_election_classroom_session, school_election: school_election, teacher: teacher, participant_group: closed_ok_poll.participant_group, poll: closed_ok_poll)
+      closed_issue_poll = create_closed_classroom_poll(teacher: teacher, participant_group_name: "6학년 5반", integrity_ok: false)
+      create(:school_election_classroom_session, school_election: school_election, teacher: teacher, participant_group: closed_issue_poll.participant_group, poll: closed_issue_poll)
+
+      get admin_school_election_path(school_election)
+
+      expect(response.body).to include("학급별 결과 확인")
+      expect(response.body).to include("먼저 각 학급 결과와 무결성 상태를 확인하세요. 전체 집계는 이후 관리자 개표 화면에서 합산합니다.")
+      expect(response.body).to include("6학년 1반")
+      expect(response.body).to include("Poll 미생성")
+      expect(response.body).to include("6학년 2반")
+      expect(response.body).to include("준비 중")
+      expect(response.body).to include("6학년 3반")
+      expect(response.body).to include("진행 중")
+      expect(response.body).to include("마감 후 확인")
+      expect(response.body).to include("6학년 4반")
+      expect(response.body).to include("마감됨")
+      expect(response.body).to include("무결성 OK")
+      expect(response.body).to include("6학년 5반")
+      expect(response.body).to include("확인 필요")
+      expect(response.body).to include("학급 결과 보기")
+      expect(response.body).to include(poll_path(closed_ok_poll))
+      expect(response.body).to include(poll_path(closed_issue_poll))
+    end
+
+    it "allows admins to open linked closed classroom poll results" do
+      admin = create(:user, :admin)
+      sign_in admin
+      school_election = create(:school_election)
+      teacher = create(:user)
+      closed_poll = create_closed_classroom_poll(teacher: teacher, participant_group_name: "6학년 1반", integrity_ok: true)
+      create(:school_election_classroom_session, school_election: school_election, teacher: teacher, participant_group: closed_poll.participant_group, poll: closed_poll)
+
+      get poll_path(closed_poll)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("투표가 종료되었습니다.")
+      expect(response.body).to include("학급별 선거 결과")
+    end
+
     it "redirects teachers to dashboard" do
       teacher = create(:user)
       school_election = create(:school_election)
@@ -184,5 +235,30 @@ RSpec.describe "Admin school elections", type: :request do
 
       expect(response).to redirect_to(dashboard_path)
     end
+  end
+
+  def create_classroom_poll(teacher:, participant_group_name:)
+    participant_group = create(:participant_group, :with_participant_slot, user: teacher, name: participant_group_name)
+    poll = create(:poll, user: teacher, participant_group: participant_group, title: "#{participant_group_name} 전교학생회 투표")
+    create(:poll_option, poll: poll, number: 1)
+    create(:poll_option, poll: poll, number: 2)
+    poll
+  end
+
+  def create_closed_classroom_poll(teacher:, participant_group_name:, integrity_ok:)
+    poll = create_classroom_poll(teacher: teacher, participant_group_name: participant_group_name)
+    Polls::Start.new(poll).call
+    poll.reload
+
+    if integrity_ok
+      participant = poll.poll_participants.order(:number).first
+      poll_option = poll.poll_options.order(:number).first
+      create(:poll_participation, poll_participant: participant)
+      poll.poll_option_tallies.find_by!(poll_option: poll_option).update!(votes_count: 1)
+    end
+
+    poll.update!(status: :closed)
+    poll.poll_progress.update!(status: :closed, ballot_status: :ballot_locked, current_poll_participant: nil)
+    poll.reload
   end
 end
