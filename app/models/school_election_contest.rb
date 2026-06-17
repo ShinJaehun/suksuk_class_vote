@@ -1,5 +1,6 @@
 class SchoolElectionContest < ApplicationRecord
   belongs_to :school_election
+  has_many :school_election_candidates, dependent: :destroy
 
   validates :school_election, presence: true
   validates :title, presence: true

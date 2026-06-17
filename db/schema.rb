@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_17_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_17_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -131,6 +131,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_17_010000) do
     t.index ["user_id"], name: "index_polls_on_user_id"
   end
 
+  create_table "school_election_candidates", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "grade_class_label", null: false
+    t.string "name", null: false
+    t.integer "number", null: false
+    t.bigint "school_election_contest_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["school_election_contest_id", "number"], name: "idx_on_school_election_contest_id_number_f0c4e1e975", unique: true
+    t.index ["school_election_contest_id"], name: "index_school_election_candidates_on_school_election_contest_id"
+  end
+
   create_table "school_election_contests", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "position", null: false
@@ -182,6 +193,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_17_010000) do
   add_foreign_key "poll_progresses", "polls"
   add_foreign_key "polls", "participant_groups", on_delete: :nullify
   add_foreign_key "polls", "users"
+  add_foreign_key "school_election_candidates", "school_election_contests"
   add_foreign_key "school_election_contests", "school_elections"
   add_foreign_key "school_elections", "users"
 end

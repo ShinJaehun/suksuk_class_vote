@@ -54,4 +54,13 @@ RSpec.describe SchoolElectionContest, type: :model do
       expect(contest).to be_valid
     end
   end
+
+  describe "associations" do
+    it "destroys dependent school election candidates" do
+      contest = create(:school_election_contest)
+      create(:school_election_candidate, school_election_contest: contest)
+
+      expect { contest.destroy }.to change(SchoolElectionCandidate, :count).by(-1)
+    end
+  end
 end
