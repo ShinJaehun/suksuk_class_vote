@@ -5,6 +5,7 @@ class Poll < ApplicationRecord
   has_many :poll_options, dependent: :destroy
   has_many :poll_participants, dependent: :destroy
   has_many :poll_option_tallies, dependent: :destroy
+  has_many :poll_contest_tallies, dependent: :destroy
   has_many :poll_events, dependent: :destroy
   has_one :poll_progress, dependent: :destroy
   has_one :school_election_classroom_session, dependent: :nullify
