@@ -114,7 +114,26 @@ RSpec.describe "Admin school elections", type: :request do
       expect(response.body).to include("6학년 부회장")
       expect(response.body).to include("5학년 부회장")
       expect(response.body).to include("후보 0명")
-      expect(response.body).to include("후보 등록은 다음 단계에서 추가합니다.")
+      expect(response.body).to include("후보 추가")
+      expect(response.body).to include("아직 등록된 후보가 없습니다.")
+    end
+
+    it "shows existing candidates grouped by contest" do
+      sign_in create(:user, :admin)
+      school_election = create(:school_election, title: "2026 전교학생회 선거")
+      school_election.ensure_default_contests!
+      contest = school_election.school_election_contests.find_by!(position: 1)
+      create(:school_election_candidate, school_election_contest: contest, number: 2, name: "이후보", grade_class_label: "6학년 2반")
+      create(:school_election_candidate, school_election_contest: contest, number: 1, name: "김후보", grade_class_label: "6학년 1반")
+
+      get admin_school_election_path(school_election)
+
+      expect(response.body).to include("기호 1번")
+      expect(response.body).to include("김후보")
+      expect(response.body).to include("6학년 1반")
+      expect(response.body).to include("기호 2번")
+      expect(response.body).to include("이후보")
+      expect(response.body).to include("6학년 2반")
     end
 
     it "redirects teachers to dashboard" do

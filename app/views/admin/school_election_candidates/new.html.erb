@@ -1,0 +1,33 @@
+<h1>후보 추가</h1>
+
+<p><%= @school_election.title %> / <%= @school_election_contest.title %></p>
+
+<% if @school_election_candidate.errors.any? %>
+  <h2>후보를 등록할 수 없습니다.</h2>
+  <ul>
+    <% @school_election_candidate.errors.full_messages.each do |message| %>
+      <li><%= message %></li>
+    <% end %>
+  </ul>
+<% end %>
+
+<%= form_with model: [:admin, @school_election, @school_election_contest, @school_election_candidate] do |form| %>
+  <div>
+    <%= form.label :number, "기호" %>
+    <%= form.number_field :number %>
+  </div>
+
+  <div>
+    <%= form.label :name, "후보 이름" %>
+    <%= form.text_field :name %>
+  </div>
+
+  <div>
+    <%= form.label :grade_class_label, "학년/반" %>
+    <%= form.text_field :grade_class_label %>
+  </div>
+
+  <%= form.submit "후보 등록" %>
+<% end %>
+
+<p><%= link_to "전교학생회 선거 상세로 돌아가기", admin_school_election_path(@school_election) %></p>

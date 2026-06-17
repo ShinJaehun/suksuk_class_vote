@@ -16,12 +16,27 @@
         <li>
           <%= contest.position %>. <%= contest.title %>
           - 후보 <%= contest.school_election_candidates.size %>명
+          <%= link_to "후보 추가",
+                      new_admin_school_election_school_election_contest_school_election_candidate_path(@school_election, contest) %>
+
+          <% candidates = contest.school_election_candidates.sort_by(&:number) %>
+          <% if candidates.any? %>
+            <ul>
+              <% candidates.each do |candidate| %>
+                <li>
+                  기호 <%= candidate.number %>번
+                  <%= candidate.name %>
+                  (<%= candidate.grade_class_label %>)
+                </li>
+              <% end %>
+            </ul>
+          <% else %>
+            <p>아직 등록된 후보가 없습니다.</p>
+          <% end %>
         </li>
       <% end %>
     </ul>
   <% else %>
     <p>아직 선거 항목이 없습니다.</p>
   <% end %>
-
-  <p>후보 등록은 다음 단계에서 추가합니다.</p>
 </section>
