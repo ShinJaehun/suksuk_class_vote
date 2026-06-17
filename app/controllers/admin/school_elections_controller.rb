@@ -11,6 +11,9 @@ module Admin
       @school_election_contests = @school_election.school_election_contests
         .includes(:school_election_candidates)
         .order(:position)
+      @school_election_classroom_sessions = @school_election.school_election_classroom_sessions
+        .includes(:teacher, :participant_group, :poll)
+        .order(created_at: :asc)
     end
 
     def new

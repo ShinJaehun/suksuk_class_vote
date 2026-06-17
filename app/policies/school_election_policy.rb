@@ -19,6 +19,10 @@ class SchoolElectionPolicy < ApplicationPolicy
     admin?
   end
 
+  def manage_classroom_sessions?
+    admin?
+  end
+
   class Scope < ApplicationPolicy::Scope
     def resolve
       return scope.all if user&.admin?

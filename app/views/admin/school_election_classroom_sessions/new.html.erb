@@ -1,0 +1,38 @@
+<h1>학급 세션 추가</h1>
+
+<p><%= @school_election.title %></p>
+
+<% if @school_election_classroom_session.errors.any? %>
+  <h2>학급 세션을 배정할 수 없습니다.</h2>
+  <ul>
+    <% @school_election_classroom_session.errors.full_messages.each do |message| %>
+      <li><%= message %></li>
+    <% end %>
+  </ul>
+<% end %>
+
+<%= form_with model: [:admin, @school_election, @school_election_classroom_session] do |form| %>
+  <div>
+    <%= form.label :teacher_id, "담임" %>
+    <%= form.collection_select :teacher_id, @teachers, :id, :name, prompt: "담임 선택" %>
+  </div>
+
+  <div>
+    <%= form.label :participant_group_id, "명단" %>
+    <%= form.select :participant_group_id,
+                    options_for_select(
+                      @participant_groups.map { |participant_group|
+                        [
+                          "#{participant_group.user.name}/#{participant_group.user.email} - #{participant_group.name}",
+                          participant_group.id
+                        ]
+                      },
+                      @school_election_classroom_session.participant_group_id
+                    ),
+                    prompt: "명단 선택" %>
+  </div>
+
+  <%= form.submit "학급 세션 추가" %>
+<% end %>
+
+<p><%= link_to "전교학생회 선거 상세로 돌아가기", admin_school_election_path(@school_election) %></p>

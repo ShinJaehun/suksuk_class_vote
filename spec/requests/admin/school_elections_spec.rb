@@ -138,6 +138,41 @@ RSpec.describe "Admin school elections", type: :request do
       expect(response.body).to include("삭제")
     end
 
+    it "shows assigned classroom sessions" do
+      sign_in create(:user, :admin)
+      school_election = create(:school_election, title: "2026 전교학생회 선거")
+      teacher = create(:user, name: "김담임", email: "teacher@example.com")
+      participant_group = create(:participant_group, :with_participant_slot, user: teacher, name: "6학년 1반")
+      create(:school_election_classroom_session, school_election: school_election, teacher: teacher, participant_group: participant_group)
+
+      get admin_school_election_path(school_election)
+
+      expect(response.body).to include("학급 세션")
+      expect(response.body).to include("학급 세션 추가")
+      expect(response.body).to include("김담임")
+      expect(response.body).to include("6학년 1반")
+      expect(response.body).to include("투표 세션 미생성")
+    end
+
+    it "shows linked classroom poll titles" do
+      sign_in create(:user, :admin)
+      school_election = create(:school_election)
+      teacher = create(:user)
+      participant_group = create(:participant_group, :with_participant_slot, user: teacher)
+      poll = create(:poll, user: teacher, participant_group: participant_group, title: "6학년 1반 전교학생회 투표")
+      create(
+        :school_election_classroom_session,
+        school_election: school_election,
+        teacher: teacher,
+        participant_group: participant_group,
+        poll: poll
+      )
+
+      get admin_school_election_path(school_election)
+
+      expect(response.body).to include("6학년 1반 전교학생회 투표")
+    end
+
     it "redirects teachers to dashboard" do
       teacher = create(:user)
       school_election = create(:school_election)

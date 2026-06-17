@@ -46,3 +46,31 @@
     <p>아직 선거 항목이 없습니다.</p>
   <% end %>
 </section>
+
+<section>
+  <h2>학급 세션</h2>
+
+  <p><%= link_to "학급 세션 추가", new_admin_school_election_school_election_classroom_session_path(@school_election) %></p>
+
+  <% if @school_election_classroom_sessions.any? %>
+    <ul>
+      <% @school_election_classroom_sessions.each do |classroom_session| %>
+        <li>
+          담임:
+          <%= classroom_session.teacher.name.presence || classroom_session.teacher.email %>
+          /
+          명단:
+          <%= classroom_session.participant_group.name %>
+          /
+          <% if classroom_session.poll.present? %>
+            투표 세션: <%= classroom_session.poll.title %>
+          <% else %>
+            투표 세션 미생성
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p>아직 배정된 학급 세션이 없습니다.</p>
+  <% end %>
+</section>
