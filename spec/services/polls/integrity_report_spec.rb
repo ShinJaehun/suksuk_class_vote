@@ -19,6 +19,19 @@ RSpec.describe Polls::IntegrityReport do
       expect(report).to be_ok
     end
 
+    it "treats valid single-contest polls with poll contest tally as ok" do
+      poll = create_in_progress_poll
+      participants = poll.poll_participants.order(:number)
+      create(:poll_participation, poll_participant: participants[0], status: :completed)
+      create(:poll_participation, poll_participant: participants[1], status: :absent)
+      poll.poll_option_tallies.first.update!(votes_count: 1)
+
+      report = described_class.new(poll)
+
+      expect(report).to be_ok
+      expect(poll.poll_contest_tallies.count).to eq(1)
+    end
+
     it "requires poll progress for in-progress polls" do
       poll = create_in_progress_poll
       poll.poll_progress.destroy!
@@ -70,6 +83,26 @@ RSpec.describe Polls::IntegrityReport do
       expect(report.issues.map(&:message)).to include("후보 수와 후보별 집계 정보 수가 일치하지 않습니다.")
     end
 
+    it "checks all poll_options against poll_option tally count" do
+      poll = create_in_progress_multi_contest_poll
+      poll.poll_option_tallies.find_by(poll_option: option_for(poll, "부회장", 1)).destroy!
+
+      report = described_class.new(poll.reload)
+
+      expect(report).not_to be_ok
+      expect(report.issues.map(&:message)).to include("후보 수와 후보별 집계 정보 수가 일치하지 않습니다.")
+    end
+
+    it "checks all poll_contests against poll contest tally count" do
+      poll = create_in_progress_multi_contest_poll
+      poll.poll_contest_tallies.find_by(poll_contest: contest_for(poll, "부회장")).destroy!
+
+      report = described_class.new(poll.reload)
+
+      expect(report).not_to be_ok
+      expect(report.issues.map(&:message)).to include("선거 항목 수와 선거 항목별 기권 집계 정보 수가 일치하지 않습니다.")
+    end
+
     it "reports poll_option tallies linked to poll_options from another poll" do
       poll = create_in_progress_poll
       other_election = create_in_progress_poll
@@ -82,9 +115,78 @@ RSpec.describe Polls::IntegrityReport do
       expect(report.issues.map(&:message)).to include("다른 투표의 후보자가 연결된 후보별 집계 정보가 있습니다.")
     end
 
+    it "reports poll contest tallies linked to poll contests from another poll" do
+      poll = create_in_progress_poll
+      other_poll = create_in_progress_poll
+      tally = poll.poll_contest_tallies.first
+      tally.update_column(:poll_contest_id, other_poll.default_poll_contest.id)
+
+      report = described_class.new(poll.reload)
+
+      expect(report).not_to be_ok
+      expect(report.issues.map(&:message)).to include("다른 투표의 선거 항목이 연결된 기권 집계 정보가 있습니다.")
+    end
+
+    it "reports negative poll option tally counts" do
+      poll = create_in_progress_poll
+      poll.poll_option_tallies.first.update_column(:votes_count, -1)
+
+      report = described_class.new(poll)
+
+      expect(report).not_to be_ok
+      expect(report.issues.map(&:message)).to include("후보별 집계 표 수가 음수인 항목이 있습니다.")
+    end
+
+    it "reports negative poll contest abstention counts" do
+      poll = create_in_progress_poll
+      poll.poll_contest_tallies.first.update_column(:abstentions_count, -1)
+
+      report = described_class.new(poll)
+
+      expect(report).not_to be_ok
+      expect(report.issues.map(&:message)).to include("선거 항목별 기권 수가 음수인 항목이 있습니다.")
+    end
+
     it "compares completed participation count with tally vote sum without voter-poll_option linkage" do
       poll = create_in_progress_poll
       create(:poll_participation, poll_participant: poll.poll_progress.current_poll_participant, status: :completed)
+
+      report = described_class.new(poll)
+
+      expect(report).not_to be_ok
+      expect(report.issues.map(&:message)).to include("투표 완료 수와 제출된 표 수가 일치하지 않습니다.")
+    end
+
+    it "treats multi-contest polls as ok when decisions match completed participants times contests" do
+      poll = create_in_progress_multi_contest_poll
+      current_participant = poll.poll_progress.current_poll_participant
+
+      result = Polls::SubmitBallot.new(
+        poll: poll,
+        choices: choices_for(poll, abstain_titles: ["부회장"]),
+        current_poll_participant_id: current_participant.id
+      ).call
+
+      expect(result).to be_success
+      expect(described_class.new(poll.reload)).to be_ok
+    end
+
+    it "reports multi-contest polls with too few decisions" do
+      poll = create_in_progress_multi_contest_poll
+      create(:poll_participation, poll_participant: poll.poll_progress.current_poll_participant, status: :completed)
+      poll.poll_option_tallies.find_by(poll_option: option_for(poll, "회장", 1)).update!(votes_count: 1)
+
+      report = described_class.new(poll)
+
+      expect(report).not_to be_ok
+      expect(report.issues.map(&:message)).to include("투표 완료 수와 제출된 표 수가 일치하지 않습니다.")
+    end
+
+    it "reports multi-contest polls with too many decisions" do
+      poll = create_in_progress_multi_contest_poll
+      create(:poll_participation, poll_participant: poll.poll_progress.current_poll_participant, status: :completed)
+      poll.poll_option_tallies.find_by(poll_option: option_for(poll, "회장", 1)).update!(votes_count: 2)
+      poll.poll_option_tallies.find_by(poll_option: option_for(poll, "부회장", 1)).update!(votes_count: 1)
 
       report = described_class.new(poll)
 
@@ -328,6 +430,17 @@ RSpec.describe Polls::IntegrityReport do
     poll.reload
   end
 
+  def create_in_progress_multi_contest_poll
+    poll = create_startable_poll
+    poll.default_poll_contest.update!(title: "회장")
+    second_contest = create(:poll_contest, poll: poll, position: 2, title: "부회장")
+    create(:poll_option, poll: poll, poll_contest: second_contest, number: 1, name: "부회장1")
+    create(:poll_option, poll: poll, poll_contest: second_contest, number: 2, name: "부회장2")
+    Polls::Start.new(poll).call
+    poll.poll_progress.update!(ballot_status: :ballot_open)
+    poll.reload
+  end
+
   def create_closed_poll
     poll = create_in_progress_poll
     participants = poll.poll_participants.order(:number)
@@ -337,5 +450,24 @@ RSpec.describe Polls::IntegrityReport do
     poll.update!(status: :closed)
     poll.poll_progress.update!(status: :closed, closed_at: Time.current)
     poll.reload
+  end
+
+  def choices_for(poll, option_numbers: { "회장" => 1, "부회장" => 1 }, abstain_titles: [])
+    poll.poll_contests.order(:position).each_with_object({}) do |poll_contest, choices|
+      choices[poll_contest.id.to_s] =
+        if abstain_titles.include?(poll_contest.title)
+          { "abstain" => "1" }
+        else
+          { "poll_option_id" => option_for(poll, poll_contest.title, option_numbers.fetch(poll_contest.title)).id.to_s }
+        end
+    end
+  end
+
+  def contest_for(poll, title)
+    poll.poll_contests.find_by!(title: title)
+  end
+
+  def option_for(poll, contest_title, number)
+    contest_for(poll, contest_title).poll_options.find_by!(number: number)
   end
 end

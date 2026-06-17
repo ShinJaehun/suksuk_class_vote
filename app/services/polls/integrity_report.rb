@@ -92,17 +92,33 @@ module Polls
     end
 
     def add_tally_issues(report_issues)
-      if poll.default_poll_options.count != poll.poll_option_tallies.count
+      if poll.poll_options.count != poll.poll_option_tallies.count
         report_issues << issue("후보 수와 후보별 집계 정보 수가 일치하지 않습니다.")
       end
 
       if mismatched_poll_option_tallies?
         report_issues << issue("다른 투표의 후보자가 연결된 후보별 집계 정보가 있습니다.")
       end
+
+      if poll.poll_option_tallies.where("votes_count < 0").exists?
+        report_issues << issue("후보별 집계 표 수가 음수인 항목이 있습니다.")
+      end
+
+      if poll.poll_contests.count != poll.poll_contest_tallies.count
+        report_issues << issue("선거 항목 수와 선거 항목별 기권 집계 정보 수가 일치하지 않습니다.")
+      end
+
+      if mismatched_poll_contest_tallies?
+        report_issues << issue("다른 투표의 선거 항목이 연결된 기권 집계 정보가 있습니다.")
+      end
+
+      if poll.poll_contest_tallies.where("abstentions_count < 0").exists?
+        report_issues << issue("선거 항목별 기권 수가 음수인 항목이 있습니다.")
+      end
     end
 
     def add_participation_issues(report_issues)
-      if completed_count != votes_count
+      if expected_decisions_count != actual_decisions_count
         report_issues << issue("투표 완료 수와 제출된 표 수가 일치하지 않습니다.")
       end
 
@@ -142,7 +158,14 @@ module Polls
     def mismatched_poll_option_tallies?
       poll.poll_option_tallies
         .joins(:poll_option)
-        .where.not(poll_options: { poll_id: poll.id, poll_contest_id: poll.default_poll_contest&.id })
+        .where.not(poll_options: { poll_id: poll.id })
+        .exists?
+    end
+
+    def mismatched_poll_contest_tallies?
+      poll.poll_contest_tallies
+        .joins(:poll_contest)
+        .where.not(poll_contests: { poll_id: poll.id })
         .exists?
     end
 
@@ -176,6 +199,22 @@ module Polls
 
     def votes_count
       @votes_count ||= poll.poll_option_tallies.sum(:votes_count)
+    end
+
+    def contest_abstentions_count
+      @contest_abstentions_count ||= poll.poll_contest_tallies.sum(:abstentions_count)
+    end
+
+    def contest_count
+      @contest_count ||= poll.poll_contests.count
+    end
+
+    def expected_decisions_count
+      completed_count * contest_count
+    end
+
+    def actual_decisions_count
+      votes_count + contest_abstentions_count
     end
 
     def participation_counts
