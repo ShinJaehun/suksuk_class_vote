@@ -2,6 +2,7 @@ require "rails_helper"
 
 RSpec.describe "Polls", type: :request do
   include Devise::Test::IntegrationHelpers
+  include ActionCable::TestHelper
 
   describe "GET /polls" do
     it "redirects guests to sign in" do
@@ -755,6 +756,27 @@ RSpec.describe "Polls", type: :request do
       expect(poll.poll_progress.reload.current_poll_participant).to eq(current_poll_participant)
     end
 
+    it "broadcasts the updated status summary after a vote is submitted before the current pointer advances" do
+      teacher = create(:user)
+      poll = create_started_poll(user: teacher, voter_count: 5)
+      poll.poll_progress.update!(ballot_status: :ballot_open)
+      poll_option = poll.poll_options.order(:number).first
+      current_poll_participant = poll.poll_progress.current_poll_participant
+      sign_in teacher
+
+      post submit_vote_poll_path(poll), params: { poll_option_id: poll_option.id, current_poll_participant_id: current_poll_participant.id }
+
+      integrity_report_broadcast = integrity_report_broadcast_for(poll)
+      expect(integrity_report_broadcast).to include("투표 완료</dt>")
+      expect(integrity_report_broadcast).to include("1명")
+      expect(integrity_report_broadcast).to include("미참여</dt>")
+      expect(integrity_report_broadcast).to include("0명")
+      expect(integrity_report_broadcast).to include("대기</dt>")
+      expect(integrity_report_broadcast).to include("4명")
+      expect(integrity_report_broadcast).not_to include("기권</dt>")
+      expect(poll.poll_progress.reload.current_poll_participant).to eq(current_poll_participant)
+    end
+
     it "does not submit twice for the same current poll participant" do
       teacher = create(:user)
       poll = create_started_poll(user: teacher)
@@ -893,6 +915,25 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include(submit_vote_poll_path(poll))
     end
 
+    it "broadcasts the updated status summary after marking absent before the current pointer advances" do
+      teacher = create(:user)
+      poll = create_started_poll(user: teacher, voter_count: 5)
+      current_poll_participant = poll.poll_progress.current_poll_participant
+      sign_in teacher
+
+      post record_participation_outcome_poll_path(poll), params: { status: "absent", current_poll_participant_id: current_poll_participant.id }
+
+      integrity_report_broadcast = integrity_report_broadcast_for(poll)
+      expect(integrity_report_broadcast).to include("투표 완료</dt>")
+      expect(integrity_report_broadcast).to include("0명")
+      expect(integrity_report_broadcast).to include("미참여</dt>")
+      expect(integrity_report_broadcast).to include("1명")
+      expect(integrity_report_broadcast).to include("대기</dt>")
+      expect(integrity_report_broadcast).to include("4명")
+      expect(integrity_report_broadcast).not_to include("기권</dt>")
+      expect(poll.poll_progress.reload.current_poll_participant).to eq(current_poll_participant)
+    end
+
     it "records abstained outcome without changing poll_option tally" do
       teacher = create(:user)
       poll = create_started_poll(user: teacher)
@@ -913,6 +954,25 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include(advance_current_participant_poll_path(poll))
       expect(response.body).to include("다음 투표자는 2번 이서연입니다.")
       expect(response.body).not_to include(submit_vote_poll_path(poll))
+    end
+
+    it "broadcasts the updated status summary after abstaining before the current pointer advances" do
+      teacher = create(:user)
+      poll = create_started_poll(user: teacher, voter_count: 5)
+      current_poll_participant = poll.poll_progress.current_poll_participant
+      sign_in teacher
+
+      post record_participation_outcome_poll_path(poll), params: { status: "abstained", current_poll_participant_id: current_poll_participant.id }
+
+      integrity_report_broadcast = integrity_report_broadcast_for(poll)
+      expect(integrity_report_broadcast).to include("투표 완료</dt>")
+      expect(integrity_report_broadcast).to include("1명")
+      expect(integrity_report_broadcast).to include("미참여</dt>")
+      expect(integrity_report_broadcast).to include("0명")
+      expect(integrity_report_broadcast).to include("대기</dt>")
+      expect(integrity_report_broadcast).to include("4명")
+      expect(integrity_report_broadcast).not_to include("기권</dt>")
+      expect(poll.poll_progress.reload.current_poll_participant).to eq(current_poll_participant)
     end
 
     it "rejects stale absent outcome requests for a previous current poll participant" do
@@ -1536,19 +1596,43 @@ RSpec.describe "Polls", type: :request do
     end
   end
 
-  def create_startable_poll(user: create(:user), kind: :election)
+  def create_startable_poll(user: create(:user), kind: :election, voter_count: 2)
     participant_group = create(:participant_group, user: user)
-    create(:participant_slot, participant_group: participant_group, number: 1, name: "김민준")
-    create(:participant_slot, participant_group: participant_group, number: 2, name: "이서연")
+    voter_count.times do |index|
+      create(:participant_slot, participant_group: participant_group, number: index + 1, name: participant_name_for(index + 1))
+    end
     poll = create(:poll, user: user, participant_group: participant_group, kind: kind)
     create(:poll_option, poll: poll, number: 1)
     create(:poll_option, poll: poll, number: 2)
     poll
   end
 
-  def create_started_poll(user: create(:user))
-    poll = create_startable_poll(user: user)
+  def create_started_poll(user: create(:user), voter_count: 2)
+    poll = create_startable_poll(user: user, voter_count: voter_count)
     Polls::Start.new(poll).call
     poll.reload
+  end
+
+  def participant_name_for(number)
+    {
+      1 => "김민준",
+      2 => "이서연"
+    }.fetch(number, "학생#{number}")
+  end
+
+  def operation_screen_broadcasts_for(poll)
+    broadcasts(Turbo::StreamsChannel.send(:stream_name_from, [poll, :operation_screen]))
+  end
+
+  def integrity_report_broadcast_for(poll)
+    operation_screen_broadcasts_for(poll).map { |broadcast| decoded_broadcast(broadcast) }.find do |broadcast|
+      broadcast.include?(ActionView::RecordIdentifier.dom_id(poll, :integrity_report))
+    end
+  end
+
+  def decoded_broadcast(broadcast)
+    JSON.parse(broadcast)
+  rescue JSON::ParserError
+    broadcast
   end
 end

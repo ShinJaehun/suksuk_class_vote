@@ -59,6 +59,7 @@ class PollsController < ApplicationController
 
     if result.success?
       broadcast_operation_progress
+      broadcast_integrity_report
       broadcast_ballot
       redirect_to @poll, notice: "현재 학생 투표 화면을 열었습니다."
     else
@@ -79,6 +80,7 @@ class PollsController < ApplicationController
 
     if result.success?
       broadcast_operation_progress
+      broadcast_integrity_report
       broadcast_operation_event_log
       broadcast_ballot
       redirect_to operation_redirect_path, notice: "투표가 제출되었습니다."
@@ -99,6 +101,7 @@ class PollsController < ApplicationController
 
     if result.success?
       broadcast_operation_progress
+      broadcast_integrity_report
       broadcast_operation_event_log
       broadcast_ballot
       redirect_to operation_redirect_path, notice: "투표자 상태를 처리했습니다."
@@ -118,6 +121,7 @@ class PollsController < ApplicationController
 
     if result.success?
       broadcast_operation_progress
+      broadcast_integrity_report
       broadcast_operation_event_log
       broadcast_ballot
       redirect_to @poll, notice: "투표자 상태를 처리했습니다."
@@ -137,6 +141,7 @@ class PollsController < ApplicationController
 
     if result.success?
       broadcast_operation_progress
+      broadcast_integrity_report
       broadcast_ballot
       redirect_to operation_redirect_path, notice: "다음 투표자의 투표 화면을 열었습니다."
     else
@@ -252,6 +257,17 @@ class PollsController < ApplicationController
       target: helpers.dom_id(@poll, :event_log),
       partial: "polls/event_log",
       locals: { poll: @poll, poll_events: operation_event_log_events }
+    )
+  end
+
+  def broadcast_integrity_report
+    @poll.reload
+    Turbo::StreamsChannel.broadcast_replace_to(
+      @poll,
+      :operation_screen,
+      target: helpers.dom_id(@poll, :integrity_report),
+      partial: "polls/integrity_report",
+      locals: { poll: @poll, integrity_report: Polls::IntegrityReport.new(@poll) }
     )
   end
 

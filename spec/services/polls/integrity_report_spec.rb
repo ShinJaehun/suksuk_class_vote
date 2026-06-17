@@ -133,6 +133,49 @@ RSpec.describe Polls::IntegrityReport do
       expect(summary.display_completed_count).to eq(2)
     end
 
+    it "counts completed participants as display completed even when the current pointer has not advanced" do
+      poll = create_in_progress_poll(voter_count: 5)
+      current_participant = poll.poll_progress.current_poll_participant
+      create(:poll_participation, poll_participant: current_participant, status: :completed)
+      poll.poll_option_tallies.first.update!(votes_count: 1)
+
+      summary = described_class.new(poll).summary
+
+      expect(summary.completed_count).to eq(1)
+      expect(summary.display_completed_count).to eq(1)
+      expect(summary.absent_count).to eq(0)
+      expect(summary.display_pending_count).to eq(4)
+      expect(poll.poll_progress.reload.current_poll_participant).to eq(current_participant)
+    end
+
+    it "counts abstained participants as display completed even when the current pointer has not advanced" do
+      poll = create_in_progress_poll(voter_count: 5)
+      current_participant = poll.poll_progress.current_poll_participant
+      create(:poll_participation, poll_participant: current_participant, status: :abstained)
+
+      summary = described_class.new(poll).summary
+
+      expect(summary.completed_count).to eq(0)
+      expect(summary.abstained_count).to eq(1)
+      expect(summary.display_completed_count).to eq(1)
+      expect(summary.display_pending_count).to eq(4)
+      expect(poll.poll_progress.reload.current_poll_participant).to eq(current_participant)
+    end
+
+    it "counts absent participants separately even when the current pointer has not advanced" do
+      poll = create_in_progress_poll(voter_count: 5)
+      current_participant = poll.poll_progress.current_poll_participant
+      create(:poll_participation, poll_participant: current_participant, status: :absent)
+
+      summary = described_class.new(poll).summary
+
+      expect(summary.completed_count).to eq(0)
+      expect(summary.display_completed_count).to eq(0)
+      expect(summary.absent_count).to eq(1)
+      expect(summary.display_pending_count).to eq(4)
+      expect(poll.poll_progress.reload.current_poll_participant).to eq(current_participant)
+    end
+
     it "requires closed poll progress for closed polls but allows current participant to remain" do
       poll = create_closed_poll
 
@@ -267,19 +310,20 @@ RSpec.describe Polls::IntegrityReport do
     end
   end
 
-  def create_startable_poll
+  def create_startable_poll(voter_count: 2)
     teacher = create(:user)
     participant_group = create(:participant_group, user: teacher)
-    create(:participant_slot, participant_group: participant_group, number: 1, name: "김민준")
-    create(:participant_slot, participant_group: participant_group, number: 2, name: "이서연")
+    voter_count.times do |index|
+      create(:participant_slot, participant_group: participant_group, number: index + 1, name: "학생#{index + 1}")
+    end
     poll = create(:poll, user: teacher, participant_group: participant_group)
     create(:poll_option, poll: poll, number: 1)
     create(:poll_option, poll: poll, number: 2)
     poll
   end
 
-  def create_in_progress_poll
-    poll = create_startable_poll
+  def create_in_progress_poll(voter_count: 2)
+    poll = create_startable_poll(voter_count: voter_count)
     Polls::Start.new(poll).call
     poll.reload
   end

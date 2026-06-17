@@ -5,6 +5,7 @@ module Polls
       :total_voters,
       :completed_count,
       :display_completed_count,
+      :display_pending_count,
       :absent_count,
       :abstained_count,
       :unprocessed_count,
@@ -29,6 +30,7 @@ module Polls
         total_voters: total_voters,
         completed_count: completed_count,
         display_completed_count: display_completed_count,
+        display_pending_count: display_pending_count,
         absent_count: absent_count,
         abstained_count: abstained_count,
         unprocessed_count: unprocessed_count,
@@ -154,6 +156,10 @@ module Polls
 
     def display_completed_count
       completed_count + abstained_count
+    end
+
+    def display_pending_count
+      unprocessed_count
     end
 
     def absent_count
