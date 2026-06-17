@@ -22,6 +22,7 @@ module Polls
       Poll.transaction do
         create_snapshot
         create_poll_option_tallies
+        create_poll_contest_tallies
         first_poll_participant = poll.poll_participants.order(:number).first
         poll.update!(
           status: :in_progress,
@@ -71,7 +72,6 @@ module Polls
       errors << "투표자 명단이 1명 이상 있어야 투표를 시작할 수 있습니다." if participant_slots.empty?
       errors << "이미 투표자 명단이 생성된 투표입니다." if poll.poll_participants.exists?
       errors << "이미 투표 진행 정보가 생성된 투표입니다." if poll.poll_progress.present?
-      errors << "이미 후보별 집계 정보가 생성된 투표입니다." if poll.poll_option_tallies.exists?
     end
 
     def create_snapshot
@@ -85,11 +85,18 @@ module Polls
     end
 
     def create_poll_option_tallies
-      poll.default_poll_options.order(:number).each do |poll_option|
-        poll.poll_option_tallies.create!(
-          poll_option: poll_option,
-          votes_count: 0
-        )
+      poll.poll_options.order(:poll_contest_id, :number).each do |poll_option|
+        poll.poll_option_tallies.find_or_create_by!(poll_option: poll_option) do |poll_option_tally|
+          poll_option_tally.votes_count = 0
+        end
+      end
+    end
+
+    def create_poll_contest_tallies
+      poll.poll_contests.order(:position).each do |poll_contest|
+        poll.poll_contest_tallies.find_or_create_by!(poll_contest: poll_contest) do |poll_contest_tally|
+          poll_contest_tally.abstentions_count = 0
+        end
       end
     end
 

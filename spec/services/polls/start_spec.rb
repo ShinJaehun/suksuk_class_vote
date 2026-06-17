@@ -23,6 +23,12 @@ RSpec.describe Polls::Start do
         votes_count: 0
       ))
       expect(poll.poll_option_tallies.map(&:poll_option)).to match_array(poll.poll_options)
+      expect(poll.poll_contest_tallies.count).to eq(1)
+      expect(poll.poll_contest_tallies.first).to have_attributes(
+        poll: poll,
+        poll_contest: poll.default_poll_contest,
+        abstentions_count: 0
+      )
       expect(poll.poll_progress).to have_attributes(
         current_poll_participant: poll.poll_participants.order(:number).first,
         status: "active",
@@ -80,14 +86,15 @@ RSpec.describe Polls::Start do
         participant_group: poll.participant_group,
         poll: poll
       )
+      poll_option_tally_count = PollOptionTally.count
+      poll_contest_tally_count = PollContestTally.count
 
-      expect do
-        result = described_class.new(poll).call
+      result = described_class.new(poll).call
 
-        expect(result).not_to be_success
-        expect(result.error_message).to include("전교학생회 선거 투표는 아직 일반 투표 화면에서 시작할 수 없습니다.")
-      end.not_to change(PollOptionTally, :count)
-
+      expect(result).not_to be_success
+      expect(result.error_message).to include("전교학생회 선거 투표는 아직 일반 투표 화면에서 시작할 수 없습니다.")
+      expect(PollOptionTally.count).to eq(poll_option_tally_count)
+      expect(PollContestTally.count).to eq(poll_contest_tally_count)
       expect(poll.reload).to be_draft
       expect(poll.poll_participants).to be_empty
       expect(poll.poll_progress).to be_nil
@@ -106,6 +113,25 @@ RSpec.describe Polls::Start do
       expect(poll.reload).to be_draft
       expect(poll.poll_participants).to be_empty
       expect(poll.poll_option_tallies).to be_empty
+    end
+
+    it "creates poll option tallies for every poll option in a regular multi-contest poll" do
+      poll = create_multi_contest_poll
+
+      result = described_class.new(poll).call
+
+      expect(result).to be_success
+      expect(poll.reload.poll_option_tallies.map(&:poll_option)).to match_array(poll.poll_options)
+    end
+
+    it "creates poll contest tallies for every poll contest in a regular multi-contest poll" do
+      poll = create_multi_contest_poll
+
+      result = described_class.new(poll).call
+
+      expect(result).to be_success
+      expect(poll.reload.poll_contest_tallies.map(&:poll_contest)).to match_array(poll.poll_contests)
+      expect(poll.poll_contest_tallies).to all(have_attributes(abstentions_count: 0))
     end
 
     it "fails with a policy message when there is one poll_option" do
@@ -173,19 +199,26 @@ RSpec.describe Polls::Start do
       expect(poll.poll_progress).to be_present
     end
 
-    it "fails when poll_option tallies already exist" do
+    it "does not duplicate existing poll option tallies" do
       poll = create_startable_poll
       poll_option = poll.poll_options.order(:number).first
       create(:poll_option_tally, poll: poll, poll_option: poll_option)
 
       result = described_class.new(poll).call
 
-      expect(result).not_to be_success
-      expect(result.error_message).to include("이미 후보별 집계 정보")
-      expect(poll.reload).to be_draft
-      expect(poll.poll_participants).to be_empty
-      expect(poll.poll_option_tallies.count).to eq(1)
-      expect(poll.poll_progress).to be_nil
+      expect(result).to be_success
+      expect(poll.reload.poll_option_tallies.count).to eq(2)
+      expect(poll.poll_option_tallies.where(poll_option: poll_option).count).to eq(1)
+    end
+
+    it "does not duplicate existing poll contest tallies" do
+      poll = create_startable_poll
+      create(:poll_contest_tally, poll: poll, poll_contest: poll.default_poll_contest)
+
+      result = described_class.new(poll).call
+
+      expect(result).to be_success
+      expect(poll.reload.poll_contest_tallies.count).to eq(1)
     end
 
     it "rolls back status when snapshot creation fails" do
@@ -203,7 +236,7 @@ RSpec.describe Polls::Start do
 
     it "rolls back snapshot and status when poll_option tally creation fails" do
       poll = create_startable_poll
-      allow(poll.poll_option_tallies).to receive(:create!).and_raise(ActiveRecord::RecordInvalid)
+      allow(poll.poll_option_tallies).to receive(:find_or_create_by!).and_raise(ActiveRecord::RecordInvalid)
 
       result = described_class.new(poll).call
 
@@ -211,6 +244,20 @@ RSpec.describe Polls::Start do
       expect(poll.reload).to be_draft
       expect(poll.poll_participants).to be_empty
       expect(poll.poll_option_tallies).to be_empty
+      expect(poll.poll_progress).to be_nil
+    end
+
+    it "rolls back snapshot and status when poll contest tally creation fails" do
+      poll = create_startable_poll
+      allow(poll.poll_contest_tallies).to receive(:find_or_create_by!).and_raise(ActiveRecord::RecordInvalid)
+
+      result = described_class.new(poll).call
+
+      expect(result).not_to be_success
+      expect(poll.reload).to be_draft
+      expect(poll.poll_participants).to be_empty
+      expect(poll.poll_option_tallies).to be_empty
+      expect(poll.poll_contest_tallies).to be_empty
       expect(poll.poll_progress).to be_nil
     end
 
@@ -236,6 +283,14 @@ RSpec.describe Polls::Start do
     poll = create(:poll, user: teacher, participant_group: participant_group, status: status)
     create(:poll_option, poll: poll, number: 1)
     create(:poll_option, poll: poll, number: 2)
+    poll
+  end
+
+  def create_multi_contest_poll
+    poll = create_startable_poll
+    second_contest = create(:poll_contest, poll: poll, position: 2, title: "부회장")
+    create(:poll_option, poll: poll, poll_contest: second_contest, number: 1)
+    create(:poll_option, poll: poll, poll_contest: second_contest, number: 2)
     poll
   end
 end
