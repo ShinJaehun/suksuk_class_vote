@@ -51,4 +51,27 @@ RSpec.describe SchoolElection, type: :model do
       )
     end
   end
+
+  describe "#ensure_default_contests!" do
+    it "creates the three default school election contests in position order" do
+      school_election = create(:school_election)
+
+      school_election.ensure_default_contests!
+
+      expect(school_election.school_election_contests.order(:position).pluck(:position, :title)).to eq([
+        [1, "회장"],
+        [2, "6학년 부회장"],
+        [3, "5학년 부회장"]
+      ])
+    end
+
+    it "does not create duplicate default contests when called more than once" do
+      school_election = create(:school_election)
+
+      school_election.ensure_default_contests!
+      school_election.ensure_default_contests!
+
+      expect(school_election.school_election_contests.count).to eq(3)
+    end
+  end
 end
