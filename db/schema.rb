@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_17_030000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_17_040000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -36,10 +36,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_17_030000) do
     t.datetime "created_at", null: false
     t.bigint "poll_id", null: false
     t.integer "position", null: false
+    t.bigint "school_election_contest_id"
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.index ["poll_id", "position"], name: "index_poll_contests_on_poll_id_and_position", unique: true
     t.index ["poll_id"], name: "index_poll_contests_on_poll_id"
+    t.index ["school_election_contest_id"], name: "index_poll_contests_on_school_election_contest_id"
   end
 
   create_table "poll_events", force: :cascade do |t|
@@ -75,10 +77,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_17_030000) do
     t.integer "number", null: false
     t.bigint "poll_contest_id", null: false
     t.bigint "poll_id", null: false
+    t.bigint "school_election_candidate_id"
     t.datetime "updated_at", null: false
     t.index ["poll_contest_id", "number"], name: "index_poll_options_on_poll_contest_id_and_number", unique: true
     t.index ["poll_contest_id"], name: "index_poll_options_on_poll_contest_id"
     t.index ["poll_id"], name: "index_poll_options_on_poll_id"
+    t.index ["school_election_candidate_id"], name: "index_poll_options_on_school_election_candidate_id"
   end
 
   create_table "poll_participants", force: :cascade do |t|
@@ -193,6 +197,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_17_030000) do
   add_foreign_key "participant_groups", "users"
   add_foreign_key "participant_slots", "participant_groups"
   add_foreign_key "poll_contests", "polls"
+  add_foreign_key "poll_contests", "school_election_contests"
   add_foreign_key "poll_events", "poll_participants"
   add_foreign_key "poll_events", "polls"
   add_foreign_key "poll_events", "users", column: "actor_id"
@@ -200,6 +205,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_17_030000) do
   add_foreign_key "poll_option_tallies", "polls"
   add_foreign_key "poll_options", "poll_contests"
   add_foreign_key "poll_options", "polls"
+  add_foreign_key "poll_options", "school_election_candidates"
   add_foreign_key "poll_participants", "participant_slots", column: "source_participant_slot_id", on_delete: :nullify
   add_foreign_key "poll_participants", "polls"
   add_foreign_key "poll_participations", "poll_participants"

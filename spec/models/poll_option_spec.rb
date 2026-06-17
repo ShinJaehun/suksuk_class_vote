@@ -79,4 +79,19 @@ RSpec.describe PollOption, type: :model do
       expect(poll_option.errors[:poll_contest]).to be_present
     end
   end
+
+  describe "school election source" do
+    it "is optional" do
+      poll_option = build(:poll_option, school_election_candidate: nil)
+
+      expect(poll_option).to be_valid
+    end
+
+    it "can reference a school election candidate" do
+      school_election_candidate = create(:school_election_candidate)
+      poll_option = create(:poll_option, school_election_candidate: school_election_candidate)
+
+      expect(poll_option.school_election_candidate).to eq(school_election_candidate)
+    end
+  end
 end

@@ -1,6 +1,7 @@
 class PollOption < ApplicationRecord
   belongs_to :poll
   belongs_to :poll_contest
+  belongs_to :school_election_candidate, optional: true
   has_one :poll_option_tally, dependent: :destroy
 
   validates :poll, presence: true

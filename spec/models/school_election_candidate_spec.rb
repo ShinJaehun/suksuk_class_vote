@@ -61,4 +61,13 @@ RSpec.describe SchoolElectionCandidate, type: :model do
       expect(candidate.errors[:grade_class_label]).to be_present
     end
   end
+
+  describe "associations" do
+    it "can find linked poll options" do
+      candidate = create(:school_election_candidate)
+      poll_option = create(:poll_option, school_election_candidate: candidate)
+
+      expect(candidate.poll_options).to contain_exactly(poll_option)
+    end
+  end
 end

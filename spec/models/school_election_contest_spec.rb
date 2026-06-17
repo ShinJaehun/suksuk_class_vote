@@ -62,5 +62,12 @@ RSpec.describe SchoolElectionContest, type: :model do
 
       expect { contest.destroy }.to change(SchoolElectionCandidate, :count).by(-1)
     end
+
+    it "can find linked poll contests" do
+      contest = create(:school_election_contest)
+      poll_contest = create(:poll_contest, school_election_contest: contest)
+
+      expect(contest.poll_contests).to contain_exactly(poll_contest)
+    end
   end
 end
