@@ -152,6 +152,7 @@ RSpec.describe "Admin school elections", type: :request do
       expect(response.body).to include("김담임")
       expect(response.body).to include("6학년 1반")
       expect(response.body).to include("투표 세션 미생성")
+      expect(response.body).to include("투표 세션 생성")
     end
 
     it "shows linked classroom poll titles" do
@@ -171,6 +172,7 @@ RSpec.describe "Admin school elections", type: :request do
       get admin_school_election_path(school_election)
 
       expect(response.body).to include("6학년 1반 전교학생회 투표")
+      expect(response.body).not_to include("투표 세션 생성")
     end
 
     it "redirects teachers to dashboard" do

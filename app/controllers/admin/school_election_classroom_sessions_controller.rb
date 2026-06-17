@@ -1,6 +1,7 @@
 module Admin
   class SchoolElectionClassroomSessionsController < BaseController
     before_action :set_school_election
+    before_action :set_school_election_classroom_session, only: %i[create_poll]
 
     def new
       authorize @school_election, :manage_classroom_sessions?
@@ -22,10 +23,25 @@ module Admin
       end
     end
 
+    def create_poll
+      authorize @school_election, :manage_classroom_sessions?
+      result = SchoolElections::CreateClassroomPoll.new(@school_election_classroom_session).call
+
+      if result.success?
+        redirect_to admin_school_election_path(@school_election), notice: "투표 세션을 생성했습니다."
+      else
+        redirect_to admin_school_election_path(@school_election), alert: result.error_message
+      end
+    end
+
     private
 
     def set_school_election
       @school_election = policy_scope(SchoolElection).find(params[:school_election_id])
+    end
+
+    def set_school_election_classroom_session
+      @school_election_classroom_session = @school_election.school_election_classroom_sessions.find(params[:id])
     end
 
     def prepare_form_options

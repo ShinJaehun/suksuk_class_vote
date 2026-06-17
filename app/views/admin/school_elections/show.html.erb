@@ -66,6 +66,9 @@
             투표 세션: <%= classroom_session.poll.title %>
           <% else %>
             투표 세션 미생성
+            <%= button_to "투표 세션 생성",
+                          create_poll_admin_school_election_school_election_classroom_session_path(@school_election, classroom_session),
+                          method: :post %>
           <% end %>
         </li>
       <% end %>

@@ -142,4 +142,130 @@ RSpec.describe "Admin school election classroom sessions", type: :request do
       expect(response).to redirect_to(new_user_session_path)
     end
   end
+
+  describe "POST /admin/school_elections/:school_election_id/school_election_classroom_sessions/:id/create_poll" do
+    it "creates a draft classroom poll for admins" do
+      classroom_session = create_classroom_session_with_sources
+      sign_in create(:user, :admin)
+
+      expect do
+        post create_poll_admin_school_election_school_election_classroom_session_path(
+          classroom_session.school_election,
+          classroom_session
+        )
+      end.to change(Poll, :count).by(1)
+
+      poll = classroom_session.reload.poll
+      expect(response).to redirect_to(admin_school_election_path(classroom_session.school_election))
+      expect(poll).to be_draft
+      expect(poll.user).to eq(classroom_session.teacher)
+      expect(poll.participant_group).to eq(classroom_session.participant_group)
+      expect(poll.poll_contests.order(:position).pluck(:title)).to eq(["회장", "6학년 부회장", "5학년 부회장"])
+      expect(poll.poll_contests.order(:position).map(&:school_election_contest)).to eq(
+        classroom_session.school_election.school_election_contests.order(:position).to_a
+      )
+      expect(poll.poll_options.pluck(:name)).to include("김회장 (6학년 1반)")
+      expect(poll.poll_options.first.school_election_candidate).to be_present
+      expect(poll.poll_option_tallies).to be_empty
+    end
+
+    it "shows the generated poll title after creation" do
+      classroom_session = create_classroom_session_with_sources
+      sign_in create(:user, :admin)
+
+      post create_poll_admin_school_election_school_election_classroom_session_path(
+        classroom_session.school_election,
+        classroom_session
+      )
+      follow_redirect!
+
+      expect(response.body).to include(classroom_session.reload.poll.title)
+    end
+
+    it "does not create a duplicate poll when posted twice" do
+      classroom_session = create_classroom_session_with_sources
+      sign_in create(:user, :admin)
+
+      post create_poll_admin_school_election_school_election_classroom_session_path(
+        classroom_session.school_election,
+        classroom_session
+      )
+
+      expect do
+        post create_poll_admin_school_election_school_election_classroom_session_path(
+          classroom_session.school_election,
+          classroom_session
+        )
+      end.not_to change(Poll, :count)
+    end
+
+    it "redirects teachers to dashboard" do
+      classroom_session = create_classroom_session_with_sources
+      sign_in create(:user)
+
+      expect do
+        post create_poll_admin_school_election_school_election_classroom_session_path(
+          classroom_session.school_election,
+          classroom_session
+        )
+      end.not_to change(Poll, :count)
+
+      expect(response).to redirect_to(dashboard_path)
+    end
+
+    it "redirects guests to sign in" do
+      classroom_session = create_classroom_session_with_sources
+
+      post create_poll_admin_school_election_school_election_classroom_session_path(
+        classroom_session.school_election,
+        classroom_session
+      )
+
+      expect(response).to redirect_to(new_user_session_path)
+    end
+
+    it "does not create a poll through another school election" do
+      classroom_session = create_classroom_session_with_sources
+      other_school_election = create(:school_election)
+      sign_in create(:user, :admin)
+
+      expect do
+        post create_poll_admin_school_election_school_election_classroom_session_path(
+          other_school_election,
+          classroom_session
+        )
+      end.not_to change(Poll, :count)
+
+      expect(response).to have_http_status(:not_found)
+      expect(classroom_session.reload.poll).to be_nil
+    end
+
+    it "redirects with an alert when the school election has no contests" do
+      classroom_session = create(:school_election_classroom_session)
+      sign_in create(:user, :admin)
+
+      expect do
+        post create_poll_admin_school_election_school_election_classroom_session_path(
+          classroom_session.school_election,
+          classroom_session
+        )
+      end.not_to change(Poll, :count)
+
+      expect(response).to redirect_to(admin_school_election_path(classroom_session.school_election))
+      expect(flash[:alert]).to include("contest")
+      expect(classroom_session.reload.poll).to be_nil
+    end
+  end
+
+  def create_classroom_session_with_sources
+    classroom_session = create(:school_election_classroom_session)
+    school_election = classroom_session.school_election
+    president = create(:school_election_contest, school_election: school_election, position: 1, title: "회장")
+    sixth_vice = create(:school_election_contest, school_election: school_election, position: 2, title: "6학년 부회장")
+    fifth_vice = create(:school_election_contest, school_election: school_election, position: 3, title: "5학년 부회장")
+    create(:school_election_candidate, school_election_contest: president, number: 1, name: "김회장", grade_class_label: "6학년 1반")
+    create(:school_election_candidate, school_election_contest: sixth_vice, number: 1, name: "이부회장", grade_class_label: "6학년 2반")
+    create(:school_election_candidate, school_election_contest: fifth_vice, number: 1, name: "박부회장", grade_class_label: "5학년 1반")
+    classroom_session
+  end
 end
