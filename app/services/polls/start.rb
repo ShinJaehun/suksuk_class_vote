@@ -7,6 +7,7 @@ module Polls
     end
 
     SINGLE_CANDIDATE_MESSAGE = "후보자가 1명인 투표는 무투표 당선/찬반 투표 정책 결정 후 지원 예정입니다."
+    SCHOOL_ELECTION_MESSAGE = "전교학생회 선거 투표는 아직 일반 투표 화면에서 시작할 수 없습니다."
 
     def initialize(poll, actor: nil)
       @poll = poll
@@ -53,6 +54,11 @@ module Polls
     attr_reader :poll, :actor, :errors
 
     def validate_startable
+      if poll.school_election_poll?
+        errors << SCHOOL_ELECTION_MESSAGE
+        return
+      end
+
       errors << "draft 상태의 투표만 시작할 수 있습니다." unless poll.draft?
 
       poll_option_count = poll.default_poll_options.count

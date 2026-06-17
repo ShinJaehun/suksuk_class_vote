@@ -118,6 +118,10 @@ class Poll < ApplicationRecord
     archived_at.present?
   end
 
+  def school_election_poll?
+    school_election_classroom_session.present?
+  end
+
   def default_poll_contest
     poll_contests.order(:position).first
   end

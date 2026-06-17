@@ -9,6 +9,9 @@
 
       <div class="flex flex-wrap items-center gap-2">
         <h1 class="text-3xl font-semibold"><%= @poll.title %></h1>
+        <% if @poll.school_election_poll? %>
+          <span class="rounded-full bg-sky-50 px-2 py-1 text-xs font-medium text-sky-700">전교학생회 선거</span>
+        <% end %>
         <%= poll_activity_badge(@poll) %>
         <%= poll_status_badge(@poll) %>
       </div>

@@ -312,6 +312,32 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("data-turbo-frame=\"_top\"")
     end
 
+    it "shows a school election poll as not ready for the regular operation flow" do
+      teacher = create(:user)
+      poll = create_startable_poll(user: teacher)
+      poll.update!(title: "2026 전교학생회 선거")
+      create(
+        :school_election_classroom_session,
+        teacher: teacher,
+        participant_group: poll.participant_group,
+        poll: poll
+      )
+      sign_in teacher
+
+      get polls_path
+
+      expect(response.body).to include("2026 전교학생회 선거")
+      expect(response.body).to include("전교학생회 선거")
+
+      get poll_path(poll)
+
+      expect(response.body).to include("전교학생회 선거")
+      expect(response.body).to include("전교학생회 선거 투표는 아직 일반 투표 화면에서 시작할 수 없습니다.")
+      expect(response.body).not_to include(start_poll_path(poll))
+      expect(response.body).not_to include("투표 시작")
+      expect(response.body).to include("운영 준비 중")
+    end
+
     it "shows recent event log with displayable events only" do
       teacher = create(:user, name: "담임교사")
       poll = create_started_poll(user: teacher)
@@ -588,6 +614,27 @@ RSpec.describe "Polls", type: :request do
 
       expect(response).to redirect_to(poll_path(poll))
       expect(poll.reload).to be_in_progress
+    end
+
+    it "does not start a school election poll through the regular poll start endpoint" do
+      teacher = create(:user)
+      poll = create_startable_poll(user: teacher)
+      create(
+        :school_election_classroom_session,
+        teacher: teacher,
+        participant_group: poll.participant_group,
+        poll: poll
+      )
+      sign_in teacher
+
+      expect do
+        post start_poll_path(poll)
+      end.not_to change(PollOptionTally, :count)
+
+      expect(response).to redirect_to(poll_path(poll))
+      expect(flash[:alert]).to include("전교학생회 선거 투표는 아직 일반 투표 화면에서 시작할 수 없습니다.")
+      expect(poll.reload).to be_draft
+      expect(poll.poll_progress).to be_nil
     end
 
     it "fails with an alert when there is one poll_option" do
