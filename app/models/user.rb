@@ -9,6 +9,7 @@ class User < ApplicationRecord
   has_many :participant_groups, dependent: :destroy
   has_many :polls, dependent: :destroy
   has_many :school_elections, dependent: :destroy
+  has_many :school_election_classroom_sessions, foreign_key: :teacher_id, dependent: :destroy, inverse_of: :teacher
   has_many :poll_events, foreign_key: :actor_id, dependent: :nullify, inverse_of: :actor
 
   validates :name, presence: true

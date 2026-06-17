@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_17_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_17_030000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -142,6 +142,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_17_020000) do
     t.index ["school_election_contest_id"], name: "index_school_election_candidates_on_school_election_contest_id"
   end
 
+  create_table "school_election_classroom_sessions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "participant_group_id", null: false
+    t.bigint "poll_id"
+    t.bigint "school_election_id", null: false
+    t.bigint "teacher_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["participant_group_id"], name: "idx_on_participant_group_id_e3234fdf3f"
+    t.index ["poll_id"], name: "index_school_election_classroom_sessions_on_poll_id", unique: true
+    t.index ["school_election_id", "participant_group_id"], name: "idx_school_election_sessions_on_election_and_group", unique: true
+    t.index ["school_election_id"], name: "index_school_election_classroom_sessions_on_school_election_id"
+    t.index ["teacher_id"], name: "index_school_election_classroom_sessions_on_teacher_id"
+  end
+
   create_table "school_election_contests", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "position", null: false
@@ -194,6 +208,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_17_020000) do
   add_foreign_key "polls", "participant_groups", on_delete: :nullify
   add_foreign_key "polls", "users"
   add_foreign_key "school_election_candidates", "school_election_contests"
+  add_foreign_key "school_election_classroom_sessions", "participant_groups"
+  add_foreign_key "school_election_classroom_sessions", "polls"
+  add_foreign_key "school_election_classroom_sessions", "school_elections"
+  add_foreign_key "school_election_classroom_sessions", "users", column: "teacher_id"
   add_foreign_key "school_election_contests", "school_elections"
   add_foreign_key "school_elections", "users"
 end

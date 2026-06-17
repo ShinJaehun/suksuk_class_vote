@@ -1,6 +1,7 @@
 class SchoolElection < ApplicationRecord
   belongs_to :user
   has_many :school_election_contests, dependent: :destroy
+  has_many :school_election_classroom_sessions, dependent: :destroy
 
   enum :status, { draft: 0, in_progress: 10, closed: 20, stopped: 30 }
 

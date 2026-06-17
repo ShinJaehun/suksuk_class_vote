@@ -74,4 +74,13 @@ RSpec.describe SchoolElection, type: :model do
       expect(school_election.school_election_contests.count).to eq(3)
     end
   end
+
+  describe "associations" do
+    it "destroys dependent classroom sessions" do
+      school_election = create(:school_election)
+      create(:school_election_classroom_session, school_election: school_election)
+
+      expect { school_election.destroy }.to change(SchoolElectionClassroomSession, :count).by(-1)
+    end
+  end
 end

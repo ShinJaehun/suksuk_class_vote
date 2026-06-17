@@ -7,6 +7,7 @@ class Poll < ApplicationRecord
   has_many :poll_option_tallies, dependent: :destroy
   has_many :poll_events, dependent: :destroy
   has_one :poll_progress, dependent: :destroy
+  has_one :school_election_classroom_session, dependent: :nullify
 
   enum :kind, { election: 0, discussion: 10, debate: 20 }
   enum :status, { draft: 0, in_progress: 10, closed: 20, stopped: 30 }
