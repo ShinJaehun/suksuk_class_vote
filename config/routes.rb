@@ -24,7 +24,7 @@ Rails.application.routes.draw do
   namespace :admin do
     resources :school_elections, only: %i[index show new create] do
       resources :school_election_contests, only: [] do
-        resources :school_election_candidates, only: %i[new create]
+        resources :school_election_candidates, only: %i[new create edit update destroy]
       end
     end
     resources :teachers, only: %i[index new create]

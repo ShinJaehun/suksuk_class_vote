@@ -27,6 +27,12 @@
                   기호 <%= candidate.number %>번
                   <%= candidate.name %>
                   (<%= candidate.grade_class_label %>)
+                  <%= link_to "수정",
+                              edit_admin_school_election_school_election_contest_school_election_candidate_path(@school_election, contest, candidate) %>
+                  <%= button_to "삭제",
+                                admin_school_election_school_election_contest_school_election_candidate_path(@school_election, contest, candidate),
+                                method: :delete,
+                                data: { turbo_confirm: "후보를 삭제할까요?" } %>
                 </li>
               <% end %>
             </ul>

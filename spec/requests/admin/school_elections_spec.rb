@@ -134,6 +134,8 @@ RSpec.describe "Admin school elections", type: :request do
       expect(response.body).to include("기호 2번")
       expect(response.body).to include("이후보")
       expect(response.body).to include("6학년 2반")
+      expect(response.body).to include("수정")
+      expect(response.body).to include("삭제")
     end
 
     it "redirects teachers to dashboard" do

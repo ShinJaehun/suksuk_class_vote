@@ -1,4 +1,4 @@
-<h1>후보 추가</h1>
+<h1>후보 수정</h1>
 
 <p><%= @school_election.title %> / <%= @school_election_contest.title %></p>
 
@@ -6,7 +6,7 @@
            school_election: @school_election,
            school_election_contest: @school_election_contest,
            school_election_candidate: @school_election_candidate,
-           error_title: "후보를 등록할 수 없습니다.",
-           submit_label: "후보 등록" %>
+           error_title: "후보를 수정할 수 없습니다.",
+           submit_label: "후보 수정" %>
 
 <p><%= link_to "전교학생회 선거 상세로 돌아가기", admin_school_election_path(@school_election) %></p>
