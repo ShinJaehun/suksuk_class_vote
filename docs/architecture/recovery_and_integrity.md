@@ -106,6 +106,9 @@ DB index:
 후보별 `PollOptionTally` 0표 생성, 선거 시작 당시 그룹명 snapshot 저장, `Poll`의 `in_progress` 전이, `PollProgress` 생성을 함께 처리한다.
 선거 시작 성공 시 `PollProgress.current_poll_participant_id`는 첫 번째 `PollParticipant`를 가리킨다.
 현재 구현에서는 투표 제출, 미참여/기권 처리, 다음 학생 진행, 선거 종료, 후보별 count-only 결과 표시까지 이 구조를 기준으로 진행한다.
+투표 시작 직후 ballot은 locked 상태이며, 교사가 첫 학생에 대해 `open_current_participant_ballot`을 실행해야 열린다.
+두 번째 이후 학생은 `advance_current_participant`가 다음 `PollParticipant`로 이동하면서 ballot을 열린 상태로 둔다.
+학생이 후보 선택 또는 기권을 완료하면 ballot은 다시 locked 상태가 된다.
 
 ### PollParticipation
 
@@ -129,6 +132,9 @@ DB index:
 - `PollParticipation`에는 `poll_option_id`를 저장하지 않는다.
 - `poll_participant_id`와 `poll_option_id`를 직접 연결하지 않는다.
 - `PollProgress`은 완료 목록을 저장하지 않는다.
+- 기권은 학생의 의사표시이므로 운영 화면에서 별도 항목으로 드러내지 않는다.
+- 표시용 투표 완료 수는 `completed + abstained`로 계산한다.
+- 후보별 tally와 종료 직전 무결성 gate에서 쓰는 `completed` 수는 후보 선택 완료 수로 유지한다.
 
 ### PollOptionTally
 
@@ -164,7 +170,10 @@ DB index:
 
 상태 점검 카드는 `draft`, `in_progress`, `stopped`, `closed` 모두에서 표시한다.
 다만 숫자 운영 요약은 선거 시작 전에는 숨기고, `in_progress`, `stopped`, `closed`에서 표시한다.
-운영 요약은 전체 참여자 수, 투표 완료 수, 미참여 수, 기권 수, 미처리 수, 후보별 득표 합계를 보여준다.
+운영 요약은 전체 참여자 수, 투표 완료 수, 미참여 수, 대기 수를 보여준다.
+화면 표시용 투표 완료 수는 `completed + abstained`이며, 대기 수는 participation이 없는 `PollParticipant` 기준이다.
+기권 항목은 별도로 표시하지 않는다.
+학생 submit, 기권, 미참여, 다음 투표자 진행이 성공하면 상태 점검 카드도 Turbo로 갱신되어 오래된 요약 HTML이 남지 않도록 한다.
 
 `Polls::ResumeCurrentVoter`는 매우 제한적인 복구 액션이다.
 진행 중인 선거에서 `PollProgress`이 active이고, `current_poll_participant`가 비어 있으며,
@@ -375,6 +384,8 @@ PollOptionTally: 변화 없음
 
 기권/미참여 처리를 담당하는 `Polls::RecordParticipationOutcome`도 같은 current participant 재검증 원칙을 따른다.
 후보별 tally는 증가시키지 않고 `PollParticipation(abstained|absent)`만 transaction 안에서 생성한다.
+학생 투표 화면에서는 기권만 가능하고 미참여 처리는 교사 투표 정보 화면에서만 수행한다.
+현재 학생이 기권하면 화면 표시는 투표 완료와 동일하게 처리한다.
 
 다음 학생 진행과 투표 종료도 stale 운영 요청을 방어한다.
 `Polls::AdvanceCurrentParticipant`와 `Polls::Close`는 요청의 `current_poll_participant_id`를 받고,

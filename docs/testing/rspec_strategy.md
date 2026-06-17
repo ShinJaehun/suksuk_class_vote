@@ -105,9 +105,13 @@ Coverage 수치 자체를 목표로 삼지 않는다.
 * 제출 성공 시 participation 완료와 tally 증가가 함께 반영된다.
 * 제출 실패 시 participation 완료와 tally 증가가 모두 반영되지 않는다.
 * 후보 선택/기권/미참여 요청의 current participant 확인값이 lock 이후 DB의 현재 참여자와 다르면 거부된다.
+* 투표 시작 직후 ballot은 locked이고, 교사 승인 액션 뒤에만 현재 학생 ballot이 열린다.
+* 학생 화면에서는 후보 선택과 기권만 가능하며 미참여 처리와 다음 투표자 이동은 제공하지 않는다.
 * 다음 학생 진행/투표 종료 요청도 stale current participant 요청이면 상태 변경과 event 생성 없이 실패한다.
 * 종료된 투표 진행 정보에 들어온 제출 요청은 거부된다.
 * 학생 completed_at과 후보별 득표 증가 정보를 화면에서 직접 연결해 보여주지 않는다.
+* 기권은 화면 표시상 투표 완료에 합산하고 후보별 tally에는 반영하지 않는다.
+* submit_vote, 기권, 미참여, 다음 투표자 진행 직후 상태 점검 카드가 Turbo로 갱신된다.
 
 ### 투표 종료 무결성 gate
 
