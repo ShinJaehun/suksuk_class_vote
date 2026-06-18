@@ -68,9 +68,215 @@ RSpec.describe "Election sessions", type: :request do
       expect(response).to have_http_status(:ok)
       expect(read_only_counts(election_session.reload)).to eq(before_counts)
     end
+
+    it "shows the ballot form when the current ballot is open" do
+      election_session = opened_session
+      sign_in election_session.teacher
+
+      get elections_session_path(election_session)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("현재 투표자")
+      expect(response.body).to include("학생1")
+      expect(response.body).to include("Contest 1")
+      expect(response.body).to include("후보1")
+      expect(response.body).to include("투표 제출")
+    end
+
+    it "does not show the ballot form when the current ballot is locked" do
+      election_session = started_session
+      sign_in election_session.teacher
+
+      get elections_session_path(election_session)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).not_to include("투표 제출")
+    end
+
+    it "does not show the ballot form when the session is closed" do
+      election_session = closed_session
+      sign_in election_session.teacher
+
+      get elections_session_path(election_session)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).not_to include("투표 제출")
+    end
+  end
+
+  describe "POST /elections/sessions/:id/start" do
+    it "allows the session teacher to start the session" do
+      election_session = draft_session
+      sign_in election_session.teacher
+
+      post start_elections_session_path(election_session)
+
+      expect(response).to redirect_to(elections_session_path(election_session))
+      expect(flash[:notice]).to eq("선거 세션을 시작했습니다.")
+      expect(election_session.reload).to be_in_progress
+    end
+
+    it "does not allow another teacher to start the session" do
+      election_session = draft_session
+      sign_in create(:user)
+
+      post start_elections_session_path(election_session)
+
+      expect(response).to redirect_to(dashboard_path)
+      expect(flash[:alert]).to eq("접근 권한이 없습니다.")
+      expect(election_session.reload).to be_draft
+    end
+
+    it "allows admins to start any session" do
+      election_session = draft_session
+      sign_in create(:user, :admin)
+
+      post start_elections_session_path(election_session)
+
+      expect(response).to redirect_to(elections_session_path(election_session))
+      expect(election_session.reload).to be_in_progress
+    end
+  end
+
+  describe "POST operation routes" do
+    it "opens the current ballot and redirects" do
+      election_session = started_session
+      sign_in election_session.teacher
+
+      post open_ballot_elections_session_path(election_session)
+
+      expect(response).to redirect_to(elections_session_path(election_session))
+      expect(flash[:notice]).to eq("현재 투표자의 ballot을 열었습니다.")
+      expect(election_session.reload.election_progress).to be_open
+    end
+
+    it "locks the current ballot and redirects" do
+      election_session = opened_session
+      sign_in election_session.teacher
+
+      post lock_ballot_elections_session_path(election_session)
+
+      expect(response).to redirect_to(elections_session_path(election_session))
+      expect(flash[:notice]).to eq("현재 투표자의 ballot을 잠갔습니다.")
+      expect(election_session.reload.election_progress).to be_locked
+    end
+
+    it "marks the current voter absent and redirects" do
+      election_session = started_session
+      sign_in election_session.teacher
+
+      post mark_absent_elections_session_path(election_session)
+
+      current_voter = election_session.reload.election_progress.current_election_voter
+      expect(response).to redirect_to(elections_session_path(election_session))
+      expect(flash[:notice]).to eq("현재 투표자를 결석 처리했습니다.")
+      expect(current_voter.election_participation).to be_absent
+    end
+
+    it "advances to the next voter and redirects" do
+      election_session = absent_current_voter_session
+      sign_in election_session.teacher
+
+      post advance_voter_elections_session_path(election_session)
+
+      expect(response).to redirect_to(elections_session_path(election_session))
+      expect(flash[:notice]).to eq("다음 투표자로 이동했습니다.")
+      expect(election_session.reload.election_progress.current_election_voter.name).to eq("학생2")
+    end
+
+    it "closes the session and redirects" do
+      election_session = close_ready_session
+      sign_in election_session.teacher
+
+      post close_elections_session_path(election_session)
+
+      expect(response).to redirect_to(elections_session_path(election_session))
+      expect(flash[:notice]).to eq("선거 세션을 종료했습니다.")
+      expect(election_session.reload).to be_closed
+    end
+  end
+
+  describe "POST /elections/sessions/:id/submit_ballot" do
+    it "allows the session teacher to submit an open ballot" do
+      election_session = opened_session
+      candidate = first_candidate(election_session)
+      sign_in election_session.teacher
+
+      post submit_ballot_elections_session_path(election_session), params: candidate_ballot_params(candidate)
+
+      current_voter = election_session.reload.election_progress.current_election_voter
+      expect(response).to redirect_to(elections_session_path(election_session))
+      expect(flash[:notice]).to eq("투표가 제출되었습니다.")
+      expect(current_voter.election_participation).to be_completed
+      expect(tally_for(election_session, candidate).reload.votes_count).to eq(1)
+    end
+
+    it "allows abstain submission" do
+      election_session = opened_session
+      contest = election_session.election.election_contests.sole
+      sign_in election_session.teacher
+
+      post submit_ballot_elections_session_path(election_session), params: abstain_ballot_params(contest)
+
+      current_voter = election_session.reload.election_progress.current_election_voter
+      expect(response).to redirect_to(elections_session_path(election_session))
+      expect(flash[:notice]).to eq("투표가 제출되었습니다.")
+      expect(current_voter.election_participation).to be_abstained
+      expect(contest_tally_for(election_session, contest).reload.abstentions_count).to eq(1)
+    end
+
+    it "fails when the ballot is locked" do
+      election_session = started_session
+      candidate = first_candidate(election_session)
+      sign_in election_session.teacher
+
+      post submit_ballot_elections_session_path(election_session), params: candidate_ballot_params(candidate)
+
+      current_voter = election_session.reload.election_progress.current_election_voter
+      expect(response).to redirect_to(elections_session_path(election_session))
+      expect(flash[:alert]).to include("ballot이 열려 있어야 제출할 수 있습니다.")
+      expect(current_voter.election_participation).to be_pending
+      expect(tally_for(election_session, candidate).reload.votes_count).to eq(0)
+    end
+
+    it "does not allow another teacher to submit the ballot" do
+      election_session = opened_session
+      candidate = first_candidate(election_session)
+      sign_in create(:user)
+
+      post submit_ballot_elections_session_path(election_session), params: candidate_ballot_params(candidate)
+
+      current_voter = election_session.reload.election_progress.current_election_voter
+      expect(response).to redirect_to(dashboard_path)
+      expect(flash[:alert]).to eq("접근 권한이 없습니다.")
+      expect(current_voter.election_participation).to be_pending
+      expect(tally_for(election_session, candidate).reload.votes_count).to eq(0)
+    end
+
+    it "allows admins to submit any open ballot" do
+      election_session = opened_session
+      candidate = first_candidate(election_session)
+      sign_in create(:user, :admin)
+
+      post submit_ballot_elections_session_path(election_session), params: candidate_ballot_params(candidate)
+
+      current_voter = election_session.reload.election_progress.current_election_voter
+      expect(response).to redirect_to(elections_session_path(election_session))
+      expect(flash[:notice]).to eq("투표가 제출되었습니다.")
+      expect(current_voter.election_participation).to be_completed
+      expect(tally_for(election_session, candidate).reload.votes_count).to eq(1)
+    end
   end
 
   def started_session
+    election_session = draft_session
+
+    Elections::StartSession.new(election_session: election_session, actor: election_session.teacher).call
+
+    election_session.reload
+  end
+
+  def draft_session
     teacher = create(:user)
     participant_group = create(:participant_group, user: teacher, name: "4학년 1반")
     create(:participant_slot, participant_group: participant_group, number: 1, name: "학생1")
@@ -78,20 +284,33 @@ RSpec.describe "Election sessions", type: :request do
     election = create(:election, title: "학급 임원 선거")
     contest = create(:election_contest, election: election)
     create(:election_candidate, election_contest: contest, number: 1, name: "후보1")
-    election_session = create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
 
-    Elections::StartSession.new(election_session: election_session, actor: teacher).call
+    create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
+  end
 
+  def opened_session
+    election_session = started_session
+    Elections::OpenBallot.new(election_session: election_session, actor: election_session.teacher).call
+    election_session.reload
+  end
+
+  def absent_current_voter_session
+    election_session = started_session
+    Elections::MarkVoterAbsent.new(election_session: election_session, actor: election_session.teacher).call
+    election_session.reload
+  end
+
+  def close_ready_session
+    election_session = started_session
+    election_session.election_voters.includes(:election_participation).find_each do |voter|
+      voter.election_participation.update!(status: :absent, submitted_at: Time.current)
+    end
+    election_session.election_progress.update!(ballot_state: :locked, current_election_voter: nil)
     election_session.reload
   end
 
   def closed_session
-    election_session = started_session
-
-    election_session.election_voters.includes(:election_participation).find_each do |voter|
-      voter.election_participation.update!(status: :completed, submitted_at: Time.current)
-    end
-    election_session.election_progress.update!(ballot_state: :locked, current_election_voter: nil)
+    election_session = close_ready_session
     Elections::CloseSession.new(election_session: election_session, actor: election_session.teacher).call
 
     election_session.reload
@@ -105,5 +324,37 @@ RSpec.describe "Election sessions", type: :request do
       candidate_tally_count: election_session.election_candidate_tallies.count,
       contest_tally_count: election_session.election_contest_tallies.count
     }
+  end
+
+  def first_candidate(election_session)
+    election_session.election.election_candidates.order(:number).first
+  end
+
+  def candidate_ballot_params(candidate)
+    {
+      ballot: {
+        contest_choices: {
+          candidate.election_contest_id.to_s => "candidate:#{candidate.id}"
+        }
+      }
+    }
+  end
+
+  def abstain_ballot_params(contest)
+    {
+      ballot: {
+        contest_choices: {
+          contest.id.to_s => "abstain"
+        }
+      }
+    }
+  end
+
+  def tally_for(election_session, candidate)
+    election_session.election_candidate_tallies.find_by!(election_candidate: candidate)
+  end
+
+  def contest_tally_for(election_session, contest)
+    election_session.election_contest_tallies.find_by!(election_contest: contest)
   end
 end

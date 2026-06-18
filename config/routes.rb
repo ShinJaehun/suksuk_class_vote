@@ -22,7 +22,15 @@ Rails.application.routes.draw do
   end
 
   namespace :elections do
-    resources :sessions, only: %i[show]
+    resources :sessions, only: %i[show] do
+      post :start, on: :member
+      post :open_ballot, on: :member
+      post :lock_ballot, on: :member
+      post :advance_voter, on: :member
+      post :mark_absent, on: :member
+      post :submit_ballot, on: :member
+      post :close, on: :member
+    end
   end
 
   namespace :admin do

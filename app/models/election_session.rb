@@ -20,6 +20,10 @@ class ElectionSession < ApplicationRecord
   validates :participant_group_id, uniqueness: { scope: :election_id }
   validate :teacher_can_operate_session
 
+  def operable_status?
+    draft? || in_progress?
+  end
+
   private
 
   def teacher_can_operate_session

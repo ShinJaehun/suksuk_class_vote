@@ -112,6 +112,13 @@ RSpec.describe ElectionSession, type: :model do
         "stopped" => 30
       )
     end
+
+    it "knows whether the session status can show operation controls" do
+      expect(build(:election_session, status: :draft)).to be_operable_status
+      expect(build(:election_session, status: :in_progress)).to be_operable_status
+      expect(build(:election_session, status: :closed)).not_to be_operable_status
+      expect(build(:election_session, status: :stopped)).not_to be_operable_status
+    end
   end
 
   describe "operation mode" do
