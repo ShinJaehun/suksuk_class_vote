@@ -53,9 +53,49 @@ RSpec.describe "Election sessions", type: :request do
       get elections_session_path(election_session)
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("무결성 확인")
-      expect(response.body).to include("무결성 OK")
+      expect(response.body).to include("세션 결과")
+      expect(response.body).to include("무결성 확인 통과")
       expect(response.body).to include("완료")
+    end
+
+    it "shows closed session contest results" do
+      election_session = closed_session_with_results
+      sign_in election_session.teacher
+
+      get elections_session_path(election_session)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("세션 결과")
+      expect(response.body).to include("Contest 1")
+      expect(response.body).to include("후보1")
+      expect(response.body).to include("1표")
+      expect(response.body).to include("기권 1표")
+      expect(response.body).to include("무결성 확인 통과")
+      expect(response.body).to include("완료 1명")
+      expect(response.body).to include("기권 1명")
+      expect(response.body).to include("대기 0명")
+    end
+
+    it "does not show closed session results for in progress sessions" do
+      election_session = started_session
+      sign_in election_session.teacher
+
+      get elections_session_path(election_session)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).not_to include("세션 결과")
+      expect(response.body).not_to include("항목별 결과")
+    end
+
+    it "shows stopped guidance instead of closed session results" do
+      election_session = create(:election_session, status: :stopped)
+      sign_in election_session.teacher
+
+      get elections_session_path(election_session)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("중단된 세션")
+      expect(response.body).not_to include("세션 결과")
     end
 
     it "does not change election session data" do
@@ -311,6 +351,22 @@ RSpec.describe "Election sessions", type: :request do
 
   def closed_session
     election_session = close_ready_session
+    Elections::CloseSession.new(election_session: election_session, actor: election_session.teacher).call
+
+    election_session.reload
+  end
+
+  def closed_session_with_results
+    election_session = started_session
+    contest = election_session.election.election_contests.sole
+    candidate = contest.election_candidates.order(:number).first
+    voters = election_session.election_voters.order(:position).to_a
+
+    voters.first.election_participation.update!(status: :completed, submitted_at: Time.current)
+    voters.second.election_participation.update!(status: :abstained, submitted_at: Time.current)
+    tally_for(election_session, candidate).update!(votes_count: 1)
+    contest_tally_for(election_session, contest).update!(abstentions_count: 1)
+    election_session.election_progress.update!(ballot_state: :locked, current_election_voter: nil)
     Elections::CloseSession.new(election_session: election_session, actor: election_session.teacher).call
 
     election_session.reload

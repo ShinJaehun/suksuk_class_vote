@@ -13,7 +13,7 @@ module Elections
       @contests = @election.election_contests.includes(:election_candidates).order(:position)
       @candidate_tallies = @election_session.election_candidate_tallies.includes(:election_candidate, :election_contest)
       @contest_tallies = @election_session.election_contest_tallies.includes(:election_contest)
-      @integrity_report = Elections::IntegrityReport.new(election_session: @election_session).call if @election_session.closed?
+      prepare_closed_result if @election_session.closed?
     end
 
     def start
@@ -119,6 +119,15 @@ module Elections
     def raw_ballot_choices
       choices = params.fetch(:ballot, {}).fetch(:contest_choices, {})
       choices.respond_to?(:to_unsafe_h) ? choices.to_unsafe_h : choices
+    end
+
+    def prepare_closed_result
+      @integrity_report = Elections::IntegrityReport.new(election_session: @election_session).call
+      @participation_counts = @voters.each_with_object(Hash.new(0)) do |voter, counts|
+        counts[voter.election_participation.status] += 1 if voter.election_participation.present?
+      end
+      @candidate_tallies_by_candidate_id = @candidate_tallies.index_by(&:election_candidate_id)
+      @contest_tallies_by_contest_id = @contest_tallies.index_by(&:election_contest_id)
     end
   end
 end

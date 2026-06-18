@@ -1,0 +1,110 @@
+<section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
+  <h2 class="text-xl font-semibold">세션 결과</h2>
+
+  <dl class="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+    <div>
+      <dt class="font-medium text-stone-500">상태</dt>
+      <dd class="mt-1 text-stone-900"><%= election_session.status %></dd>
+    </div>
+    <div>
+      <dt class="font-medium text-stone-500">담당 교사</dt>
+      <dd class="mt-1 text-stone-900"><%= [election_session.teacher&.name, election_session.teacher&.email].compact.join(" / ") %></dd>
+    </div>
+    <div>
+      <dt class="font-medium text-stone-500">명단</dt>
+      <dd class="mt-1 text-stone-900"><%= election_session.participant_group&.name || "명단 없음" %></dd>
+    </div>
+    <div>
+      <dt class="font-medium text-stone-500">투표자</dt>
+      <dd class="mt-1 text-stone-900"><%= integrity_report.summary[:voter_count] %>명</dd>
+    </div>
+    <div>
+      <dt class="font-medium text-stone-500">시작 시각</dt>
+      <dd class="mt-1 text-stone-900"><%= election_session.started_at || "기록 없음" %></dd>
+    </div>
+    <div>
+      <dt class="font-medium text-stone-500">종료 시각</dt>
+      <dd class="mt-1 text-stone-900"><%= election_session.closed_at || "기록 없음" %></dd>
+    </div>
+    <div>
+      <dt class="font-medium text-stone-500">참여 상태</dt>
+      <dd class="mt-1 text-stone-900">
+        완료 <%= participation_counts.fetch("completed", 0) %>명 /
+        결석 <%= participation_counts.fetch("absent", 0) %>명 /
+        기권 <%= participation_counts.fetch("abstained", 0) %>명 /
+        대기 <%= participation_counts.fetch("pending", 0) %>명
+      </dd>
+    </div>
+  </dl>
+
+  <div class="space-y-2 border-t border-stone-100 pt-4">
+    <h3 class="text-lg font-semibold">무결성 확인</h3>
+    <p class="text-sm font-medium <%= integrity_report.success? ? "text-emerald-700" : "text-rose-700" %>">
+      <%= integrity_report.success? ? "무결성 확인 통과" : "무결성 확인 필요" %>
+    </p>
+
+    <% if integrity_report.errors.any? %>
+      <div>
+        <h4 class="text-sm font-medium text-stone-700">오류</h4>
+        <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-rose-700">
+          <% integrity_report.errors.each do |error| %>
+            <li><%= error %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <% if integrity_report.warnings.any? %>
+      <div>
+        <h4 class="text-sm font-medium text-stone-700">참고</h4>
+        <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-700">
+          <% integrity_report.warnings.each do |warning| %>
+            <li><%= warning %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="space-y-4 border-t border-stone-100 pt-4">
+    <h3 class="text-lg font-semibold">항목별 결과</h3>
+
+    <% contests.each do |contest| %>
+      <% contest_tally = contest_tallies_by_contest_id[contest.id] %>
+
+      <div class="space-y-3 rounded-md border border-stone-200 p-4">
+        <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <h4 class="text-base font-medium"><%= contest.title %></h4>
+          <p class="text-sm text-stone-600">
+            <%= contest.vote_method %> / <%= contest.min_selections %>-<%= contest.max_selections %>명 선택 /
+            선출 <%= contest.seats_count %>명
+          </p>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-stone-200 text-sm">
+            <thead>
+              <tr class="text-left text-stone-500">
+                <th class="py-2 pr-4 font-medium">번호</th>
+                <th class="py-2 pr-4 font-medium">후보</th>
+                <th class="py-2 pr-4 font-medium">득표</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-stone-100">
+              <% contest.election_candidates.order(:number).each do |candidate| %>
+                <% candidate_tally = candidate_tallies_by_candidate_id[candidate.id] %>
+                <tr>
+                  <td class="py-2 pr-4"><%= candidate.number %></td>
+                  <td class="py-2 pr-4"><%= candidate.name %><%= " (#{candidate.affiliation_label})" if candidate.affiliation_label.present? %></td>
+                  <td class="py-2 pr-4"><%= candidate_tally&.votes_count || 0 %>표</td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="text-sm text-stone-700">기권 <%= contest_tally&.abstentions_count || 0 %>표</p>
+      </div>
+    <% end %>
+  </div>
+</section>
