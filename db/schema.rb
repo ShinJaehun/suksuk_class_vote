@@ -10,9 +10,47 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_17_050000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_18_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "election_candidates", force: :cascade do |t|
+    t.string "affiliation_label"
+    t.datetime "created_at", null: false
+    t.bigint "election_contest_id", null: false
+    t.string "name", null: false
+    t.integer "number", null: false
+    t.datetime "updated_at", null: false
+    t.index ["election_contest_id", "number"], name: "index_election_candidates_on_election_contest_id_and_number", unique: true
+    t.index ["election_contest_id"], name: "index_election_candidates_on_election_contest_id"
+  end
+
+  create_table "election_contests", force: :cascade do |t|
+    t.boolean "allow_abstain", default: true, null: false
+    t.datetime "created_at", null: false
+    t.bigint "election_id", null: false
+    t.integer "max_selections", default: 1, null: false
+    t.integer "min_selections", default: 1, null: false
+    t.integer "position", null: false
+    t.integer "seats_count", default: 1, null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.integer "vote_method", default: 0, null: false
+    t.index ["election_id", "position"], name: "index_election_contests_on_election_id_and_position", unique: true
+    t.index ["election_id"], name: "index_election_contests_on_election_id"
+  end
+
+  create_table "elections", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "kind", default: 0, null: false
+    t.integer "status", default: 0, null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["kind"], name: "index_elections_on_kind"
+    t.index ["status"], name: "index_elections_on_status"
+    t.index ["user_id"], name: "index_elections_on_user_id"
+  end
 
   create_table "participant_groups", force: :cascade do |t|
     t.datetime "created_at", null: false
@@ -205,6 +243,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_17_050000) do
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
+  add_foreign_key "election_candidates", "election_contests"
+  add_foreign_key "election_contests", "elections"
+  add_foreign_key "elections", "users"
   add_foreign_key "participant_groups", "users"
   add_foreign_key "participant_slots", "participant_groups"
   add_foreign_key "poll_contest_tallies", "poll_contests"
