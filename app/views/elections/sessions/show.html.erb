@@ -1,0 +1,146 @@
+<div class="space-y-6">
+  <div class="space-y-2">
+    <p class="text-sm font-medium text-stone-600">Election Session</p>
+    <h1 class="text-3xl font-semibold"><%= @election.title %></h1>
+  </div>
+
+  <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
+    <h2 class="text-xl font-semibold">세션 상태</h2>
+    <dl class="grid gap-3 text-sm sm:grid-cols-2">
+      <div>
+        <dt class="font-medium text-stone-500">상태</dt>
+        <dd class="mt-1 text-stone-900"><%= @election_session.status %></dd>
+      </div>
+      <div>
+        <dt class="font-medium text-stone-500">운영 방식</dt>
+        <dd class="mt-1 text-stone-900"><%= @election_session.operation_mode %></dd>
+      </div>
+      <div>
+        <dt class="font-medium text-stone-500">명단</dt>
+        <dd class="mt-1 text-stone-900"><%= @election_session.participant_group&.name || "명단 없음" %></dd>
+      </div>
+      <div>
+        <dt class="font-medium text-stone-500">담당 교사</dt>
+        <dd class="mt-1 text-stone-900"><%= [@election_session.teacher&.name, @election_session.teacher&.email].compact.join(" / ") %></dd>
+      </div>
+    </dl>
+  </section>
+
+  <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
+    <h2 class="text-xl font-semibold">진행 상태</h2>
+    <% if @progress.present? %>
+      <dl class="grid gap-3 text-sm sm:grid-cols-2">
+        <div>
+          <dt class="font-medium text-stone-500">Ballot 상태</dt>
+          <dd class="mt-1 text-stone-900"><%= @progress.ballot_state %></dd>
+        </div>
+        <div>
+          <dt class="font-medium text-stone-500">현재 투표자</dt>
+          <dd class="mt-1 text-stone-900">
+            <% if @current_voter.present? %>
+              <%= @current_voter.number %>번 <%= @current_voter.name %> (순서 <%= @current_voter.position %>)
+            <% else %>
+              현재 투표자 없음
+            <% end %>
+          </dd>
+        </div>
+      </dl>
+    <% else %>
+      <p class="text-sm text-stone-600">진행 정보가 없습니다.</p>
+    <% end %>
+  </section>
+
+  <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
+    <h2 class="text-xl font-semibold">투표자</h2>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-stone-200 text-sm">
+        <thead>
+          <tr class="text-left text-stone-500">
+            <th class="py-2 pr-4 font-medium">번호</th>
+            <th class="py-2 pr-4 font-medium">이름</th>
+            <th class="py-2 pr-4 font-medium">순서</th>
+            <th class="py-2 pr-4 font-medium">참여 상태</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-stone-100">
+          <% @voters.each do |voter| %>
+            <tr>
+              <td class="py-2 pr-4"><%= voter.number %></td>
+              <td class="py-2 pr-4"><%= voter.name %></td>
+              <td class="py-2 pr-4"><%= voter.position %></td>
+              <td class="py-2 pr-4"><%= voter.election_participation&.status || "참여 정보 없음" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
+    <h2 class="text-xl font-semibold">선거 항목</h2>
+    <div class="space-y-4">
+      <% @contests.each do |contest| %>
+        <div class="rounded-md border border-stone-200 p-4">
+          <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <h3 class="text-lg font-medium"><%= contest.title %></h3>
+            <p class="text-sm text-stone-600">
+              <%= contest.vote_method %> / <%= contest.min_selections %>-<%= contest.max_selections %>명 선택 /
+              기권 <%= contest.allow_abstain? ? "허용" : "불가" %>
+            </p>
+          </div>
+          <ul class="mt-3 space-y-1 text-sm text-stone-700">
+            <% contest.election_candidates.order(:number).each do |candidate| %>
+              <li><%= candidate.number %>번 <%= candidate.name %><%= " (#{candidate.affiliation_label})" if candidate.affiliation_label.present? %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+    </div>
+  </section>
+
+  <% if @integrity_report.present? %>
+    <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
+      <h2 class="text-xl font-semibold">무결성 확인</h2>
+      <p class="text-sm font-medium <%= @integrity_report.success? ? "text-emerald-700" : "text-rose-700" %>">
+        <%= @integrity_report.success? ? "무결성 OK" : "확인 필요" %>
+      </p>
+
+      <% if @integrity_report.errors.any? %>
+        <div>
+          <h3 class="text-sm font-medium text-stone-700">오류</h3>
+          <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-rose-700">
+            <% @integrity_report.errors.each do |error| %>
+              <li><%= error %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
+      <% if @integrity_report.warnings.any? %>
+        <div>
+          <h3 class="text-sm font-medium text-stone-700">참고</h3>
+          <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-700">
+            <% @integrity_report.warnings.each do |warning| %>
+              <li><%= warning %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
+      <dl class="grid gap-3 text-sm sm:grid-cols-3">
+        <div>
+          <dt class="font-medium text-stone-500">투표자</dt>
+          <dd class="mt-1 text-stone-900"><%= @integrity_report.summary[:voter_count] %>명</dd>
+        </div>
+        <div>
+          <dt class="font-medium text-stone-500">완료</dt>
+          <dd class="mt-1 text-stone-900"><%= @integrity_report.summary[:completed_count] %>명</dd>
+        </div>
+        <div>
+          <dt class="font-medium text-stone-500">기권</dt>
+          <dd class="mt-1 text-stone-900"><%= @integrity_report.summary[:abstained_count] %>명</dd>
+        </div>
+      </dl>
+    </section>
+  <% end %>
+</div>

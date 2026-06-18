@@ -21,6 +21,10 @@ Rails.application.routes.draw do
     resource :bulk_participant_slots, only: %i[new create], controller: "bulk_participant_slots"
   end
 
+  namespace :elections do
+    resources :sessions, only: %i[show]
+  end
+
   namespace :admin do
     resources :school_elections, only: %i[index show new create] do
       resources :school_election_classroom_sessions, only: %i[new create] do
