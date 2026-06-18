@@ -364,27 +364,183 @@ contest별 무결성 확인에서는 후보별 득표 합계, 기권 수, partic
 
 ---
 
+## 현재 구현 상태
+
+### Implemented
+
+현재 Election 엔진의 기반 모델은 구현되어 있다.
+
+- `Election`
+- `ElectionContest`
+- `ElectionCandidate`
+- `ElectionSession`
+- `ElectionVoter`
+- `ElectionParticipation`
+- `ElectionProgress`
+- `ElectionCandidateTally`
+- `ElectionContestTally`
+- `ElectionEvent`
+
+현재 supervised operation을 위한 service도 구현되어 있다.
+
+- `Elections::StartSession`
+- `Elections::OpenBallot`
+- `Elections::LockBallot`
+- `Elections::SubmitBallot`
+- `Elections::MarkVoterAbsent`
+- `Elections::AdvanceVoter`
+- `Elections::CloseSession`
+
+### Not Implemented Yet
+
+다음 항목은 아직 구현하지 않았거나 의도적으로 미룬다.
+
+- `Election` 전체 close service와 전역 종료 정책
+- `IntegrityReport` 또는 tally consistency report
+- controller, route, UI 연결
+- teacher supervised voting screen
+- admin session result view
+- `yes_no` 찬반투표 제출 처리
+- `pin_login` voting mode
+- 기존 Poll-backed `SchoolElection` 흐름의 Election 엔진 전환
+- 개별 선택 기록 모델
+
+개별 선택 기록 모델은 현재 계획에서도 만들지 않는다. 비밀투표 원칙상 voter와
+candidate를 직접 연결하는 row나 association은 두지 않는다.
+
+---
+
 ## 교사 감독 투표 흐름
 
-`supervised` operation 흐름:
+현재 구현된 정상 제출 흐름:
 
-1. session을 start한다.
-2. `participant_group`에서 `ElectionVoter` snapshot을 생성한다.
-3. contest/candidate tally를 생성한다.
-4. `ElectionProgress`를 생성한다.
-5. 현재 voter를 지정한다.
-6. 교사가 현재 voter ballot을 open한다.
-7. 학생이 contest별 선택 또는 기권을 제출한다.
-8. 제출 transaction 안에서 tally를 증가시킨다.
-9. `ElectionParticipation`을 completed 또는 abstained로 확정한다.
-10. 다음 voter로 advance한다.
-11. 결석 또는 미참여 처리가 가능하다.
-12. 모든 voter 처리 후 session을 close한다.
-13. integrity를 확인한다.
-14. admin은 integrity OK이고 closed 상태인 session만 전체 집계에 포함한다.
+```text
+StartSession
+-> OpenBallot
+-> SubmitBallot
+-> AdvanceVoter
+-> 반복
+-> CloseSession
+```
+
+현재 구현된 결석 처리 흐름:
+
+```text
+StartSession
+-> MarkVoterAbsent
+-> AdvanceVoter
+-> 반복
+-> CloseSession
+```
+
+수동 잠금 흐름:
+
+```text
+OpenBallot
+-> LockBallot
+```
+
+`LockBallot`은 제출 없이 ballot을 닫는 운영 제어용이다. `SubmitBallot`은 제출 성공
+시 `ElectionProgress.ballot_state`를 `locked`로 바꾸므로, 정상 제출 뒤 별도
+`LockBallot` 호출이 필수는 아니다.
 
 진행 복구 기준은 브라우저가 아니라 `ElectionProgress`, `ElectionVoter`,
 `ElectionParticipation`이다.
+
+### Service Responsibilities
+
+`Elections::StartSession`:
+
+- session을 `in_progress`로 변경한다.
+- `ParticipantSlot` snapshot으로 `ElectionVoter`를 생성한다.
+- 각 voter의 `ElectionParticipation`을 `pending`으로 생성한다.
+- `ElectionProgress`를 생성하고 첫 voter를 현재 voter로 지정한다.
+- `ElectionCandidateTally`, `ElectionContestTally`를 0으로 초기화한다.
+- `session_started` event를 기록한다.
+
+`Elections::OpenBallot`:
+
+- `ElectionProgress.ballot_state`를 `locked`에서 `open`으로 변경한다.
+- 현재 voter가 `pending`일 때만 열 수 있다.
+- `ballot_opened` event를 기록한다.
+
+`Elections::LockBallot`:
+
+- `ElectionProgress.ballot_state`를 `open`에서 `locked`로 변경한다.
+- 제출 없이 ballot을 닫는 운영 제어용이다.
+- `ballot_locked` event를 기록한다.
+
+`Elections::SubmitBallot`:
+
+- `open` 상태의 현재 voter ballot만 제출할 수 있다.
+- 선택된 후보의 `ElectionCandidateTally.votes_count`만 증가시킨다.
+- 기권한 contest의 `ElectionContestTally.abstentions_count`만 증가시킨다.
+- 개별 선택 record를 만들지 않는다.
+- voter와 candidate를 연결하지 않는다.
+- 모든 contest가 기권이면 participation을 `abstained`로 변경한다.
+- 하나라도 후보 선택이 있으면 participation을 `completed`로 변경한다.
+- 제출 성공 시 progress를 `locked`로 변경한다.
+- current voter는 유지한다. 다음 voter 이동은 `AdvanceVoter`가 담당한다.
+- `ballot_submitted` event를 기록한다.
+- `yes_no` 제출은 현재 지원하지 않는다.
+
+`Elections::MarkVoterAbsent`:
+
+- `locked` 상태에서 현재 `pending` voter를 `absent`로 처리한다.
+- current voter는 유지한다.
+- progress는 `locked`로 유지한다.
+- `voter_marked_absent` event를 기록한다.
+
+`Elections::AdvanceVoter`:
+
+- `completed`, `absent`, `abstained` 상태의 현재 voter에서만 다음으로 이동한다.
+- position 오름차순으로 다음 `pending` voter를 찾는다.
+- 이미 처리된 voter는 건너뛴다.
+- 다음 pending voter가 없으면 `current_election_voter`를 `nil`로 설정한다.
+- session은 닫지 않는다.
+- `voter_advanced` event를 기록한다.
+
+`Elections::CloseSession`:
+
+- 모든 voter가 final 상태이고 `current_election_voter`가 `nil`일 때만 session을
+  `closed`로 변경한다.
+- `Election` 전체 status는 변경하지 않는다.
+- `ElectionSession.closed_at`과 `ElectionProgress.closed_at`을 설정한다.
+- progress는 `locked`, current voter는 `nil`로 유지한다.
+- `session_closed` event를 기록한다.
+
+### State Summary
+
+`ElectionSession.status`:
+
+- `draft`
+- `in_progress`
+- `closed`
+- `stopped`
+
+`ElectionProgress.ballot_state`:
+
+- `locked`
+- `open`
+
+`ElectionParticipation.status`:
+
+- `pending`
+- `completed`
+- `absent`
+- `abstained`
+
+`CloseSession` 조건:
+
+- session이 `in_progress`일 것
+- operation mode가 `supervised`일 것
+- progress가 존재할 것
+- progress가 `locked`일 것
+- `current_election_voter`가 `nil`일 것
+- voter가 1명 이상 있을 것
+- 모든 voter에 participation이 있을 것
+- 모든 participation이 `completed`, `absent`, `abstained` 중 하나일 것
+- `pending` participation이 없을 것
 
 ---
 
@@ -403,6 +559,51 @@ participation, tally를 재사용할 수 있게 둔다.
 
 PIN 기반 투표를 구현할 때도 학생 계정 도입 여부, token 만료, 재발급, 감사 로그,
 교사 감독 권한은 별도 spec에서 다룬다.
+
+---
+
+## 비밀투표와 이벤트 정책
+
+Election 엔진은 count-only tally를 기본으로 한다.
+
+- `SubmitBallot`은 개별 선택 record를 만들지 않는다.
+- voter와 candidate를 연결하는 row나 association을 만들지 않는다.
+- 후보 선택 결과는 `ElectionCandidateTally.votes_count` 증가로만 반영한다.
+- contest-level abstain은 `ElectionContestTally.abstentions_count` 증가로만 반영한다.
+- `ElectionParticipation`은 voter별 처리 상태만 저장한다.
+- `ElectionEvent`는 운영 로그이며 선택 로그가 아니다.
+
+`ElectionEvent.metadata`에는 후보 선택 상세를 저장하지 않는다. 금지되는 정보의 예:
+
+- `candidate_id`
+- `candidate_ids`
+- `election_candidate_id`
+- `election_candidate_ids`
+- `selected_candidate_id`
+- `selected_candidate_ids`
+- `selected_candidates`
+- `choices`
+- `ballot_choices`
+- `vote_choices`
+- contest별 선택 후보 목록
+
+event metadata에는 voter id, voter number, 진행 전후 voter, count 요약, 운영 사유 같은
+운영 정보만 저장한다.
+
+---
+
+## yes_no 제출 미지원 이유
+
+`ElectionContest.vote_method`에는 `yes_no`가 열려 있지만, 현재 `SubmitBallot`은
+`yes_no` 제출을 실패 처리한다.
+
+이유:
+
+- 현재 tally 구조는 후보별 득표수와 contest-level 기권 수를 저장한다.
+- 찬반투표의 "반대" count를 표현할 별도 구조가 아직 없다.
+- 후보 tally를 억지로 찬성표처럼 사용하면 반대표와 무응답/기권의 의미가 흐려진다.
+- 따라서 `yes_no` 제출은 tally schema 또는 contest tally 구조를 보강한 뒤 별도
+  커밋에서 구현한다.
 
 ---
 
@@ -440,29 +641,28 @@ PIN 기반 투표를 구현할 때도 학생 계정 도입 여부, token 만료,
 
 ---
 
-## 구현 단계 제안
+## Next Implementation Steps
 
-이후 커밋 순서:
+다음 구현 후보:
 
-1. Election 엔진 core model 추가
-2. 기존 SchoolElection admin 흐름을 Election admin 흐름으로 전환
-3. ElectionSession 생성/배정
-4. Election session start service
-5. Election ballot submit service
-6. supervised operation 화면
-7. Election result summary / integrity report
-8. 기존 Poll-backed school election 흐름 제거
-9. PIN 로그인 투표 확장
+- controller/route/UI 연결
+- teacher supervised voting screen
+- admin session result view
+- `IntegrityReport` 또는 tally consistency check
+- `Election` 전체 close policy
+- `yes_no` tally schema 보강
+- `pin_login` operation mode
+- 기존 Poll-backed `SchoolElection` flow에서 Election 엔진으로 전환
 
-첫 구현 커밋은 `Election`, `ElectionContest`, `ElectionCandidate`의 최소 model과
-enum/validation, 그리고 핵심 model spec부터 시작하는 것을 권장한다.
+이번 문서는 위 항목을 구현하지 않는다.
 
 ---
 
-## 이번 문서에서 명시하는 금지사항
+## 현재 전환 단계에서 명시하는 금지사항
 
 - 지금 당장 Poll을 삭제하지 않는다.
 - 지금 당장 SchoolElection 관련 코드를 삭제하지 않는다.
-- 지금 당장 migration을 만들지 않는다.
-- 지금 당장 controller/view/spec을 수정하지 않는다.
-- 이번 작업은 문서만 작성한다.
+- 현재 구현된 Election service를 controller/view/route에 바로 연결하지 않는다.
+- `IntegrityReport` 없이 전체 집계 정책을 확정하지 않는다.
+- `yes_no` 제출을 현재 tally 구조에 억지로 끼워 넣지 않는다.
+- 개별 선택 기록 모델을 만들지 않는다.
