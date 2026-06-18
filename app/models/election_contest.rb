@@ -1,6 +1,8 @@
 class ElectionContest < ApplicationRecord
   belongs_to :election
   has_many :election_candidates, dependent: :destroy
+  has_many :election_candidate_tallies, dependent: :destroy
+  has_many :election_contest_tallies, dependent: :destroy
 
   enum :vote_method, { single_choice: 0, limited_choice: 10, approval: 20, yes_no: 30 }
 

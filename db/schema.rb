@@ -10,9 +10,23 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_18_060000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_18_080000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "election_candidate_tallies", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "election_candidate_id", null: false
+    t.bigint "election_contest_id", null: false
+    t.bigint "election_session_id", null: false
+    t.datetime "updated_at", null: false
+    t.integer "votes_count", default: 0, null: false
+    t.index ["election_candidate_id"], name: "index_election_candidate_tallies_on_election_candidate_id"
+    t.index ["election_contest_id"], name: "index_election_candidate_tallies_on_election_contest_id"
+    t.index ["election_session_id", "election_candidate_id"], name: "idx_on_election_session_id_election_candidate_id_66ddcf35f8", unique: true
+    t.index ["election_session_id", "election_contest_id"], name: "idx_on_election_session_id_election_contest_id_0cfb705005"
+    t.index ["election_session_id"], name: "index_election_candidate_tallies_on_election_session_id"
+  end
 
   create_table "election_candidates", force: :cascade do |t|
     t.string "affiliation_label"
@@ -23,6 +37,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_060000) do
     t.datetime "updated_at", null: false
     t.index ["election_contest_id", "number"], name: "index_election_candidates_on_election_contest_id_and_number", unique: true
     t.index ["election_contest_id"], name: "index_election_candidates_on_election_contest_id"
+  end
+
+  create_table "election_contest_tallies", force: :cascade do |t|
+    t.integer "abstentions_count", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.bigint "election_contest_id", null: false
+    t.bigint "election_session_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["election_contest_id"], name: "index_election_contest_tallies_on_election_contest_id"
+    t.index ["election_session_id", "election_contest_id"], name: "idx_on_election_session_id_election_contest_id_69e6b91ae1", unique: true
+    t.index ["election_session_id"], name: "index_election_contest_tallies_on_election_session_id"
   end
 
   create_table "election_contests", force: :cascade do |t|
@@ -299,7 +324,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_060000) do
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
+  add_foreign_key "election_candidate_tallies", "election_candidates"
+  add_foreign_key "election_candidate_tallies", "election_contests"
+  add_foreign_key "election_candidate_tallies", "election_sessions"
   add_foreign_key "election_candidates", "election_contests"
+  add_foreign_key "election_contest_tallies", "election_contests"
+  add_foreign_key "election_contest_tallies", "election_sessions"
   add_foreign_key "election_contests", "elections"
   add_foreign_key "election_participations", "election_voters"
   add_foreign_key "election_progresses", "election_sessions"
