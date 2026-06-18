@@ -391,12 +391,17 @@ contest별 무결성 확인에서는 후보별 득표 합계, 기권 수, partic
 - `Elections::AdvanceVoter`
 - `Elections::CloseSession`
 
+현재 닫힌 session 결과를 확인하기 위한 read-only report service도 구현되어 있다.
+이 service는 operation flow를 진행시키지 않고, DB 상태를 읽어 구조적 일관성만
+확인한다.
+
+- `Elections::IntegrityReport`
+
 ### Not Implemented Yet
 
 다음 항목은 아직 구현하지 않았거나 의도적으로 미룬다.
 
 - `Election` 전체 close service와 전역 종료 정책
-- `IntegrityReport` 또는 tally consistency report
 - controller, route, UI 연결
 - teacher supervised voting screen
 - admin session result view
@@ -509,6 +514,21 @@ OpenBallot
 - progress는 `locked`, current voter는 `nil`로 유지한다.
 - `session_closed` event를 기록한다.
 
+`Elections::IntegrityReport`:
+
+- 닫힌 `ElectionSession`의 구조적 일관성을 확인하는 read-only report service다.
+- closed + supervised session만 success 대상으로 본다.
+- session, progress, voter, participation, contest, candidate, tally, event 상태를
+  검사한다.
+- `pending` participation이 남아 있으면 실패한다.
+- tally row 누락, extra row, 음수 count, contest/candidate 소속 mismatch를
+  검사한다.
+- `session_started`, `session_closed` event 구조를 검사한다.
+- event metadata에 선택 상세가 포함되어 있는지 nested hash/array까지 검사한다.
+- DB를 수정하지 않는다.
+- tally 보정, event 생성, session 상태 변경을 하지 않는다.
+- 개별 선택 기록을 복원하거나 추론하지 않는다.
+
 ### State Summary
 
 `ElectionSession.status`:
@@ -590,6 +610,37 @@ Election 엔진은 count-only tally를 기본으로 한다.
 event metadata에는 voter id, voter number, 진행 전후 voter, count 요약, 운영 사유 같은
 운영 정보만 저장한다.
 
+`IntegrityReport`는 개별 선택 상세가 맞는지 검증하지 않는다. Election 엔진은 개별
+선택 기록을 저장하지 않기 때문이다. 대신 event metadata에 선택 상세가 유출되지
+않았는지를 방어적으로 검사한다. `candidate_id`, `candidate_ids`,
+`selected_candidates`, `choices`, `ballot_choices`, `vote_choices` 같은 금지 key는
+nested hash/array 안에 있어도 실패 처리한다.
+
+`IntegrityReport`는 운영 로그와 tally row의 구조적 일관성을 확인하는 service이지,
+학생별 선택 내용을 재구성하는 service가 아니다.
+
+### IntegrityReport의 한계와 확인 항목
+
+`IntegrityReport`가 하지 않는 검증:
+
+- 어떤 voter가 어떤 candidate를 선택했는지 검증하지 않는다.
+- completed voter 수와 candidate votes 총합이 반드시 같다고 검증하지 않는다.
+- limited_choice/approval에서는 한 voter가 여러 candidate vote를 만들 수 있다.
+- 결과를 자동으로 수정하지 않는다.
+- 누락된 tally, event, participation을 보정하지 않는다.
+
+`IntegrityReport`가 확인하는 것:
+
+- session이 닫힌 상태인지
+- operation mode가 `supervised`인지
+- progress가 `locked`이고 current voter가 `nil`인지
+- `pending` participation이 남아 있지 않은지
+- tally row가 session의 contest/candidate에 대해 완전한지
+- tally count가 음수가 아닌지
+- tally row의 contest/candidate 소속이 일관적인지
+- 핵심 event 개수가 올바른지
+- event metadata에 선택 상세가 유출되지 않았는지
+
 ---
 
 ## yes_no 제출 미지원 이유
@@ -648,7 +699,8 @@ event metadata에는 voter id, voter number, 진행 전후 voter, count 요약, 
 - controller/route/UI 연결
 - teacher supervised voting screen
 - admin session result view
-- `IntegrityReport` 또는 tally consistency check
+  - `IntegrityReport.success?`인 closed session만 안전하게 표시/집계 대상으로 삼는
+    방향을 우선 고려한다.
 - `Election` 전체 close policy
 - `yes_no` tally schema 보강
 - `pin_login` operation mode
