@@ -1,6 +1,7 @@
 class Election < ApplicationRecord
   belongs_to :user
   has_many :election_contests, dependent: :destroy
+  has_many :election_sessions, dependent: :destroy
   has_many :election_candidates, through: :election_contests
 
   enum :kind, { school_council: 0, class_officer: 10, custom: 20 }

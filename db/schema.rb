@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_18_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_18_030000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -38,6 +38,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_020000) do
     t.integer "vote_method", default: 0, null: false
     t.index ["election_id", "position"], name: "index_election_contests_on_election_id_and_position", unique: true
     t.index ["election_id"], name: "index_election_contests_on_election_id"
+  end
+
+  create_table "election_sessions", force: :cascade do |t|
+    t.datetime "closed_at"
+    t.datetime "created_at", null: false
+    t.bigint "election_id", null: false
+    t.integer "operation_mode", default: 0, null: false
+    t.bigint "participant_group_id", null: false
+    t.datetime "started_at"
+    t.integer "status", default: 0, null: false
+    t.bigint "teacher_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["election_id", "participant_group_id"], name: "idx_on_election_id_participant_group_id_97a62cfbb6", unique: true
+    t.index ["election_id"], name: "index_election_sessions_on_election_id"
+    t.index ["operation_mode"], name: "index_election_sessions_on_operation_mode"
+    t.index ["participant_group_id"], name: "index_election_sessions_on_participant_group_id"
+    t.index ["status"], name: "index_election_sessions_on_status"
+    t.index ["teacher_id"], name: "index_election_sessions_on_teacher_id"
   end
 
   create_table "elections", force: :cascade do |t|
@@ -245,6 +263,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_020000) do
 
   add_foreign_key "election_candidates", "election_contests"
   add_foreign_key "election_contests", "elections"
+  add_foreign_key "election_sessions", "elections"
+  add_foreign_key "election_sessions", "participant_groups"
+  add_foreign_key "election_sessions", "users", column: "teacher_id"
   add_foreign_key "elections", "users"
   add_foreign_key "participant_groups", "users"
   add_foreign_key "participant_slots", "participant_groups"
