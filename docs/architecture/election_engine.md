@@ -5,8 +5,8 @@
 이 문서는 `쑥쑥교실투표`의 선거 기능을 기존 `Poll` 확장이 아니라 별도 범용
 `Election` 엔진으로 설계하기 위한 기준 문서다.
 
-이번 문서는 설계 기준만 정의한다. migration, model, controller, view, service,
-spec 변경은 다음 커밋부터 다룬다.
+이번 문서는 설계 기준과 현재 구현 상태를 함께 정리한다. 이번 문서 갱신은 코드
+변경이 아니며, 현재 구현된 Election 엔진 흐름을 기준으로 남은 작업을 갱신한다.
 
 ---
 
@@ -397,13 +397,19 @@ contest별 무결성 확인에서는 후보별 득표 합계, 기권 수, partic
 
 - `Elections::IntegrityReport`
 
+현재 supervised operation의 기본 route, controller, view 연결도 구현되어 있다.
+
+- read-only `ElectionSession` show
+- `start`, `open_ballot`, `lock_ballot`, `advance_voter`, `mark_absent`, `close` 운영 버튼
+- `submit_ballot` route/action
+- open ballot 상태의 contest별 supervised ballot form
+
 ### Not Implemented Yet
 
 다음 항목은 아직 구현하지 않았거나 의도적으로 미룬다.
 
 - `Election` 전체 close service와 전역 종료 정책
-- controller, route, UI 연결
-- teacher supervised voting screen
+- supervised operation UI polish
 - admin session result view
 - `yes_no` 찬반투표 제출 처리
 - `pin_login` voting mode
@@ -417,15 +423,19 @@ candidate를 직접 연결하는 row나 association은 두지 않는다.
 
 ## 교사 감독 투표 흐름
 
-현재 구현된 정상 제출 흐름:
+현재 구현된 supervised 정상 제출 흐름:
 
 ```text
-StartSession
--> OpenBallot
+ElectionSession show
+-> draft 상태에서 StartSession
+-> ElectionVoter snapshot, ElectionParticipation, ElectionProgress, tally, event 생성
+-> in_progress + locked 상태에서 OpenBallot
+-> in_progress + open 상태에서 contest별 ballot form 표시
 -> SubmitBallot
 -> AdvanceVoter
 -> 반복
 -> CloseSession
+-> 닫힌 session에서 IntegrityReport 표시
 ```
 
 현재 구현된 결석 처리 흐름:
@@ -451,6 +461,54 @@ OpenBallot
 
 진행 복구 기준은 브라우저가 아니라 `ElectionProgress`, `ElectionVoter`,
 `ElectionParticipation`이다.
+
+### Current Supervised UI Wiring
+
+`Elections::SessionsController`는 `ElectionSession` show를 기준으로 supervised 운영
+action을 연결한다.
+
+- `start`: `Elections::StartSession` 호출
+- `open_ballot`: `Elections::OpenBallot` 호출
+- `lock_ballot`: `Elections::LockBallot` 호출
+- `advance_voter`: `Elections::AdvanceVoter` 호출
+- `mark_absent`: `Elections::MarkVoterAbsent` 호출
+- `submit_ballot`: `Elections::SubmitBallot` 호출
+- `close`: `Elections::CloseSession` 호출
+
+각 action은 성공/실패 후 session show로 redirect하고, service의 `success?`와
+`error_message` 결과를 사용한다. controller는 tally 증가, participation 상태 변경,
+progress 잠금 같은 도메인 변경을 직접 하지 않는다.
+
+`ElectionSessionPolicy`는 supervised 운영 action에 대해 `operate?`를 공통 권한으로
+사용한다. admin은 모든 session을 운영할 수 있고, teacher는 본인 session만 운영할
+수 있다.
+
+### Ballot Form Policy
+
+show 화면은 다음 조건에서만 contest별 ballot form을 표시한다.
+
+- session이 `in_progress`일 것
+- progress가 존재하고 `open` 상태일 것
+- 현재 voter가 존재할 것
+- 현재 사용자가 `submit_ballot?` 권한을 가질 것
+
+form 정책:
+
+- contest는 `position` 순서로 표시한다.
+- 후보자는 `number` 순서로 표시한다.
+- `max_selections == 1`이면 radio button을 사용한다.
+- `max_selections > 1`이면 checkbox를 사용한다.
+- `allow_abstain`이 true이면 contest별 `기권` 선택지를 표시한다.
+- JS/Stimulus는 아직 사용하지 않는다.
+- 후보 선택과 기권 동시 제출 같은 edge case는 server-side `SubmitBallot`
+  validation에 맡긴다.
+- 후보 선택 상세는 DB에 저장하지 않는다.
+
+controller는 form params를 `Elections::SubmitBallot` service API에 맞춰 다음 형태로
+정규화한다.
+
+- `selections_by_contest_id`: contest id별 후보 id 또는 후보 id 목록
+- `abstained_contest_ids`: 기권한 contest id 목록
 
 ### Service Responsibilities
 
@@ -696,15 +754,18 @@ nested hash/array 안에 있어도 실패 처리한다.
 
 다음 구현 후보:
 
-- controller/route/UI 연결
-- teacher supervised voting screen
+- supervised operation UI polish
+- closed session result summary 표시 개선
 - admin session result view
   - `IntegrityReport.success?`인 closed session만 안전하게 표시/집계 대상으로 삼는
     방향을 우선 고려한다.
-- `Election` 전체 close policy
+- `Election` 전체 close service와 전역 종료 정책
 - `yes_no` tally schema 보강
 - `pin_login` operation mode
 - 기존 Poll-backed `SchoolElection` flow에서 Election 엔진으로 전환
+- 기존 Poll-backed school election flow cleanup
+- broader system/request/browser smoke
+- `docs/architecture/current_system.md` 반영
 
 이번 문서는 위 항목을 구현하지 않는다.
 
@@ -714,7 +775,6 @@ nested hash/array 안에 있어도 실패 처리한다.
 
 - 지금 당장 Poll을 삭제하지 않는다.
 - 지금 당장 SchoolElection 관련 코드를 삭제하지 않는다.
-- 현재 구현된 Election service를 controller/view/route에 바로 연결하지 않는다.
 - `IntegrityReport` 없이 전체 집계 정책을 확정하지 않는다.
 - `yes_no` 제출을 현재 tally 구조에 억지로 끼워 넣지 않는다.
 - 개별 선택 기록 모델을 만들지 않는다.
