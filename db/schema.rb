@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_18_050000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_18_060000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -48,6 +48,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_050000) do
     t.datetime "updated_at", null: false
     t.index ["election_voter_id"], name: "index_election_participations_on_election_voter_id", unique: true
     t.index ["status"], name: "index_election_participations_on_status"
+  end
+
+  create_table "election_progresses", force: :cascade do |t|
+    t.integer "ballot_state", default: 0, null: false
+    t.datetime "closed_at"
+    t.datetime "created_at", null: false
+    t.bigint "current_election_voter_id"
+    t.bigint "election_session_id", null: false
+    t.datetime "started_at"
+    t.datetime "updated_at", null: false
+    t.index ["ballot_state"], name: "index_election_progresses_on_ballot_state"
+    t.index ["current_election_voter_id"], name: "index_election_progresses_on_current_election_voter_id"
+    t.index ["election_session_id"], name: "index_election_progresses_on_election_session_id", unique: true
   end
 
   create_table "election_sessions", force: :cascade do |t|
@@ -289,6 +302,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_050000) do
   add_foreign_key "election_candidates", "election_contests"
   add_foreign_key "election_contests", "elections"
   add_foreign_key "election_participations", "election_voters"
+  add_foreign_key "election_progresses", "election_sessions"
+  add_foreign_key "election_progresses", "election_voters", column: "current_election_voter_id", on_delete: :nullify
   add_foreign_key "election_sessions", "elections"
   add_foreign_key "election_sessions", "participant_groups"
   add_foreign_key "election_sessions", "users", column: "teacher_id"

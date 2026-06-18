@@ -2,6 +2,7 @@ class ElectionSession < ApplicationRecord
   belongs_to :election
   belongs_to :teacher, class_name: "User"
   belongs_to :participant_group
+  has_one :election_progress, dependent: :destroy
   has_many :election_voters, dependent: :destroy
   has_many :election_participations, through: :election_voters
 
