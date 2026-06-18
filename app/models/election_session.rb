@@ -7,6 +7,7 @@ class ElectionSession < ApplicationRecord
   has_many :election_participations, through: :election_voters
   has_many :election_candidate_tallies, dependent: :destroy
   has_many :election_contest_tallies, dependent: :destroy
+  has_many :election_events, dependent: :destroy
 
   enum :status, { draft: 0, in_progress: 10, closed: 20, stopped: 30 }
   enum :operation_mode, { supervised: 0, pin_login: 10 }

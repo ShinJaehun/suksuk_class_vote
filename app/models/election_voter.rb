@@ -2,6 +2,7 @@ class ElectionVoter < ApplicationRecord
   belongs_to :election_session
   belongs_to :source_participant_slot, class_name: "ParticipantSlot", optional: true
   has_one :election_participation, dependent: :destroy
+  has_many :election_events, dependent: :nullify
 
   validates :election_session, presence: true
   validates :number, presence: true,

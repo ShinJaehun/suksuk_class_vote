@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_18_080000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_18_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -63,6 +63,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_080000) do
     t.integer "vote_method", default: 0, null: false
     t.index ["election_id", "position"], name: "index_election_contests_on_election_id_and_position", unique: true
     t.index ["election_id"], name: "index_election_contests_on_election_id"
+  end
+
+  create_table "election_events", force: :cascade do |t|
+    t.bigint "actor_id"
+    t.datetime "created_at", null: false
+    t.bigint "election_session_id", null: false
+    t.bigint "election_voter_id"
+    t.integer "event_type", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "occurred_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_election_events_on_actor_id"
+    t.index ["election_session_id", "occurred_at"], name: "index_election_events_on_election_session_id_and_occurred_at"
+    t.index ["election_session_id"], name: "index_election_events_on_election_session_id"
+    t.index ["election_voter_id"], name: "index_election_events_on_election_voter_id"
+    t.index ["event_type"], name: "index_election_events_on_event_type"
   end
 
   create_table "election_participations", force: :cascade do |t|
@@ -331,6 +347,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_080000) do
   add_foreign_key "election_contest_tallies", "election_contests"
   add_foreign_key "election_contest_tallies", "election_sessions"
   add_foreign_key "election_contests", "elections"
+  add_foreign_key "election_events", "election_sessions"
+  add_foreign_key "election_events", "election_voters", on_delete: :nullify
+  add_foreign_key "election_events", "users", column: "actor_id", on_delete: :nullify
   add_foreign_key "election_participations", "election_voters"
   add_foreign_key "election_progresses", "election_sessions"
   add_foreign_key "election_progresses", "election_voters", column: "current_election_voter_id", on_delete: :nullify
