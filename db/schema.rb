@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_18_030000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_18_050000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -40,6 +40,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_030000) do
     t.index ["election_id"], name: "index_election_contests_on_election_id"
   end
 
+  create_table "election_participations", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "election_voter_id", null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "submitted_at"
+    t.datetime "updated_at", null: false
+    t.index ["election_voter_id"], name: "index_election_participations_on_election_voter_id", unique: true
+    t.index ["status"], name: "index_election_participations_on_status"
+  end
+
   create_table "election_sessions", force: :cascade do |t|
     t.datetime "closed_at"
     t.datetime "created_at", null: false
@@ -56,6 +66,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_030000) do
     t.index ["participant_group_id"], name: "index_election_sessions_on_participant_group_id"
     t.index ["status"], name: "index_election_sessions_on_status"
     t.index ["teacher_id"], name: "index_election_sessions_on_teacher_id"
+  end
+
+  create_table "election_voters", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "election_session_id", null: false
+    t.string "name", null: false
+    t.integer "number", null: false
+    t.integer "position", null: false
+    t.bigint "source_participant_slot_id"
+    t.datetime "updated_at", null: false
+    t.index ["election_session_id", "number"], name: "index_election_voters_on_election_session_id_and_number", unique: true
+    t.index ["election_session_id", "position"], name: "index_election_voters_on_election_session_id_and_position", unique: true
+    t.index ["election_session_id", "source_participant_slot_id"], name: "idx_on_election_session_id_source_participant_slot__637965b3c2", unique: true, where: "(source_participant_slot_id IS NOT NULL)"
+    t.index ["election_session_id"], name: "index_election_voters_on_election_session_id"
+    t.index ["source_participant_slot_id"], name: "index_election_voters_on_source_participant_slot_id"
   end
 
   create_table "elections", force: :cascade do |t|
@@ -263,9 +288,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_030000) do
 
   add_foreign_key "election_candidates", "election_contests"
   add_foreign_key "election_contests", "elections"
+  add_foreign_key "election_participations", "election_voters"
   add_foreign_key "election_sessions", "elections"
   add_foreign_key "election_sessions", "participant_groups"
   add_foreign_key "election_sessions", "users", column: "teacher_id"
+  add_foreign_key "election_voters", "election_sessions"
+  add_foreign_key "election_voters", "participant_slots", column: "source_participant_slot_id", on_delete: :nullify
   add_foreign_key "elections", "users"
   add_foreign_key "participant_groups", "users"
   add_foreign_key "participant_slots", "participant_groups"

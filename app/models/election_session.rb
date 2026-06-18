@@ -2,6 +2,8 @@ class ElectionSession < ApplicationRecord
   belongs_to :election
   belongs_to :teacher, class_name: "User"
   belongs_to :participant_group
+  has_many :election_voters, dependent: :destroy
+  has_many :election_participations, through: :election_voters
 
   enum :status, { draft: 0, in_progress: 10, closed: 20, stopped: 30 }
   enum :operation_mode, { supervised: 0, pin_login: 10 }
