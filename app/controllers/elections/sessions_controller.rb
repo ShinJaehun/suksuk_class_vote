@@ -10,7 +10,7 @@ module Elections
     end
 
     def start
-      run_operation(Elections::StartSession, notice: "선거 세션을 시작했습니다.")
+      run_operation(Elections::StartSession, notice: "선거 진행을 시작했습니다.")
     end
 
     def open_ballot

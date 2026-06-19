@@ -4,7 +4,7 @@
       <p class="text-sm font-medium text-stone-600">Election Session</p>
     <% end %>
     <% unless current_user.admin? %>
-      <% display_status = { "draft" => "시작 전", "in_progress" => "진행 중", "closed" => "종료됨", "stopped" => "중단됨" }.fetch(@election_session.status, @election_session.status) %>
+      <% display_status = { "draft" => "준비 중", "in_progress" => "진행 중", "closed" => "종료됨", "stopped" => "중단됨" }.fetch(@election_session.status, @election_session.status) %>
     <% end %>
     <div class="flex flex-wrap items-center gap-2">
       <h1 class="text-3xl font-semibold"><%= @election.title %></h1>
