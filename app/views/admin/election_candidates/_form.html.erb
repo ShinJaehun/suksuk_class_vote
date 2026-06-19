@@ -1,0 +1,18 @@
+<%= form_with model: [:admin, @election, @election_contest, @election_candidate] do |form| %>
+  <div>
+    <%= form.label :number, "기호" %>
+    <%= form.number_field :number %>
+  </div>
+
+  <div>
+    <%= form.label :name, "후보 이름" %>
+    <%= form.text_field :name %>
+  </div>
+
+  <div>
+    <%= form.label :affiliation_label, "소속" %>
+    <%= form.text_field :affiliation_label %>
+  </div>
+
+  <%= form.submit submit_label %>
+<% end %>

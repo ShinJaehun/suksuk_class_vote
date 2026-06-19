@@ -34,7 +34,11 @@ Rails.application.routes.draw do
   end
 
   namespace :admin do
-    resources :elections, only: %i[index show new create]
+    resources :elections, only: %i[index show new create] do
+      resources :election_contests, path: "contests", only: [] do
+        resources :election_candidates, path: "candidates", only: %i[new create edit update destroy]
+      end
+    end
     resources :school_elections, only: %i[index show new create] do
       resources :school_election_classroom_sessions, only: %i[new create] do
         post :create_poll, on: :member

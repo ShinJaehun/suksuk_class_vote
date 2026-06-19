@@ -21,6 +21,33 @@
           <%= contest.vote_method %>
           /
           최대 <%= contest.max_selections %>명 선택
+          /
+          후보 <%= contest.election_candidates.size %>명
+          <%= link_to "후보 등록",
+                      new_admin_election_election_contest_election_candidate_path(@election, contest) %>
+
+          <% candidates = contest.election_candidates.sort_by(&:number) %>
+          <% if candidates.any? %>
+            <ul>
+              <% candidates.each do |candidate| %>
+                <li>
+                  기호 <%= candidate.number %>번
+                  <%= candidate.name %>
+                  <% if candidate.affiliation_label.present? %>
+                    (<%= candidate.affiliation_label %>)
+                  <% end %>
+                  <%= link_to "수정",
+                              edit_admin_election_election_contest_election_candidate_path(@election, contest, candidate) %>
+                  <%= button_to "삭제",
+                                admin_election_election_contest_election_candidate_path(@election, contest, candidate),
+                                method: :delete,
+                                data: { turbo_confirm: "후보를 삭제할까요?" } %>
+                </li>
+              <% end %>
+            </ul>
+          <% else %>
+            <p>등록된 후보가 없습니다.</p>
+          <% end %>
         </li>
       <% end %>
     </ul>

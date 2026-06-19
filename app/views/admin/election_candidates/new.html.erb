@@ -1,0 +1,16 @@
+<h1>후보 등록</h1>
+
+<p><%= @election.title %> / <%= @election_contest.title %></p>
+
+<% if @election_candidate.errors.any? %>
+  <h2>후보를 등록할 수 없습니다.</h2>
+  <ul>
+    <% @election_candidate.errors.full_messages.each do |message| %>
+      <li><%= message %></li>
+    <% end %>
+  </ul>
+<% end %>
+
+<%= render "form", submit_label: "후보 등록" %>
+
+<p><%= link_to "선거로 돌아가기", admin_election_path(@election) %></p>

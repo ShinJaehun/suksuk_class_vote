@@ -1,0 +1,230 @@
+require "rails_helper"
+
+RSpec.describe "Admin election candidates", type: :request do
+  include Devise::Test::IntegrationHelpers
+
+  describe "GET /admin/elections/:election_id/contests/:election_contest_id/candidates/new" do
+    it "redirects guests to sign in" do
+      election, contest = create_election_with_contest
+
+      get new_admin_election_election_contest_election_candidate_path(election, contest)
+
+      expect(response).to redirect_to(new_user_session_path)
+    end
+
+    it "redirects teachers to dashboard" do
+      election, contest = create_election_with_contest
+      sign_in create(:user)
+
+      get new_admin_election_election_contest_election_candidate_path(election, contest)
+
+      expect(response).to redirect_to(dashboard_path)
+    end
+
+    it "shows the candidate creation form to admins" do
+      election, contest = create_election_with_contest
+      sign_in create(:user, :admin)
+
+      get new_admin_election_election_contest_election_candidate_path(election, contest)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("후보 등록")
+      expect(response.body).to include(election.title)
+      expect(response.body).to include(contest.title)
+      expect(response.body).to include("기호")
+      expect(response.body).to include("후보 이름")
+      expect(response.body).to include("소속")
+    end
+  end
+
+  describe "POST /admin/elections/:election_id/contests/:election_contest_id/candidates" do
+    it "creates a candidate under the contest for admins" do
+      election, contest = create_election_with_contest
+      sign_in create(:user, :admin)
+
+      expect do
+        post admin_election_election_contest_election_candidates_path(election, contest), params: {
+          election_candidate: {
+            number: 1,
+            name: "김회장",
+            affiliation_label: "6학년 1반"
+          }
+        }
+      end.to change(contest.election_candidates, :count).by(1)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      candidate = contest.election_candidates.find_by!(number: 1)
+      expect(candidate).to have_attributes(name: "김회장", affiliation_label: "6학년 1반")
+    end
+
+    it "shows validation errors without creating a duplicate candidate number in the same contest" do
+      election, contest = create_election_with_contest
+      create(:election_candidate, election_contest: contest, number: 1)
+      sign_in create(:user, :admin)
+
+      expect do
+        post admin_election_election_contest_election_candidates_path(election, contest), params: {
+          election_candidate: {
+            number: 1,
+            name: "중복 후보",
+            affiliation_label: "6학년 2반"
+          }
+        }
+      end.not_to change(contest.election_candidates, :count)
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include("후보를 등록할 수 없습니다.")
+      expect(response.body).to include("중복 후보")
+      expect(response.body).to include("6학년 2반")
+    end
+
+    it "does not allow teachers to create candidates" do
+      election, contest = create_election_with_contest
+      sign_in create(:user)
+
+      expect do
+        post admin_election_election_contest_election_candidates_path(election, contest), params: {
+          election_candidate: {
+            number: 1,
+            name: "차단 후보",
+            affiliation_label: "6학년 1반"
+          }
+        }
+      end.not_to change(ElectionCandidate, :count)
+
+      expect(response).to redirect_to(dashboard_path)
+    end
+
+    it "does not create a candidate under a contest from another election" do
+      election = create(:election)
+      _other_election, other_contest = create_election_with_contest
+      sign_in create(:user, :admin)
+
+      expect do
+        post admin_election_election_contest_election_candidates_path(election, other_contest), params: {
+          election_candidate: {
+            number: 1,
+            name: "잘못된 소속 후보",
+            affiliation_label: "6학년 1반"
+          }
+        }
+      end.not_to change(ElectionCandidate, :count)
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  describe "GET /admin/elections/:election_id/contests/:election_contest_id/candidates/:id/edit" do
+    it "shows the candidate edit form to admins" do
+      election, contest = create_election_with_contest
+      candidate = create(:election_candidate, election_contest: contest, number: 1, name: "김후보", affiliation_label: "6학년 1반")
+      sign_in create(:user, :admin)
+
+      get edit_admin_election_election_contest_election_candidate_path(election, contest, candidate)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("후보 수정")
+      expect(response.body).to include("김후보")
+      expect(response.body).to include("6학년 1반")
+    end
+
+    it "does not show a candidate through another contest" do
+      election = create(:election)
+      first_contest = create(:election_contest, election: election, position: 1)
+      second_contest = create(:election_contest, election: election, position: 2)
+      candidate = create(:election_candidate, election_contest: first_contest)
+      sign_in create(:user, :admin)
+
+      get edit_admin_election_election_contest_election_candidate_path(election, second_contest, candidate)
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  describe "PATCH /admin/elections/:election_id/contests/:election_contest_id/candidates/:id" do
+    it "updates a candidate for admins" do
+      election, contest = create_election_with_contest
+      candidate = create(:election_candidate, election_contest: contest, number: 1, name: "김후보", affiliation_label: "6학년 1반")
+      sign_in create(:user, :admin)
+
+      patch admin_election_election_contest_election_candidate_path(election, contest, candidate), params: {
+        election_candidate: {
+          number: 2,
+          name: "이후보",
+          affiliation_label: "6학년 2반"
+        }
+      }
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(candidate.reload).to have_attributes(number: 2, name: "이후보", affiliation_label: "6학년 2반")
+    end
+
+    it "shows validation errors without changing a candidate to a duplicate number in the same contest" do
+      election, contest = create_election_with_contest
+      create(:election_candidate, election_contest: contest, number: 1)
+      candidate = create(:election_candidate, election_contest: contest, number: 2, name: "기존 후보", affiliation_label: "6학년 2반")
+      sign_in create(:user, :admin)
+
+      patch admin_election_election_contest_election_candidate_path(election, contest, candidate), params: {
+        election_candidate: {
+          number: 1,
+          name: "중복 수정 후보",
+          affiliation_label: "6학년 3반"
+        }
+      }
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include("후보를 수정할 수 없습니다.")
+      expect(response.body).to include("중복 수정 후보")
+      expect(response.body).to include("6학년 3반")
+      expect(candidate.reload).to have_attributes(number: 2, name: "기존 후보", affiliation_label: "6학년 2반")
+    end
+  end
+
+  describe "DELETE /admin/elections/:election_id/contests/:election_contest_id/candidates/:id" do
+    it "destroys a candidate for admins" do
+      election, contest = create_election_with_contest
+      candidate = create(:election_candidate, election_contest: contest)
+      sign_in create(:user, :admin)
+
+      expect do
+        delete admin_election_election_contest_election_candidate_path(election, contest, candidate)
+      end.to change(ElectionCandidate, :count).by(-1)
+
+      expect(response).to redirect_to(admin_election_path(election))
+    end
+
+    it "does not allow teachers to destroy candidates" do
+      election, contest = create_election_with_contest
+      candidate = create(:election_candidate, election_contest: contest)
+      sign_in create(:user)
+
+      expect do
+        delete admin_election_election_contest_election_candidate_path(election, contest, candidate)
+      end.not_to change(ElectionCandidate, :count)
+
+      expect(response).to redirect_to(dashboard_path)
+    end
+
+    it "does not destroy a candidate through another contest" do
+      election = create(:election)
+      first_contest = create(:election_contest, election: election, position: 1)
+      second_contest = create(:election_contest, election: election, position: 2)
+      candidate = create(:election_candidate, election_contest: first_contest)
+      sign_in create(:user, :admin)
+
+      expect do
+        delete admin_election_election_contest_election_candidate_path(election, second_contest, candidate)
+      end.not_to change(ElectionCandidate, :count)
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  def create_election_with_contest
+    election = create(:election)
+    contest = create(:election_contest, election: election, title: "회장", position: 1)
+
+    [election, contest]
+  end
+end
