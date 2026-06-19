@@ -1,154 +1,27 @@
 <div class="space-y-6">
   <div class="space-y-2">
-    <p class="text-sm font-medium text-stone-600">Election Session</p>
+    <% if current_user.admin? %>
+      <p class="text-sm font-medium text-stone-600">Election Session</p>
+    <% end %>
     <h1 class="text-3xl font-semibold"><%= @election.title %></h1>
   </div>
 
-  <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
-    <h2 class="text-xl font-semibold">세션 상태</h2>
-    <dl class="grid gap-3 text-sm sm:grid-cols-2">
-      <div>
-        <dt class="font-medium text-stone-500">상태</dt>
-        <dd class="mt-1 text-stone-900"><%= @election_session.status %></dd>
-      </div>
-      <div>
-        <dt class="font-medium text-stone-500">운영 방식</dt>
-        <dd class="mt-1 text-stone-900"><%= @election_session.operation_mode %></dd>
-      </div>
-      <div>
-        <dt class="font-medium text-stone-500">명단</dt>
-        <dd class="mt-1 text-stone-900"><%= @election_session.participant_group&.name || "명단 없음" %></dd>
-      </div>
-      <div>
-        <dt class="font-medium text-stone-500">담당 교사</dt>
-        <dd class="mt-1 text-stone-900"><%= [@election_session.teacher&.name, @election_session.teacher&.email].compact.join(" / ") %></dd>
-      </div>
-    </dl>
-
-    <% if @election_session.operable_status? && policy(@election_session).operate? %>
-      <% button_class = "inline-flex items-center rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white hover:bg-stone-700" %>
-      <% secondary_button_class = "inline-flex items-center rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50" %>
-      <% danger_button_class = "inline-flex items-center rounded-md bg-rose-700 px-3 py-2 text-sm font-medium text-white hover:bg-rose-600" %>
-
-      <div class="flex flex-wrap gap-2 border-t border-stone-100 pt-4">
-        <% if @election_session.draft? %>
-          <%= button_to "세션 시작", start_elections_session_path(@election_session), method: :post, class: button_class %>
-        <% elsif @election_session.in_progress? %>
-          <% if @progress.blank? %>
-            <p class="text-sm text-stone-600">진행 정보가 없어 운영 버튼을 표시할 수 없습니다.</p>
-          <% elsif @progress.locked? %>
-            <%= button_to "Ballot 열기", open_ballot_elections_session_path(@election_session), method: :post, class: button_class %>
-            <%= button_to "결석 처리", mark_absent_elections_session_path(@election_session), method: :post, class: secondary_button_class %>
-            <%= button_to "다음 투표자", advance_voter_elections_session_path(@election_session), method: :post, class: secondary_button_class %>
-          <% elsif @progress.open? %>
-            <%= button_to "Ballot 잠그기", lock_ballot_elections_session_path(@election_session), method: :post, class: secondary_button_class %>
-            <% if @current_voter.present? && policy(@election_session).submit_ballot? %>
-              <div class="w-full">
-                <%= render "ballot_form",
-                           election_session: @election_session,
-                           current_voter: @current_voter,
-                           contests: @contests %>
-              </div>
-            <% else %>
-              <p class="w-full text-sm text-stone-600">현재 투표자가 없어 ballot을 제출할 수 없습니다.</p>
-            <% end %>
-          <% end %>
-
-          <%= button_to "세션 종료",
-                        close_elections_session_path(@election_session),
-                        method: :post,
-                        class: danger_button_class,
-                        data: { turbo_confirm: "선거 세션을 종료할까요?", turbo_submits_with: "종료 중..." } %>
-        <% end %>
-      </div>
-    <% end %>
-  </section>
-
-  <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
-    <h2 class="text-xl font-semibold">진행 상태</h2>
-    <% if @progress.present? %>
-      <dl class="grid gap-3 text-sm sm:grid-cols-2">
-        <div>
-          <dt class="font-medium text-stone-500">Ballot 상태</dt>
-          <dd class="mt-1 text-stone-900"><%= @progress.ballot_state %></dd>
-        </div>
-        <div>
-          <dt class="font-medium text-stone-500">현재 투표자</dt>
-          <dd class="mt-1 text-stone-900">
-            <% if @current_voter.present? %>
-              <%= @current_voter.number %>번 <%= @current_voter.name %> (순서 <%= @current_voter.position %>)
-            <% else %>
-              현재 투표자 없음
-            <% end %>
-          </dd>
-        </div>
-      </dl>
-    <% else %>
-      <p class="text-sm text-stone-600">진행 정보가 없습니다.</p>
-    <% end %>
-  </section>
-
-  <% if @election_session.closed? %>
-    <%= render "result_summary",
+  <% if current_user.admin? %>
+    <%= render "admin_summary",
                election_session: @election_session,
-               integrity_report: @integrity_report,
+               progress: @progress,
+               current_voter: @current_voter,
+               voters: @voters,
                contests: @contests,
+               integrity_report: @integrity_report,
                participation_counts: @participation_counts,
                candidate_tallies_by_candidate_id: @candidate_tallies_by_candidate_id,
                contest_tallies_by_contest_id: @contest_tallies_by_contest_id %>
-  <% elsif @election_session.stopped? %>
-    <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
-      <h2 class="text-xl font-semibold">중단된 세션</h2>
-      <p class="text-sm text-stone-600">중단된 세션은 결과 확정 상태가 아니므로 확정 결과를 표시하지 않습니다.</p>
-    </section>
+  <% else %>
+    <%= render "teacher_screen",
+               election_session: @election_session,
+               progress: @progress,
+               current_voter: @current_voter,
+               contests: @contests %>
   <% end %>
-
-  <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
-    <h2 class="text-xl font-semibold">투표자</h2>
-    <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-stone-200 text-sm">
-        <thead>
-          <tr class="text-left text-stone-500">
-            <th class="py-2 pr-4 font-medium">번호</th>
-            <th class="py-2 pr-4 font-medium">이름</th>
-            <th class="py-2 pr-4 font-medium">순서</th>
-            <th class="py-2 pr-4 font-medium">참여 상태</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-stone-100">
-          <% @voters.each do |voter| %>
-            <tr>
-              <td class="py-2 pr-4"><%= voter.number %></td>
-              <td class="py-2 pr-4"><%= voter.name %></td>
-              <td class="py-2 pr-4"><%= voter.position %></td>
-              <td class="py-2 pr-4"><%= voter.election_participation&.status || "참여 정보 없음" %></td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
-    <h2 class="text-xl font-semibold">선거 항목</h2>
-    <div class="space-y-4">
-      <% @contests.each do |contest| %>
-        <div class="rounded-md border border-stone-200 p-4">
-          <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <h3 class="text-lg font-medium"><%= contest.title %></h3>
-            <p class="text-sm text-stone-600">
-              <%= contest.vote_method %> / <%= contest.min_selections %>-<%= contest.max_selections %>명 선택 /
-              기권 <%= contest.allow_abstain? ? "허용" : "불가" %>
-            </p>
-          </div>
-          <ul class="mt-3 space-y-1 text-sm text-stone-700">
-            <% contest.election_candidates.order(:number).each do |candidate| %>
-              <li><%= candidate.number %>번 <%= candidate.name %><%= " (#{candidate.affiliation_label})" if candidate.affiliation_label.present? %></li>
-            <% end %>
-          </ul>
-        </div>
-      <% end %>
-    </div>
-  </section>
-
 </div>

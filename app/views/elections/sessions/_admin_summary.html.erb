@@ -1,0 +1,108 @@
+<section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
+  <h2 class="text-xl font-semibold">세션 상태</h2>
+  <dl class="grid gap-3 text-sm sm:grid-cols-2">
+    <div>
+      <dt class="font-medium text-stone-500">상태</dt>
+      <dd class="mt-1 text-stone-900"><%= election_session.status %></dd>
+    </div>
+    <div>
+      <dt class="font-medium text-stone-500">운영 방식</dt>
+      <dd class="mt-1 text-stone-900"><%= election_session.operation_mode %></dd>
+    </div>
+    <div>
+      <dt class="font-medium text-stone-500">명단</dt>
+      <dd class="mt-1 text-stone-900"><%= election_session.participant_group&.name || "명단 없음" %></dd>
+    </div>
+    <div>
+      <dt class="font-medium text-stone-500">담당 교사</dt>
+      <dd class="mt-1 text-stone-900"><%= [election_session.teacher&.name, election_session.teacher&.email].compact.join(" / ") %></dd>
+    </div>
+  </dl>
+</section>
+
+<section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
+  <h2 class="text-xl font-semibold">진행 상태</h2>
+  <% if progress.present? %>
+    <dl class="grid gap-3 text-sm sm:grid-cols-2">
+      <div>
+        <dt class="font-medium text-stone-500">Ballot 상태</dt>
+        <dd class="mt-1 text-stone-900"><%= progress.ballot_state %></dd>
+      </div>
+      <div>
+        <dt class="font-medium text-stone-500">현재 투표자</dt>
+        <dd class="mt-1 text-stone-900">
+          <% if current_voter.present? %>
+            <%= current_voter.number %>번 <%= current_voter.name %> (순서 <%= current_voter.position %>)
+          <% else %>
+            현재 투표자 없음
+          <% end %>
+        </dd>
+      </div>
+    </dl>
+  <% else %>
+    <p class="text-sm text-stone-600">진행 정보가 없습니다.</p>
+  <% end %>
+</section>
+
+<% if election_session.closed? %>
+  <%= render "result_summary",
+             election_session: election_session,
+             integrity_report: integrity_report,
+             contests: contests,
+             participation_counts: participation_counts,
+             candidate_tallies_by_candidate_id: candidate_tallies_by_candidate_id,
+             contest_tallies_by_contest_id: contest_tallies_by_contest_id %>
+<% elsif election_session.stopped? %>
+  <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
+    <h2 class="text-xl font-semibold">중단된 세션</h2>
+    <p class="text-sm text-stone-600">중단된 세션은 결과 확정 상태가 아니므로 확정 결과를 표시하지 않습니다.</p>
+  </section>
+<% end %>
+
+<section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
+  <h2 class="text-xl font-semibold">투표자</h2>
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-stone-200 text-sm">
+      <thead>
+        <tr class="text-left text-stone-500">
+          <th class="py-2 pr-4 font-medium">번호</th>
+          <th class="py-2 pr-4 font-medium">이름</th>
+          <th class="py-2 pr-4 font-medium">순서</th>
+          <th class="py-2 pr-4 font-medium">참여 상태</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-stone-100">
+        <% voters.each do |voter| %>
+          <tr>
+            <td class="py-2 pr-4"><%= voter.number %></td>
+            <td class="py-2 pr-4"><%= voter.name %></td>
+            <td class="py-2 pr-4"><%= voter.position %></td>
+            <td class="py-2 pr-4"><%= voter.election_participation&.status || "참여 정보 없음" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
+  <h2 class="text-xl font-semibold">선거 항목</h2>
+  <div class="space-y-4">
+    <% contests.each do |contest| %>
+      <div class="rounded-md border border-stone-200 p-4">
+        <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <h3 class="text-lg font-medium"><%= contest.title %></h3>
+          <p class="text-sm text-stone-600">
+            <%= contest.vote_method %> / <%= contest.min_selections %>-<%= contest.max_selections %>명 선택 /
+            기권 <%= contest.allow_abstain? ? "허용" : "불가" %>
+          </p>
+        </div>
+        <ul class="mt-3 space-y-1 text-sm text-stone-700">
+          <% contest.election_candidates.order(:number).each do |candidate| %>
+            <li><%= candidate.number %>번 <%= candidate.name %><%= " (#{candidate.affiliation_label})" if candidate.affiliation_label.present? %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+  </div>
+</section>

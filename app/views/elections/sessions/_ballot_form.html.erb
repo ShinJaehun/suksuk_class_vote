@@ -1,25 +1,17 @@
-<div class="mt-3 space-y-4 rounded-md border border-stone-200 bg-stone-50 p-4">
-  <div class="space-y-1">
-    <h3 class="text-lg font-semibold">Ballot 제출</h3>
-    <p class="text-sm text-stone-700">
-      현재 투표자: <%= current_voter.number %>번 <%= current_voter.name %>
-    </p>
-    <p class="text-sm text-stone-600">
-      후보 선택과 기권을 동시에 제출하면 서버에서 거부됩니다. 후보 선택 상세는 저장하지 않고 집계에만 반영합니다.
-    </p>
+<div class="space-y-5 rounded-md border border-stone-200 bg-white p-5">
+  <div class="rounded-md border border-stone-200 bg-stone-50 p-5">
+    <p class="text-sm font-medium text-stone-500">현재 투표자</p>
+    <p class="mt-2 text-4xl font-semibold"><%= current_voter.number %>번 <%= current_voter.name %></p>
   </div>
 
   <%= form_with url: submit_ballot_elections_session_path(election_session), method: :post, class: "space-y-4" do %>
     <% contests.each do |contest| %>
-      <fieldset class="space-y-3 rounded-md border border-stone-200 bg-white p-4">
-        <legend class="text-base font-medium"><%= contest.title %></legend>
-        <p class="text-sm text-stone-600">
-          <%= contest.vote_method %> / <%= contest.min_selections %>-<%= contest.max_selections %>명 선택
-        </p>
+      <fieldset class="space-y-3">
+        <legend class="text-xl font-semibold"><%= contest.title %> 선택</legend>
 
-        <div class="space-y-2 text-sm text-stone-800">
+        <div class="grid gap-3 sm:grid-cols-2">
           <% contest.election_candidates.order(:number).each do |candidate| %>
-            <label class="flex items-center gap-2">
+            <label class="flex cursor-pointer items-center gap-3 rounded-md bg-stone-900 px-4 py-5 text-xl font-medium text-white">
               <% if contest.max_selections == 1 %>
                 <%= radio_button_tag "ballot[contest_choices][#{contest.id}]", "candidate:#{candidate.id}" %>
               <% else %>
@@ -32,21 +24,22 @@
           <% end %>
 
           <% if contest.allow_abstain? %>
-            <label class="flex items-center gap-2 text-stone-700">
+            <label class="flex cursor-pointer items-center gap-3 rounded-md border border-stone-300 px-4 py-3 text-sm font-medium text-stone-700">
               <% if contest.max_selections == 1 %>
                 <%= radio_button_tag "ballot[contest_choices][#{contest.id}]", "abstain" %>
               <% else %>
                 <%= check_box_tag "ballot[contest_choices][#{contest.id}][]", "abstain" %>
               <% end %>
-              <span>기권</span>
+              <span>기권 처리</span>
             </label>
           <% end %>
         </div>
       </fieldset>
     <% end %>
 
-    <%= submit_tag "투표 제출",
-                   class: "inline-flex items-center rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white hover:bg-stone-700",
+    <%= button_tag "투표 제출",
+                   type: :submit,
+                   class: "rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700",
                    data: { turbo_submits_with: "제출 중..." } %>
   <% end %>
 </div>
