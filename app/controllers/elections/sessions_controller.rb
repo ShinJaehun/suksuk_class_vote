@@ -44,7 +44,7 @@ module Elections
         reason: params[:reason]
       ).call
 
-      redirect_with_result(result, notice: "현재 투표자를 결석 처리했습니다.")
+      redirect_with_result(result, notice: "투표자 상태를 처리했습니다.")
     end
 
     def submit_ballot

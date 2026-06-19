@@ -33,7 +33,7 @@ RSpec.describe "Election sessions", type: :request do
       expect(visible_text).to include("1번 학생1")
       expect(visible_text).to include("현재 학생 차례입니다.")
       expect(visible_text).to include("투표 화면 열기")
-      expect(visible_text).not_to include("미참여 처리")
+      expect(visible_text).to include("미참여 처리")
       expect(visible_text).not_to include("투표 제출")
       expect(visible_text).not_to include("투표 종료")
       expect(visible_text).not_to include("in_progress")
@@ -88,6 +88,7 @@ RSpec.describe "Election sessions", type: :request do
       expect(response).to have_http_status(:ok)
       expect(visible_text).to include("1번 학생1은 투표를 완료했습니다.")
       expect(visible_text).to include("다음 투표자는 2번 학생2입니다.")
+      expect(visible_text).not_to include("미참여 처리")
       expect(visible_text).not_to include("투표 종료")
     end
 
@@ -396,7 +397,7 @@ RSpec.describe "Election sessions", type: :request do
 
       current_voter = election_session.reload.election_progress.current_election_voter
       expect(response).to redirect_to(elections_session_path(election_session))
-      expect(flash[:notice]).to eq("현재 투표자를 결석 처리했습니다.")
+      expect(flash[:notice]).to eq("투표자 상태를 처리했습니다.")
       expect(current_voter.election_participation).to be_absent
     end
 

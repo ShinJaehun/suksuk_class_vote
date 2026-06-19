@@ -38,6 +38,13 @@
                           method: :post,
                           form: { target: "_blank", data: { turbo: false } },
                           class: "mt-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700" %>
+            <% if progress.locked? %>
+              <%= button_to "미참여 처리",
+                            mark_absent_elections_session_path(election_session),
+                            method: :post,
+                            data: { turbo_frame: "_top", turbo_submits_with: "처리 중..." },
+                            class: "mt-2 rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700" %>
+            <% end %>
           <% end %>
         </div>
       <% elsif participation.present? %>
