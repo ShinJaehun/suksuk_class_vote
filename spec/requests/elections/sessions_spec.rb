@@ -32,7 +32,7 @@ RSpec.describe "Election sessions", type: :request do
       expect(visible_text).to include("현재 투표자")
       expect(visible_text).to include("1번 학생1")
       expect(visible_text).to include("현재 학생 차례입니다.")
-      expect(visible_text).not_to include("투표 화면 열기")
+      expect(visible_text).to include("투표 화면 열기")
       expect(visible_text).not_to include("미참여 처리")
       expect(visible_text).not_to include("투표 제출")
       expect(visible_text).not_to include("투표 종료")
@@ -71,7 +71,8 @@ RSpec.describe "Election sessions", type: :request do
       expect(visible_text).to include("현재 투표자")
       expect(visible_text).to include("1번 학생1")
       expect(visible_text).to include("현재 학생 차례입니다.")
-      expect(visible_text).to include("다음 진행 기능은 다음 단계에서 연결됩니다.")
+      expect(visible_text).to include("투표 화면이 열려 있습니다.")
+      expect(visible_text).to include("투표 화면 다시 열기")
       expect(visible_text).not_to include("투표 제출")
       expect(visible_text).not_to include("미참여 처리")
       expect(visible_text).not_to include("open")
@@ -275,8 +276,48 @@ RSpec.describe "Election sessions", type: :request do
     end
   end
 
+  describe "GET /elections/sessions/:id/ballot" do
+    it "shows a read only ballot when the current ballot is open" do
+      election_session = opened_session
+      sign_in election_session.teacher
+
+      get ballot_elections_session_path(election_session)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("학생 투표 화면")
+      expect(response.body).to include("1번 학생1")
+      expect(response.body).to include("Contest 1")
+      expect(response.body).to include("후보1")
+      expect(response.body).to include("투표 제출 기능은 다음 단계에서 연결됩니다.")
+      expect(response.body).not_to include("type=\"radio\"")
+      expect(response.body).not_to include("type=\"checkbox\"")
+      expect(response.body).not_to include("contest_choices")
+      expect(response.body).not_to include("abstained_contest_ids")
+      expect(response.body).not_to include("submit_ballot")
+    end
+
+    it "redirects to the session when the current ballot is not open" do
+      election_session = started_session
+      sign_in election_session.teacher
+
+      get ballot_elections_session_path(election_session)
+
+      expect(response).to redirect_to(elections_session_path(election_session))
+      expect(flash[:alert]).to eq("투표 화면을 열 수 없습니다.")
+    end
+
+    it "redirects to the session when there is no current voter" do
+      election_session = close_ready_session
+      sign_in election_session.teacher
+
+      get ballot_elections_session_path(election_session)
+
+      expect(response).to redirect_to(elections_session_path(election_session))
+    end
+  end
+
   describe "POST operation routes" do
-    it "opens the current ballot and redirects" do
+    it "opens the current ballot and redirects to the session" do
       election_session = started_session
       sign_in election_session.teacher
 
@@ -284,6 +325,16 @@ RSpec.describe "Election sessions", type: :request do
 
       expect(response).to redirect_to(elections_session_path(election_session))
       expect(flash[:notice]).to eq("현재 투표자의 ballot을 열었습니다.")
+      expect(election_session.reload.election_progress).to be_open
+    end
+
+    it "opens the current ballot and redirects to the ballot screen" do
+      election_session = started_session
+      sign_in election_session.teacher
+
+      post open_ballot_elections_session_path(election_session, return_to: "ballot")
+
+      expect(response).to redirect_to(ballot_elections_session_path(election_session))
       expect(election_session.reload.election_progress).to be_open
     end
 

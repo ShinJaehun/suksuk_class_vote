@@ -13,6 +13,16 @@ module Elections
       run_operation(Elections::StartSession, notice: "선거 진행을 시작했습니다.")
     end
 
+    def ballot
+      authorize @election_session, :submit_ballot?
+
+      prepare_session_view
+
+      unless ballot_viewable?
+        redirect_to elections_session_path(@election_session), alert: "투표 화면을 열 수 없습니다."
+      end
+    end
+
     def open_ballot
       run_operation(Elections::OpenBallot, notice: "현재 투표자의 ballot을 열었습니다.")
     end
@@ -87,10 +97,23 @@ module Elections
 
     def redirect_with_result(result, notice:)
       if result.success?
-        redirect_to elections_session_path(@election_session), notice: notice
+        redirect_to operation_redirect_path, notice: notice
       else
         redirect_to elections_session_path(@election_session), alert: result.error_message
       end
+    end
+
+    def operation_redirect_path
+      return ballot_elections_session_path(@election_session) if params[:return_to] == "ballot"
+
+      elections_session_path(@election_session)
+    end
+
+    def ballot_viewable?
+      @election_session.in_progress? &&
+        @progress&.open? &&
+        @current_voter.present? &&
+        @current_voter.election_participation&.pending?
     end
 
     def ballot_selections_by_contest_id
