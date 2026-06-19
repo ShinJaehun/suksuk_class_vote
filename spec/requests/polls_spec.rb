@@ -161,6 +161,36 @@ RSpec.describe "Polls", type: :request do
 
       expect(response.body).to match(/#{archived_poll.title}.*투표자 2명/m)
     end
+
+    it "shows closed election sessions as archived vote results" do
+      teacher = create(:user)
+      participant_group = create(:participant_group, user: teacher, name: "6학년 1반")
+      closed_session = create(
+        :election_session,
+        status: :closed,
+        closed_at: Time.zone.local(2026, 5, 1, 10, 30),
+        election: create(:election, title: "종료된 임원 선거"),
+        teacher: teacher,
+        participant_group: participant_group
+      )
+      create(
+        :election_session,
+        status: :stopped,
+        election: create(:election, title: "중단된 임원 선거"),
+        teacher: teacher,
+        participant_group: participant_group
+      )
+      sign_in teacher
+
+      get archived_polls_path
+
+      expect(response.body).to include("보관된 투표")
+      expect(response.body).to include(closed_session.election.title)
+      expect(response.body).to include(participant_group.name)
+      expect(response.body).to include("결과 보기")
+      expect(response.body).to include(elections_session_path(closed_session))
+      expect(response.body).not_to include("중단된 임원 선거")
+    end
   end
 
   describe "GET /polls/new" do
