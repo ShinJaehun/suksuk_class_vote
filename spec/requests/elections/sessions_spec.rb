@@ -33,6 +33,7 @@ RSpec.describe "Election sessions", type: :request do
       expect(visible_text).to include("1번 학생1")
       expect(visible_text).to include("현재 학생 차례입니다.")
       expect(visible_text).to include("투표 화면 열기")
+      expect(response.body).to include(ActionView::RecordIdentifier.dom_id(election_session, :teacher_progress))
       expect(visible_text).to include("미참여 처리")
       expect(visible_text).not_to include("투표 제출")
       expect(visible_text).not_to include("투표 종료")
@@ -462,6 +463,20 @@ RSpec.describe "Election sessions", type: :request do
       expect(flash[:notice]).to eq("투표가 제출되었습니다.")
     end
 
+    it "broadcasts teacher progress after student ballot submission" do
+      election_session = opened_session
+      candidate = first_candidate(election_session)
+      sign_in election_session.teacher
+
+      post submit_ballot_elections_session_path(election_session, return_to: "ballot"), params: candidate_ballot_params(candidate)
+
+      broadcast = teacher_progress_broadcast_for(election_session)
+      expect(broadcast).to include(ActionView::RecordIdentifier.dom_id(election_session, :teacher_progress))
+      expect(broadcast).to include("1번 학생1은 투표를 완료했습니다.")
+      expect(broadcast).to include("다음 투표자는 2번 학생2입니다.")
+      expect(broadcast).not_to include("투표 화면 다시 열기")
+    end
+
     it "allows abstain submission" do
       election_session = opened_session
       contest = election_session.election.election_contests.sole
@@ -659,5 +674,21 @@ RSpec.describe "Election sessions", type: :request do
 
   def page_text
     Nokogiri::HTML(response.body).text
+  end
+
+  def teacher_progress_broadcast_for(election_session)
+    operation_screen_broadcasts_for(election_session).map { |broadcast| decoded_broadcast(broadcast) }.find do |broadcast|
+      broadcast.include?(ActionView::RecordIdentifier.dom_id(election_session, :teacher_progress))
+    end
+  end
+
+  def operation_screen_broadcasts_for(election_session)
+    broadcasts(Turbo::StreamsChannel.send(:stream_name_from, [election_session, :operation_screen]))
+  end
+
+  def decoded_broadcast(broadcast)
+    JSON.parse(broadcast)
+  rescue JSON::ParserError
+    broadcast
   end
 end

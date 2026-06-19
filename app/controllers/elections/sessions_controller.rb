@@ -24,7 +24,7 @@ module Elections
     end
 
     def open_ballot
-      run_operation(Elections::OpenBallot, notice: "현재 투표자의 ballot을 열었습니다.")
+      run_operation(Elections::OpenBallot, notice: "현재 투표자의 ballot을 열었습니다.", broadcast: true)
     end
 
     def lock_ballot
@@ -32,7 +32,7 @@ module Elections
     end
 
     def advance_voter
-      run_operation(Elections::AdvanceVoter, notice: "다음 투표자로 이동했습니다.")
+      run_operation(Elections::AdvanceVoter, notice: "다음 투표자로 이동했습니다.", broadcast: true)
     end
 
     def mark_absent
@@ -44,6 +44,7 @@ module Elections
         reason: params[:reason]
       ).call
 
+      broadcast_operation_progress if result.success?
       redirect_with_result(result, notice: "투표자 상태를 처리했습니다.")
     end
 
@@ -57,11 +58,12 @@ module Elections
         abstained_contest_ids: ballot_abstained_contest_ids
       ).call
 
+      broadcast_operation_progress if result.success?
       redirect_with_result(result, notice: "투표가 제출되었습니다.", failure_return_to: params[:return_to])
     end
 
     def close
-      run_operation(Elections::CloseSession, notice: "투표를 종료했습니다.")
+      run_operation(Elections::CloseSession, notice: "투표를 종료했습니다.", broadcast: true)
     end
 
     private
@@ -88,10 +90,11 @@ module Elections
       @election_session.election_voters.count
     end
 
-    def run_operation(service_class, notice:)
+    def run_operation(service_class, notice:, broadcast: false)
       authorize @election_session
 
       result = service_class.new(election_session: @election_session, actor: current_user).call
+      broadcast_operation_progress if broadcast && result.success?
       redirect_with_result(result, notice: notice)
     end
 
@@ -167,6 +170,23 @@ module Elections
       end
       @candidate_tallies_by_candidate_id = @candidate_tallies.index_by(&:election_candidate_id)
       @contest_tallies_by_contest_id = @contest_tallies.index_by(&:election_contest_id)
+    end
+
+    def broadcast_operation_progress
+      @election_session.reload
+      progress = @election_session.election_progress
+
+      Turbo::StreamsChannel.broadcast_replace_to(
+        @election_session,
+        :operation_screen,
+        target: helpers.dom_id(@election_session, :teacher_progress),
+        partial: "elections/sessions/teacher_progress",
+        locals: {
+          election_session: @election_session,
+          progress: progress,
+          current_voter: progress&.current_election_voter
+        }
+      )
     end
   end
 end
