@@ -112,5 +112,22 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("6학년 부회장")
       expect(response.body).to include("5학년 부회장")
     end
+
+    it "shows the session assignment form and assigned sessions to admins" do
+      sign_in create(:user, :admin)
+      election = create(:election, title: "2026 전교학생회 선거")
+      teacher = create(:user, name: "김담임", email: "teacher@example.com")
+      participant_group = create(:participant_group, :with_participant_slot, user: teacher, name: "6학년 1반")
+      create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
+
+      get admin_election_path(election)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("학급 세션")
+      expect(response.body).to include("담당 교사")
+      expect(response.body).to include("학급/그룹")
+      expect(response.body).to include("김담임")
+      expect(response.body).to include("6학년 1반")
+    end
   end
 end

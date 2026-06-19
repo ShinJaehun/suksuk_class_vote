@@ -55,3 +55,68 @@
     <p>아직 선거 항목이 없습니다.</p>
   <% end %>
 </section>
+
+<section>
+  <h2>학급 세션</h2>
+
+  <% if @election_session.errors.any? %>
+    <h3>학급 세션을 배정할 수 없습니다.</h3>
+    <ul>
+      <% @election_session.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
+    </ul>
+  <% end %>
+
+  <%= form_with model: [:admin, @election, @election_session] do |form| %>
+    <div>
+      <%= form.label :teacher_id, "담당 교사" %>
+      <%= form.collection_select :teacher_id,
+                                 @teachers,
+                                 :id,
+                                 ->(teacher) { "#{teacher.name}/#{teacher.email}" },
+                                 prompt: "담당 교사를 선택하세요" %>
+    </div>
+
+    <div>
+      <%= form.label :participant_group_id, "학급/그룹" %>
+      <%= form.collection_select :participant_group_id,
+                                 @participant_groups,
+                                 :id,
+                                 ->(group) { "#{group.user.name}/#{group.user.email} - #{group.name}" },
+                                 prompt: "학급/그룹을 선택하세요" %>
+    </div>
+
+    <%= form.submit "학급 세션 배정" %>
+  <% end %>
+
+  <% if @election_sessions.any? %>
+    <table>
+      <thead>
+        <tr>
+          <th>학급/그룹</th>
+          <th>담당 교사</th>
+          <th>상태</th>
+          <th>작업</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @election_sessions.each do |session| %>
+          <tr>
+            <td><%= session.participant_group.name %></td>
+            <td><%= session.teacher.name.presence || session.teacher.email %></td>
+            <td><%= session.status %></td>
+            <td>
+              <%= button_to "삭제",
+                            admin_election_election_session_path(@election, session),
+                            method: :delete,
+                            data: { turbo_confirm: "학급 세션을 삭제할까요?" } %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p>아직 배정된 학급 세션이 없습니다.</p>
+  <% end %>
+</section>
