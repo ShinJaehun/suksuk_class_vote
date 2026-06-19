@@ -29,7 +29,10 @@ module Elections
           raise ActiveRecord::Rollback if errors.any?
 
           next_voter = next_pending_voter_after(locked_voter)
-          locked_progress.update!(current_election_voter: next_voter, ballot_state: :locked)
+          locked_progress.update!(
+            current_election_voter: next_voter,
+            ballot_state: next_voter.present? ? :open : :locked
+          )
           record_event!(locked_voter, next_voter)
         end
       end

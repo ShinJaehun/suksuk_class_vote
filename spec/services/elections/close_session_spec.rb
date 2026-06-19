@@ -45,6 +45,18 @@ RSpec.describe Elections::CloseSession do
       )
     end
 
+    it "closes when the last current voter is completed and every voter is final" do
+      election_session = closable_session(statuses: [:completed, :completed])
+      current_voter = election_session.election_voters.order(:position).last
+      election_session.election_progress.update!(current_election_voter: current_voter, ballot_state: :locked)
+
+      result = described_class.new(election_session: election_session, actor: election_session.teacher).call
+
+      expect(result).to be_success
+      expect(election_session.reload).to be_closed
+      expect(election_session.election_progress.reload.current_election_voter).to be_nil
+    end
+
     it "closes after the last voter is advanced to no current voter" do
       election_session = started_session(voter_count: 1)
       voter = election_session.election_progress.current_election_voter
@@ -132,14 +144,15 @@ RSpec.describe Elections::CloseSession do
       expect_no_close(election_session)
     end
 
-    it "fails when current voter remains" do
+    it "fails when current voter remains pending" do
       election_session = closable_session(statuses: [:completed])
       election_session.election_progress.update!(current_election_voter: election_session.election_voters.first)
+      election_session.election_voters.first.election_participation.update!(status: :pending, submitted_at: nil)
 
       result = described_class.new(election_session: election_session, actor: election_session.teacher).call
 
       expect(result).not_to be_success
-      expect(result.error_message).to include("아직 현재 투표자가 남아 있습니다.")
+      expect(result.error_message).to include("현재 투표자가 아직 처리되지 않았습니다.")
       expect_no_close(election_session)
     end
 

@@ -57,7 +57,7 @@ module Elections
       errors << "아직 지원하지 않는 운영 방식입니다." unless election_session.supervised?
       errors << "진행 정보가 없습니다." if progress.blank?
       errors << "ballot을 먼저 잠그세요." if progress&.open?
-      errors << "아직 현재 투표자가 남아 있습니다." if progress&.current_election_voter.present?
+      errors << "현재 투표자가 아직 처리되지 않았습니다." if current_voter_not_final?(progress&.current_election_voter)
       errors << "투표자가 없습니다." if voters.empty?
       errors << "참여 정보가 없는 투표자가 있습니다." if voters.any? { |voter| voter.election_participation.blank? }
       if voters.any? { |voter| voter.election_participation.present? && !final_participation?(voter.election_participation) }
@@ -79,6 +79,13 @@ module Elections
 
     def final_participation?(participation)
       participation.status.in?(FINAL_PARTICIPATION_STATUSES)
+    end
+
+    def current_voter_not_final?(voter)
+      return false if voter.blank?
+
+      participation = voter.election_participation
+      participation.blank? || !final_participation?(participation)
     end
 
     def participation_counts

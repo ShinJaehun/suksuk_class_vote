@@ -24,7 +24,14 @@ module Elections
     end
 
     def open_ballot
-      run_operation(Elections::OpenBallot, notice: "현재 투표자의 ballot을 열었습니다.", broadcast: true)
+      authorize @election_session
+
+      result = Elections::OpenBallot.new(election_session: @election_session, actor: current_user).call
+      if result.success?
+        broadcast_operation_progress
+        broadcast_ballot
+      end
+      redirect_with_result(result, notice: "현재 투표자의 ballot을 열었습니다.")
     end
 
     def lock_ballot
@@ -32,7 +39,14 @@ module Elections
     end
 
     def advance_voter
-      run_operation(Elections::AdvanceVoter, notice: "다음 투표자로 이동했습니다.", broadcast: true)
+      authorize @election_session
+
+      result = Elections::AdvanceVoter.new(election_session: @election_session, actor: current_user).call
+      if result.success?
+        broadcast_operation_progress
+        broadcast_ballot
+      end
+      redirect_with_result(result, notice: "다음 투표자로 이동했습니다.")
     end
 
     def mark_absent
@@ -58,12 +72,15 @@ module Elections
         abstained_contest_ids: ballot_abstained_contest_ids
       ).call
 
-      broadcast_operation_progress if result.success?
+      if result.success?
+        broadcast_operation_progress
+        broadcast_ballot
+      end
       redirect_with_result(result, notice: "투표가 제출되었습니다.", failure_return_to: params[:return_to])
     end
 
     def close
-      run_operation(Elections::CloseSession, notice: "투표를 종료했습니다.", broadcast: true)
+      run_operation(Elections::CloseSession, notice: "투표를 종료했습니다.", broadcast: true, broadcast_ballot: true)
     end
 
     private
@@ -90,11 +107,14 @@ module Elections
       @election_session.election_voters.count
     end
 
-    def run_operation(service_class, notice:, broadcast: false)
+    def run_operation(service_class, notice:, broadcast: false, broadcast_ballot: false)
       authorize @election_session
 
       result = service_class.new(election_session: @election_session, actor: current_user).call
-      broadcast_operation_progress if broadcast && result.success?
+      if result.success?
+        broadcast_operation_progress if broadcast
+        broadcast_ballot if broadcast_ballot
+      end
       redirect_with_result(result, notice: notice)
     end
 
@@ -118,6 +138,7 @@ module Elections
       @election_session.in_progress? &&
         @current_voter.present? &&
         (
+          (@progress&.locked? && @current_voter.election_participation&.pending?) ||
           (@progress&.open? && @current_voter.election_participation&.pending?) ||
           @current_voter.election_participation&.completed? ||
           @current_voter.election_participation&.abstained?
@@ -185,6 +206,24 @@ module Elections
           election_session: @election_session,
           progress: progress,
           current_voter: progress&.current_election_voter
+        }
+      )
+    end
+
+    def broadcast_ballot
+      @election_session.reload
+      progress = @election_session.election_progress&.reload
+
+      Turbo::StreamsChannel.broadcast_replace_to(
+        @election_session,
+        :ballot_screen,
+        target: helpers.dom_id(@election_session, :ballot),
+        partial: "elections/sessions/ballot_content",
+        locals: {
+          election_session: @election_session,
+          progress: progress,
+          current_voter: progress&.current_election_voter,
+          contests: @election_session.election.election_contests.includes(:election_candidates).order(:position)
         }
       )
     end

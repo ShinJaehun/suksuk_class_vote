@@ -12,7 +12,7 @@ RSpec.describe Elections::AdvanceVoter do
 
       expect(result).to be_success
       expect(election_session.election_progress.reload.current_election_voter).to eq(next_voter)
-      expect(election_session.election_progress).to be_locked
+      expect(election_session.election_progress).to be_open
       expect(election_session).to be_in_progress
 
       event = election_session.election_events.where(event_type: :voter_advanced).sole
@@ -38,6 +38,7 @@ RSpec.describe Elections::AdvanceVoter do
 
       expect(result).to be_success
       expect(election_session.election_progress.reload.current_election_voter).to eq(next_voter)
+      expect(election_session.election_progress).to be_open
     end
 
     it "moves from an abstained voter to the next pending voter" do
@@ -49,6 +50,7 @@ RSpec.describe Elections::AdvanceVoter do
 
       expect(result).to be_success
       expect(election_session.election_progress.reload.current_election_voter).to eq(next_voter)
+      expect(election_session.election_progress).to be_open
     end
 
     it "skips processed voters and finds the next pending voter by position" do
@@ -61,6 +63,7 @@ RSpec.describe Elections::AdvanceVoter do
 
       expect(result).to be_success
       expect(election_session.election_progress.reload.current_election_voter).to eq(voters.third)
+      expect(election_session.election_progress).to be_open
     end
 
     it "sets current election voter to nil after the last pending voter" do
@@ -73,6 +76,7 @@ RSpec.describe Elections::AdvanceVoter do
 
       expect(result).to be_success
       expect(election_session.election_progress.reload.current_election_voter).to be_nil
+      expect(election_session.election_progress).to be_locked
       expect(election_session).to be_in_progress
 
       event = election_session.election_events.where(event_type: :voter_advanced).sole
