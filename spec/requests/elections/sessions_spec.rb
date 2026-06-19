@@ -126,8 +126,20 @@ RSpec.describe "Election sessions", type: :request do
       visible_text = page_text
 
       expect(response).to have_http_status(:ok)
-      expect(visible_text).to include("모든 학생의 투표 처리가 끝났습니다.")
-      expect(visible_text).to include("종료 기능은 다음 단계에서 연결됩니다.")
+      expect(visible_text).to include("투표 진행을 마무리합니다.")
+      expect(visible_text).to include("투표 종료")
+      expect(response.body).to include("투표를 종료할까요?")
+    end
+
+    it "does not show close controls when the progress is open" do
+      election_session = close_ready_session
+      election_session.election_progress.update!(ballot_state: :open)
+      sign_in election_session.teacher
+
+      get elections_session_path(election_session)
+      visible_text = page_text
+
+      expect(response).to have_http_status(:ok)
       expect(visible_text).not_to include("투표 종료")
     end
 
@@ -419,7 +431,7 @@ RSpec.describe "Election sessions", type: :request do
       post close_elections_session_path(election_session)
 
       expect(response).to redirect_to(elections_session_path(election_session))
-      expect(flash[:notice]).to eq("선거 세션을 종료했습니다.")
+      expect(flash[:notice]).to eq("투표를 종료했습니다.")
       expect(election_session.reload).to be_closed
     end
   end

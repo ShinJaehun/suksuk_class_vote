@@ -61,7 +61,7 @@ module Elections
     end
 
     def close
-      run_operation(Elections::CloseSession, notice: "선거 세션을 종료했습니다.")
+      run_operation(Elections::CloseSession, notice: "투표를 종료했습니다.")
     end
 
     private
