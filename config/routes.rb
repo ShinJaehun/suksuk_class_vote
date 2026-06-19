@@ -34,6 +34,7 @@ Rails.application.routes.draw do
   end
 
   namespace :admin do
+    resources :elections, only: %i[index show new create]
     resources :school_elections, only: %i[index show new create] do
       resources :school_election_classroom_sessions, only: %i[new create] do
         post :create_poll, on: :member

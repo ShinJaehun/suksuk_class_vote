@@ -1,0 +1,30 @@
+<h1><%= @election.title %></h1>
+
+<p><%= link_to "선거 목록으로 돌아가기", admin_elections_path %></p>
+
+<dl>
+  <dt>종류</dt>
+  <dd><%= @election.kind %></dd>
+  <dt>상태</dt>
+  <dd><%= @election.status %></dd>
+</dl>
+
+<section>
+  <h2>선거 항목</h2>
+
+  <% if @election_contests.any? %>
+    <ul>
+      <% @election_contests.each do |contest| %>
+        <li>
+          <%= contest.position %>. <%= contest.title %>
+          /
+          <%= contest.vote_method %>
+          /
+          최대 <%= contest.max_selections %>명 선택
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p>아직 선거 항목이 없습니다.</p>
+  <% end %>
+</section>

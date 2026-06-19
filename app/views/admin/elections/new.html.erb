@@ -1,0 +1,26 @@
+<h1>선거 만들기</h1>
+
+<% if @election.errors.any? %>
+  <h2>선거를 만들 수 없습니다.</h2>
+  <ul>
+    <% @election.errors.full_messages.each do |message| %>
+      <li><%= message %></li>
+    <% end %>
+  </ul>
+<% end %>
+
+<%= form_with model: [:admin, @election] do |form| %>
+  <div>
+    <%= form.label :title, "선거 이름" %>
+    <%= form.text_field :title %>
+  </div>
+
+  <div>
+    <%= form.label :kind, "선거 종류" %>
+    <%= form.select :kind, Election.kinds.keys.map { |kind| [kind, kind] } %>
+  </div>
+
+  <%= form.submit "선거 만들기" %>
+<% end %>
+
+<p><%= link_to "선거 목록으로 돌아가기", admin_elections_path %></p>
