@@ -51,9 +51,14 @@
           <% end %>
 
           <% next_voter = election_session.election_voters.joins(:election_participation).where("election_voters.position > ?", current_voter.position).where(election_participations: { status: ElectionParticipation.statuses[:pending] }).order(:position).first %>
-          <% if next_voter.present? %>
-            <% next_voter_label = [("#{next_voter.number}번" if next_voter.number.present?), next_voter.name.presence].compact.join(" ").presence || "다음 학생" %>
-            <p class="mt-4 text-sm text-stone-600">다음 학생은 <%= next_voter_label %>입니다.</p>
+          <% can_advance = progress.locked? && (participation.completed? || participation.abstained? || participation.absent?) && next_voter.present? %>
+          <% if can_advance %>
+            <% next_voter_label = [("#{next_voter.number}번" if next_voter.number.present?), next_voter.name.presence].compact.join(" ").presence || "다음 투표자" %>
+            <%= button_to "다음 투표자는 #{next_voter_label}입니다.",
+                          advance_voter_elections_session_path(election_session),
+                          method: :post,
+                          data: { turbo_frame: "_top", turbo_submits_with: "이동 중..." },
+                          class: "mt-3 rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700" %>
           <% else %>
             <p class="mt-4 text-sm text-stone-600">모든 학생의 처리가 끝났습니다.</p>
           <% end %>

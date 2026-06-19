@@ -87,8 +87,20 @@ RSpec.describe "Election sessions", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(visible_text).to include("1번 학생1은 투표를 완료했습니다.")
-      expect(visible_text).to include("다음 학생은 2번 학생2입니다.")
+      expect(visible_text).to include("다음 투표자는 2번 학생2입니다.")
       expect(visible_text).not_to include("투표 종료")
+    end
+
+    it "does not show the next voter action while the ballot is open" do
+      election_session = completed_current_voter_session
+      election_session.election_progress.update!(ballot_state: :open)
+      sign_in election_session.teacher
+
+      get elections_session_path(election_session)
+      visible_text = page_text
+
+      expect(response).to have_http_status(:ok)
+      expect(visible_text).not_to include("다음 투표자는 2번 학생2입니다.")
     end
 
     it "shows a safe finish action after the last current voter is handled" do
@@ -101,7 +113,7 @@ RSpec.describe "Election sessions", type: :request do
       expect(response).to have_http_status(:ok)
       expect(visible_text).to include("2번 학생2은 미참여 처리되었습니다.")
       expect(visible_text).to include("모든 학생의 처리가 끝났습니다.")
-      expect(visible_text).not_to include("다음 학생은 다음 학생입니다.")
+      expect(visible_text).not_to include("다음 투표자는 다음 투표자입니다.")
       expect(visible_text).not_to include("투표 종료")
     end
 
