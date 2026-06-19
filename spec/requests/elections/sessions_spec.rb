@@ -21,9 +21,15 @@ RSpec.describe "Election sessions", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(visible_text).to include(election_session.election.title)
-      expect(visible_text).to include("투표 진행")
-      expect(visible_text).to include("학생1")
-      expect(visible_text).not_to include(election_session.participant_group.name)
+      expect(visible_text).to include(election_session.participant_group.name)
+      expect(visible_text).to include("투표자 2명")
+      expect(visible_text).to include("Contest 1")
+      expect(visible_text).to include("후보1")
+      expect(visible_text).to include("선거 진행 화면은 다음 단계에서 구현 예정입니다.")
+      expect(visible_text).not_to include("현재 투표자")
+      expect(visible_text).not_to include("미참여 처리")
+      expect(visible_text).not_to include("투표 제출")
+      expect(visible_text).not_to include("투표 종료")
       expect(visible_text).not_to include("in_progress")
       expect(visible_text).not_to include("supervised")
       expect(visible_text).not_to include("locked")
@@ -91,7 +97,6 @@ RSpec.describe "Election sessions", type: :request do
       get elections_session_path(election_session)
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("종료된 세션")
       expect(response.body).to include("이 세션은 종료되었습니다.")
       expect(response.body).not_to include("세션 결과")
       expect(response.body).not_to include("무결성 확인")
@@ -131,81 +136,6 @@ RSpec.describe "Election sessions", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(read_only_counts(election_session.reload)).to eq(before_counts)
-    end
-
-    it "shows only start and non-participation controls for a pending locked voter" do
-      election_session = started_session
-      sign_in election_session.teacher
-
-      get elections_session_path(election_session)
-
-      expect(response).to have_http_status(:ok)
-      expect(response.body).to include("투표를 시작합니다.")
-      expect(response.body).to include("다음 투표자는 1번 학생1입니다.")
-      expect(response.body).to include("미참여 처리")
-      expect(response.body).not_to include("다음 학생")
-      expect(response.body).not_to include("투표 종료")
-    end
-
-    it "shows the ballot form when the current ballot is open" do
-      election_session = opened_session
-      sign_in election_session.teacher
-
-      get elections_session_path(election_session)
-      visible_text = page_text
-
-      expect(response).to have_http_status(:ok)
-      expect(visible_text).to include("현재 투표자")
-      expect(visible_text).to include("학생1")
-      expect(visible_text).to include("Contest 1")
-      expect(visible_text).to include("후보1")
-      expect(visible_text).to include("투표 제출")
-      expect(visible_text).not_to include("single_choice")
-      expect(visible_text).not_to include("1-1명 선택")
-      expect(visible_text).not_to include("후보 선택 상세")
-      expect(visible_text).not_to include("서버에서 거부")
-      expect(visible_text).not_to include("Ballot")
-      expect(visible_text).not_to include("세션 종료")
-      expect(visible_text).not_to include("투표 종료")
-    end
-
-    it "shows only the next student control after the current voter is handled" do
-      election_session = completed_current_voter_session
-      sign_in election_session.teacher
-
-      get elections_session_path(election_session)
-
-      expect(response).to have_http_status(:ok)
-      expect(response.body).to include("1번 학생1은 투표를 완료했습니다.")
-      expect(response.body).to include("다음 투표자는 2번 학생2입니다.")
-      expect(response.body).not_to include("미참여 처리")
-      expect(response.body).not_to include("투표 제출")
-      expect(response.body).not_to include("투표 종료")
-    end
-
-    it "shows a finish progress control when the handled current voter is the last pending voter" do
-      election_session = completed_last_current_voter_session
-      sign_in election_session.teacher
-
-      get elections_session_path(election_session)
-
-      expect(response).to have_http_status(:ok)
-      expect(response.body).to include("투표 진행을 마무리합니다")
-      expect(response.body).not_to include("다음 투표자는 다음 투표자입니다.")
-      expect(response.body).not_to include("투표 종료")
-    end
-
-    it "shows the close control when no current voter remains" do
-      election_session = no_current_voter_session
-      sign_in election_session.teacher
-
-      get elections_session_path(election_session)
-
-      expect(response).to have_http_status(:ok)
-      expect(response.body).to include("모든 학생의 투표 처리가 끝났습니다.")
-      expect(response.body).to include("투표 종료")
-      expect(response.body).not_to include("미참여 처리")
-      expect(response.body).not_to include("투표 제출")
     end
 
     it "does not show the ballot form when the current ballot is locked" do
@@ -422,31 +352,6 @@ RSpec.describe "Election sessions", type: :request do
   def absent_current_voter_session
     election_session = started_session
     Elections::MarkVoterAbsent.new(election_session: election_session, actor: election_session.teacher).call
-    election_session.reload
-  end
-
-  def completed_current_voter_session
-    election_session = started_session
-    current_voter = election_session.election_progress.current_election_voter
-    current_voter.election_participation.update!(status: :completed, submitted_at: Time.current)
-    election_session.reload
-  end
-
-  def completed_last_current_voter_session
-    election_session = started_session
-    voters = election_session.election_voters.order(:position).to_a
-    voters.first.election_participation.update!(status: :completed, submitted_at: Time.current)
-    voters.second.election_participation.update!(status: :completed, submitted_at: Time.current)
-    election_session.election_progress.update!(ballot_state: :locked, current_election_voter: voters.second)
-    election_session.reload
-  end
-
-  def no_current_voter_session
-    election_session = started_session
-    election_session.election_voters.includes(:election_participation).find_each do |voter|
-      voter.election_participation.update!(status: :completed, submitted_at: Time.current)
-    end
-    election_session.election_progress.update!(ballot_state: :locked, current_election_voter: nil)
     election_session.reload
   end
 

@@ -6,14 +6,7 @@ module Elections
     def show
       authorize @election_session
 
-      @election = @election_session.election
-      @progress = @election_session.election_progress
-      @current_voter = @progress&.current_election_voter
-      @voters = @election_session.election_voters.includes(:election_participation).order(:position)
-      @contests = @election.election_contests.includes(:election_candidates).order(:position)
-      @candidate_tallies = @election_session.election_candidate_tallies.includes(:election_candidate, :election_contest)
-      @contest_tallies = @election_session.election_contest_tallies.includes(:election_contest)
-      prepare_closed_result if @election_session.closed?
+      prepare_session_view
     end
 
     def start
@@ -65,6 +58,24 @@ module Elections
 
     def set_election_session
       @election_session = ElectionSession.find(params[:id])
+    end
+
+    def prepare_session_view
+      @election = @election_session.election
+      @progress = @election_session.election_progress
+      @current_voter = @progress&.current_election_voter
+      @voters = @election_session.election_voters.includes(:election_participation).order(:position)
+      @contests = @election.election_contests.includes(:election_candidates).order(:position)
+      @candidate_tallies = @election_session.election_candidate_tallies.includes(:election_candidate, :election_contest)
+      @contest_tallies = @election_session.election_contest_tallies.includes(:election_contest)
+      @election_session_voter_count = election_session_voter_count
+      prepare_closed_result if @election_session.closed?
+    end
+
+    def election_session_voter_count
+      return @election_session.participant_group.participant_slots.count if @election_session.draft?
+
+      @election_session.election_voters.count
     end
 
     def run_operation(service_class, notice:)
