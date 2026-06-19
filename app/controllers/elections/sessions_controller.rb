@@ -57,7 +57,7 @@ module Elections
         abstained_contest_ids: ballot_abstained_contest_ids
       ).call
 
-      redirect_with_result(result, notice: "투표가 제출되었습니다.")
+      redirect_with_result(result, notice: "투표가 제출되었습니다.", failure_return_to: params[:return_to])
     end
 
     def close
@@ -95,9 +95,11 @@ module Elections
       redirect_with_result(result, notice: notice)
     end
 
-    def redirect_with_result(result, notice:)
+    def redirect_with_result(result, notice:, failure_return_to: nil)
       if result.success?
         redirect_to operation_redirect_path, notice: notice
+      elsif failure_return_to == "ballot"
+        redirect_to ballot_elections_session_path(@election_session), alert: result.error_message
       else
         redirect_to elections_session_path(@election_session), alert: result.error_message
       end
@@ -111,9 +113,12 @@ module Elections
 
     def ballot_viewable?
       @election_session.in_progress? &&
-        @progress&.open? &&
         @current_voter.present? &&
-        @current_voter.election_participation&.pending?
+        (
+          (@progress&.open? && @current_voter.election_participation&.pending?) ||
+          @current_voter.election_participation&.completed? ||
+          @current_voter.election_participation&.abstained?
+        )
     end
 
     def ballot_selections_by_contest_id

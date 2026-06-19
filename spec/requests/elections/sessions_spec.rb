@@ -277,7 +277,7 @@ RSpec.describe "Election sessions", type: :request do
   end
 
   describe "GET /elections/sessions/:id/ballot" do
-    it "shows a read only ballot when the current ballot is open" do
+    it "shows a ballot form when the current ballot is open" do
       election_session = opened_session
       sign_in election_session.teacher
 
@@ -288,12 +288,39 @@ RSpec.describe "Election sessions", type: :request do
       expect(response.body).to include("1번 학생1")
       expect(response.body).to include("Contest 1")
       expect(response.body).to include("후보1")
-      expect(response.body).to include("투표 제출 기능은 다음 단계에서 연결됩니다.")
+      expect(response.body).to include("기권")
+      expect(response.body).to include("투표 제출")
+      expect(response.body).to include("type=\"radio\"")
+      expect(response.body).to include("contest_choices")
+      expect(response.body).to include("submit_ballot")
+      expect(response.body).not_to include("투표 제출 기능은 다음 단계에서 연결됩니다.")
+    end
+
+    it "shows completion guidance without a form after submission" do
+      election_session = opened_session
+      candidate = first_candidate(election_session)
+      sign_in election_session.teacher
+
+      post submit_ballot_elections_session_path(election_session, return_to: "ballot"), params: candidate_ballot_params(candidate)
+      follow_redirect!
+
+      expect(response.body).to include("투표가 제출되었습니다.")
       expect(response.body).not_to include("type=\"radio\"")
       expect(response.body).not_to include("type=\"checkbox\"")
       expect(response.body).not_to include("contest_choices")
-      expect(response.body).not_to include("abstained_contest_ids")
-      expect(response.body).not_to include("submit_ballot")
+      expect(response.body).not_to include("투표 제출")
+    end
+
+    it "shows completion guidance without a form when a completed voter reopens the ballot" do
+      election_session = completed_current_voter_session
+      sign_in election_session.teacher
+
+      get ballot_elections_session_path(election_session)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("투표가 제출되었습니다.")
+      expect(response.body).not_to include("type=\"radio\"")
+      expect(response.body).not_to include("contest_choices")
     end
 
     it "redirects to the session when the current ballot is not open" do
@@ -399,6 +426,17 @@ RSpec.describe "Election sessions", type: :request do
       expect(tally_for(election_session, candidate).reload.votes_count).to eq(1)
     end
 
+    it "redirects to the ballot screen after student ballot submission" do
+      election_session = opened_session
+      candidate = first_candidate(election_session)
+      sign_in election_session.teacher
+
+      post submit_ballot_elections_session_path(election_session, return_to: "ballot"), params: candidate_ballot_params(candidate)
+
+      expect(response).to redirect_to(ballot_elections_session_path(election_session))
+      expect(flash[:notice]).to eq("투표가 제출되었습니다.")
+    end
+
     it "allows abstain submission" do
       election_session = opened_session
       contest = election_session.election.election_contests.sole
@@ -425,6 +463,21 @@ RSpec.describe "Election sessions", type: :request do
       expect(flash[:alert]).to include("ballot이 열려 있어야 제출할 수 있습니다.")
       expect(current_voter.election_participation).to be_pending
       expect(tally_for(election_session, candidate).reload.votes_count).to eq(0)
+    end
+
+    it "redirects back to the ballot screen with errors after failed student ballot submission" do
+      election_session = opened_session
+      sign_in election_session.teacher
+
+      post submit_ballot_elections_session_path(election_session, return_to: "ballot"), params: {
+        ballot: {
+          contest_choices: {}
+        }
+      }
+
+      expect(response).to redirect_to(ballot_elections_session_path(election_session))
+      expect(flash[:alert]).to include("제출되지 않은 선거 항목")
+      expect(election_session.reload.election_progress).to be_open
     end
 
     it "does not allow another teacher to submit the ballot" do
