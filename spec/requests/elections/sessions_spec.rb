@@ -2,6 +2,7 @@ require "rails_helper"
 
 RSpec.describe "Election sessions", type: :request do
   include Devise::Test::IntegrationHelpers
+  include ActionCable::TestHelper
 
   describe "GET /elections/sessions/:id" do
     it "redirects guests to sign in" do
@@ -734,11 +735,11 @@ RSpec.describe "Election sessions", type: :request do
   end
 
   def operation_screen_broadcasts_for(election_session)
-    broadcasts(Turbo::StreamsChannel.send(:stream_name_from, [election_session, :operation_screen]))
+    broadcasts(Turbo::StreamsChannel.send(:stream_name_from, [ election_session, :operation_screen ]))
   end
 
   def ballot_screen_broadcasts_for(election_session)
-    broadcasts(Turbo::StreamsChannel.send(:stream_name_from, [election_session, :ballot_screen]))
+    broadcasts(Turbo::StreamsChannel.send(:stream_name_from, [ election_session, :ballot_screen ]))
   end
 
   def decoded_broadcast(broadcast)
