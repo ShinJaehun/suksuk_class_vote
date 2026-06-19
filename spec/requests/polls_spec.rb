@@ -33,6 +33,39 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include(archived_polls_path)
     end
 
+    it "shows assigned election sessions as vote list items for teachers" do
+      teacher = create(:user)
+      other_teacher = create(:user)
+      participant_group = create(:participant_group, user: teacher, name: "4학년 1반")
+      create(:participant_slot, participant_group: participant_group)
+      poll = create(:poll, user: teacher, title: "기존 투표")
+      election_session = create(
+        :election_session,
+        election: create(:election, title: "학급 회장 선거"),
+        teacher: teacher,
+        participant_group: participant_group
+      )
+      create(
+        :election_session,
+        election: create(:election, title: "다른 반 선거"),
+        teacher: other_teacher,
+        participant_group: create(:participant_group, :with_participant_slot, user: other_teacher)
+      )
+      sign_in teacher
+
+      get polls_path
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include(poll.title)
+      expect(response.body).to include(election_session.election.title)
+      expect(response.body).to include(elections_session_path(election_session))
+      expect(response.body).to include("선거")
+      expect(response.body).to include("시작 전")
+      expect(response.body).to include("투표자 1명")
+      expect(response.body).not_to include("다른 반 선거")
+      expect(response.body).not_to include("ElectionSession")
+    end
+
     it "shows voter counts from participant slots for draft polls and snapshots for started polls" do
       teacher = create(:user)
       draft_group = create(:participant_group, user: teacher)

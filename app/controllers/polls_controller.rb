@@ -5,6 +5,8 @@ class PollsController < ApplicationController
   def index
     @polls = policy_scope(Poll).active_list.includes(:participant_group).order(created_at: :desc)
     @poll_voter_counts = voter_counts_for(@polls)
+    @assigned_election_sessions = assigned_election_sessions
+    @election_session_voter_counts = election_session_voter_counts_for(@assigned_election_sessions)
     authorize Poll
   end
 
@@ -314,6 +316,33 @@ class PollsController < ApplicationController
           draft_slot_counts.fetch(poll.participant_group_id, 0)
         else
           snapshot_counts.fetch(poll.id, 0)
+        end
+    end
+  end
+
+  def assigned_election_sessions
+    return ElectionSession.none unless current_user.teacher?
+
+    ElectionSession
+      .where(teacher: current_user, status: %i[draft in_progress])
+      .includes(:election, :participant_group)
+      .order(created_at: :desc)
+  end
+
+  def election_session_voter_counts_for(election_sessions)
+    session_records = election_sessions.to_a
+    return {} if session_records.empty?
+
+    snapshot_counts = ElectionVoter.where(election_session_id: session_records.map(&:id)).group(:election_session_id).count
+    draft_group_ids = session_records.select(&:draft?).filter_map(&:participant_group_id)
+    draft_slot_counts = ParticipantSlot.where(participant_group_id: draft_group_ids).group(:participant_group_id).count
+
+    session_records.each_with_object({}) do |election_session, counts|
+      counts[election_session.id] =
+        if election_session.draft?
+          draft_slot_counts.fetch(election_session.participant_group_id, 0)
+        else
+          snapshot_counts.fetch(election_session.id, 0)
         end
     end
   end
