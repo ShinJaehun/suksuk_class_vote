@@ -28,10 +28,11 @@ RSpec.describe "Election sessions", type: :request do
       expect(visible_text).to include("투표자 2명")
       expect(visible_text).to include("Contest 1")
       expect(visible_text).to include("후보1")
-      expect(visible_text).to include("선거 진행 기능은 준비 중입니다.")
-      expect(visible_text).not_to include("다음 단계")
-      expect(visible_text).not_to include("현재 투표자")
-      expect(visible_text).not_to include("미참여 처리")
+      expect(visible_text).to include("투표 진행")
+      expect(visible_text).to include("현재 투표자")
+      expect(visible_text).to include("1번 학생1")
+      expect(visible_text).to include("투표 화면 열기")
+      expect(visible_text).to include("미참여 처리")
       expect(visible_text).not_to include("투표 제출")
       expect(visible_text).not_to include("투표 종료")
       expect(visible_text).not_to include("in_progress")
@@ -42,6 +43,76 @@ RSpec.describe "Election sessions", type: :request do
       expect(visible_text).not_to include("single_choice")
       expect(visible_text).not_to include("무결성 확인")
       expect(visible_text).not_to include("세션 결과")
+    end
+
+    it "shows start controls for draft sessions without ballot inputs" do
+      election_session = draft_session
+      sign_in election_session.teacher
+
+      get elections_session_path(election_session)
+      visible_text = page_text
+
+      expect(response).to have_http_status(:ok)
+      expect(visible_text).to include("투표를 시작할 수 있습니다.")
+      expect(visible_text).to include("투표 시작")
+      expect(visible_text).not_to include("투표 제출")
+      expect(visible_text).not_to include("draft")
+    end
+
+    it "shows open ballot guidance without ballot inputs" do
+      election_session = opened_session
+      sign_in election_session.teacher
+
+      get elections_session_path(election_session)
+      visible_text = page_text
+
+      expect(response).to have_http_status(:ok)
+      expect(visible_text).to include("현재 투표자")
+      expect(visible_text).to include("1번 학생1")
+      expect(visible_text).to include("투표 화면이 열려 있습니다.")
+      expect(visible_text).to include("학생 투표 화면은 다음 단계에서 연결됩니다.")
+      expect(visible_text).not_to include("투표 제출")
+      expect(visible_text).not_to include("미참여 처리")
+      expect(visible_text).not_to include("open")
+    end
+
+    it "shows the next voter action after the current voter is completed" do
+      election_session = completed_current_voter_session
+      sign_in election_session.teacher
+
+      get elections_session_path(election_session)
+      visible_text = page_text
+
+      expect(response).to have_http_status(:ok)
+      expect(visible_text).to include("1번 학생1은 투표를 완료했습니다.")
+      expect(visible_text).to include("다음 투표자는 2번 학생2입니다.")
+      expect(visible_text).not_to include("투표 종료")
+    end
+
+    it "shows a safe finish action after the last current voter is handled" do
+      election_session = last_handled_current_voter_session
+      sign_in election_session.teacher
+
+      get elections_session_path(election_session)
+      visible_text = page_text
+
+      expect(response).to have_http_status(:ok)
+      expect(visible_text).to include("2번 학생2은 미참여 처리되었습니다.")
+      expect(visible_text).to include("투표 진행을 마무리합니다.")
+      expect(visible_text).not_to include("다음 투표자는 다음 투표자입니다.")
+      expect(visible_text).not_to include("투표 종료")
+    end
+
+    it "shows close controls only after all voters are handled and current voter is cleared" do
+      election_session = close_ready_session
+      sign_in election_session.teacher
+
+      get elections_session_path(election_session)
+      visible_text = page_text
+
+      expect(response).to have_http_status(:ok)
+      expect(visible_text).to include("모든 학생의 투표 처리가 끝났습니다.")
+      expect(visible_text).to include("투표 종료")
     end
 
     it "allows admins to view any session" do
@@ -107,6 +178,9 @@ RSpec.describe "Election sessions", type: :request do
       expect(response.body).not_to include("1표")
       expect(response.body).not_to include("completed")
       expect(response.body).not_to include("abstained")
+      expect(response.body).not_to include("투표 화면 열기")
+      expect(response.body).not_to include("미참여 처리")
+      expect(response.body).not_to include("투표 종료")
     end
 
     it "does not show closed session results for in progress sessions" do
@@ -129,6 +203,8 @@ RSpec.describe "Election sessions", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("중단된 세션")
       expect(response.body).not_to include("세션 결과")
+      expect(response.body).not_to include("투표 화면 열기")
+      expect(response.body).not_to include("미참여 처리")
     end
 
     it "does not change election session data" do
@@ -356,6 +432,23 @@ RSpec.describe "Election sessions", type: :request do
   def absent_current_voter_session
     election_session = started_session
     Elections::MarkVoterAbsent.new(election_session: election_session, actor: election_session.teacher).call
+    election_session.reload
+  end
+
+  def completed_current_voter_session
+    election_session = started_session
+    current_voter = election_session.election_progress.current_election_voter
+    current_voter.election_participation.update!(status: :completed, submitted_at: Time.current)
+    election_session.election_progress.update!(ballot_state: :locked)
+    election_session.reload
+  end
+
+  def last_handled_current_voter_session
+    election_session = started_session
+    voters = election_session.election_voters.order(:position).to_a
+    voters.first.election_participation.update!(status: :completed, submitted_at: Time.current)
+    voters.second.election_participation.update!(status: :absent, submitted_at: Time.current)
+    election_session.election_progress.update!(ballot_state: :locked, current_election_voter: voters.second)
     election_session.reload
   end
 
