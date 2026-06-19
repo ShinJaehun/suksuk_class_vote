@@ -61,9 +61,48 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include(elections_session_path(election_session))
       expect(response.body).to include("선거")
       expect(response.body).to include("시작 전")
+      expect(response.body).to include(participant_group.name)
       expect(response.body).to include("투표자 1명")
       expect(response.body).not_to include("다른 반 선거")
       expect(response.body).not_to include("ElectionSession")
+    end
+
+    it "shows assigned in-progress election sessions and hides finished election sessions" do
+      teacher = create(:user)
+      participant_group = create(:participant_group, user: teacher, name: "5학년 2반")
+      in_progress_session = create(
+        :election_session,
+        status: :in_progress,
+        election: create(:election, title: "진행 중인 선거"),
+        teacher: teacher,
+        participant_group: participant_group
+      )
+      create(:election_voter, election_session: in_progress_session, teacher: teacher, participant_group: participant_group)
+      create(:election_voter, election_session: in_progress_session, teacher: teacher, participant_group: participant_group)
+      create(
+        :election_session,
+        status: :closed,
+        election: create(:election, title: "종료된 선거"),
+        teacher: teacher,
+        participant_group: participant_group
+      )
+      create(
+        :election_session,
+        status: :stopped,
+        election: create(:election, title: "중단된 선거"),
+        teacher: teacher,
+        participant_group: participant_group
+      )
+      sign_in teacher
+
+      get polls_path
+
+      expect(response.body).to include("진행 중인 선거")
+      expect(response.body).to include("진행 중")
+      expect(response.body).to include("투표자 2명")
+      expect(response.body).not_to include("종료된 선거")
+      expect(response.body).not_to include("중단된 선거")
+      expect(response.body).not_to include("in_progress")
     end
 
     it "shows voter counts from participant slots for draft polls and snapshots for started polls" do
