@@ -15,6 +15,8 @@ module Admin
 
     def create
       authorize @election, :show?
+      return unless ensure_draft_election!
+
       @election_candidate = @election_contest.election_candidates.build(election_candidate_params)
 
       if @election_candidate.save
@@ -26,6 +28,7 @@ module Admin
 
     def update
       authorize @election, :show?
+      return unless ensure_draft_election!
 
       if @election_candidate.update(election_candidate_params)
         redirect_to admin_election_path(@election), notice: "후보를 수정했습니다."
@@ -36,6 +39,8 @@ module Admin
 
     def destroy
       authorize @election, :show?
+      return unless ensure_draft_election!
+
       @election_candidate.destroy
 
       redirect_to admin_election_path(@election), notice: "후보를 삭제했습니다."
@@ -57,6 +62,13 @@ module Admin
 
     def election_candidate_params
       params.require(:election_candidate).permit(:number, :name, :affiliation_label)
+    end
+
+    def ensure_draft_election!
+      return true if @election.draft?
+
+      redirect_to admin_election_path(@election), alert: "선거 시작 후에는 후보자를 변경할 수 없습니다."
+      false
     end
   end
 end

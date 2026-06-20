@@ -95,6 +95,44 @@ RSpec.describe "Admin election candidates", type: :request do
       expect(response).to redirect_to(dashboard_path)
     end
 
+    it "does not create candidates after the election starts" do
+      election, contest = create_election_with_contest
+      election.update!(status: :in_progress)
+      sign_in create(:user, :admin)
+
+      expect do
+        post admin_election_election_contest_election_candidates_path(election, contest), params: {
+          election_candidate: {
+            number: 1,
+            name: "차단 후보",
+            affiliation_label: "6학년 1반"
+          }
+        }
+      end.not_to change(ElectionCandidate, :count)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("선거 시작 후에는 후보자를 변경할 수 없습니다.")
+    end
+
+    it "does not create candidates after the election is closed" do
+      election, contest = create_election_with_contest
+      election.update!(status: :closed)
+      sign_in create(:user, :admin)
+
+      expect do
+        post admin_election_election_contest_election_candidates_path(election, contest), params: {
+          election_candidate: {
+            number: 1,
+            name: "차단 후보",
+            affiliation_label: "6학년 1반"
+          }
+        }
+      end.not_to change(ElectionCandidate, :count)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("선거 시작 후에는 후보자를 변경할 수 없습니다.")
+    end
+
     it "does not create a candidate under a contest from another election" do
       election = create(:election)
       _other_election, other_contest = create_election_with_contest
@@ -179,6 +217,25 @@ RSpec.describe "Admin election candidates", type: :request do
       expect(response.body).to include("6학년 3반")
       expect(candidate.reload).to have_attributes(number: 2, name: "기존 후보", affiliation_label: "6학년 2반")
     end
+
+    it "does not update candidates after the election starts" do
+      election, contest = create_election_with_contest
+      candidate = create(:election_candidate, election_contest: contest, number: 1, name: "김후보", affiliation_label: "6학년 1반")
+      election.update!(status: :in_progress)
+      sign_in create(:user, :admin)
+
+      patch admin_election_election_contest_election_candidate_path(election, contest, candidate), params: {
+        election_candidate: {
+          number: 2,
+          name: "수정 차단",
+          affiliation_label: "6학년 2반"
+        }
+      }
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("선거 시작 후에는 후보자를 변경할 수 없습니다.")
+      expect(candidate.reload).to have_attributes(number: 1, name: "김후보", affiliation_label: "6학년 1반")
+    end
   end
 
   describe "DELETE /admin/elections/:election_id/contests/:election_contest_id/candidates/:id" do
@@ -218,6 +275,20 @@ RSpec.describe "Admin election candidates", type: :request do
       end.not_to change(ElectionCandidate, :count)
 
       expect(response).to have_http_status(:not_found)
+    end
+
+    it "does not destroy candidates after the election starts" do
+      election, contest = create_election_with_contest
+      candidate = create(:election_candidate, election_contest: contest)
+      election.update!(status: :in_progress)
+      sign_in create(:user, :admin)
+
+      expect do
+        delete admin_election_election_contest_election_candidate_path(election, contest, candidate)
+      end.not_to change(ElectionCandidate, :count)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("선거 시작 후에는 후보자를 변경할 수 없습니다.")
     end
   end
 

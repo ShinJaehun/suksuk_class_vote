@@ -142,6 +142,45 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("6학년 1반")
     end
 
+    it "hides the session assignment form after the election starts or closes" do
+      sign_in create(:user, :admin)
+      in_progress_election = create(:election, status: :in_progress)
+      closed_election = create(:election, status: :closed)
+
+      get admin_election_path(in_progress_election)
+      expect(response.body).not_to include("학급 세션 배정")
+      expect(response.body).to include("선거 시작 후에는 구성을 변경할 수 없습니다.")
+
+      get admin_election_path(closed_election)
+      expect(response.body).not_to include("학급 세션 배정")
+      expect(response.body).to include("선거 시작 후에는 구성을 변경할 수 없습니다.")
+    end
+
+    it "shows candidate management controls only for draft elections" do
+      sign_in create(:user, :admin)
+      draft_election = create(:election, status: :draft)
+      draft_contest = create(:election_contest, election: draft_election)
+      draft_candidate = create(:election_candidate, election_contest: draft_contest)
+      in_progress_election = create(:election, status: :in_progress)
+      in_progress_contest = create(:election_contest, election: in_progress_election)
+      in_progress_candidate = create(:election_candidate, election_contest: in_progress_contest)
+      closed_election = create(:election, status: :closed)
+      closed_contest = create(:election_contest, election: closed_election)
+      closed_candidate = create(:election_candidate, election_contest: closed_contest)
+
+      get admin_election_path(draft_election)
+      expect(response.body).to include(new_admin_election_election_contest_election_candidate_path(draft_election, draft_contest))
+      expect(response.body).to include(edit_admin_election_election_contest_election_candidate_path(draft_election, draft_contest, draft_candidate))
+
+      get admin_election_path(in_progress_election)
+      expect(response.body).not_to include(new_admin_election_election_contest_election_candidate_path(in_progress_election, in_progress_contest))
+      expect(response.body).not_to include(edit_admin_election_election_contest_election_candidate_path(in_progress_election, in_progress_contest, in_progress_candidate))
+
+      get admin_election_path(closed_election)
+      expect(response.body).not_to include(new_admin_election_election_contest_election_candidate_path(closed_election, closed_contest))
+      expect(response.body).not_to include(edit_admin_election_election_contest_election_candidate_path(closed_election, closed_contest, closed_candidate))
+    end
+
     it "links to the aggregate results page without rendering result details" do
       sign_in create(:user, :admin)
       election = create(:election)
@@ -218,7 +257,7 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("운영 상태")
       expect(response.body).to include("진행 중")
       expect(response.body).not_to include("Election이 draft 상태여야 합니다.")
-      expect(response.body).not_to include("선거 시작")
+      expect(response.body).not_to include(start_admin_election_path(election))
     end
 
     it "shows closed status reporting" do
@@ -232,7 +271,7 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("투표가 종료되었습니다.")
       expect(response.body).to include("운영 상태")
       expect(response.body).to include("종료")
-      expect(response.body).not_to include("선거 시작")
+      expect(response.body).not_to include(start_admin_election_path(election))
     end
 
     it "does not show the start button for in progress or closed elections" do
@@ -241,10 +280,10 @@ RSpec.describe "Admin elections", type: :request do
       closed_election = create(:election, status: :closed)
 
       get admin_election_path(in_progress_election)
-      expect(response.body).not_to include("선거 시작")
+      expect(response.body).not_to include(start_admin_election_path(in_progress_election))
 
       get admin_election_path(closed_election)
-      expect(response.body).not_to include("선거 시작")
+      expect(response.body).not_to include(start_admin_election_path(closed_election))
     end
   end
 

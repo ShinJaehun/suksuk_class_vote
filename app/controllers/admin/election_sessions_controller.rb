@@ -5,6 +5,11 @@ module Admin
 
     def create
       authorize @election, :show?
+      unless @election.draft?
+        redirect_to admin_election_path(@election), alert: "선거 시작 후에는 학급 세션을 배정할 수 없습니다."
+        return
+      end
+
       @election_session = @election.election_sessions.build(election_session_params)
       @election_session.operation_mode = :supervised
 

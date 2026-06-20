@@ -108,6 +108,44 @@ RSpec.describe "Admin election sessions", type: :request do
       expect(response).to redirect_to(dashboard_path)
     end
 
+    it "does not create election sessions after the election starts" do
+      election = create(:election, status: :in_progress)
+      teacher = create(:user)
+      participant_group = create(:participant_group, :with_participant_slot, user: teacher)
+      sign_in create(:user, :admin)
+
+      expect do
+        post admin_election_election_sessions_path(election), params: {
+          election_session: {
+            teacher_id: teacher.id,
+            participant_group_id: participant_group.id
+          }
+        }
+      end.not_to change(ElectionSession, :count)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("선거 시작 후에는 학급 세션을 배정할 수 없습니다.")
+    end
+
+    it "does not create election sessions after the election is closed" do
+      election = create(:election, status: :closed)
+      teacher = create(:user)
+      participant_group = create(:participant_group, :with_participant_slot, user: teacher)
+      sign_in create(:user, :admin)
+
+      expect do
+        post admin_election_election_sessions_path(election), params: {
+          election_session: {
+            teacher_id: teacher.id,
+            participant_group_id: participant_group.id
+          }
+        }
+      end.not_to change(ElectionSession, :count)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("선거 시작 후에는 학급 세션을 배정할 수 없습니다.")
+    end
+
     it "redirects guests to sign in" do
       election = create(:election)
       teacher = create(:user)
