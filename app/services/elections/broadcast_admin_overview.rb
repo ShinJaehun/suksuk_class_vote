@@ -5,6 +5,8 @@ module Elections
     end
 
     def call
+      election.reload
+      broadcast_summary
       broadcast_status_report
       broadcast_sessions
     end
@@ -13,9 +15,17 @@ module Elections
 
     attr_reader :election
 
-    def broadcast_status_report
-      election.reload
+    def broadcast_summary
+      Turbo::StreamsChannel.broadcast_replace_to(
+        election,
+        :admin_overview,
+        target: ActionView::RecordIdentifier.dom_id(election, :admin_summary),
+        partial: "admin/elections/summary",
+        locals: { election: election }
+      )
+    end
 
+    def broadcast_status_report
       Turbo::StreamsChannel.broadcast_replace_to(
         election,
         :admin_overview,

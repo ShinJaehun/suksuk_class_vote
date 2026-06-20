@@ -1,0 +1,10 @@
+<%= tag.section id: dom_id(election, :admin_summary) do %>
+  <h1><%= election.title %></h1>
+
+  <dl>
+    <dt>종류</dt>
+    <dd><%= election.kind %></dd>
+    <dt>상태</dt>
+    <dd><%= election.status %></dd>
+  </dl>
+<% end %>

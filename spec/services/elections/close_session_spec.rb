@@ -40,6 +40,7 @@ RSpec.describe Elections::CloseSession do
       described_class.new(election_session: election_session, actor: election_session.teacher).call
 
       broadcasts = admin_overview_broadcasts_for(election_session.election)
+      expect(broadcasts.any? { |broadcast| broadcast.include?(ActionView::RecordIdentifier.dom_id(election_session.election, :admin_summary)) }).to be(true)
       expect(broadcasts.any? { |broadcast| broadcast.include?(ActionView::RecordIdentifier.dom_id(election_session.election, :admin_status_report)) }).to be(true)
       expect(broadcasts.any? { |broadcast| broadcast.include?(ActionView::RecordIdentifier.dom_id(election_session.election, :admin_sessions)) }).to be(true)
       expect(broadcasts.join).to include("closed")

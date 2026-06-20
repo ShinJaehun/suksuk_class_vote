@@ -69,6 +69,7 @@ RSpec.describe Elections::StartSession do
 
       expect(result).to be_success
       broadcasts = admin_overview_broadcasts_for(election_session.election)
+      expect(broadcasts.any? { |broadcast| broadcast.include?(ActionView::RecordIdentifier.dom_id(election_session.election, :admin_summary)) }).to be(true)
       expect(broadcasts.any? { |broadcast| broadcast.include?(ActionView::RecordIdentifier.dom_id(election_session.election, :admin_status_report)) }).to be(true)
       expect(broadcasts.any? { |broadcast| broadcast.include?(ActionView::RecordIdentifier.dom_id(election_session.election, :admin_sessions)) }).to be(true)
       expect(broadcasts.join).to include("in_progress")

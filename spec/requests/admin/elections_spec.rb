@@ -120,6 +120,7 @@ RSpec.describe "Admin elections", type: :request do
       get admin_election_path(election)
 
       expect(response.body).to include("turbo-cable-stream-source")
+      expect(response.body).to include(ActionView::RecordIdentifier.dom_id(election, :admin_summary))
       expect(response.body).to include(ActionView::RecordIdentifier.dom_id(election, :admin_status_report))
       expect(response.body).to include(ActionView::RecordIdentifier.dom_id(election, :admin_sessions))
     end

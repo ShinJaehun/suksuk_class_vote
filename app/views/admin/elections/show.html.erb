@@ -1,15 +1,8 @@
-<h1><%= @election.title %></h1>
-
 <%= turbo_stream_from @election, :admin_overview %>
 
 <p><%= link_to "선거 목록으로 돌아가기", admin_elections_path %></p>
 
-<dl>
-  <dt>종류</dt>
-  <dd><%= @election.kind %></dd>
-  <dt>상태</dt>
-  <dd><%= @election.status %></dd>
-</dl>
+<%= render "admin/elections/summary", election: @election %>
 
 <%= render "admin/elections/status_report",
            election: @election,
