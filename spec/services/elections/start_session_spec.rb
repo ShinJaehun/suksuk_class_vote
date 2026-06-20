@@ -1,6 +1,8 @@
 require "rails_helper"
 
 RSpec.describe Elections::StartSession do
+  include ActionCable::TestHelper
+
   describe "#call" do
     it "starts a draft supervised election session" do
       election = create(:election)
@@ -41,8 +43,8 @@ RSpec.describe Elections::StartSession do
 
       expect(election_session.election_candidate_tallies.pluck(:election_candidate_id)).to match_array(candidates.map(&:id))
       expect(election_session.election_candidate_tallies.pluck(:votes_count)).to all(eq(0))
-      expect(election_session.election_contest_tallies.pluck(:election_contest_id)).to eq([contest.id])
-      expect(election_session.election_contest_tallies.pluck(:abstentions_count)).to eq([0])
+      expect(election_session.election_contest_tallies.pluck(:election_contest_id)).to eq([ contest.id ])
+      expect(election_session.election_contest_tallies.pluck(:abstentions_count)).to eq([ 0 ])
 
       event = election_session.election_events.sole
       expect(event).to be_session_started
@@ -55,6 +57,21 @@ RSpec.describe Elections::StartSession do
         "operation_mode" => "supervised"
       )
       expect(event.metadata.keys).not_to include("candidate_id", "candidate_ids", "choices", "ballot_choices")
+    end
+
+    it "broadcasts the admin election overview after starting" do
+      election = create(:election, status: :in_progress)
+      contest = create(:election_contest, election: election)
+      create(:election_candidate, election_contest: contest)
+      election_session = create_startable_session(election: election)
+
+      result = described_class.new(election_session: election_session, actor: election_session.teacher).call
+
+      expect(result).to be_success
+      broadcasts = admin_overview_broadcasts_for(election_session.election)
+      expect(broadcasts.any? { |broadcast| broadcast.include?(ActionView::RecordIdentifier.dom_id(election_session.election, :admin_status_report)) }).to be(true)
+      expect(broadcasts.any? { |broadcast| broadcast.include?(ActionView::RecordIdentifier.dom_id(election_session.election, :admin_sessions)) }).to be(true)
+      expect(broadcasts.join).to include("in_progress")
     end
 
     it "creates tallies for every contest and candidate" do
@@ -71,7 +88,7 @@ RSpec.describe Elections::StartSession do
       expect(election_session.election_candidate_tallies.pluck(:election_candidate_id)).to match_array(
         (president_candidates + vice_president_candidates).map(&:id)
       )
-      expect(election_session.election_contest_tallies.pluck(:election_contest_id)).to match_array([president.id, vice_president.id])
+      expect(election_session.election_contest_tallies.pluck(:election_contest_id)).to match_array([ president.id, vice_president.id ])
     end
 
     it "starts limited choice contests when candidates meet max selections" do
@@ -269,5 +286,15 @@ RSpec.describe Elections::StartSession do
     participant_group = create(:participant_group, user: teacher)
     create(:participant_slot, participant_group: participant_group) if with_participant_slot
     create(:election_session, election: election, teacher: teacher, participant_group: participant_group, status: status, operation_mode: operation_mode)
+  end
+
+  def admin_overview_broadcasts_for(election)
+    broadcasts(Turbo::StreamsChannel.send(:stream_name_from, [ election, :admin_overview ])).map { |broadcast| decoded_broadcast(broadcast) }
+  end
+
+  def decoded_broadcast(broadcast)
+    JSON.parse(broadcast)
+  rescue JSON::ParserError, TypeError
+    broadcast
   end
 end

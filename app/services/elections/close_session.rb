@@ -35,6 +35,7 @@ module Elections
         end
       end
 
+      broadcast_admin_overview if errors.empty?
       errors.any? ? failure : success
     rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => e
       errors << e.message
@@ -112,6 +113,10 @@ module Elections
       return unless sessions.all?(&:closed?)
 
       election.update!(status: :closed)
+    end
+
+    def broadcast_admin_overview
+      Elections::BroadcastAdminOverview.new(election: election_session.election).call
     end
 
     def event_metadata

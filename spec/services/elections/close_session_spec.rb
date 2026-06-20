@@ -1,6 +1,8 @@
 require "rails_helper"
 
 RSpec.describe Elections::CloseSession do
+  include ActionCable::TestHelper
+
   describe "#call" do
     it "closes an in progress session when every voter is completed and no current voter remains" do
       election_session = closable_session(statuses: [:completed, :completed])
@@ -30,6 +32,17 @@ RSpec.describe Elections::CloseSession do
         "candidate_count" => 1
       )
       expect(event.metadata.keys).not_to include("candidate_id", "candidate_ids", "selected_candidates", "choices", "ballot_choices")
+    end
+
+    it "broadcasts the admin election overview after closing" do
+      election_session = closable_session(statuses: [:completed])
+
+      described_class.new(election_session: election_session, actor: election_session.teacher).call
+
+      broadcasts = admin_overview_broadcasts_for(election_session.election)
+      expect(broadcasts.any? { |broadcast| broadcast.include?(ActionView::RecordIdentifier.dom_id(election_session.election, :admin_status_report)) }).to be(true)
+      expect(broadcasts.any? { |broadcast| broadcast.include?(ActionView::RecordIdentifier.dom_id(election_session.election, :admin_sessions)) }).to be(true)
+      expect(broadcasts.join).to include("closed")
     end
 
     it "closes with mixed final participation statuses and records counts" do
@@ -249,5 +262,15 @@ RSpec.describe Elections::CloseSession do
     expect(election_session.closed_at).to be_nil
     expect(election_session.election_progress&.reload&.closed_at).to be_nil
     expect(election_session.election_events.where(event_type: :session_closed)).to be_empty
+  end
+
+  def admin_overview_broadcasts_for(election)
+    broadcasts(Turbo::StreamsChannel.send(:stream_name_from, [ election, :admin_overview ])).map { |broadcast| decoded_broadcast(broadcast) }
+  end
+
+  def decoded_broadcast(broadcast)
+    JSON.parse(broadcast)
+  rescue JSON::ParserError, TypeError
+    broadcast
   end
 end

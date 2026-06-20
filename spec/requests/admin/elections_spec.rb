@@ -113,6 +113,17 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("5학년 부회장")
     end
 
+    it "subscribes to admin overview updates and renders replace targets" do
+      sign_in create(:user, :admin)
+      election = create(:election)
+
+      get admin_election_path(election)
+
+      expect(response.body).to include("turbo-cable-stream-source")
+      expect(response.body).to include(ActionView::RecordIdentifier.dom_id(election, :admin_status_report))
+      expect(response.body).to include(ActionView::RecordIdentifier.dom_id(election, :admin_sessions))
+    end
+
     it "shows the session assignment form and assigned sessions to admins" do
       sign_in create(:user, :admin)
       election = create(:election, title: "2026 전교학생회 선거")

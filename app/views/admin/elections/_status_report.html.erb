@@ -1,0 +1,31 @@
+<%= tag.section id: dom_id(election, :admin_status_report), class: "rounded-md border border-stone-200 bg-white p-4" do %>
+  <h2>상태점검</h2>
+  <p>상태점검: <%= election_status_report[:status_label] %></p>
+  <p><%= election_status_report[:message] %></p>
+
+  <dl>
+    <dt>학급 세션 수</dt>
+    <dd><%= election_status_report[:session_count] %></dd>
+    <dt>선거 항목 수</dt>
+    <dd><%= election_status_report[:contest_count] %></dd>
+    <dt>후보자 수</dt>
+    <dd><%= election_status_report[:candidate_count] %></dd>
+    <dt><%= election_status_report[:status_metric_label] %></dt>
+    <dd><%= election_status_report[:status_metric_value] %></dd>
+  </dl>
+
+  <% if election_status_report[:display_blockers].any? %>
+    <ul>
+      <% election_status_report[:display_blockers].each do |blocker| %>
+        <li><%= blocker %></li>
+      <% end %>
+    </ul>
+  <% end %>
+
+  <% if election.draft? && election_status_report[:startable] %>
+    <%= button_to "선거 시작",
+                  start_admin_election_path(election),
+                  method: :post,
+                  class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+  <% end %>
+<% end %>
