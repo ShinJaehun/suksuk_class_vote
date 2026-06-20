@@ -170,8 +170,9 @@ RSpec.describe "Admin elections", type: :request do
 
       get admin_election_path(election)
 
-      expect(response.body).to include("상태 점검: 시작 가능")
-      expect(response.body).to include("선거를 시작할 수 있습니다.")
+      expect(response.body).to include("상태점검")
+      expect(response.body).to include("상태점검: 이상 없음")
+      expect(response.body).to include("투표를 시작할 수 있습니다.")
       expect(response.body).to include("시작 가능 여부")
       expect(response.body).to include("시작 가능")
       expect(response.body).to include("선거 시작")
@@ -184,12 +185,42 @@ RSpec.describe "Admin elections", type: :request do
 
       get admin_election_path(election)
 
-      expect(response.body).to include("상태 점검: 확인 필요")
-      expect(response.body).to include("선거를 시작할 수 없습니다.")
+      expect(response.body).to include("상태점검")
+      expect(response.body).to include("상태점검: 확인 필요")
+      expect(response.body).to include("투표를 시작할 수 없습니다.")
       expect(response.body).to include("학급 세션이 1개 이상 배정되어야 합니다.")
       expect(response.body).to include("시작 가능 여부")
       expect(response.body).to include("시작 불가")
       expect(response.body).not_to include(start_admin_election_path(election))
+    end
+
+    it "shows in progress status reporting without draft blockers" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :in_progress)
+
+      get admin_election_path(election)
+
+      expect(response.body).to include("상태점검")
+      expect(response.body).to include("상태점검: 이상 없음")
+      expect(response.body).to include("투표가 진행 중입니다.")
+      expect(response.body).to include("운영 상태")
+      expect(response.body).to include("진행 중")
+      expect(response.body).not_to include("Election이 draft 상태여야 합니다.")
+      expect(response.body).not_to include("선거 시작")
+    end
+
+    it "shows closed status reporting" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :closed)
+
+      get admin_election_path(election)
+
+      expect(response.body).to include("상태점검")
+      expect(response.body).to include("상태점검: 종료됨")
+      expect(response.body).to include("투표가 종료되었습니다.")
+      expect(response.body).to include("운영 상태")
+      expect(response.body).to include("종료")
+      expect(response.body).not_to include("선거 시작")
     end
 
     it "does not show the start button for in progress or closed elections" do
