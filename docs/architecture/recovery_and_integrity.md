@@ -175,6 +175,37 @@ DB index:
 기권 항목은 별도로 표시하지 않는다.
 학생 submit, 기권, 미참여, 다음 투표자 진행이 성공하면 상태 점검 카드도 Turbo로 갱신되어 오래된 요약 HTML이 남지 않도록 한다.
 
+### Admin Election 운영 무결성
+
+Admin `Election`은 여러 학급 `ElectionSession`을 묶는 운영 단위다.
+admin이 `Election`을 시작하면 parent 상태만 `in_progress`로 바뀌며, 각 학급 세션은 교사 흐름에서 별도로 시작한다.
+
+`Election` 시작 조건:
+
+- `Election`이 `draft` 상태여야 한다.
+- 학급 `ElectionSession`이 1개 이상 배정되어야 한다.
+- `ElectionContest`가 1개 이상 있어야 한다.
+- 모든 `ElectionContest`에 `ElectionCandidate`가 1명 이상 있어야 한다.
+
+`Election`이 시작된 뒤에는 결과 무결성을 위해 구성을 변경하지 않는다.
+학급 세션 추가/삭제와 후보자 등록/수정/삭제는 서버측 guard에서 차단하며,
+admin 상세 화면에서도 해당 UI를 숨기고 읽기 전용 목록으로 표시한다.
+학급 세션 삭제는 parent `Election`이 `draft`이고, 삭제 대상 세션이 `draft`이며,
+같은 `Election` 안에 draft가 아닌 세션이 하나도 없을 때만 허용한다.
+
+`ElectionSession` 종료 흐름에서는 같은 `Election`의 모든 세션이 `closed`인지 확인한다.
+세션이 1개 이상이고 모두 `closed`이면 parent `Election`도 `closed`로 전환한다.
+draft/in_progress/stopped 세션이 남아 있으면 parent `Election`은 `closed`로 전환하지 않는다.
+
+Admin 결과 집계는 `closed` `ElectionSession`의 `ElectionCandidateTally`와
+`ElectionContestTally`만 읽어 합산한다.
+draft/in_progress/stopped 세션의 tally는 전체 집계에서 제외하지만,
+학급별 검산 목록에는 세션 상태와 함께 표시한다.
+
+Admin `Election` 상세 화면은 Turbo Stream `admin_overview`를 구독한다.
+학급 세션 시작/종료 뒤에는 `admin_summary`, `admin_status_report`, `admin_sessions` 영역을 replace해
+상단 상태, 상태점검 카드, 학급 세션 목록이 같은 DB 상태를 기준으로 보이게 한다.
+
 `Polls::ResumeCurrentVoter`는 매우 제한적인 복구 액션이다.
 진행 중인 선거에서 `PollProgress`이 active이고, `current_poll_participant`가 비어 있으며,
 다른 무결성 문제가 없고, 미처리 학생이 남아 있을 때만 첫 미처리 학생을 현재 참여자로 지정한다.

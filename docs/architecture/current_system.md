@@ -45,7 +45,7 @@
 - 중복 제출 방지
 - 종료 투표 수동 보관
 
-초기 MVP 제외 범위:
+교사 주도 학급 `Poll` MVP 자체의 제외 범위:
 
 - 전교어린이회 선거 중앙 집계
 - 전교 투표용 관리자 대시보드
@@ -56,6 +56,10 @@
 - 학생 개인 단말 투표
 - ActionCable 기반 실시간 대시보드
 - PDF 출력 고도화
+
+별도 Admin `Election` 흐름에서는 전교/여러 학급 운영을 위한 기본 관리 기능이 구현되어 있다.
+admin은 draft `Election`을 시작해 parent 상태를 `in_progress`로 전환하고,
+교사는 parent `Election`이 `in_progress`인 학급 `ElectionSession`만 진행 목록에서 확인한다.
 
 ---
 
@@ -127,6 +131,13 @@
 - 보관은 status가 아니라 `archived_at`으로 관리
 - 기본 투표 목록 `/polls`에서는 보관된 투표를 숨기고, 보관 목록 `/polls/archived`에서 확인
 - 보관된 투표 상세 `/polls/:id` 접근 가능
+- Admin `Election` 상세 화면에 상태점검, 기본 정보, 학급 세션 목록을 표시하고 Turbo Stream `admin_overview`로 갱신
+- Admin `Election` 결과 페이지 `/admin/elections/:id/results` 추가
+- Admin 전체 집계는 `closed` `ElectionSession`의 tally만 합산하고, draft/in_progress/stopped 세션은 전체 득표 합산에서 제외
+- 학급별 집계 검산은 모든 `ElectionSession`을 상태와 함께 표시하며, 종료되지 않은 세션은 집계 제외로 표시
+- admin의 `Election` 시작 조건 검증 추가: draft 상태, 학급 세션 1개 이상, 선거 항목 1개 이상, 각 항목 후보자 1명 이상
+- 모든 학급 `ElectionSession`이 `closed`가 되면 parent `Election`도 `closed`로 전환
+- `Election` 시작 뒤 학급 세션 추가/삭제와 후보자 등록/수정/삭제 차단
 - 문서 기반 설계 정리 중
 
 현재 `Poll` 상태 흐름:

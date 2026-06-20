@@ -36,7 +36,7 @@
 초기 MVP에서 admin은 서비스 전체 최고 관리자 개념으로 둘 수 있다.
 
 다만 초기 기능 구현은 교사 주도 학급 선거 흐름에 집중한다.  
-admin의 상세 관리 기능은 별도 문서에서 다룬다.
+admin의 상세 관리 기능은 Admin `Election` 흐름에서 별도로 구현한다.
 
 ---
 
@@ -548,7 +548,7 @@ service가 lock 이후 DB의 현재 참여자와 비교한다.
 
 ## 명시적 제외 범위
 
-초기 MVP에서는 다음을 하지 않는다.
+교사 주도 학급 `Poll` MVP 자체에서는 다음을 하지 않는다.
 
 - 전교어린이회 선거
 - 여러 학급 중앙 집계
@@ -562,3 +562,20 @@ service가 lock 이후 DB의 현재 참여자와 비교한다.
 - 보관 해제
 - 종료 후 30일 자동 보관
 - 중단된 투표 재시작
+
+---
+
+## 별도 구현된 Admin Election 흐름
+
+Admin `Election`은 여러 학급 `ElectionSession`을 배정하고 전체 운영 상태를 확인하는 관리자 흐름이다.
+이 흐름은 교사 주도 학급 `Poll` MVP와 별도로 다음 정책을 가진다.
+
+- admin은 draft `Election`을 시작해 parent 상태를 `in_progress`로 전환할 수 있다.
+- 시작 조건은 draft 상태, 학급 세션 1개 이상, 선거 항목 1개 이상, 각 항목 후보자 1명 이상이다.
+- parent `Election` 시작은 각 학급 `ElectionSession`을 자동 시작하지 않으며, 학급 세션 시작은 기존 교사 운영 흐름을 따른다.
+- teacher 투표 목록에는 parent `Election`이 `in_progress`인 세션만 노출한다.
+- 모든 학급 `ElectionSession`이 `closed`가 되면 parent `Election`도 `closed`가 된다.
+- 시작 뒤에는 학급 세션 추가/삭제와 후보자 등록/수정/삭제를 막고, admin show는 읽기 전용 목록을 보여준다.
+- 결과 집계 페이지는 `closed` `ElectionSession`만 전체 득표 합산에 포함한다.
+- draft/in_progress/stopped 세션은 전체 집계에서 제외하지만, 학급별 검산 목록에는 상태와 함께 표시한다.
+- admin show는 Turbo Stream으로 summary, status_report, sessions 영역을 갱신한다.

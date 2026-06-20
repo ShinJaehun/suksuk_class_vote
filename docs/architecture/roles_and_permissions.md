@@ -211,6 +211,27 @@ Poll 시작 권한 초안:
 권한 확인 뒤 `Polls::Start`가 `draft` 상태, 후보자 수, 명단 존재, snapshot 중복 생성 여부를 검증한다.
 후보자 1명 선거는 무투표 당선/찬반 투표 정책 결정 후 지원 예정 안내로 시작을 막는다.
 
+### Admin Election
+
+Admin `Election`은 여러 학급 `ElectionSession`을 묶는 관리자 운영 단위다.
+
+| 리소스/액션 | admin | teacher | guest | 비고 |
+| --- | ---: | ---: | ---: | --- |
+| 상세 조회 | 가능 | 불가 | 불가 | `admin/elections#show` |
+| 결과 집계 조회 | 가능 | 불가 | 불가 | `/admin/elections/:id/results` |
+| 선거 시작 | 가능 | 불가 | 불가 | draft, 세션/항목/후보 구성 조건 충족 시 parent `Election`만 `in_progress`로 전환 |
+| 학급 세션 배정 | draft에서 가능 | 불가 | 불가 | 시작 후 생성 차단 |
+| 학급 세션 삭제 | 제한적으로 가능 | 불가 | 불가 | parent draft, 대상 session draft, 같은 election 안에 non-draft session 없음 |
+| 후보자 등록/수정/삭제 | draft에서 가능 | 불가 | 불가 | 시작 후 변경 차단 |
+
+teacher는 본인에게 배정된 `ElectionSession`만 운영할 수 있다.
+단, parent `Election`이 `in_progress`인 세션만 교사 투표 목록에 노출한다.
+draft parent `Election`의 세션은 교사 목록에 보이지 않고, 직접 접근도 운영 화면으로 들어가지 못한다.
+closed parent `Election`의 세션은 진행 목록이 아니라 종료/보관 흐름에서 다룬다.
+
+Admin 전체 집계는 `closed` `ElectionSession`만 합산한다.
+draft/in_progress/stopped 세션은 전체 득표 합산에서 제외하지만, 학급별 검산 목록에는 상태와 함께 표시한다.
+
 Poll 상태별 현재 액션 정책:
 
 | 상태 | 조회 | 투표 화면 | 중단 | 삭제 | 보관 | 비고 |
@@ -329,6 +350,7 @@ admin은 전체 데이터를 관리할 수 있다.
 
 다만 admin 권한이 있다고 해서 모든 위험한 작업을 아무 제한 없이 처리하지 않는다.
 선거 시작 후, 투표 진행 중, 투표 종료 후 데이터 수정은 별도 확인과 로그가 필요하다.
+현재 Admin `Election` 흐름에서는 시작 후 학급 세션과 후보자 구성을 서버측에서 변경할 수 없게 막는다.
 
 ---
 
