@@ -1,9 +1,9 @@
 module Admin
   class ElectionsController < BaseController
     SCHOOL_COUNCIL_DEFAULT_CONTESTS = [
-      [1, "회장"],
-      [2, "6학년 부회장"],
-      [3, "5학년 부회장"]
+      [ 1, "회장" ],
+      [ 2, "6학년 부회장" ],
+      [ 3, "5학년 부회장" ]
     ].freeze
 
     def index
@@ -74,6 +74,95 @@ module Admin
         .includes(:user)
         .where.not(id: assigned_participant_group_ids)
         .order("users.name", "users.email", "participant_groups.name")
+      prepare_aggregate_results
+    end
+
+    def prepare_aggregate_results
+      sessions = @election_sessions.to_a
+      closed_sessions = sessions.select(&:closed?)
+      session_ids = sessions.map(&:id)
+      closed_session_ids = closed_sessions.map(&:id)
+
+      @aggregate_status_counts = {
+        total: sessions.size,
+        closed: closed_sessions.size,
+        in_progress: sessions.count(&:in_progress?),
+        draft: sessions.count(&:draft?),
+        stopped: sessions.count(&:stopped?)
+      }
+      @aggregate_partial = sessions.any? && closed_sessions.size < sessions.size
+
+      candidate_vote_totals = ElectionCandidateTally
+        .where(election_session_id: closed_session_ids)
+        .group(:election_candidate_id)
+        .sum(:votes_count)
+      contest_abstention_totals = ElectionContestTally
+        .where(election_session_id: closed_session_ids)
+        .group(:election_contest_id)
+        .sum(:abstentions_count)
+
+      @aggregate_results = build_contest_results(candidate_vote_totals, contest_abstention_totals)
+      @session_result_summaries = build_session_result_summaries(session_ids)
+    end
+
+    def build_contest_results(candidate_vote_totals, contest_abstention_totals)
+      @election_contests.map do |contest|
+        candidate_results = contest.election_candidates.sort_by(&:number).map do |candidate|
+          { candidate: candidate, votes_count: candidate_vote_totals[candidate.id].to_i }
+        end
+        top_votes = candidate_results.map { |result| result[:votes_count] }.max.to_i
+        top_candidates = top_votes.positive? ? candidate_results.select { |result| result[:votes_count] == top_votes } : []
+
+        {
+          contest: contest,
+          candidate_results: candidate_results,
+          abstentions_count: contest_abstention_totals[contest.id].to_i,
+          top_candidates: top_candidates.map { |result| result[:candidate] }
+        }
+      end
+    end
+
+    def build_session_result_summaries(session_ids)
+      participation_counts = ElectionParticipation
+        .joins(:election_voter)
+        .where(election_voters: { election_session_id: session_ids })
+        .group("election_voters.election_session_id", :status)
+        .count
+      session_candidate_votes = ElectionCandidateTally
+        .where(election_session_id: session_ids)
+        .group(:election_session_id, :election_candidate_id)
+        .sum(:votes_count)
+      session_abstentions = ElectionContestTally
+        .where(election_session_id: session_ids)
+        .group(:election_session_id, :election_contest_id)
+        .sum(:abstentions_count)
+
+      @election_sessions.map do |session|
+        {
+          session: session,
+          participation_counts: {
+            completed: participation_counts[[ session.id, "completed" ]].to_i,
+            abstained: participation_counts[[ session.id, "abstained" ]].to_i,
+            absent: participation_counts[[ session.id, "absent" ]].to_i
+          },
+          contest_results: build_session_contest_results(session, session_candidate_votes, session_abstentions)
+        }
+      end
+    end
+
+    def build_session_contest_results(session, session_candidate_votes, session_abstentions)
+      @election_contests.map do |contest|
+        {
+          contest: contest,
+          candidate_results: contest.election_candidates.sort_by(&:number).map do |candidate|
+            {
+              candidate: candidate,
+              votes_count: session_candidate_votes[[ session.id, candidate.id ]].to_i
+            }
+          end,
+          abstentions_count: session_abstentions[[ session.id, contest.id ]].to_i
+        }
+      end
     end
   end
 end

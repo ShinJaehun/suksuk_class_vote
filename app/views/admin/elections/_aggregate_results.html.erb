@@ -1,0 +1,63 @@
+<section>
+  <h2>전체 진행 현황</h2>
+
+  <dl>
+    <dt>전체 배정 학급 수</dt>
+    <dd><%= aggregate_status_counts[:total] %></dd>
+    <dt>종료된 학급 수</dt>
+    <dd><%= aggregate_status_counts[:closed] %></dd>
+    <dt>진행 중 학급 수</dt>
+    <dd><%= aggregate_status_counts[:in_progress] %></dd>
+    <dt>준비 중 학급 수</dt>
+    <dd><%= aggregate_status_counts[:draft] %></dd>
+    <% if aggregate_status_counts[:stopped].to_i.positive? %>
+      <dt>중단 학급 수</dt>
+      <dd><%= aggregate_status_counts[:stopped] %></dd>
+    <% end %>
+  </dl>
+</section>
+
+<section>
+  <h2>전체 집계</h2>
+  <% if aggregate_partial %>
+    <p>잠정 집계</p>
+  <% end %>
+
+  <% aggregate_results.each do |contest_result| %>
+    <section>
+      <h3><%= contest_result[:contest].title %></h3>
+
+      <% if contest_result[:top_candidates].any? %>
+        <p>
+          최다 득표 후보:
+          <%= contest_result[:top_candidates].map { |candidate| "기호 #{candidate.number}번 #{candidate.name}" }.join(", ") %>
+        </p>
+      <% else %>
+        <p>최다 득표 후보: 없음</p>
+      <% end %>
+
+      <table>
+        <thead>
+          <tr>
+            <th>번호</th>
+            <th>후보자</th>
+            <th>총 득표 수</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% contest_result[:candidate_results].each do |candidate_result| %>
+            <tr>
+              <td>기호 <%= candidate_result[:candidate].number %>번</td>
+              <td><%= candidate_result[:candidate].name %></td>
+              <td><%= candidate_result[:votes_count] %>표</td>
+            </tr>
+          <% end %>
+          <tr>
+            <td colspan="2">기권</td>
+            <td><%= contest_result[:abstentions_count] %>표</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  <% end %>
+</section>

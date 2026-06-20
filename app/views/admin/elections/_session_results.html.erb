@@ -1,0 +1,58 @@
+<section>
+  <h2>학급별 집계 검산</h2>
+
+  <% if session_result_summaries.any? %>
+    <% session_result_summaries.each do |summary| %>
+      <% session = summary[:session] %>
+      <article>
+        <h3><%= session.participant_group.name %></h3>
+        <p>상태: <%= session.status %></p>
+
+        <% if session.closed? %>
+          <p>
+            완료 <%= summary[:participation_counts][:completed] %>명
+            /
+            기권 <%= summary[:participation_counts][:abstained] %>명
+            /
+            미참여 <%= summary[:participation_counts][:absent] %>명
+          </p>
+
+          <details>
+            <summary>상세 결과</summary>
+            <% summary[:contest_results].each do |contest_result| %>
+              <section>
+                <h4><%= contest_result[:contest].title %></h4>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>번호</th>
+                      <th>후보자</th>
+                      <th>득표 수</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% contest_result[:candidate_results].each do |candidate_result| %>
+                      <tr>
+                        <td>기호 <%= candidate_result[:candidate].number %>번</td>
+                        <td><%= candidate_result[:candidate].name %></td>
+                        <td><%= candidate_result[:votes_count] %>표</td>
+                      </tr>
+                    <% end %>
+                    <tr>
+                      <td colspan="2">기권</td>
+                      <td><%= contest_result[:abstentions_count] %>표</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </section>
+            <% end %>
+          </details>
+        <% else %>
+          <p>집계 제외</p>
+        <% end %>
+      </article>
+    <% end %>
+  <% else %>
+    <p>아직 배정된 학급 세션이 없습니다.</p>
+  <% end %>
+</section>
