@@ -130,6 +130,21 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("6학년 1반")
     end
 
+    it "links to the aggregate results page without rendering result details" do
+      sign_in create(:user, :admin)
+      election = create(:election)
+
+      get admin_election_path(election)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("결과 집계 보기")
+      expect(response.body).to include(results_admin_election_path(election))
+      expect(response.body).not_to include("전체 집계")
+      expect(response.body).not_to include("학급별 집계 검산")
+    end
+  end
+
+  describe "GET /admin/elections/:id/results" do
     it "shows aggregate session status counts to admins" do
       sign_in create(:user, :admin)
       election = create(:election)
@@ -138,9 +153,10 @@ RSpec.describe "Admin elections", type: :request do
       create_admin_election_session(election: election, status: :draft, group_name: "6학년 3반")
       create_admin_election_session(election: election, status: :stopped, group_name: "6학년 4반")
 
-      get admin_election_path(election)
+      get results_admin_election_path(election)
 
       expect(response).to have_http_status(:ok)
+      expect(response.body).to include("선거 상세로 돌아가기")
       expect(response.body).to include("전체 진행 현황")
       expect(response.body).to include("전체 배정 학급 수")
       expect(response.body).to include("종료된 학급 수")
@@ -163,7 +179,7 @@ RSpec.describe "Admin elections", type: :request do
       create(:election_contest_tally, election_session: first_session, election_contest: contest, abstentions_count: 1)
       create(:election_contest_tally, election_session: second_session, election_contest: contest, abstentions_count: 2)
 
-      get admin_election_path(election)
+      get results_admin_election_path(election)
 
       expect(response.body).to include("전체 집계")
       expect(response.body).to include("회장")
@@ -187,7 +203,7 @@ RSpec.describe "Admin elections", type: :request do
       create(:election_candidate_tally, election_session: draft_session, election_contest: contest, election_candidate: candidate, votes_count: 99)
       create(:election_candidate_tally, election_session: in_progress_session, election_contest: contest, election_candidate: candidate, votes_count: 88)
 
-      get admin_election_path(election)
+      get results_admin_election_path(election)
 
       expect(response.body).to include("집계후보")
       expect(response.body).to include("4표")
@@ -201,7 +217,7 @@ RSpec.describe "Admin elections", type: :request do
       create_admin_election_session(election: election, status: :closed, group_name: "6학년 1반")
       create_admin_election_session(election: election, status: :draft, group_name: "6학년 2반")
 
-      get admin_election_path(election)
+      get results_admin_election_path(election)
 
       expect(response.body).to include("잠정 집계")
     end
@@ -215,7 +231,7 @@ RSpec.describe "Admin elections", type: :request do
       create_participation(session, :abstained)
       create_participation(session, :absent)
 
-      get admin_election_path(election)
+      get results_admin_election_path(election)
 
       expect(response.body).to include("학급별 집계 검산")
       expect(response.body).to include("6학년 1반")
@@ -233,7 +249,7 @@ RSpec.describe "Admin elections", type: :request do
       create(:election_candidate_tally, election_session: session, election_contest: contest, election_candidate: candidate, votes_count: 7)
       create(:election_contest_tally, election_session: session, election_contest: contest, abstentions_count: 2)
 
-      get admin_election_path(election)
+      get results_admin_election_path(election)
 
       expect(response.body).to include("<details>")
       expect(response.body).to include("상세 결과")
@@ -247,7 +263,7 @@ RSpec.describe "Admin elections", type: :request do
       election = create(:election)
       create_admin_election_session(election: election, status: :draft, group_name: "6학년 2반")
 
-      get admin_election_path(election)
+      get results_admin_election_path(election)
 
       expect(response.body).to include("6학년 2반")
       expect(response.body).to include("상태: draft")

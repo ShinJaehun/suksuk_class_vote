@@ -9,15 +9,7 @@
   <dd><%= @election.status %></dd>
 </dl>
 
-<% if @aggregate_status_counts && @aggregate_results && @session_result_summaries %>
-  <%= render "admin/elections/aggregate_results",
-             aggregate_status_counts: @aggregate_status_counts,
-             aggregate_results: @aggregate_results,
-             aggregate_partial: @aggregate_partial %>
-
-  <%= render "admin/elections/session_results",
-             session_result_summaries: @session_result_summaries %>
-<% end %>
+<p><%= link_to "결과 집계 보기", results_admin_election_path(@election) %></p>
 
 <section>
   <h2>선거 항목</h2>

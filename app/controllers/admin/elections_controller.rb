@@ -17,6 +17,12 @@ module Admin
       prepare_show
     end
 
+    def results
+      @election = policy_scope(Election).find(params[:id])
+      authorize @election, :show?
+      prepare_results
+    end
+
     def new
       @election = Election.new(user: current_user, kind: :school_council)
       authorize @election
@@ -74,6 +80,11 @@ module Admin
         .includes(:user)
         .where.not(id: assigned_participant_group_ids)
         .order("users.name", "users.email", "participant_groups.name")
+    end
+
+    def prepare_results
+      @election_contests = @election.election_contests.includes(:election_candidates).order(:position)
+      @election_sessions = @election.election_sessions.includes(:teacher, :participant_group).order(:created_at)
       prepare_aggregate_results
     end
 

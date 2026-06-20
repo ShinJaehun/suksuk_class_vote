@@ -1,0 +1,11 @@
+<h1><%= @election.title %> 결과 집계</h1>
+
+<p><%= link_to "선거 상세로 돌아가기", admin_election_path(@election) %></p>
+
+<%= render "admin/elections/aggregate_results",
+           aggregate_status_counts: @aggregate_status_counts,
+           aggregate_results: @aggregate_results,
+           aggregate_partial: @aggregate_partial %>
+
+<%= render "admin/elections/session_results",
+           session_result_summaries: @session_result_summaries %>
