@@ -142,6 +142,27 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).not_to include("전체 집계")
       expect(response.body).not_to include("학급별 집계 검산")
     end
+
+    it "does not show session delete controls for non-draft sessions" do
+      sign_in create(:user, :admin)
+      election = create(:election)
+      session = create_admin_election_session(election: election, status: :in_progress, group_name: "6학년 1반")
+
+      get admin_election_path(election)
+
+      expect(response.body).not_to include(admin_election_election_session_path(election, session))
+    end
+
+    it "does not show draft session delete controls after any session has started" do
+      sign_in create(:user, :admin)
+      election = create(:election)
+      draft_session = create_admin_election_session(election: election, status: :draft, group_name: "6학년 1반")
+      create_admin_election_session(election: election, status: :in_progress, group_name: "6학년 2반")
+
+      get admin_election_path(election)
+
+      expect(response.body).not_to include(admin_election_election_session_path(election, draft_session))
+    end
   end
 
   describe "GET /admin/elections/:id/results" do

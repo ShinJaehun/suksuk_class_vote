@@ -11,7 +11,7 @@ RSpec.describe Elections::CloseSession do
       expect(result).to be_success
       expect(election_session.reload).to be_closed
       expect(election_session.closed_at).to be_present
-      expect(election.reload).to be_draft
+      expect(election.reload).to be_closed
 
       progress = election_session.election_progress.reload
       expect(progress.closed_at).to be_present
@@ -68,6 +68,29 @@ RSpec.describe Elections::CloseSession do
       expect(advance_result).to be_success
       expect(result).to be_success
       expect(election_session.reload).to be_closed
+    end
+
+    it "closes the election after the last election session closes" do
+      election_session = closable_session(statuses: [:completed])
+      election = election_session.election
+      election.update!(status: :in_progress)
+
+      result = described_class.new(election_session: election_session, actor: election_session.teacher).call
+
+      expect(result).to be_success
+      expect(election.reload).to be_closed
+    end
+
+    it "does not close the election while another session is not closed" do
+      election_session = closable_session(statuses: [:completed])
+      election = election_session.election
+      election.update!(status: :in_progress)
+      create(:election_session, election: election, status: :draft)
+
+      result = described_class.new(election_session: election_session, actor: election_session.teacher).call
+
+      expect(result).to be_success
+      expect(election.reload).to be_in_progress
     end
 
     it "fails without an actor" do

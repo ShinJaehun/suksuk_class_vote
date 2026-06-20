@@ -103,16 +103,19 @@
         </tr>
       </thead>
       <tbody>
+        <% session_deletion_allowed = @election.draft? && @election_sessions.none? { |election_session| !election_session.draft? } %>
         <% @election_sessions.each do |session| %>
           <tr>
             <td><%= session.participant_group.name %></td>
             <td><%= session.teacher.name.presence || session.teacher.email %></td>
             <td><%= session.status %></td>
             <td>
-              <%= button_to "삭제",
-                            admin_election_election_session_path(@election, session),
-                            method: :delete,
-                            data: { turbo_confirm: "학급 세션을 삭제할까요?" } %>
+              <% if session_deletion_allowed && session.draft? %>
+                <%= button_to "삭제",
+                              admin_election_election_session_path(@election, session),
+                              method: :delete,
+                              data: { turbo_confirm: "학급 세션을 삭제할까요?" } %>
+              <% end %>
             </td>
           </tr>
         <% end %>

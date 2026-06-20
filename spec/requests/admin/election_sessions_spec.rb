@@ -136,6 +136,72 @@ RSpec.describe "Admin election sessions", type: :request do
       expect(response).to redirect_to(admin_election_path(session.election))
     end
 
+    it "does not destroy draft sessions after the election starts" do
+      session = create_election_session
+      session.election.update!(status: :in_progress)
+      sign_in create(:user, :admin)
+
+      expect do
+        delete admin_election_election_session_path(session.election, session)
+      end.not_to change(ElectionSession, :count)
+
+      expect(response).to redirect_to(admin_election_path(session.election))
+      expect(flash[:alert]).to eq("삭제할 수 없는 학급 세션입니다.")
+    end
+
+    it "does not destroy in progress sessions" do
+      session = create_election_session
+      session.update!(status: :in_progress)
+      sign_in create(:user, :admin)
+
+      expect do
+        delete admin_election_election_session_path(session.election, session)
+      end.not_to change(ElectionSession, :count)
+
+      expect(response).to redirect_to(admin_election_path(session.election))
+      expect(flash[:alert]).to eq("삭제할 수 없는 학급 세션입니다.")
+    end
+
+    it "does not destroy draft sessions when the same election has a started session" do
+      draft_session = create_election_session
+      create(:election_session, election: draft_session.election, status: :in_progress)
+      sign_in create(:user, :admin)
+
+      expect do
+        delete admin_election_election_session_path(draft_session.election, draft_session)
+      end.not_to change(ElectionSession, :count)
+
+      expect(response).to redirect_to(admin_election_path(draft_session.election))
+      expect(flash[:alert]).to eq("삭제할 수 없는 학급 세션입니다.")
+    end
+
+    it "does not destroy closed sessions" do
+      session = create_election_session
+      session.update!(status: :closed)
+      sign_in create(:user, :admin)
+
+      expect do
+        delete admin_election_election_session_path(session.election, session)
+      end.not_to change(ElectionSession, :count)
+
+      expect(response).to redirect_to(admin_election_path(session.election))
+      expect(flash[:alert]).to eq("삭제할 수 없는 학급 세션입니다.")
+    end
+
+    it "does not remove an active teacher session when admin attempts deletion" do
+      election_session = create_election_session
+      election_session.update!(status: :in_progress)
+      sign_in create(:user, :admin)
+
+      expect do
+        delete admin_election_election_session_path(election_session.election, election_session)
+      end.not_to change(ElectionSession, :count)
+
+      expect(response).to redirect_to(admin_election_path(election_session.election))
+      expect(flash[:alert]).to eq("삭제할 수 없는 학급 세션입니다.")
+      expect(ElectionSession.exists?(election_session.id)).to be(true)
+    end
+
     it "does not allow teachers to destroy election sessions" do
       session = create_election_session
       sign_in create(:user)

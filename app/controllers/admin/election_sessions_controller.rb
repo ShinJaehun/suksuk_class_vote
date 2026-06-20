@@ -18,6 +18,11 @@ module Admin
 
     def destroy
       authorize @election, :show?
+      unless destroyable_session?
+        redirect_to admin_election_path(@election), alert: "삭제할 수 없는 학급 세션입니다."
+        return
+      end
+
       @election_session.destroy
 
       redirect_to admin_election_path(@election), notice: "학급 세션을 삭제했습니다."
@@ -43,6 +48,10 @@ module Admin
         .includes(:user)
         .where.not(id: assigned_participant_group_ids)
         .order("users.name", "users.email", "participant_groups.name")
+    end
+
+    def destroyable_session?
+      @election.draft? && @election_session.draft? && @election.election_sessions.where.not(status: :draft).none?
     end
 
     def election_session_params
