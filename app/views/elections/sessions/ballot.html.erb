@@ -1,9 +1,16 @@
-<div class="space-y-6">
+<div class="relative left-1/2 w-[calc(100vw-1rem)] -translate-x-1/2 space-y-3 px-2">
   <%= turbo_stream_from @election_session, :ballot_screen %>
 
-  <header class="space-y-2">
-    <p class="text-sm font-medium text-stone-600">학생 투표 화면</p>
-    <h1 class="text-3xl font-semibold"><%= @election.title %></h1>
+  <header class="flex items-end justify-between gap-3">
+    <div class="space-y-1">
+      <p class="text-xs font-medium text-stone-600">학생 투표 화면</p>
+      <h1 class="text-2xl font-semibold"><%= @election.title %></h1>
+    </div>
+    <% if @current_voter.present? %>
+      <p class="shrink-0 text-sm font-medium text-stone-700">
+        <%= [("#{@current_voter.number}번" if @current_voter.number.present?), @current_voter.name.presence].compact.join(" ") %>
+      </p>
+    <% end %>
   </header>
 
   <%= render "ballot_content",
