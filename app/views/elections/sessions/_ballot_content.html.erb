@@ -3,91 +3,93 @@
     <% participation = current_voter.election_participation %>
 
     <% if participation&.completed? || participation&.abstained? %>
-      <section class="rounded-md border border-emerald-200 bg-emerald-50 p-4">
+      <section class="mx-auto max-w-6xl rounded-md border border-emerald-200 bg-emerald-50 p-4">
         <h2 class="text-xl font-semibold text-emerald-900">투표가 제출되었습니다.</h2>
         <p class="mt-2 text-sm text-emerald-800">선생님의 안내를 기다려 주세요.</p>
       </section>
     <% elsif !progress&.open? %>
-      <section class="rounded-md border border-stone-200 bg-white p-4">
+      <section class="mx-auto max-w-6xl rounded-md border border-stone-200 bg-white p-4">
         <p class="text-stone-600">선생님이 투표를 시작할 때까지 기다려 주세요.</p>
       </section>
     <% else %>
       <%= form_with url: submit_ballot_elections_session_path(election_session, return_to: "ballot"),
                     scope: :ballot,
                     data: { controller: "election-ballot" } do |form| %>
-        <section class="rounded-md border border-stone-200 bg-white p-2">
+        <section class="bg-stone-50">
           <% contests.each_with_index do |contest, index| %>
             <% candidates = contest.election_candidates.order(:number) %>
             <% card_count = candidates.size %>
-            <% grid_class, fieldset_padding_class, grid_gap_class, card_padding_class, placeholder_class, name_class =
+            <% grid_class, content_width_class, fieldset_padding_class, grid_gap_class, card_padding_class, placeholder_class, name_class =
               case card_count
               when 1..2
-                [ "grid-cols-2", "p-2", "gap-2", "p-2", "aspect-[4/3]", "mt-2 text-base" ]
+                [ "grid-cols-2", "max-w-2xl mx-auto", "p-0", "gap-2", "p-2", "aspect-[4/3]", "mt-2 text-base" ]
               when 3
-                [ "grid-cols-3", "p-2", "gap-2", "p-2", "aspect-[4/3]", "mt-2 text-base" ]
+                [ "grid-cols-3", "max-w-3xl mx-auto", "p-0", "gap-2", "p-2", "aspect-[4/3]", "mt-2 text-base" ]
               when 1..4
-                [ "grid-cols-4", "p-2", "gap-2", "p-2", "aspect-[4/3]", "mt-2 text-base" ]
+                [ "grid-cols-4", "max-w-5xl mx-auto", "p-0", "gap-2", "p-2", "aspect-[4/3]", "mt-2 text-base" ]
               when 5..6
-                [ "grid-cols-6", "p-2", "gap-2", "p-1.5", "aspect-square", "mt-1.5 text-sm" ]
+                [ "grid-cols-6", "", "p-0", "gap-2", "p-1.5", "aspect-square", "mt-1.5 text-sm" ]
               when 7..9
-                [ "grid-cols-5", "p-2", "gap-1.5", "p-1.5", "aspect-square", "mt-1 text-sm" ]
+                [ "grid-cols-5", "", "p-0", "gap-1.5", "p-1.5", "aspect-square", "mt-1 text-sm" ]
               when 10..12
-                [ "grid-cols-6", "p-1.5", "gap-1.5", "p-1.5", "aspect-square", "mt-1 text-xs" ]
+                [ "grid-cols-6", "", "p-0", "gap-1.5", "p-1.5", "aspect-square", "mt-1 text-xs" ]
               else
-                [ "grid-cols-7", "p-1.5", "gap-1", "p-1", "aspect-square", "mt-1 text-xs" ]
+                [ "grid-cols-7", "", "p-0", "gap-1", "p-1", "aspect-square", "mt-1 text-xs" ]
               end %>
-            <fieldset class="rounded-md border border-stone-200 <%= fieldset_padding_class %>"
+            <fieldset class="<%= fieldset_padding_class %>"
                       data-election-ballot-target="contest"
                       data-election-ballot-index="<%= index %>"
                       <%= "hidden" unless index.zero? %>>
-              <legend class="text-base font-medium"><%= contest.title %></legend>
-              <div class="mt-2 grid <%= grid_class %> <%= grid_gap_class %>">
-                <% candidates.each do |candidate| %>
-                  <% choice_id = "ballot_contest_#{contest.id}_candidate_#{candidate.id}" %>
-                  <% avatar_index = ((contest.id.to_i * 7) + (candidate.id.to_i * 11) + candidate.number.to_i) % 30 %>
-                  <% avatar_prefix = avatar_index.even? ? "boy" : "girl" %>
-                  <% avatar_number = ((avatar_index / 2) % 15) + 1 %>
-                  <% avatar_path = "avatars/#{avatar_prefix}#{avatar_number.to_s.rjust(2, "0")}.png" %>
-                  <%= radio_button_tag "ballot[contest_choices][#{contest.id}]",
-                                       "candidate:#{candidate.id}",
-                                       false,
-                                       id: choice_id,
-                                       class: "sr-only",
-                                       data: { election_ballot_target: "choice" } %>
-                  <button type="button"
-                          class="rounded-md border border-stone-200 bg-white <%= card_padding_class %> text-left shadow-sm hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                          data-action="election-ballot#choose"
-                          data-election-ballot-choice-id-param="<%= choice_id %>">
-                    <span class="candidate-photo-placeholder block <%= placeholder_class %> overflow-hidden rounded-md bg-stone-100" aria-hidden="true">
-                      <%= image_tag avatar_path,
-                                    alt: "",
-                                    class: "h-full w-full object-contain",
-                                    loading: "lazy" %>
-                    </span>
-                    <span class="<%= name_class %> block font-semibold text-stone-900">
-                      <%= candidate.number %>번 <%= candidate.name %>
-                    </span>
-                  </button>
+              <div class="<%= content_width_class %>">
+                <h2 class="px-1 text-2xl font-semibold"><%= contest.title %></h2>
+                <div class="mt-2 grid <%= grid_class %> <%= grid_gap_class %>">
+                  <% candidates.each do |candidate| %>
+                    <% choice_id = "ballot_contest_#{contest.id}_candidate_#{candidate.id}" %>
+                    <% avatar_index = ((contest.id.to_i * 7) + (candidate.id.to_i * 11) + candidate.number.to_i) % 30 %>
+                    <% avatar_prefix = avatar_index.even? ? "boy" : "girl" %>
+                    <% avatar_number = ((avatar_index / 2) % 15) + 1 %>
+                    <% avatar_path = "avatars/#{avatar_prefix}#{avatar_number.to_s.rjust(2, "0")}.png" %>
+                    <%= radio_button_tag "ballot[contest_choices][#{contest.id}]",
+                                         "candidate:#{candidate.id}",
+                                         false,
+                                         id: choice_id,
+                                         class: "sr-only",
+                                         data: { election_ballot_target: "choice" } %>
+                    <button type="button"
+                            class="rounded-md border border-stone-200 bg-white <%= card_padding_class %> text-left shadow-sm hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            data-action="election-ballot#choose"
+                            data-election-ballot-choice-id-param="<%= choice_id %>">
+                      <span class="candidate-photo-placeholder block <%= placeholder_class %> overflow-hidden rounded-md bg-stone-100" aria-hidden="true">
+                        <%= image_tag avatar_path,
+                                      alt: "",
+                                      class: "h-full w-full object-contain",
+                                      loading: "lazy" %>
+                      </span>
+                      <span class="<%= name_class %> block font-semibold text-stone-900">
+                        <%= candidate.number %>번 <%= candidate.name %>
+                      </span>
+                    </button>
+                  <% end %>
+                </div>
+
+                <% if contest.allow_abstain? %>
+                  <% abstain_id = "ballot_contest_#{contest.id}_abstain" %>
+                  <div class="mt-2">
+                    <%= radio_button_tag "ballot[contest_choices][#{contest.id}]",
+                                         "abstain",
+                                         false,
+                                         id: abstain_id,
+                                         class: "sr-only",
+                                         data: { election_ballot_target: "choice" } %>
+                    <button type="button"
+                            class="rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-700 shadow-sm hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            data-action="election-ballot#choose"
+                            data-election-ballot-choice-id-param="<%= abstain_id %>">
+                      기권
+                    </button>
+                  </div>
                 <% end %>
               </div>
-
-              <% if contest.allow_abstain? %>
-                <% abstain_id = "ballot_contest_#{contest.id}_abstain" %>
-                <div class="mt-2">
-                  <%= radio_button_tag "ballot[contest_choices][#{contest.id}]",
-                                       "abstain",
-                                       false,
-                                       id: abstain_id,
-                                       class: "sr-only",
-                                       data: { election_ballot_target: "choice" } %>
-                  <button type="button"
-                          class="rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-700 shadow-sm hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                          data-action="election-ballot#choose"
-                          data-election-ballot-choice-id-param="<%= abstain_id %>">
-                    기권
-                  </button>
-                </div>
-              <% end %>
             </fieldset>
           <% end %>
         </section>
