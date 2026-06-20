@@ -163,6 +163,114 @@ RSpec.describe "Admin elections", type: :request do
 
       expect(response.body).not_to include(admin_election_election_session_path(election, draft_session))
     end
+
+    it "shows the start button for draft elections" do
+      sign_in create(:user, :admin)
+      election = startable_election
+
+      get admin_election_path(election)
+
+      expect(response.body).to include("상태 점검: 시작 가능")
+      expect(response.body).to include("선거를 시작할 수 있습니다.")
+      expect(response.body).to include("시작 가능 여부")
+      expect(response.body).to include("시작 가능")
+      expect(response.body).to include("선거 시작")
+      expect(response.body).to include(start_admin_election_path(election))
+    end
+
+    it "shows start blockers for draft elections that are not ready" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :draft)
+
+      get admin_election_path(election)
+
+      expect(response.body).to include("상태 점검: 확인 필요")
+      expect(response.body).to include("선거를 시작할 수 없습니다.")
+      expect(response.body).to include("학급 세션이 1개 이상 배정되어야 합니다.")
+      expect(response.body).to include("시작 가능 여부")
+      expect(response.body).to include("시작 불가")
+      expect(response.body).not_to include(start_admin_election_path(election))
+    end
+
+    it "does not show the start button for in progress or closed elections" do
+      sign_in create(:user, :admin)
+      in_progress_election = create(:election, status: :in_progress)
+      closed_election = create(:election, status: :closed)
+
+      get admin_election_path(in_progress_election)
+      expect(response.body).not_to include("선거 시작")
+
+      get admin_election_path(closed_election)
+      expect(response.body).not_to include("선거 시작")
+    end
+  end
+
+  describe "POST /admin/elections/:id/start" do
+    it "starts a draft election for admins" do
+      sign_in create(:user, :admin)
+      election = startable_election
+
+      post start_admin_election_path(election)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:notice]).to eq("선거를 시작했습니다.")
+      expect(election.reload).to be_in_progress
+      expect(election.election_sessions.sole).to be_draft
+    end
+
+    it "does not start an election without sessions" do
+      sign_in create(:user, :admin)
+      election = create(:election)
+      contest = create(:election_contest, election: election)
+      create(:election_candidate, election_contest: contest)
+
+      post start_admin_election_path(election)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to include("선거를 시작할 수 없습니다.")
+      expect(flash[:alert]).to include("학급 세션이 1개 이상 배정되어야 합니다.")
+      expect(election.reload).to be_draft
+    end
+
+    it "does not start an election without contests" do
+      sign_in create(:user, :admin)
+      election = create(:election)
+      create_admin_election_session(election: election, status: :draft, group_name: "6학년 1반")
+
+      post start_admin_election_path(election)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to include("선거를 시작할 수 없습니다.")
+      expect(flash[:alert]).to include("선거 항목이 1개 이상 있어야 합니다.")
+      expect(election.reload).to be_draft
+    end
+
+    it "does not start an election when a contest has no candidates" do
+      sign_in create(:user, :admin)
+      election = create(:election)
+      create_admin_election_session(election: election, status: :draft, group_name: "6학년 1반")
+      create(:election_contest, election: election)
+
+      post start_admin_election_path(election)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to include("선거를 시작할 수 없습니다.")
+      expect(flash[:alert]).to include("Contest 1 항목에 후보자가 1명 이상 등록되어야 합니다.")
+      expect(election.reload).to be_draft
+    end
+
+    it "does not start elections that already left draft" do
+      sign_in create(:user, :admin)
+      election = startable_election
+      election.update!(status: :closed)
+
+      post start_admin_election_path(election)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to include("선거를 시작할 수 없습니다.")
+      expect(flash[:alert]).to include("Election이 draft 상태여야 합니다.")
+      expect(election.reload).to be_closed
+    end
   end
 
   describe "GET /admin/elections/:id/results" do
@@ -297,6 +405,15 @@ RSpec.describe "Admin elections", type: :request do
     participant_group = create(:participant_group, user: teacher, name: group_name)
 
     create(:election_session, election: election, teacher: teacher, participant_group: participant_group, status: status)
+  end
+
+  def startable_election
+    election = create(:election, status: :draft)
+    contest = create(:election_contest, election: election, title: "회장")
+    create(:election_candidate, election_contest: contest, number: 1, name: "후보1")
+    create_admin_election_session(election: election, status: :draft, group_name: "6학년 1반")
+
+    election.reload
   end
 
   def create_participation(election_session, status)

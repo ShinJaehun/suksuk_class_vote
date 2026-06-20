@@ -41,13 +41,13 @@ RSpec.describe "Polls", type: :request do
       poll = create(:poll, user: teacher, title: "기존 투표")
       election_session = create(
         :election_session,
-        election: create(:election, title: "학급 회장 선거"),
+        election: create(:election, title: "학급 회장 선거", status: :in_progress),
         teacher: teacher,
         participant_group: participant_group
       )
       create(
         :election_session,
-        election: create(:election, title: "다른 반 선거"),
+        election: create(:election, title: "다른 반 선거", status: :in_progress),
         teacher: other_teacher,
         participant_group: create(:participant_group, :with_participant_slot, user: other_teacher)
       )
@@ -73,7 +73,7 @@ RSpec.describe "Polls", type: :request do
       in_progress_session = create(
         :election_session,
         status: :in_progress,
-        election: create(:election, title: "진행 중인 선거"),
+        election: create(:election, title: "진행 중인 선거", status: :in_progress),
         teacher: teacher,
         participant_group: participant_group
       )
@@ -82,14 +82,14 @@ RSpec.describe "Polls", type: :request do
       create(
         :election_session,
         status: :closed,
-        election: create(:election, title: "종료된 선거"),
+        election: create(:election, title: "종료된 선거", status: :closed),
         teacher: teacher,
         participant_group: participant_group
       )
       create(
         :election_session,
         status: :stopped,
-        election: create(:election, title: "중단된 선거"),
+        election: create(:election, title: "중단된 선거", status: :in_progress),
         teacher: teacher,
         participant_group: participant_group
       )
@@ -103,6 +103,56 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include("종료된 선거")
       expect(response.body).not_to include("중단된 선거")
       expect(response.body).not_to include("in_progress")
+    end
+
+    it "hides election sessions until the election starts" do
+      teacher = create(:user)
+      participant_group = create(:participant_group, :with_participant_slot, user: teacher, name: "6학년 1반")
+      create(
+        :election_session,
+        election: create(:election, title: "시작 전 선거", status: :draft),
+        teacher: teacher,
+        participant_group: participant_group
+      )
+      sign_in teacher
+
+      get polls_path
+
+      expect(response.body).not_to include("시작 전 선거")
+    end
+
+    it "shows election sessions after the election starts" do
+      teacher = create(:user)
+      participant_group = create(:participant_group, :with_participant_slot, user: teacher, name: "6학년 1반")
+      election_session = create(
+        :election_session,
+        election: create(:election, title: "시작된 선거", status: :in_progress),
+        teacher: teacher,
+        participant_group: participant_group
+      )
+      sign_in teacher
+
+      get polls_path
+
+      expect(response.body).to include("시작된 선거")
+      expect(response.body).to include(elections_session_path(election_session))
+    end
+
+    it "hides closed election sessions from the active teacher vote list" do
+      teacher = create(:user)
+      participant_group = create(:participant_group, :with_participant_slot, user: teacher, name: "6학년 1반")
+      create(
+        :election_session,
+        status: :closed,
+        election: create(:election, title: "집계된 선거", status: :closed),
+        teacher: teacher,
+        participant_group: participant_group
+      )
+      sign_in teacher
+
+      get polls_path
+
+      expect(response.body).not_to include("집계된 선거")
     end
 
     it "shows voter counts from participant slots for draft polls and snapshots for started polls" do

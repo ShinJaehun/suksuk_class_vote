@@ -325,7 +325,9 @@ class PollsController < ApplicationController
     return ElectionSession.none unless current_user.teacher?
 
     ElectionSession
+      .joins(:election)
       .where(teacher: current_user, status: %i[draft in_progress])
+      .where(elections: { status: :in_progress })
       .includes(:election, :participant_group)
       .order(created_at: :desc)
   end

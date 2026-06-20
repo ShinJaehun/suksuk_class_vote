@@ -166,6 +166,19 @@ RSpec.describe "Election sessions", type: :request do
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
     end
 
+    it "does not allow the session teacher to view a draft election session before the election starts" do
+      teacher = create(:user)
+      participant_group = create(:participant_group, user: teacher)
+      election = create(:election, status: :draft)
+      election_session = create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
+      sign_in teacher
+
+      get elections_session_path(election_session)
+
+      expect(response).to redirect_to(dashboard_path)
+      expect(flash[:alert]).to eq("접근 권한이 없습니다.")
+    end
+
     it "shows integrity report information for admins on closed sessions" do
       election_session = closed_session
       sign_in create(:user, :admin)
@@ -231,7 +244,9 @@ RSpec.describe "Election sessions", type: :request do
     end
 
     it "shows stopped guidance instead of closed session results" do
-      election_session = create(:election_session, status: :stopped)
+      election = create(:election, status: :in_progress)
+      election_session = create(:election_session, election: election, status: :stopped)
+
       sign_in election_session.teacher
 
       get elections_session_path(election_session)
@@ -611,7 +626,7 @@ RSpec.describe "Election sessions", type: :request do
     participant_group = create(:participant_group, user: teacher, name: "4학년 1반")
     create(:participant_slot, participant_group: participant_group, number: 1, name: "학생1")
     create(:participant_slot, participant_group: participant_group, number: 2, name: "학생2")
-    election = create(:election, title: "학급 임원 선거")
+    election = create(:election, title: "학급 임원 선거", status: :in_progress)
     contest = create(:election_contest, election: election)
     create(:election_candidate, election_contest: contest, number: 1, name: "후보1")
 

@@ -48,6 +48,7 @@ module Admin
         .includes(:user)
         .where.not(id: assigned_participant_group_ids)
         .order("users.name", "users.email", "participant_groups.name")
+      @election_start_report = Elections::StartReport.new(election: @election).to_h
     end
 
     def destroyable_session?

@@ -23,6 +23,19 @@ module Admin
       prepare_results
     end
 
+    def start
+      @election = policy_scope(Election).find(params[:id])
+      authorize @election, :show?
+      start_report = Elections::StartReport.new(election: @election).to_h
+
+      if start_report[:startable]
+        @election.update!(status: :in_progress)
+        redirect_to admin_election_path(@election), notice: "선거를 시작했습니다."
+      else
+        redirect_to admin_election_path(@election), alert: start_failure_message(start_report)
+      end
+    end
+
     def new
       @election = Election.new(user: current_user, kind: :school_council)
       authorize @election
@@ -80,12 +93,20 @@ module Admin
         .includes(:user)
         .where.not(id: assigned_participant_group_ids)
         .order("users.name", "users.email", "participant_groups.name")
+      @election_start_report = Elections::StartReport.new(election: @election).to_h
     end
 
     def prepare_results
       @election_contests = @election.election_contests.includes(:election_candidates).order(:position)
       @election_sessions = @election.election_sessions.includes(:teacher, :participant_group).order(:created_at)
       prepare_aggregate_results
+    end
+
+    def start_failure_message(start_report)
+      first_blocker = start_report[:blockers].first
+      return "선거를 시작할 수 없습니다." if first_blocker.blank?
+
+      "선거를 시작할 수 없습니다. #{first_blocker}"
     end
 
     def prepare_aggregate_results

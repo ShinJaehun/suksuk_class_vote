@@ -7,7 +7,7 @@ class ElectionSessionPolicy < ApplicationPolicy
     return false if user.blank?
     return true if user.admin?
 
-    user.teacher? && record.teacher_id == user.id
+    user.teacher? && record.teacher_id == user.id && !record.election.draft?
   end
 
   def start?
