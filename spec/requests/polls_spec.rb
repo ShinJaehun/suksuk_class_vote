@@ -60,7 +60,8 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include(election_session.election.title)
       expect(response.body).to include(elections_session_path(election_session))
       expect(response.body).to include("선거")
-      expect(response.body).to include("시작 전")
+      expect(response.body).to include("준비")
+      expect(response.body).not_to include("시작 전")
       expect(response.body).to include(participant_group.name)
       expect(response.body).to include("투표자 1명")
       expect(response.body).not_to include("다른 반 선거")
@@ -98,7 +99,7 @@ RSpec.describe "Polls", type: :request do
       get polls_path
 
       expect(response.body).to include("진행 중인 선거")
-      expect(response.body).to include("진행 중")
+      expect(response.body).to include("진행")
       expect(response.body).to include("투표자 2명")
       expect(response.body).not_to include("종료된 선거")
       expect(response.body).not_to include("중단된 선거")
