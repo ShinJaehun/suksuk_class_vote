@@ -202,6 +202,12 @@ Admin 결과 집계는 `closed` `ElectionSession`의 `ElectionCandidateTally`와
 draft/in_progress/stopped 세션의 tally는 전체 집계에서 제외하지만,
 학급별 검산 목록에는 세션 상태와 함께 표시한다.
 
+후보자 사진은 Admin `ElectionCandidate`의 후보 식별 보조 자료이며 결과/집계/검산에는 사용하지 않는다.
+사진은 선거 진행 중 사용하는 임시 자료로 보고, parent `Election`이 `closed`가 된 뒤 해당 Election 후보자들의
+사진 attachment/blob를 purge하는 기능을 향후 별도 작업으로 검토한다.
+이때 `ElectionCandidate` record, 후보자 이름/기호/소속, tally, result, event log는 유지하고
+사진 attachment/blob만 삭제하는 방향을 우선 검토한다.
+
 Admin `Election` 상세 화면은 Turbo Stream `admin_overview`를 구독한다.
 학급 세션 시작/종료 뒤에는 `admin_summary`, `admin_status_report`, `admin_sessions` 영역을 replace해
 상단 상태, 상태점검 카드, 학급 세션 목록이 같은 DB 상태를 기준으로 보이게 한다.

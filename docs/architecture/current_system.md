@@ -60,6 +60,17 @@
 별도 Admin `Election` 흐름에서는 전교/여러 학급 운영을 위한 기본 관리 기능이 구현되어 있다.
 admin은 draft `Election`을 시작해 parent 상태를 `in_progress`로 전환하고,
 교사는 parent `Election`이 `in_progress`인 학급 `ElectionSession`만 진행 목록에서 확인한다.
+Admin `ElectionCandidate` 후보자 사진은 전교어린이회임원선거 등에서 후보 식별을 돕기 위한 선택 입력이다.
+교사 주도 학급 `Poll` 흐름에는 사진 기능을 도입하지 않는다.
+
+## 배포 저장소 정책
+
+production에서 Active Storage local service를 사용할 수 있다.
+단, Docker 컨테이너 내부 writable layer에만 `/rails/storage` 또는 `storage/`를 두면
+컨테이너 재생성이나 이미지 교체 시 업로드 파일이 사라질 수 있다.
+OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails container의 storage 경로에 mount하는 방식을 기본 운영안으로 둔다.
+예를 들어 host `/var/www/suksuk_class_vote/storage`를 container `/rails/storage`에 mount한다.
+서버를 여러 대로 늘리거나 ephemeral filesystem 환경을 쓰게 되면 OCI Object Storage 또는 S3 같은 object storage 전환을 검토한다.
 
 ---
 
