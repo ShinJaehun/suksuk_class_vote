@@ -239,10 +239,9 @@ RSpec.describe "Admin elections", type: :request do
       get admin_election_path(election)
 
       expect(response.body).to include("상태점검")
-      expect(response.body).to include("상태점검: 이상 없음")
-      expect(response.body).to include("투표를 시작할 수 있습니다.")
-      expect(response.body).to include("시작 가능 여부")
       expect(response.body).to include("시작 가능")
+      expect(response.body).to include("투표를 시작할 수 있습니다.")
+      expect(response.body).to include("필요한 후보와 학급 세션 구성이 준비되었습니다.")
       expect(response.body).to include("선거 시작")
       expect(response.body).to include(start_admin_election_path(election))
     end
@@ -254,11 +253,13 @@ RSpec.describe "Admin elections", type: :request do
       get admin_election_path(election)
 
       expect(response.body).to include("상태점검")
-      expect(response.body).to include("상태점검: 확인 필요")
-      expect(response.body).to include("투표를 시작할 수 없습니다.")
+      expect(response.body).to include("확인 필요")
+      expect(response.body).to include("선거를 시작하려면 아래 항목을 먼저 보완하세요.")
+      expect(response.body).to include("보완 항목")
       expect(response.body).to include("학급 세션이 1개 이상 배정되어야 합니다.")
-      expect(response.body).to include("시작 가능 여부")
-      expect(response.body).to include("시작 불가")
+      expect(response.body).to include("0/0")
+      expect(response.body).not_to include("0/1")
+      expect(response.body).to include("선거 항목이 1개 이상 있어야 합니다.")
       expect(response.body).not_to include(start_admin_election_path(election))
     end
 
@@ -269,10 +270,8 @@ RSpec.describe "Admin elections", type: :request do
       get admin_election_path(election)
 
       expect(response.body).to include("상태점검")
-      expect(response.body).to include("상태점검: 이상 없음")
-      expect(response.body).to include("투표가 진행 중입니다.")
-      expect(response.body).to include("운영 상태")
       expect(response.body).to include("진행 중")
+      expect(response.body).to include("투표가 진행 중입니다.")
       expect(response.body).not_to include("Election이 draft 상태여야 합니다.")
       expect(response.body).not_to include(start_admin_election_path(election))
     end
@@ -284,10 +283,8 @@ RSpec.describe "Admin elections", type: :request do
       get admin_election_path(election)
 
       expect(response.body).to include("상태점검")
-      expect(response.body).to include("상태점검: 종료됨")
+      expect(response.body).to include("종료됨")
       expect(response.body).to include("투표가 종료되었습니다.")
-      expect(response.body).to include("운영 상태")
-      expect(response.body).to include("종료")
       expect(response.body).not_to include(start_admin_election_path(election))
     end
 
@@ -386,11 +383,11 @@ RSpec.describe "Admin elections", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("선거 상세로 돌아가기")
       expect(response.body).to include("전체 진행 현황")
-      expect(response.body).to include("전체 배정 학급 수")
-      expect(response.body).to include("종료된 학급 수")
-      expect(response.body).to include("진행 중 학급 수")
-      expect(response.body).to include("준비 중 학급 수")
-      expect(response.body).to include("중단 학급 수")
+      expect(response.body).to include("완료 학급")
+      expect(response.body).to include("1/4")
+      expect(response.body).to include("진행 중")
+      expect(response.body).to include("준비 중")
+      expect(response.body).to include("중단")
     end
 
     it "sums candidate tallies from closed sessions in aggregate results" do
@@ -463,9 +460,11 @@ RSpec.describe "Admin elections", type: :request do
 
       expect(response.body).to include("학급별 집계 검산")
       expect(response.body).to include("6학년 1반")
-      expect(response.body).to include("완료 2명")
-      expect(response.body).to include("기권 1명")
-      expect(response.body).to include("미참여 1명")
+      visible_text = Nokogiri::HTML(response.body).text.squish
+
+      expect(visible_text).to include("완료 2명")
+      expect(visible_text).to include("기권 1명")
+      expect(visible_text).to include("미참여 1명")
     end
 
     it "shows closed per-class detail results" do
@@ -479,7 +478,7 @@ RSpec.describe "Admin elections", type: :request do
 
       get results_admin_election_path(election)
 
-      expect(response.body).to include("<details>")
+      expect(response.body).to include("<details")
       expect(response.body).to include("상세 결과")
       expect(response.body).to include("상세후보")
       expect(response.body).to include("7표")
@@ -494,8 +493,8 @@ RSpec.describe "Admin elections", type: :request do
       get results_admin_election_path(election)
 
       expect(response.body).to include("6학년 2반")
-      expect(response.body).to include("상태: draft")
-      expect(response.body).to include("집계 제외")
+      expect(response.body).to include("시작 전")
+      expect(response.body).to include("전체 결과 합산에서 제외")
     end
   end
 

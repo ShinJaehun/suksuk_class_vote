@@ -26,11 +26,12 @@ RSpec.describe "Election sessions", type: :request do
       expect(visible_text).to include("진행 중")
       expect(visible_text).to include("투표 정보")
       expect(visible_text).to include(election_session.participant_group.name)
-      expect(visible_text).to include("투표자 2명")
+      expect(visible_text).to include("전체 투표자")
+      expect(visible_text).to include("2명")
       expect(visible_text).to include("Contest 1")
       expect(visible_text).to include("후보1")
       expect(visible_text).to include("투표 진행")
-      expect(visible_text).to include("투표가 진행 중입니다.")
+      expect(visible_text).to include("현재 학급 투표가 진행 중입니다.")
       expect(visible_text).to include("투표를 시작합니다.")
       expect(visible_text).to include("1번 학생1")
       expect(visible_text).to include("다음 투표자는 1번 학생1입니다.")
@@ -57,7 +58,7 @@ RSpec.describe "Election sessions", type: :request do
       visible_text = page_text
 
       expect(response).to have_http_status(:ok)
-      expect(visible_text).to include("선거를 시작할 수 있습니다.")
+      expect(visible_text).to include("이 학급 투표를 시작할 수 있습니다.")
       expect(visible_text).to include("선거 시작")
       expect(visible_text).not_to include("투표 제출")
       expect(visible_text).not_to include("draft")

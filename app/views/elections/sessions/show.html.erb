@@ -22,6 +22,11 @@
                candidate_tallies_by_candidate_id: @candidate_tallies_by_candidate_id,
                contest_tallies_by_contest_id: @contest_tallies_by_contest_id %>
   <% elsif @election_session.closed? %>
+    <%= render "teacher_progress",
+               election_session: @election_session,
+               progress: @progress,
+               current_voter: @current_voter %>
+
     <%= render "closed_results",
                election_session: @election_session,
                contests: @contests,

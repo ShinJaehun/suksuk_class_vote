@@ -5,7 +5,7 @@ RSpec.describe Elections::CloseSession do
 
   describe "#call" do
     it "closes an in progress session when every voter is completed and no current voter remains" do
-      election_session = closable_session(statuses: [:completed, :completed])
+      election_session = closable_session(statuses: [ :completed, :completed ])
       election = election_session.election
 
       result = described_class.new(election_session: election_session, actor: election_session.teacher).call
@@ -35,7 +35,7 @@ RSpec.describe Elections::CloseSession do
     end
 
     it "broadcasts the admin election overview after closing" do
-      election_session = closable_session(statuses: [:completed])
+      election_session = closable_session(statuses: [ :completed ])
 
       described_class.new(election_session: election_session, actor: election_session.teacher).call
 
@@ -43,11 +43,11 @@ RSpec.describe Elections::CloseSession do
       expect(broadcasts.any? { |broadcast| broadcast.include?(ActionView::RecordIdentifier.dom_id(election_session.election, :admin_summary)) }).to be(true)
       expect(broadcasts.any? { |broadcast| broadcast.include?(ActionView::RecordIdentifier.dom_id(election_session.election, :admin_status_report)) }).to be(true)
       expect(broadcasts.any? { |broadcast| broadcast.include?(ActionView::RecordIdentifier.dom_id(election_session.election, :admin_sessions)) }).to be(true)
-      expect(broadcasts.join).to include("closed")
+      expect(broadcasts.join).to include("종료됨")
     end
 
     it "closes with mixed final participation statuses and records counts" do
-      election_session = closable_session(statuses: [:completed, :absent, :abstained])
+      election_session = closable_session(statuses: [ :completed, :absent, :abstained ])
 
       result = described_class.new(election_session: election_session, actor: election_session.teacher).call
 
@@ -60,7 +60,7 @@ RSpec.describe Elections::CloseSession do
     end
 
     it "closes when the last current voter is completed and every voter is final" do
-      election_session = closable_session(statuses: [:completed, :completed])
+      election_session = closable_session(statuses: [ :completed, :completed ])
       current_voter = election_session.election_voters.order(:position).last
       election_session.election_progress.update!(current_election_voter: current_voter, ballot_state: :locked)
 
@@ -85,7 +85,7 @@ RSpec.describe Elections::CloseSession do
     end
 
     it "closes the election after the last election session closes" do
-      election_session = closable_session(statuses: [:completed])
+      election_session = closable_session(statuses: [ :completed ])
       election = election_session.election
       election.update!(status: :in_progress)
 
@@ -96,7 +96,7 @@ RSpec.describe Elections::CloseSession do
     end
 
     it "does not close the election while another session is not closed" do
-      election_session = closable_session(statuses: [:completed])
+      election_session = closable_session(statuses: [ :completed ])
       election = election_session.election
       election.update!(status: :in_progress)
       create(:election_session, election: election, status: :draft)
@@ -108,7 +108,7 @@ RSpec.describe Elections::CloseSession do
     end
 
     it "fails without an actor" do
-      election_session = closable_session(statuses: [:completed])
+      election_session = closable_session(statuses: [ :completed ])
 
       result = described_class.new(election_session: election_session, actor: nil).call
 
@@ -118,7 +118,7 @@ RSpec.describe Elections::CloseSession do
     end
 
     it "fails for draft sessions" do
-      election_session = closable_session(statuses: [:completed])
+      election_session = closable_session(statuses: [ :completed ])
       election_session.update!(status: :draft)
 
       result = described_class.new(election_session: election_session, actor: election_session.teacher).call
@@ -128,7 +128,7 @@ RSpec.describe Elections::CloseSession do
     end
 
     it "fails for closed sessions" do
-      election_session = closable_session(statuses: [:completed])
+      election_session = closable_session(statuses: [ :completed ])
       election_session.update!(status: :closed)
 
       result = described_class.new(election_session: election_session, actor: election_session.teacher).call
@@ -138,7 +138,7 @@ RSpec.describe Elections::CloseSession do
     end
 
     it "fails for stopped sessions" do
-      election_session = closable_session(statuses: [:completed])
+      election_session = closable_session(statuses: [ :completed ])
       election_session.update!(status: :stopped)
 
       result = described_class.new(election_session: election_session, actor: election_session.teacher).call
@@ -148,7 +148,7 @@ RSpec.describe Elections::CloseSession do
     end
 
     it "fails for pin login sessions" do
-      election_session = closable_session(statuses: [:completed])
+      election_session = closable_session(statuses: [ :completed ])
       election_session.update!(operation_mode: :pin_login)
 
       result = described_class.new(election_session: election_session, actor: election_session.teacher).call
@@ -159,7 +159,7 @@ RSpec.describe Elections::CloseSession do
     end
 
     it "fails without progress" do
-      election_session = closable_session(statuses: [:completed])
+      election_session = closable_session(statuses: [ :completed ])
       election_session.election_progress.destroy!
 
       result = described_class.new(election_session: election_session, actor: election_session.teacher).call
@@ -171,7 +171,7 @@ RSpec.describe Elections::CloseSession do
     end
 
     it "fails when ballot is open" do
-      election_session = closable_session(statuses: [:completed])
+      election_session = closable_session(statuses: [ :completed ])
       election_session.election_progress.update!(ballot_state: :open)
 
       result = described_class.new(election_session: election_session, actor: election_session.teacher).call
@@ -182,7 +182,7 @@ RSpec.describe Elections::CloseSession do
     end
 
     it "fails when current voter remains pending" do
-      election_session = closable_session(statuses: [:completed])
+      election_session = closable_session(statuses: [ :completed ])
       election_session.election_progress.update!(current_election_voter: election_session.election_voters.first)
       election_session.election_voters.first.election_participation.update!(status: :pending, submitted_at: nil)
 
@@ -206,7 +206,7 @@ RSpec.describe Elections::CloseSession do
     end
 
     it "fails when a voter has no participation" do
-      election_session = closable_session(statuses: [:completed])
+      election_session = closable_session(statuses: [ :completed ])
       election_session.election_voters.first.election_participation.destroy!
 
       result = described_class.new(election_session: election_session, actor: election_session.teacher).call
@@ -217,7 +217,7 @@ RSpec.describe Elections::CloseSession do
     end
 
     it "fails when a pending participation remains" do
-      election_session = closable_session(statuses: [:completed, :pending])
+      election_session = closable_session(statuses: [ :completed, :pending ])
 
       result = described_class.new(election_session: election_session, actor: election_session.teacher).call
 
