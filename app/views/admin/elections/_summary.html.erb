@@ -17,9 +17,9 @@
     <div class="space-y-2">
       <div class="flex flex-wrap items-center gap-2">
         <h1 class="text-3xl font-semibold"><%= election.title %></h1>
+        <%= election_kind_badge(election) %>
         <span class="rounded-md border px-2 py-1 text-sm font-medium <%= status_class %>"><%= status_label %></span>
       </div>
-      <%= election_kind_badge(election) %>
     </div>
 
     <%= link_to "결과 집계 보기",
