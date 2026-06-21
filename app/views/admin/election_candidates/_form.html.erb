@@ -18,7 +18,7 @@
     <%= form.label :photo, "후보자 사진" %>
     <% if @election_candidate.photo.attached? %>
       <div>
-        <%= image_tag @election_candidate.photo,
+        <%= image_tag rails_blob_path(@election_candidate.photo, only_path: true),
                       alt: "#{@election_candidate.name} 후보 사진",
                       style: "width: 120px; height: 120px; object-fit: cover;" %>
       </div>

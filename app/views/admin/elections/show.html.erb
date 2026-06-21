@@ -35,7 +35,7 @@
               <% candidates.each do |candidate| %>
                 <li>
                   <% if candidate.photo.attached? %>
-                    <%= image_tag candidate.photo,
+                    <%= image_tag rails_blob_path(candidate.photo, only_path: true),
                                   alt: "#{candidate.name} 후보 사진",
                                   style: "width: 48px; height: 48px; object-fit: cover;" %>
                   <% end %>

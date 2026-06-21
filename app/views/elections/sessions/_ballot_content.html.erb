@@ -77,7 +77,7 @@
                             data-election-ballot-choice-id-param="<%= choice_id %>">
                       <span class="candidate-photo-placeholder block <%= placeholder_class %> overflow-hidden rounded-md bg-stone-100">
                         <% if candidate.photo.attached? %>
-                          <%= image_tag candidate.photo,
+                          <%= image_tag rails_blob_path(candidate.photo, only_path: true),
                                         alt: "#{candidate.name} 후보 사진",
                                         class: "h-full w-full object-cover",
                                         loading: "lazy" %>
