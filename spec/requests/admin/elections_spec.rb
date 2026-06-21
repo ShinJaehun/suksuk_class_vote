@@ -140,6 +140,7 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("학급/그룹")
       expect(response.body).to include("김담임")
       expect(response.body).to include("6학년 1반")
+      expect(response.body).to include("투표자 1명")
     end
 
     it "hides the session assignment form after the election starts or closes" do

@@ -157,6 +157,31 @@ RSpec.describe "Election sessions", type: :request do
       expect(response.body).to include(election_session.election.title)
     end
 
+    it "shows static roster information to admins for draft sessions" do
+      election_session = draft_session
+      sign_in create(:user, :admin)
+
+      get elections_session_path(election_session)
+      visible_text = page_text
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include(admin_election_path(election_session.election))
+      expect(visible_text).to include("선거 상세로 돌아가기")
+      expect(visible_text).to include("투표 대상 학생")
+      expect(visible_text).to include("투표자 수")
+      expect(visible_text).to include("2명")
+      expect(visible_text).to include("학생1")
+      expect(visible_text).to include("학생2")
+      expect(visible_text).not_to include("선거 항목")
+      expect(visible_text).not_to include("Contest 1")
+      expect(visible_text).not_to include("single_choice")
+      expect(visible_text).not_to include("supervised")
+      expect(visible_text).not_to include("draft")
+      expect(visible_text).not_to include("기권 허용")
+      expect(visible_text).not_to include("순서")
+      expect(visible_text).not_to include("참여 상태")
+    end
+
     it "does not allow another teacher to view the session" do
       election_session = started_session
       sign_in create(:user)
@@ -190,6 +215,10 @@ RSpec.describe "Election sessions", type: :request do
       expect(response.body).to include("세션 결과")
       expect(response.body).to include("무결성 확인 통과")
       expect(response.body).to include("완료")
+      expect(response.body).not_to include("single_choice")
+      expect(response.body).not_to include("1-1명 선택")
+      expect(response.body).not_to include("선출 1명")
+      expect(response.body).not_to include("대기")
     end
 
     it "shows closed session contest results for admins" do
@@ -207,7 +236,10 @@ RSpec.describe "Election sessions", type: :request do
       expect(response.body).to include("무결성 확인 통과")
       expect(response.body).to include("완료 1명")
       expect(response.body).to include("기권 1명")
-      expect(response.body).to include("대기 0명")
+      expect(response.body).not_to include("대기")
+      expect(response.body).not_to include("single_choice")
+      expect(response.body).not_to include("1-1명 선택")
+      expect(response.body).not_to include("선출 1명")
     end
 
     it "shows closed session results for teachers" do
