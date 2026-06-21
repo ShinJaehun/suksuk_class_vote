@@ -33,8 +33,35 @@ RSpec.describe "Admin election candidates", type: :request do
       expect(response.body).to include(election.title)
       expect(response.body).to include(contest.title)
       expect(response.body).to include("기호")
-      expect(response.body).to include("후보 이름")
-      expect(response.body).to include("소속")
+      expect(response.body).to include("이름")
+      expect(response.body).to include("소속/학반")
+      expect(response.body).to include("후보 사진")
+      expect(response.body).to include("JPG, PNG, WebP")
+      expect(response.body).to include("최대 5MB")
+      expect(response.body).to include("선거 상세로 돌아가기")
+      expect(response.body).to include("후보 등록")
+    end
+
+    it "does not show the candidate creation form after the election starts" do
+      election, contest = create_election_with_contest
+      election.update!(status: :in_progress)
+      sign_in create(:user, :admin)
+
+      get new_admin_election_election_contest_election_candidate_path(election, contest)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("선거 시작 후에는 후보자를 변경할 수 없습니다.")
+    end
+
+    it "does not show the candidate creation form after the election is closed" do
+      election, contest = create_election_with_contest
+      election.update!(status: :closed)
+      sign_in create(:user, :admin)
+
+      get new_admin_election_election_contest_election_candidate_path(election, contest)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("선거 시작 후에는 후보자를 변경할 수 없습니다.")
     end
   end
 
@@ -182,8 +209,15 @@ RSpec.describe "Admin election candidates", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("후보 수정")
+      expect(response.body).to include(election.title)
+      expect(response.body).to include(contest.title)
       expect(response.body).to include("김후보")
       expect(response.body).to include("6학년 1반")
+      expect(response.body).to include("기호")
+      expect(response.body).to include("이름")
+      expect(response.body).to include("소속/학반")
+      expect(response.body).to include("후보 사진")
+      expect(response.body).to include("선거 상세로 돌아가기")
     end
 
     it "shows the current photo preview to admins" do
@@ -211,6 +245,30 @@ RSpec.describe "Admin election candidates", type: :request do
       get edit_admin_election_election_contest_election_candidate_path(election, second_contest, candidate)
 
       expect(response).to have_http_status(:not_found)
+    end
+
+    it "does not show the candidate edit form after the election starts" do
+      election, contest = create_election_with_contest
+      candidate = create(:election_candidate, election_contest: contest)
+      election.update!(status: :in_progress)
+      sign_in create(:user, :admin)
+
+      get edit_admin_election_election_contest_election_candidate_path(election, contest, candidate)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("선거 시작 후에는 후보자를 변경할 수 없습니다.")
+    end
+
+    it "does not show the candidate edit form after the election is closed" do
+      election, contest = create_election_with_contest
+      candidate = create(:election_candidate, election_contest: contest)
+      election.update!(status: :closed)
+      sign_in create(:user, :admin)
+
+      get edit_admin_election_election_contest_election_candidate_path(election, contest, candidate)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("선거 시작 후에는 후보자를 변경할 수 없습니다.")
     end
   end
 
@@ -418,6 +476,20 @@ RSpec.describe "Admin election candidates", type: :request do
       election, contest = create_election_with_contest
       candidate = create(:election_candidate, election_contest: contest)
       election.update!(status: :in_progress)
+      sign_in create(:user, :admin)
+
+      expect do
+        delete admin_election_election_contest_election_candidate_path(election, contest, candidate)
+      end.not_to change(ElectionCandidate, :count)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("선거 시작 후에는 후보자를 변경할 수 없습니다.")
+    end
+
+    it "does not destroy candidates after the election is closed" do
+      election, contest = create_election_with_contest
+      candidate = create(:election_candidate, election_contest: contest)
+      election.update!(status: :closed)
       sign_in create(:user, :admin)
 
       expect do
