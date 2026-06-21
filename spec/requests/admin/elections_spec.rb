@@ -28,6 +28,7 @@ RSpec.describe "Admin elections", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("선거 관리")
       expect(response.body).to include(election.title)
+      expect(response.body).not_to include("· 생성")
     end
   end
 

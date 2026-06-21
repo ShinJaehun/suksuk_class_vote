@@ -3,12 +3,12 @@
 
   <dl class="grid gap-3 text-sm sm:grid-cols-3">
     <div>
-      <dt class="font-medium text-stone-500">시작 시각</dt>
-      <dd class="mt-1 text-stone-900"><%= election_session.started_at || "기록 없음" %></dd>
+      <dt class="font-medium text-stone-500">투표시작</dt>
+      <dd class="mt-1 text-stone-900"><%= kst_datetime(election_session.started_at) %></dd>
     </div>
     <div>
-      <dt class="font-medium text-stone-500">종료 시각</dt>
-      <dd class="mt-1 text-stone-900"><%= election_session.closed_at || "기록 없음" %></dd>
+      <dt class="font-medium text-stone-500">투표종료</dt>
+      <dd class="mt-1 text-stone-900"><%= kst_datetime(election_session.closed_at) %></dd>
     </div>
     <div>
       <dt class="font-medium text-stone-500">참여 상태</dt>

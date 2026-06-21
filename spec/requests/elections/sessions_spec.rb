@@ -95,7 +95,7 @@ RSpec.describe "Election sessions", type: :request do
     it "shows only major election events in the teacher progress log" do
       election_session = opened_session
       current_voter = election_session.election_progress.current_election_voter
-      create(:election_event, :ballot_submitted, election_session: election_session, election_voter: current_voter)
+      create(:election_event, :ballot_submitted, election_session: election_session, election_voter: current_voter, occurred_at: Time.utc(2026, 6, 21, 8, 37))
       create(:election_event, election_session: election_session, election_voter: current_voter, event_type: :voter_marked_abstained)
       create(:election_event, election_session: election_session, election_voter: current_voter, event_type: :voter_marked_absent)
       create(:election_event, election_session: election_session, event_type: :session_closed)
@@ -107,6 +107,7 @@ RSpec.describe "Election sessions", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(visible_text).to include("투표 진행 상황")
+      expect(visible_text).to include("2026-06-21 17:37")
       expect(visible_text).to include("투표 시작")
       expect(visible_text).to include("투표 완료")
       expect(visible_text).to include("미참여")
@@ -267,6 +268,8 @@ RSpec.describe "Election sessions", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("세션 결과")
+      expect(response.body).to include("투표시작")
+      expect(response.body).to include("투표종료")
       expect(response.body).to include("무결성 확인 통과")
       expect(response.body).to include("완료")
       expect(response.body).not_to include("single_choice")

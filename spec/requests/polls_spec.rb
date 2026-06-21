@@ -238,6 +238,9 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("보관된 투표")
       expect(response.body).to include(closed_session.election.title)
       expect(response.body).to include(participant_group.name)
+      expect(response.body).to include("종료 2026-05-01 19:30")
+      expect(response.body).not_to include("시작 -")
+      expect(response.body).not_to include("종료 -")
       expect(response.body).to include("결과 보기")
       expect(response.body).to include(elections_session_path(closed_session))
       expect(response.body).not_to include("중단된 임원 선거")
@@ -496,7 +499,7 @@ RSpec.describe "Polls", type: :request do
       poll = create_started_poll(user: teacher)
       poll_option = poll.poll_options.order(:number).first
       participants = poll.poll_participants.order(:number)
-      create(:poll_event, poll: poll, actor: teacher, event_type: "poll_started", details: { voter_count: 2, poll_option_count: 2 })
+      create(:poll_event, poll: poll, actor: teacher, event_type: "poll_started", occurred_at: Time.utc(2026, 6, 21, 8, 37), details: { voter_count: 2, poll_option_count: 2 })
       create(:poll_event, poll: poll, actor: teacher, event_type: "poll_closed")
       create(:poll_event, poll: poll, actor: teacher, poll_participant: participants[0], event_type: "vote_completed")
       create(:poll_event, poll: poll, actor: teacher, poll_participant: participants[0], event_type: "participant_marked_absent")
@@ -508,7 +511,7 @@ RSpec.describe "Polls", type: :request do
 
       event_log = response.body.match(%r{<section[^>]*data-testid="poll-event-log"[^>]*>.*?</section>}m).to_s
       expect(event_log).to include("투표 진행 상황")
-      expect(event_log).to match(/\d{2}월 \d{2}일 \d{2}:\d{2}/)
+      expect(event_log).to include("2026-06-21 17:37")
       expect(event_log).to include("투표 시작")
       expect(event_log).to include("투표 종료")
       expect(event_log).to include("담임교사")
@@ -1894,7 +1897,7 @@ RSpec.describe "Polls", type: :request do
   end
 
   def operation_screen_broadcasts_for(poll)
-    broadcasts(Turbo::StreamsChannel.send(:stream_name_from, [poll, :operation_screen]))
+    broadcasts(Turbo::StreamsChannel.send(:stream_name_from, [ poll, :operation_screen ]))
   end
 
   def integrity_report_broadcast_for(poll)

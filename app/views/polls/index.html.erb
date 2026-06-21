@@ -28,6 +28,12 @@
             <p class="text-sm text-stone-600">
               <%= poll.participant_group_display_name || "-" %>
               · 투표자 <%= @poll_voter_counts.fetch(poll.id, 0) %>명
+              <% if poll.poll_progress&.started_at.present? %>
+                · 시작 <%= kst_datetime(poll.poll_progress.started_at) %>
+                <% if poll.poll_progress.closed_at.present? %>
+                  · 종료 <%= kst_datetime(poll.poll_progress.closed_at) %>
+                <% end %>
+              <% end %>
             </p>
           </div>
 
@@ -63,6 +69,9 @@
             <p class="text-sm text-stone-600">
               <%= election_session.participant_group&.name || "-" %>
               · 투표자 <%= @election_session_voter_counts.fetch(election_session.id, 0) %>명
+              <% if election_session.started_at.present? %>
+                · 시작 <%= kst_datetime(election_session.started_at) %>
+              <% end %>
             </p>
           </div>
 
