@@ -342,7 +342,12 @@ RSpec.describe "Election sessions", type: :request do
       expect(response.body).to include("contest_choices")
       expect(response.body).to include("data-controller=\"election-ballot\"")
       expect(response.body).to include("data-election-ballot-target=\"contest\"")
+      expect(response.body).to include("data-election-ballot-target=\"card\"")
       expect(response.body).to include("candidate-photo-placeholder")
+      expect(response.body).to include("election_vote_stamp")
+      expect(response.body).to include("name=\"ballot[contest_choices][")
+      expect(response.body).to include("value=\"candidate:")
+      expect(response.body).to include("value=\"abstain\"")
       expect(response.body).to include("submit_ballot")
       expect(response.body).not_to include("투표 제출 기능은 다음 단계에서 연결됩니다.")
     end

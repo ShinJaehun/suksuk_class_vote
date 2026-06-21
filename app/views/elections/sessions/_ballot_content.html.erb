@@ -72,10 +72,11 @@
                                          class: "sr-only",
                                          data: { election_ballot_target: "choice" } %>
                     <button type="button"
-                            class="rounded-md border border-stone-200 bg-white <%= card_padding_class %> text-left shadow-sm hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            class="rounded-md border border-stone-200 bg-white <%= card_padding_class %> text-left shadow-sm transition duration-150 ease-out hover:-translate-y-0.5 hover:border-emerald-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
                             data-action="election-ballot#choose"
+                            data-election-ballot-target="card"
                             data-election-ballot-choice-id-param="<%= choice_id %>">
-                      <span class="candidate-photo-placeholder block <%= placeholder_class %> overflow-hidden rounded-md bg-stone-100">
+                      <span class="candidate-photo-placeholder relative block <%= placeholder_class %> overflow-hidden rounded-md bg-stone-100">
                         <% if candidate.photo.attached? %>
                           <%= image_tag rails_blob_path(candidate.photo, only_path: true),
                                         alt: "#{candidate.name} 후보 사진",
@@ -87,6 +88,11 @@
                                         class: "h-full w-full object-contain",
                                         loading: "lazy" %>
                         <% end %>
+                        <%= image_tag "election_vote_stamp.svg",
+                                      alt: "",
+                                      class: "pointer-events-none absolute bottom-1 right-1 h-[32%] w-[32%] origin-center scale-75 opacity-0 drop-shadow-md transition duration-200 ease-out",
+                                      data: { election_ballot_target: "stamp" },
+                                      aria: { hidden: true } %>
                       </span>
                       <span class="<%= name_class %> block font-semibold text-stone-900">
                         <%= candidate.number %>번 <%= candidate.name %>
@@ -105,8 +111,9 @@
                                          class: "sr-only",
                                          data: { election_ballot_target: "choice" } %>
                     <button type="button"
-                            class="rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-700 shadow-sm hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            class="rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-700 shadow-sm transition duration-150 ease-out hover:-translate-y-0.5 hover:border-emerald-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
                             data-action="election-ballot#choose"
+                            data-election-ballot-target="card"
                             data-election-ballot-choice-id-param="<%= abstain_id %>">
                       기권
                     </button>
