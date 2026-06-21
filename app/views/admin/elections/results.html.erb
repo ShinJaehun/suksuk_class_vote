@@ -3,7 +3,10 @@
     <p><%= link_to "선거 상세로 돌아가기", admin_election_path(@election), class: "text-sm font-medium text-stone-600 underline" %></p>
     <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
       <div>
-        <h1 class="text-3xl font-semibold"><%= @election.title %> 결과 집계</h1>
+        <div class="flex flex-wrap items-center gap-2">
+          <h1 class="text-3xl font-semibold"><%= @election.title %> 결과 집계</h1>
+          <%= election_kind_badge(@election) %>
+        </div>
         <p class="mt-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">닫힌 학급 투표만 결과에 집계됩니다. 준비 중, 진행 중, 중단 세션은 합산에서 제외됩니다.</p>
       </div>
     </div>

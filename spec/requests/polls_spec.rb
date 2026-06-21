@@ -488,7 +488,7 @@ RSpec.describe "Polls", type: :request do
       get poll_path(poll)
 
       expect(response.body).to include("전교학생회 선거")
-      expect(response.body).to include("전교학생회 선거 투표는 아직 일반 투표 화면에서 시작할 수 없습니다.")
+      expect(response.body).to include("전교임원선거 투표는 아직 일반 투표 화면에서 시작할 수 없습니다.")
       expect(response.body).not_to include(start_poll_path(poll))
       expect(response.body).not_to include("투표 시작")
       expect(response.body).to include("운영 준비 중")
@@ -1594,9 +1594,8 @@ RSpec.describe "Polls", type: :request do
 
       get poll_path(poll)
 
-      expect(response.body).to include("학급별 선거 결과")
-      expect(response.body).to include("이 화면은 해당 학급 투표의 결과입니다. 전체 전교학생회 선거 최종 집계는 관리자 개표 화면에서 확인합니다.")
-
+      expect(response.body).to include("학급별 투표 결과")
+      expect(response.body).to include("이 화면은 해당 학급 투표의 결과입니다. 전체 전교임원선거 최종 집계는 관리자 개표 화면에서 확인합니다.")
       general_poll = create_closed_multi_contest_poll(user: teacher)
 
       get poll_path(general_poll)

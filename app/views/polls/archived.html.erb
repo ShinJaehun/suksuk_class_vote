@@ -42,7 +42,7 @@
             <div class="space-y-1">
               <div class="flex flex-wrap items-center gap-2">
                 <h2 class="font-medium"><%= election_session.election.title %></h2>
-                <span class="rounded-full bg-sky-50 px-2 py-1 text-xs font-medium text-sky-700">선거</span>
+                <%= election_kind_badge(election_session.election) %>
                 <span class="rounded-full bg-stone-100 px-2 py-1 text-xs font-medium text-stone-700">종료됨</span>
               </div>
               <p class="text-sm text-stone-600">

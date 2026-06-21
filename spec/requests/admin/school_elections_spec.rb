@@ -26,7 +26,7 @@ RSpec.describe "Admin school elections", type: :request do
       get admin_school_elections_path
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("전교학생회 선거 관리")
+      expect(response.body).to include("전교임원선거 관리")
       expect(response.body).to include(school_election.title)
     end
   end
@@ -38,7 +38,7 @@ RSpec.describe "Admin school elections", type: :request do
       get new_admin_school_election_path
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("전교학생회 선거 만들기")
+      expect(response.body).to include("전교임원선거 만들기")
       expect(response.body).to include("선거 이름")
     end
 
@@ -65,7 +65,7 @@ RSpec.describe "Admin school elections", type: :request do
       end.to change(admin.school_elections, :count).by(1)
 
       school_election = SchoolElection.find_by!(title: "2026학년도 전교학생회 선거")
-      expect(school_election.school_election_contests.order(:position).pluck(:title)).to eq(["회장", "6학년 부회장", "5학년 부회장"])
+      expect(school_election.school_election_contests.order(:position).pluck(:title)).to eq([ "회장", "6학년 부회장", "5학년 부회장" ])
       expect(response).to redirect_to(admin_school_election_path(school_election))
     end
 
@@ -81,7 +81,7 @@ RSpec.describe "Admin school elections", type: :request do
       end.not_to change(SchoolElection, :count)
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(response.body).to include("전교학생회 선거를 만들 수 없습니다.")
+      expect(response.body).to include("전교임원선거를 만들 수 없습니다.")
       expect(SchoolElectionContest.count).to eq(0)
     end
 
@@ -223,7 +223,7 @@ RSpec.describe "Admin school elections", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("투표가 종료되었습니다.")
-      expect(response.body).to include("학급별 선거 결과")
+      expect(response.body).to include("학급별 투표 결과")
     end
 
     it "shows blockers when the school election final count is not ready" do

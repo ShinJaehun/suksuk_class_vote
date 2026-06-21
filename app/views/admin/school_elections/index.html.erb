@@ -1,7 +1,7 @@
-<h1>전교학생회 선거 관리</h1>
+<h1>전교임원선거 관리</h1>
 
 <p><%= link_to "대시보드로 돌아가기", dashboard_path %></p>
-<p><%= link_to "전교학생회 선거 만들기", new_admin_school_election_path %></p>
+<p><%= link_to "전교임원선거 만들기", new_admin_school_election_path %></p>
 
 <% if @school_elections.any? %>
   <table>
@@ -23,5 +23,5 @@
     </tbody>
   </table>
 <% else %>
-  <p>아직 만든 전교학생회 선거가 없습니다.</p>
+  <p>아직 만든 전교임원선거가 없습니다.</p>
 <% end %>

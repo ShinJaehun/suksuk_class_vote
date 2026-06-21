@@ -14,9 +14,9 @@ class Poll < ApplicationRecord
   enum :status, { draft: 0, in_progress: 10, closed: 20, stopped: 30 }
 
   ACTIVITY_LABELS = {
-    "election" => "선거",
-    "discussion" => "토의",
-    "debate" => "토론"
+    "election" => "학급선거",
+    "discussion" => "학급토의",
+    "debate" => "학급토론"
   }.freeze
 
   CHOICE_LABELS = {
