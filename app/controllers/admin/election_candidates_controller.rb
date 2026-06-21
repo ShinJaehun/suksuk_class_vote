@@ -30,7 +30,10 @@ module Admin
       authorize @election, :show?
       return unless ensure_draft_election!
 
+      remove_photo = remove_photo_requested? && election_candidate_params[:photo].blank?
+
       if @election_candidate.update(election_candidate_params)
+        @election_candidate.photo.purge if remove_photo && @election_candidate.photo.attached?
         redirect_to admin_election_path(@election), notice: "후보를 수정했습니다."
       else
         render :edit, status: :unprocessable_content
@@ -61,7 +64,11 @@ module Admin
     end
 
     def election_candidate_params
-      params.require(:election_candidate).permit(:number, :name, :affiliation_label)
+      params.require(:election_candidate).permit(:number, :name, :affiliation_label, :photo)
+    end
+
+    def remove_photo_requested?
+      ActiveModel::Type::Boolean.new.cast(params.dig(:election_candidate, :remove_photo))
     end
 
     def ensure_draft_election!

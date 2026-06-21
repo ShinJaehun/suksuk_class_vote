@@ -347,6 +347,22 @@ RSpec.describe "Election sessions", type: :request do
       expect(response.body).not_to include("투표 제출 기능은 다음 단계에서 연결됩니다.")
     end
 
+    it "shows candidate photos on the ballot and renders candidates without photos" do
+      election_session = opened_session
+      candidate = first_candidate(election_session)
+      create(:election_candidate, election_contest: candidate.election_contest, number: 2, name: "사진 없음")
+      candidate.photo.attach(io: StringIO.new("image"), filename: "candidate.jpg", content_type: "image/jpeg")
+      sign_in election_session.teacher
+
+      get ballot_elections_session_path(election_session)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("#{candidate.name} 후보 사진")
+      expect(response.body).to include(candidate.name)
+      expect(response.body).to include("사진 없음")
+      expect(response.body).to include("candidate-photo-placeholder")
+    end
+
     it "shows completion guidance without a form after submission" do
       election_session = opened_session
       candidate = first_candidate(election_session)

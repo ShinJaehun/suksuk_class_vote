@@ -83,7 +83,7 @@ module Admin
     end
 
     def prepare_show
-      @election_contests = @election.election_contests.includes(:election_candidates).order(:position)
+      @election_contests = @election.election_contests.includes(election_candidates: { photo_attachment: :blob }).order(:position)
       @election_sessions = @election.election_sessions.includes(:teacher, :participant_group).order(:created_at)
       @election_session = @election.election_sessions.build(operation_mode: :supervised)
       @teachers = User.where(role: %i[teacher admin]).order(:name, :email)

@@ -1,4 +1,5 @@
 require "rails_helper"
+require "tempfile"
 
 RSpec.describe "Admin election candidates", type: :request do
   include Devise::Test::IntegrationHelpers
@@ -55,6 +56,25 @@ RSpec.describe "Admin election candidates", type: :request do
       expect(response).to redirect_to(admin_election_path(election))
       candidate = contest.election_candidates.find_by!(number: 1)
       expect(candidate).to have_attributes(name: "김회장", affiliation_label: "6학년 1반")
+    end
+
+    it "attaches a photo when creating a candidate for a draft election" do
+      election, contest = create_election_with_contest
+      sign_in create(:user, :admin)
+
+      post admin_election_election_contest_election_candidates_path(election, contest), params: {
+        election_candidate: {
+          number: 1,
+          name: "사진 후보",
+          affiliation_label: "6학년 1반",
+          photo: uploaded_photo(filename: "candidate.jpg", content_type: "image/jpeg")
+        }
+      }
+
+      candidate = contest.election_candidates.find_by!(number: 1)
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(candidate.photo).to be_attached
+      expect(candidate.photo.content_type).to eq("image/jpeg")
     end
 
     it "shows validation errors without creating a duplicate candidate number in the same contest" do
@@ -166,6 +186,19 @@ RSpec.describe "Admin election candidates", type: :request do
       expect(response.body).to include("6학년 1반")
     end
 
+    it "shows the current photo preview to admins" do
+      election, contest = create_election_with_contest
+      candidate = create(:election_candidate, election_contest: contest, number: 1, name: "김후보")
+      candidate.photo.attach(io: StringIO.new("image"), filename: "candidate.jpg", content_type: "image/jpeg")
+      sign_in create(:user, :admin)
+
+      get edit_admin_election_election_contest_election_candidate_path(election, contest, candidate)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("김후보 후보 사진")
+      expect(response.body).to include("현재 사진 삭제")
+    end
+
     it "does not show a candidate through another contest" do
       election = create(:election)
       first_contest = create(:election_contest, election: election, position: 1)
@@ -195,6 +228,67 @@ RSpec.describe "Admin election candidates", type: :request do
 
       expect(response).to redirect_to(admin_election_path(election))
       expect(candidate.reload).to have_attributes(number: 2, name: "이후보", affiliation_label: "6학년 2반")
+    end
+
+    it "replaces a candidate photo for a draft election" do
+      election, contest = create_election_with_contest
+      candidate = create(:election_candidate, election_contest: contest, number: 1)
+      candidate.photo.attach(io: StringIO.new("old"), filename: "old.jpg", content_type: "image/jpeg")
+      sign_in create(:user, :admin)
+
+      patch admin_election_election_contest_election_candidate_path(election, contest, candidate), params: {
+        election_candidate: {
+          number: 1,
+          name: candidate.name,
+          affiliation_label: candidate.affiliation_label,
+          photo: uploaded_photo(filename: "new.png", content_type: "image/png")
+        }
+      }
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(candidate.reload.photo).to be_attached
+      expect(candidate.photo.filename.to_s).to eq("new.png")
+      expect(candidate.photo.content_type).to eq("image/png")
+    end
+
+    it "removes a candidate photo for a draft election" do
+      election, contest = create_election_with_contest
+      candidate = create(:election_candidate, election_contest: contest, number: 1)
+      candidate.photo.attach(io: StringIO.new("old"), filename: "old.jpg", content_type: "image/jpeg")
+      sign_in create(:user, :admin)
+
+      patch admin_election_election_contest_election_candidate_path(election, contest, candidate), params: {
+        election_candidate: {
+          number: 1,
+          name: candidate.name,
+          affiliation_label: candidate.affiliation_label,
+          remove_photo: "1"
+        }
+      }
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(candidate.reload.photo).not_to be_attached
+    end
+
+    it "keeps the new photo when photo upload and remove photo are both requested" do
+      election, contest = create_election_with_contest
+      candidate = create(:election_candidate, election_contest: contest, number: 1)
+      candidate.photo.attach(io: StringIO.new("old"), filename: "old.jpg", content_type: "image/jpeg")
+      sign_in create(:user, :admin)
+
+      patch admin_election_election_contest_election_candidate_path(election, contest, candidate), params: {
+        election_candidate: {
+          number: 1,
+          name: candidate.name,
+          affiliation_label: candidate.affiliation_label,
+          remove_photo: "1",
+          photo: uploaded_photo(filename: "new.webp", content_type: "image/webp")
+        }
+      }
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(candidate.reload.photo).to be_attached
+      expect(candidate.photo.filename.to_s).to eq("new.webp")
     end
 
     it "shows validation errors without changing a candidate to a duplicate number in the same contest" do
@@ -235,6 +329,47 @@ RSpec.describe "Admin election candidates", type: :request do
       expect(response).to redirect_to(admin_election_path(election))
       expect(flash[:alert]).to eq("선거 시작 후에는 후보자를 변경할 수 없습니다.")
       expect(candidate.reload).to have_attributes(number: 1, name: "김후보", affiliation_label: "6학년 1반")
+    end
+
+    it "does not update a candidate photo after the election starts" do
+      election, contest = create_election_with_contest
+      candidate = create(:election_candidate, election_contest: contest, number: 1)
+      candidate.photo.attach(io: StringIO.new("old"), filename: "old.jpg", content_type: "image/jpeg")
+      election.update!(status: :in_progress)
+      sign_in create(:user, :admin)
+
+      patch admin_election_election_contest_election_candidate_path(election, contest, candidate), params: {
+        election_candidate: {
+          number: 1,
+          name: candidate.name,
+          photo: uploaded_photo(filename: "new.jpg", content_type: "image/jpeg")
+        }
+      }
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("선거 시작 후에는 후보자를 변경할 수 없습니다.")
+      expect(candidate.reload.photo.filename.to_s).to eq("old.jpg")
+    end
+
+    it "does not update a candidate photo after the election is closed" do
+      election, contest = create_election_with_contest
+      candidate = create(:election_candidate, election_contest: contest, number: 1)
+      candidate.photo.attach(io: StringIO.new("old"), filename: "old.jpg", content_type: "image/jpeg")
+      election.update!(status: :closed)
+      sign_in create(:user, :admin)
+
+      patch admin_election_election_contest_election_candidate_path(election, contest, candidate), params: {
+        election_candidate: {
+          number: 1,
+          name: candidate.name,
+          remove_photo: "1"
+        }
+      }
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("선거 시작 후에는 후보자를 변경할 수 없습니다.")
+      expect(candidate.reload.photo).to be_attached
+      expect(candidate.photo.filename.to_s).to eq("old.jpg")
     end
   end
 
@@ -296,6 +431,15 @@ RSpec.describe "Admin election candidates", type: :request do
     election = create(:election)
     contest = create(:election_contest, election: election, title: "회장", position: 1)
 
-    [election, contest]
+    [ election, contest ]
+  end
+
+  def uploaded_photo(filename:, content_type:)
+    file = Tempfile.new([ File.basename(filename, ".*"), File.extname(filename) ])
+    file.binmode
+    file.write("photo")
+    file.rewind
+
+    Rack::Test::UploadedFile.new(file.path, content_type, true, original_filename: filename)
   end
 end

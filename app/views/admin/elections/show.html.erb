@@ -34,6 +34,11 @@
             <ul>
               <% candidates.each do |candidate| %>
                 <li>
+                  <% if candidate.photo.attached? %>
+                    <%= image_tag candidate.photo,
+                                  alt: "#{candidate.name} 후보 사진",
+                                  style: "width: 48px; height: 48px; object-fit: cover;" %>
+                  <% end %>
                   기호 <%= candidate.number %>번
                   <%= candidate.name %>
                   <% if candidate.affiliation_label.present? %>

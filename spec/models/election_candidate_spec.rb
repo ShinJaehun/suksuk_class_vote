@@ -59,5 +59,44 @@ RSpec.describe ElectionCandidate, type: :model do
 
       expect(candidate).to be_valid
     end
+
+    it "allows a candidate without a photo" do
+      candidate = build(:election_candidate)
+
+      expect(candidate).to be_valid
+    end
+
+    it "allows JPG, PNG, and WebP photos" do
+      [
+        [ "candidate.jpg", "image/jpeg" ],
+        [ "candidate.png", "image/png" ],
+        [ "candidate.webp", "image/webp" ]
+      ].each do |filename, content_type|
+        candidate = build(:election_candidate)
+        candidate.photo.attach(io: StringIO.new("image"), filename: filename, content_type: content_type)
+
+        expect(candidate).to be_valid
+      end
+    end
+
+    it "does not allow a non-image photo content type" do
+      candidate = build(:election_candidate)
+      candidate.photo.attach(io: StringIO.new("text"), filename: "candidate.txt", content_type: "text/plain")
+
+      expect(candidate).not_to be_valid
+      expect(candidate.errors[:photo]).to be_present
+    end
+
+    it "does not allow a photo larger than 5MB" do
+      candidate = build(:election_candidate)
+      candidate.photo.attach(
+        io: StringIO.new("a" * (ElectionCandidate::MAX_PHOTO_SIZE + 1)),
+        filename: "candidate.jpg",
+        content_type: "image/jpeg"
+      )
+
+      expect(candidate).not_to be_valid
+      expect(candidate.errors[:photo]).to be_present
+    end
   end
 end

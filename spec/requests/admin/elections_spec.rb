@@ -181,6 +181,21 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).not_to include(edit_admin_election_election_contest_election_candidate_path(closed_election, closed_contest, closed_candidate))
     end
 
+    it "shows attached candidate photos without requiring photos for every candidate" do
+      sign_in create(:user, :admin)
+      election = create(:election)
+      contest = create(:election_contest, election: election)
+      candidate_with_photo = create(:election_candidate, election_contest: contest, number: 1, name: "사진 후보")
+      create(:election_candidate, election_contest: contest, number: 2, name: "사진 없음")
+      candidate_with_photo.photo.attach(io: StringIO.new("image"), filename: "candidate.jpg", content_type: "image/jpeg")
+
+      get admin_election_path(election)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("사진 후보 후보 사진")
+      expect(response.body).to include("사진 없음")
+    end
+
     it "links to the aggregate results page without rendering result details" do
       sign_in create(:user, :admin)
       election = create(:election)
