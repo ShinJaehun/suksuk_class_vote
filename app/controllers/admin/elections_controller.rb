@@ -36,6 +36,34 @@ module Admin
       end
     end
 
+    def stop
+      @election = policy_scope(Election).find(params[:id])
+      authorize @election, :show?
+
+      result = Elections::StopElection.new(election: @election).call
+
+      if result.success?
+        redirect_to admin_election_path(@election), notice: "전교임원선거를 중단했습니다."
+      else
+        redirect_to admin_election_path(@election), alert: result.error_message
+      end
+    end
+
+    def destroy
+      @election = policy_scope(Election).find(params[:id])
+      authorize @election, :show?
+
+      unless @election.draft? || @election.stopped?
+        redirect_to admin_election_path(@election), alert: destroy_failure_message(@election)
+        return
+      end
+
+      @election.destroy!
+      redirect_to admin_elections_path, notice: "전교임원선거를 삭제했습니다."
+    rescue ActiveRecord::RecordNotDestroyed => e
+      redirect_to admin_election_path(@election), alert: e.record.errors.full_messages.to_sentence.presence || "전교임원선거를 삭제할 수 없습니다."
+    end
+
     def new
       @election = Election.new(user: current_user, kind: :school_council)
       authorize @election
@@ -107,6 +135,13 @@ module Admin
       return "선거를 시작할 수 없습니다." if first_blocker.blank?
 
       "선거를 시작할 수 없습니다. #{first_blocker}"
+    end
+
+    def destroy_failure_message(election)
+      return "진행 중인 전교임원선거는 바로 삭제할 수 없습니다. 먼저 중단하세요." if election.in_progress?
+      return "종료된 전교임원선거는 결과 보존 정책에 따라 삭제할 수 없습니다." if election.closed?
+
+      "전교임원선거를 삭제할 수 없습니다."
     end
 
     def prepare_aggregate_results

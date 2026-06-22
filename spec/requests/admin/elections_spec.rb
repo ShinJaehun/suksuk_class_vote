@@ -30,6 +30,20 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include(election.title)
       expect(response.body).not_to include("· 생성")
     end
+
+    it "shows stopped elections as stopped without list stop or delete controls" do
+      sign_in create(:user, :admin)
+      election = create(:election, title: "중단된 전교임원선거", status: :stopped)
+
+      get admin_elections_path
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include(election.title)
+      expect(response.body).to include("중단됨")
+      expect(response.body).not_to include("stopped")
+      expect(response.body).not_to include("전교임원선거 중단")
+      expect(response.body).not_to include("전교임원선거 삭제")
+    end
   end
 
   describe "GET /admin/elections/new" do
@@ -290,6 +304,57 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).not_to include(start_admin_election_path(election))
     end
 
+    it "shows stop and delete controls by election status" do
+      sign_in create(:user, :admin)
+      draft_election = create(:election, status: :draft)
+      in_progress_election = create(:election, status: :in_progress)
+      stopped_election = create(:election, status: :stopped)
+      closed_election = create(:election, status: :closed)
+
+      get admin_election_path(draft_election)
+      expect(response.body).to include("전교임원선거 삭제")
+      expect(response.body).not_to include("전교임원선거 중단")
+
+      get admin_election_path(in_progress_election)
+      expect(response.body).to include("전교임원선거 중단")
+      expect(response.body).not_to include("전교임원선거 삭제")
+
+      get admin_election_path(stopped_election)
+      expect(response.body).to include("중단됨")
+      expect(response.body).to include("전교임원선거 삭제")
+      expect(response.body).not_to include("전교임원선거 중단")
+
+      get admin_election_path(closed_election)
+      expect(response.body).not_to include("전교임원선거 중단")
+      expect(response.body).not_to include("전교임원선거 삭제")
+    end
+
+    it "does not show admin stop or delete controls to teachers" do
+      teacher = create(:user)
+      sign_in teacher
+      election = create(:election, status: :in_progress)
+
+      get admin_election_path(election)
+
+      expect(response).to redirect_to(polls_path)
+      expect(response.body).not_to include("전교임원선거 중단")
+      expect(response.body).not_to include("전교임원선거 삭제")
+    end
+
+    it "does not show stopped election operation controls on teacher poll screens" do
+      teacher = create(:user)
+      sign_in teacher
+      election = create(:election, title: "중단된 전교임원선거", status: :stopped)
+      participant_group = create(:participant_group, user: teacher, name: "6학년 1반")
+      create(:election_session, election: election, teacher: teacher, participant_group: participant_group, status: :in_progress)
+
+      get polls_path
+
+      expect(response.body).not_to include("중단된 전교임원선거")
+      expect(response.body).not_to include("전교임원선거 중단")
+      expect(response.body).not_to include("전교임원선거 삭제")
+    end
+
     it "does not show the start button for in progress or closed elections" do
       sign_in create(:user, :admin)
       in_progress_election = create(:election, status: :in_progress)
@@ -368,6 +433,122 @@ RSpec.describe "Admin elections", type: :request do
       expect(flash[:alert]).to include("선거를 시작할 수 없습니다.")
       expect(flash[:alert]).to include("Election이 draft 상태여야 합니다.")
       expect(election.reload).to be_closed
+    end
+  end
+
+  describe "POST /admin/elections/:id/stop" do
+    it "stops an in progress election for admins" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :in_progress)
+      draft_session = create_admin_election_session(election: election, status: :draft, group_name: "6학년 1반")
+      in_progress_session = create_admin_election_session(election: election, status: :in_progress, group_name: "6학년 2반")
+      stopped_session = create_admin_election_session(election: election, status: :stopped, group_name: "6학년 3반")
+      closed_session = create_admin_election_session(election: election, status: :closed, group_name: "6학년 4반")
+
+      post stop_admin_election_path(election)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:notice]).to eq("전교임원선거를 중단했습니다.")
+      expect(election.reload).to be_stopped
+      expect(draft_session.reload).to be_stopped
+      expect(in_progress_session.reload).to be_stopped
+      expect(stopped_session.reload).to be_stopped
+      expect(closed_session.reload).to be_closed
+    end
+
+    it "does not stop elections that are not in progress" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :draft)
+
+      post stop_admin_election_path(election)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("진행 중인 전교임원선거만 중단할 수 있습니다.")
+      expect(election.reload).to be_draft
+    end
+
+    it "does not allow teachers to stop elections" do
+      sign_in create(:user)
+      election = create(:election, status: :in_progress)
+
+      post stop_admin_election_path(election)
+
+      expect(response).to redirect_to(polls_path)
+      expect(flash[:alert]).to eq("관리자만 접근할 수 있습니다.")
+      expect(election.reload).to be_in_progress
+    end
+  end
+
+  describe "DELETE /admin/elections/:id" do
+    it "deletes a draft election for admins with related election data" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :draft)
+      create_related_election_data(election)
+
+      expect do
+        delete admin_election_path(election)
+      end.to change(Election, :count).by(-1)
+        .and change(ElectionContest, :count).by(-1)
+        .and change(ElectionCandidate, :count).by(-1)
+        .and change(ElectionSession, :count).by(-1)
+        .and change(ElectionVoter, :count).by(-1)
+        .and change(ElectionParticipation, :count).by(-1)
+        .and change(ElectionProgress, :count).by(-1)
+        .and change(ElectionCandidateTally, :count).by(-1)
+        .and change(ElectionContestTally, :count).by(-1)
+        .and change(ElectionEvent, :count).by(-1)
+
+      expect(response).to redirect_to(admin_elections_path)
+      expect(flash[:notice]).to eq("전교임원선거를 삭제했습니다.")
+    end
+
+    it "deletes a stopped election for admins" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :stopped)
+
+      expect do
+        delete admin_election_path(election)
+      end.to change(Election, :count).by(-1)
+
+      expect(response).to redirect_to(admin_elections_path)
+    end
+
+    it "does not delete an in progress election directly" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :in_progress)
+
+      expect do
+        delete admin_election_path(election)
+      end.not_to change(Election, :count)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("진행 중인 전교임원선거는 바로 삭제할 수 없습니다. 먼저 중단하세요.")
+      expect(election.reload).to be_in_progress
+    end
+
+    it "does not delete a closed election" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :closed)
+
+      expect do
+        delete admin_election_path(election)
+      end.not_to change(Election, :count)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("종료된 전교임원선거는 결과 보존 정책에 따라 삭제할 수 없습니다.")
+      expect(election.reload).to be_closed
+    end
+
+    it "does not allow teachers to delete elections" do
+      sign_in create(:user)
+      election = create(:election, status: :draft)
+
+      expect do
+        delete admin_election_path(election)
+      end.not_to change(Election, :count)
+
+      expect(response).to redirect_to(polls_path)
+      expect(flash[:alert]).to eq("관리자만 접근할 수 있습니다.")
     end
   end
 
@@ -514,6 +695,21 @@ RSpec.describe "Admin elections", type: :request do
     create_admin_election_session(election: election, status: :draft, group_name: "6학년 1반")
 
     election.reload
+  end
+
+  def create_related_election_data(election)
+    contest = create(:election_contest, election: election, title: "회장")
+    candidate = create(:election_candidate, election_contest: contest, number: 1, name: "후보1")
+    session = create_admin_election_session(election: election, status: :draft, group_name: "6학년 1반")
+    voter = create(:election_voter,
+                   election_session: session,
+                   teacher: session.teacher,
+                   participant_group: session.participant_group)
+    create(:election_participation, election_voter: voter, status: :completed)
+    create(:election_progress, election_session: session, current_election_voter: voter)
+    create(:election_candidate_tally, election_session: session, election_contest: contest, election_candidate: candidate)
+    create(:election_contest_tally, election_session: session, election_contest: contest)
+    create(:election_event, election_session: session, election_voter: voter)
   end
 
   def create_participation(election_session, status)

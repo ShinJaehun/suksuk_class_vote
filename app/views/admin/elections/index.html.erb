@@ -13,12 +13,14 @@
   <% if @elections.any? %>
     <ul class="space-y-3">
       <% @elections.each do |election| %>
-        <% status_label = { "draft" => "준비 중", "in_progress" => "진행 중", "closed" => "종료됨" }.fetch(election.status, election.status) %>
+        <% status_label = { "draft" => "준비 중", "in_progress" => "진행 중", "closed" => "종료됨", "stopped" => "중단됨" }.fetch(election.status, election.status) %>
         <% status_class =
           if election.draft?
             "border-amber-200 bg-amber-50 text-amber-700"
           elsif election.in_progress?
             "border-emerald-200 bg-emerald-50 text-emerald-700"
+          elsif election.stopped?
+            "border-rose-200 bg-rose-50 text-rose-700"
           else
             "border-stone-300 bg-stone-100 text-stone-700"
           end %>

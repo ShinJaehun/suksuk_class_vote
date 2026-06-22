@@ -8,6 +8,8 @@
       "진행 중"
     elsif election.closed?
       "종료됨"
+    elsif election.stopped?
+      "중단됨"
     else
       election_status_report[:status_label]
     end %>
@@ -20,6 +22,8 @@
       "border-emerald-200 bg-emerald-50 text-emerald-700"
     elsif election.closed?
       "border-stone-300 bg-stone-100 text-stone-700"
+    elsif election.stopped?
+      "border-rose-200 bg-rose-50 text-rose-700"
     else
       "border-stone-200 bg-stone-50 text-stone-700"
     end %>
@@ -32,6 +36,8 @@
       "투표가 진행 중입니다."
     elsif election.closed?
       "투표가 종료되었습니다."
+    elsif election.stopped?
+      "전교임원선거가 중단되었습니다."
     else
       election_status_report[:message]
     end %>
@@ -50,6 +56,12 @@
                     start_admin_election_path(election),
                     method: :post,
                     class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+    <% elsif election.in_progress? %>
+      <%= button_to "전교임원선거 중단",
+                    stop_admin_election_path(election),
+                    method: :post,
+                    data: { turbo_confirm: "전교임원선거를 중단할까요? 운영 중인 학급 세션이 함께 중단되며, 이미 종료된 학급 세션 결과는 보존됩니다." },
+                    class: "rounded-md bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700" %>
     <% end %>
   </div>
 
