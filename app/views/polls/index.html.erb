@@ -14,6 +14,8 @@
 <% if @polls.any? || @assigned_election_sessions.any? %>
   <ul class="space-y-3">
     <% @polls.each do |poll| %>
+      <% owner = poll.user %>
+      <% owner_label = owner&.name.presence || owner&.email.presence || "담당 교사 정보 없음" %>
       <li class="rounded-md border border-stone-200 bg-white p-4">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div class="space-y-1">
@@ -26,6 +28,7 @@
               <%= poll_status_badge(poll) %>
             </div>
             <p class="text-sm text-stone-600">
+              담당 교사: <%= owner_label %> ·
               <%= poll.participant_group_display_name || "-" %>
               · 투표자 <%= @poll_voter_counts.fetch(poll.id, 0) %>명
               <% if poll.poll_progress&.started_at.present? %>

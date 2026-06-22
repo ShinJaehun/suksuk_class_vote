@@ -7,7 +7,12 @@
     <% end %>
 
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <h1 class="text-2xl font-semibold"><%= @participant_group.name %></h1>
+      <% owner = @participant_group.user %>
+      <% owner_label = owner&.name.presence || owner&.email.presence || "담당 교사 정보 없음" %>
+      <div class="space-y-1">
+        <h1 class="text-2xl font-semibold"><%= @participant_group.name %></h1>
+        <p class="text-sm text-stone-600"><%= owner_label %></p>
+      </div>
 
       <div class="flex flex-wrap items-center gap-2">
         <%= link_to "투표자 명단 이름 수정",

@@ -4,7 +4,7 @@ class ParticipantGroupsController < ApplicationController
   before_action :set_return_poll, only: %i[show edit update destroy]
 
   def index
-    @participant_groups = policy_scope(ParticipantGroup).includes(:participant_slots).order(:name)
+    @participant_groups = policy_scope(ParticipantGroup).includes(:participant_slots, :user).order(:name)
     authorize ParticipantGroup
   end
 

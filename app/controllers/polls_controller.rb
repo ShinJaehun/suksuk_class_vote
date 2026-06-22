@@ -3,7 +3,7 @@ class PollsController < ApplicationController
   before_action :set_poll, only: %i[show ballot start open_current_participant_ballot submit_vote record_participation_outcome record_next_participant_absent advance_current_participant resume_current_participant close stop archive destroy]
 
   def index
-    @polls = policy_scope(Poll).active_list.includes(:participant_group).order(created_at: :desc)
+    @polls = policy_scope(Poll).active_list.includes(:participant_group, :user).order(created_at: :desc)
     @poll_voter_counts = voter_counts_for(@polls)
     @assigned_election_sessions = assigned_election_sessions
     @election_session_voter_counts = election_session_voter_counts_for(@assigned_election_sessions)

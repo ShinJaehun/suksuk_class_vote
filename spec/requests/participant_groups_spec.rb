@@ -11,12 +11,16 @@ RSpec.describe "Voter groups", type: :request do
     end
 
     it "allows teachers to view participant groups" do
-      sign_in create(:user)
+      teacher = create(:user, name: "4-11", email: "teacher411@example.com")
+      create(:participant_group, user: teacher, name: "4학년 11반")
+      sign_in teacher
 
       get participant_groups_path
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("투표자 명단")
+      expect(response.body).to include("4학년 11반")
+      expect(response.body).to include("담당 교사: 4-11")
     end
   end
 
@@ -52,12 +56,15 @@ RSpec.describe "Voter groups", type: :request do
 
     it "allows admins to view another teacher's participant group" do
       sign_in create(:user, :admin)
-      participant_group = create(:participant_group, name: "관리자 확인 그룹")
+      teacher = create(:user, name: "4-11", email: "teacher411@example.com")
+      participant_group = create(:participant_group, user: teacher, name: "관리자 확인 그룹")
 
       get participant_group_path(participant_group)
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("관리자 확인 그룹")
+      expect(response.body).to include("4-11")
+      expect(response.body).not_to include("4-11 &lt;teacher411@example.com&gt;")
     end
 
     it "shows student entry placeholders" do

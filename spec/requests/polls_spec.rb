@@ -12,12 +12,16 @@ RSpec.describe "Polls", type: :request do
     end
 
     it "allows teachers to view polls" do
-      sign_in create(:user)
+      teacher = create(:user, name: "4-11", email: "teacher411@example.com")
+      create(:poll, user: teacher, title: "담당 표시 투표")
+      sign_in teacher
 
       get polls_path
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("투표")
+      expect(response.body).to include("담당 표시 투표")
+      expect(response.body).to include("담당 교사: 4-11")
     end
 
     it "hides archived polls from the default list" do
@@ -61,6 +65,7 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include(elections_session_path(election_session))
       expect(response.body).to include("선거")
       expect(response.body).to include("준비")
+      expect(response.body).to include("담당 교사: #{teacher.name}")
       expect(response.body).not_to include("시작 전")
       expect(response.body).to include(participant_group.name)
       expect(response.body).to include("투표자 1명")
@@ -356,12 +361,15 @@ RSpec.describe "Polls", type: :request do
   describe "GET /polls/:id" do
     it "allows admins to view another teacher's poll" do
       sign_in create(:user, :admin)
-      poll = create(:poll, title: "관리자 확인 선거")
+      teacher = create(:user, name: "4-11", email: "teacher411@example.com")
+      poll = create(:poll, user: teacher, title: "관리자 확인 선거")
 
       get poll_path(poll)
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("관리자 확인 선거")
+      expect(response.body).to include("4-11")
+      expect(response.body).not_to include("4-11 &lt;teacher411@example.com&gt;")
     end
 
     it "does not allow teachers to view another teacher's poll" do
