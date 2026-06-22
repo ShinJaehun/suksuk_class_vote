@@ -15,7 +15,7 @@ RSpec.describe "Admin school elections", type: :request do
 
       get admin_school_elections_path
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("관리자만 접근할 수 있습니다.")
     end
 
@@ -47,7 +47,7 @@ RSpec.describe "Admin school elections", type: :request do
 
       get new_admin_school_election_path
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
     end
   end
 
@@ -96,7 +96,7 @@ RSpec.describe "Admin school elections", type: :request do
         }
       end.not_to change(SchoolElection, :count)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
     end
   end
 
@@ -296,7 +296,7 @@ RSpec.describe "Admin school elections", type: :request do
 
       get admin_school_election_path(school_election)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
     end
   end
 

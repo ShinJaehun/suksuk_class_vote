@@ -46,7 +46,7 @@ RSpec.describe "Voter groups", type: :request do
 
       get participant_group_path(other_group)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
     end
 
@@ -159,7 +159,7 @@ RSpec.describe "Voter groups", type: :request do
 
       get edit_participant_group_path(other_group)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
     end
 
@@ -284,7 +284,7 @@ RSpec.describe "Voter groups", type: :request do
         delete participant_group_path(other_group)
       end.not_to change(ParticipantGroup, :count)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
     end
 

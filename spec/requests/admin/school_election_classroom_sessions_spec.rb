@@ -18,7 +18,7 @@ RSpec.describe "Admin school election classroom sessions", type: :request do
 
       get new_admin_school_election_school_election_classroom_session_path(school_election)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
     end
 
     it "shows the classroom session creation form to admins" do
@@ -124,7 +124,7 @@ RSpec.describe "Admin school election classroom sessions", type: :request do
         }
       end.not_to change(SchoolElectionClassroomSession, :count)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
     end
 
     it "redirects guests to sign in" do
@@ -160,7 +160,7 @@ RSpec.describe "Admin school election classroom sessions", type: :request do
       expect(poll).to be_draft
       expect(poll.user).to eq(classroom_session.teacher)
       expect(poll.participant_group).to eq(classroom_session.participant_group)
-      expect(poll.poll_contests.order(:position).pluck(:title)).to eq(["회장", "6학년 부회장", "5학년 부회장"])
+      expect(poll.poll_contests.order(:position).pluck(:title)).to eq([ "회장", "6학년 부회장", "5학년 부회장" ])
       expect(poll.poll_contests.order(:position).map(&:school_election_contest)).to eq(
         classroom_session.school_election.school_election_contests.order(:position).to_a
       )
@@ -210,7 +210,7 @@ RSpec.describe "Admin school election classroom sessions", type: :request do
         )
       end.not_to change(Poll, :count)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
     end
 
     it "redirects guests to sign in" do

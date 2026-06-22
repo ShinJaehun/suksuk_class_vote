@@ -15,7 +15,7 @@ RSpec.describe "Admin teachers", type: :request do
 
       get admin_teachers_path
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("관리자만 접근할 수 있습니다.")
     end
 
@@ -60,7 +60,7 @@ RSpec.describe "Admin teachers", type: :request do
         }
       end.not_to change(User, :count)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
     end
 
     it "shows validation errors without creating a teacher" do

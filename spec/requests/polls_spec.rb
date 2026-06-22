@@ -370,7 +370,7 @@ RSpec.describe "Polls", type: :request do
 
       get poll_path(poll)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
     end
 
@@ -754,7 +754,7 @@ RSpec.describe "Polls", type: :request do
         post start_poll_path(poll)
       end.not_to change(PollParticipant, :count)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
       expect(poll.reload).to be_draft
     end
@@ -1707,7 +1707,7 @@ RSpec.describe "Polls", type: :request do
 
       post stop_poll_path(poll)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(poll.reload).to be_in_progress
     end
   end
@@ -1823,7 +1823,7 @@ RSpec.describe "Polls", type: :request do
 
       delete poll_path(poll)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(Poll.exists?(poll.id)).to be(true)
     end
 
@@ -1833,7 +1833,7 @@ RSpec.describe "Polls", type: :request do
       sign_in teacher
 
       delete poll_path(in_progress_poll)
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(Poll.exists?(in_progress_poll.id)).to be(true)
     end
   end

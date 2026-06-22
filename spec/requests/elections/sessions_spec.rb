@@ -243,7 +243,7 @@ RSpec.describe "Election sessions", type: :request do
 
       get elections_session_path(election_session)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
     end
 
@@ -256,7 +256,7 @@ RSpec.describe "Election sessions", type: :request do
 
       get elections_session_path(election_session)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
     end
 
@@ -401,7 +401,7 @@ RSpec.describe "Election sessions", type: :request do
 
       post start_elections_session_path(election_session)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
       expect(election_session.reload).to be_draft
     end
@@ -708,7 +708,7 @@ RSpec.describe "Election sessions", type: :request do
       post submit_ballot_elections_session_path(election_session), params: candidate_ballot_params(candidate)
 
       current_voter = election_session.reload.election_progress.current_election_voter
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
       expect(current_voter.election_participation).to be_pending
       expect(tally_for(election_session, candidate).reload.votes_count).to eq(0)

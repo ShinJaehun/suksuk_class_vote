@@ -29,7 +29,7 @@ RSpec.describe "PollOptions", type: :request do
 
       get new_poll_poll_option_path(poll)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
     end
 
@@ -235,7 +235,7 @@ RSpec.describe "PollOptions", type: :request do
       }
 
       expect(poll_option.reload.name).to eq("원래 이름")
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
     end
 
@@ -355,7 +355,7 @@ RSpec.describe "PollOptions", type: :request do
         delete poll_poll_option_path(poll, poll_option)
       end.not_to change(PollOption, :count)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
     end
 

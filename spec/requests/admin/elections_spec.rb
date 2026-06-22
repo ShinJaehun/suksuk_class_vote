@@ -15,7 +15,7 @@ RSpec.describe "Admin elections", type: :request do
 
       get admin_elections_path
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("관리자만 접근할 수 있습니다.")
     end
 
@@ -93,7 +93,7 @@ RSpec.describe "Admin elections", type: :request do
         }
       end.not_to change(Election, :count)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
     end
   end
 

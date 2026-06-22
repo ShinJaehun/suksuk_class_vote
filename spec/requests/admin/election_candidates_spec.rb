@@ -19,7 +19,7 @@ RSpec.describe "Admin election candidates", type: :request do
 
       get new_admin_election_election_contest_election_candidate_path(election, contest)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
     end
 
     it "shows the candidate creation form to admins" do
@@ -139,7 +139,7 @@ RSpec.describe "Admin election candidates", type: :request do
         }
       end.not_to change(ElectionCandidate, :count)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
     end
 
     it "does not create candidates after the election starts" do
@@ -455,7 +455,7 @@ RSpec.describe "Admin election candidates", type: :request do
         delete admin_election_election_contest_election_candidate_path(election, contest, candidate)
       end.not_to change(ElectionCandidate, :count)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
     end
 
     it "does not destroy a candidate through another contest" do
