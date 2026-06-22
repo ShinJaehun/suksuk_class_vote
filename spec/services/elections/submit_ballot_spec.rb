@@ -31,6 +31,25 @@ RSpec.describe Elections::SubmitBallot do
         "all_contests_abstained" => false
       )
       expect(event.metadata.keys).not_to include("candidate_id", "candidate_ids", "selected_candidates", "choices", "ballot_choices")
+
+      close_result = Elections::CloseSession.new(election_session: setup.session, actor: setup.session.teacher).call
+      expect(close_result).to be_success
+    end
+
+    it "keeps the submitted voter current and does not open the next voter ballot" do
+      setup = open_session_with_contests([{ vote_method: :single_choice, candidate_count: 2 }], voter_count: 2)
+      contest = setup.contests.first
+      selected_candidate = contest.election_candidates.order(:number).first
+      submitted_voter = setup.session.election_progress.current_election_voter
+      next_voter = setup.session.election_voters.order(:position).second
+
+      result = submit(setup, selections: { contest.id => selected_candidate.id })
+
+      expect(result).to be_success
+      expect(submitted_voter.election_participation.reload).to be_completed
+      expect(setup.session.election_progress.reload.current_election_voter).to eq(submitted_voter)
+      expect(setup.session.election_progress).to be_locked
+      expect(next_voter.election_participation.reload).to be_pending
     end
 
     it "submits multiple candidates for a limited choice contest" do
@@ -418,7 +437,7 @@ RSpec.describe Elections::SubmitBallot do
 
   Setup = Struct.new(:session, :contests, keyword_init: true)
 
-  def open_session_with_contests(contest_configs)
+  def open_session_with_contests(contest_configs, voter_count: 1)
     election = create(:election)
     contests = contest_configs.each_with_index.map do |config, index|
       contest = create(
@@ -436,7 +455,9 @@ RSpec.describe Elections::SubmitBallot do
     end
     teacher = create(:user)
     participant_group = create(:participant_group, user: teacher)
-    create(:participant_slot, participant_group: participant_group)
+    voter_count.times do |index|
+      create(:participant_slot, participant_group: participant_group, number: index + 1, name: "학생#{index + 1}")
+    end
     session = create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
 
     Elections::StartSession.new(election_session: session, actor: teacher).call

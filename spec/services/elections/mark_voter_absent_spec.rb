@@ -148,6 +148,18 @@ RSpec.describe Elections::MarkVoterAbsent do
       expect_no_final_participation_change(election_session, "completed")
     end
 
+    it "fails when an open ballot voter is already completed" do
+      election_session = started_session
+      election_session.election_progress.update!(ballot_state: :open)
+      election_session.election_progress.current_election_voter.election_participation.update!(status: :completed, submitted_at: 1.hour.ago)
+
+      result = described_class.new(election_session: election_session, actor: election_session.teacher).call
+
+      expect(result).not_to be_success
+      expect_no_final_participation_change(election_session, "completed")
+      expect(election_session.election_progress.reload).to be_open
+    end
+
     it "fails when participation is absent" do
       election_session = started_session
       election_session.election_progress.current_election_voter.election_participation.update!(status: :absent, submitted_at: 1.hour.ago)

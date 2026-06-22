@@ -30,6 +30,10 @@ class ElectionSessionPolicy < ApplicationPolicy
     operate?
   end
 
+  def mark_next_absent?
+    operate?
+  end
+
   def submit_ballot?
     operate?
   end

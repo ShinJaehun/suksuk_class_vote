@@ -29,6 +29,7 @@ Rails.application.routes.draw do
       post :lock_ballot, on: :member
       post :advance_voter, on: :member
       post :mark_absent, on: :member
+      post :mark_next_absent, on: :member
       post :submit_ballot, on: :member
       post :close, on: :member
     end

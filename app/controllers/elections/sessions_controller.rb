@@ -62,6 +62,23 @@ module Elections
       redirect_with_result(result, notice: "투표자 상태를 처리했습니다.")
     end
 
+    def mark_next_absent
+      authorize @election_session
+
+      result = Elections::MarkNextVoterAbsent.new(
+        election_session: @election_session,
+        actor: current_user,
+        current_election_voter_id: params[:current_election_voter_id],
+        reason: params[:reason]
+      ).call
+
+      if result.success?
+        broadcast_operation_progress
+        broadcast_ballot
+      end
+      redirect_with_result(result, notice: "투표자 상태를 처리했습니다.")
+    end
+
     def submit_ballot
       authorize @election_session
 
