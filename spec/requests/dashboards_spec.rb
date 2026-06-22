@@ -10,6 +10,14 @@ RSpec.describe "Dashboards", type: :request do
       expect(response).to redirect_to(new_user_session_path)
     end
 
+    it "shows the polished login screen after the guest redirect" do
+      get root_path
+      follow_redirect!
+
+      expect(response.body).to include("쑥쑥교실투표")
+      expect(response.body).to include("로그인")
+    end
+
     it "redirects teachers to the poll list" do
       sign_in create(:user)
 
