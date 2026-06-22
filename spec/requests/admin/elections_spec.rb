@@ -53,9 +53,19 @@ RSpec.describe "Admin elections", type: :request do
       get new_admin_election_path
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("선거 만들기")
+      expect(response.body).to include("전교임원선거 만들기")
+      expect(response.body).to include("전교임원선거를 만든 뒤 후보/선거구/학급 세션을 구성합니다.")
       expect(response.body).to include("선거 이름")
-      expect(response.body).to include("선거 종류")
+      expect(response.body).not_to include("선거 종류")
+    end
+
+    it "does not allow teachers to open the election creation form" do
+      sign_in create(:user)
+
+      get new_admin_election_path
+
+      expect(response).to redirect_to(polls_path)
+      expect(flash[:alert]).to eq("관리자만 접근할 수 있습니다.")
     end
   end
 
@@ -92,6 +102,8 @@ RSpec.describe "Admin elections", type: :request do
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.body).to include("선거를 만들 수 없습니다.")
+      expect(response.body).to include("전교임원선거 만들기")
+      expect(response.body).to include("선거 이름")
       expect(ElectionContest.count).to eq(0)
     end
 

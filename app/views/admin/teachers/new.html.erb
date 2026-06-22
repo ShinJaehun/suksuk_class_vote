@@ -1,36 +1,48 @@
-<h1>교사 계정 추가</h1>
+<div class="space-y-6">
+  <div class="space-y-1">
+    <p><%= link_to "교사 계정 목록으로 돌아가기", admin_teachers_path, class: "text-sm font-medium text-stone-600 underline" %></p>
+    <h1 class="text-3xl font-semibold">교사 추가</h1>
+    <p class="text-sm text-stone-600">실전 운영 전 교사 계정을 미리 생성합니다.</p>
+    <p class="text-sm text-stone-600">초기 비밀번호는 별도로 교사에게 안내하세요.</p>
+  </div>
 
-<% if @teacher.errors.any? %>
-  <h2>교사 계정을 생성할 수 없습니다.</h2>
-  <ul>
-    <% @teacher.errors.full_messages.each do |message| %>
-      <li><%= message %></li>
+  <% if @teacher.errors.any? %>
+    <section class="rounded-md border border-rose-200 bg-rose-50 p-4 text-rose-800">
+      <h2 class="font-semibold">교사 계정을 생성할 수 없습니다.</h2>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
+        <% @teacher.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </section>
+  <% end %>
+
+  <section class="rounded-md border border-stone-200 bg-white p-4">
+    <%= form_with model: @teacher, url: admin_teachers_path, class: "space-y-4" do |form| %>
+      <div class="space-y-1">
+        <%= form.label :name, "이름", class: "text-sm font-medium text-stone-700" %>
+        <%= form.text_field :name, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+      </div>
+
+      <div class="space-y-1">
+        <%= form.label :email, "이메일", class: "text-sm font-medium text-stone-700" %>
+        <%= form.email_field :email, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+      </div>
+
+      <div class="space-y-1">
+        <%= form.label :password, "초기 비밀번호", class: "text-sm font-medium text-stone-700" %>
+        <%= form.password_field :password, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+      </div>
+
+      <div class="space-y-1">
+        <%= form.label :password_confirmation, "초기 비밀번호 확인", class: "text-sm font-medium text-stone-700" %>
+        <%= form.password_field :password_confirmation, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <%= form.submit "교사 계정 생성", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+        <%= link_to "취소", admin_teachers_path, class: "inline-flex rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700" %>
+      </div>
     <% end %>
-  </ul>
-<% end %>
-
-<%= form_with model: @teacher, url: admin_teachers_path do |form| %>
-  <div>
-    <%= form.label :name, "이름" %>
-    <%= form.text_field :name %>
-  </div>
-
-  <div>
-    <%= form.label :email, "이메일" %>
-    <%= form.email_field :email %>
-  </div>
-
-  <div>
-    <%= form.label :password, "비밀번호" %>
-    <%= form.password_field :password %>
-  </div>
-
-  <div>
-    <%= form.label :password_confirmation, "비밀번호 확인" %>
-    <%= form.password_field :password_confirmation %>
-  </div>
-
-  <%= form.submit "교사 계정 생성" %>
-<% end %>
-
-<p><%= link_to "교사 계정 목록으로 돌아가기", admin_teachers_path %></p>
+  </section>
+</div>
