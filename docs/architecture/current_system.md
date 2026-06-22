@@ -47,7 +47,7 @@
 
 교사 주도 학급 `Poll` MVP 자체의 제외 범위:
 
-- 전교어린이회 선거 중앙 집계
+- 전교임원선거 중앙 집계
 - 전교 투표용 관리자 대시보드
 - 후보 사진 등록
 - 선거관리위원 개표 승인
@@ -60,7 +60,7 @@
 별도 Admin `Election` 흐름에서는 전교/여러 학급 운영을 위한 기본 관리 기능이 구현되어 있다.
 admin은 draft `Election`을 시작해 parent 상태를 `in_progress`로 전환하고,
 교사는 parent `Election`이 `in_progress`인 학급 `ElectionSession`만 진행 목록에서 확인한다.
-Admin `ElectionCandidate` 후보자 사진은 전교어린이회임원선거 등에서 후보 식별을 돕기 위한 선택 입력이다.
+Admin `ElectionCandidate` 후보자 사진은 전교임원선거 등에서 후보 식별을 돕기 위한 선택 입력이다.
 교사 주도 학급 `Poll` 흐름에는 사진 기능을 도입하지 않는다.
 
 ## 배포 저장소 정책
@@ -86,7 +86,8 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - Devise `registerable` 미사용: 교사 공개 회원가입 없음
 - `User` role enum 추가: `teacher`, `admin`
 - 개발용 admin seed 추가: `admin@example.com`
-- 로그인 후 역할별 placeholder dashboard 추가
+- 로그인 후 기본 진입 경로 정리: teacher는 `/polls`, admin은 `/admin/teachers`
+- root와 `/dashboard`는 삭제하지 않고 역할별 기본 경로로 redirect하는 안전한 진입점으로 유지
 - admin의 교사 계정 목록/생성 기능 추가
 - `ParticipantGroup` / `ParticipantSlot` 모델 기반 추가
 - 참여자 그룹 index/new/create/show/edit/update/destroy 추가
@@ -144,11 +145,18 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - 보관된 투표 상세 `/polls/:id` 접근 가능
 - Admin `Election` 상세 화면에 상태점검, 기본 정보, 학급 세션 목록을 표시하고 Turbo Stream `admin_overview`로 갱신
 - Admin `Election` 결과 페이지 `/admin/elections/:id/results` 추가
+- Admin `Election` 목록 `/admin/elections`는 선거 이름, 종류 배지, 상태 배지, 관리/시작 준비 버튼 중심으로 간결하게 표시
+- Admin `Election` 목록 카드에서는 후보 구성, 학급 수, 완료 수 요약을 표시하지 않음
+- Admin `Election` 상세 상단 요약 카드에서는 선거 이름 옆에 종류 배지와 상태 배지를 함께 표시
 - Admin 전체 집계는 `closed` `ElectionSession`의 tally만 합산하고, draft/in_progress/stopped 세션은 전체 득표 합산에서 제외
 - 학급별 집계 검산은 모든 `ElectionSession`을 상태와 함께 표시하며, 종료되지 않은 세션은 집계 제외로 표시
 - admin의 `Election` 시작 조건 검증 추가: draft 상태, 학급 세션 1개 이상, 선거 항목 1개 이상, 각 항목 후보자 1명 이상
 - 모든 학급 `ElectionSession`이 `closed`가 되면 parent `Election`도 `closed`로 전환
 - `Election` 시작 뒤 학급 세션 추가/삭제와 후보자 등록/수정/삭제 차단
+- 화면 표시 용어 정리: `Election` kind `school_council`은 `전교임원선거`, `Poll` kind `election`은 `학급선거`, `discussion`은 `학급토의`, `debate`는 `학급토론`으로 표시
+- 알 수 없거나 custom인 `Election` kind는 강제 번역하지 않고 원래 kind 값을 fallback으로 표시
+- `admin/elections`의 큰 제목 `선거 관리`는 관리 영역 이름으로 유지
+- 투표/선거 이벤트 시간은 기존 KST 표시 helper 정책에 따라 KST 기준으로 표시
 - 문서 기반 설계 정리 중
 
 현재 `Poll` 상태 흐름:
@@ -216,7 +224,7 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 추후 추가 예정:
 
 - `docs/specs/schoolwide_election_future.md`
-  - 전교어린이회 선거 확장 구상
+  - 전교임원선거 확장 구상
 
 ---
 
@@ -225,7 +233,8 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 1. 프로젝트 문서 기반 정리
 2. 인증/역할 기본 구조
    - 교사 계정은 공개 가입이 아니라 admin 관리 기능에서 생성하는 방향
-   - 로그인 후 admin/teacher별 placeholder dashboard 제공
+   - 로그인 후 teacher는 `/polls`, admin은 `/admin/teachers`로 진입
+   - root와 `/dashboard`는 역할별 기본 경로로 redirect하는 안전한 진입점으로 유지
    - admin은 교사 계정 목록 조회와 생성 가능
 3. 참여자 그룹 등록
    - 참여자 그룹 기본 CRUD 중 index/new/create/show/edit/update/destroy 구현
@@ -275,6 +284,27 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - 보관된 종료 투표도 상세 화면 `/polls/:id`로 접근할 수 있다.
 - 보관 전 종료 투표는 삭제 또는 보관할 수 있고, 보관된 종료 투표는 삭제할 수 없다.
 - 보관 해제와 종료 후 30일 자동 보관은 후속 과제다.
+
+현재 구현된 진입/내비게이션 정책:
+
+- teacher 로그인 후 기본 진입 경로는 `/polls`다.
+- admin 로그인 후 기본 진입 경로는 `/admin/teachers`다.
+- root와 `/dashboard`는 삭제하지 않고 역할별 기본 경로로 redirect한다.
+- 로그인한 모든 사용자에게 `투표 목록`, `투표자 명단` 링크를 표시한다.
+- admin에게는 추가로 `교사 관리`, `전교임원선거 관리` 링크를 표시한다.
+- teacher에게 admin 전용 링크는 표시하지 않는다.
+
+현재 검증 상태:
+
+- 전체 RSpec 1029 examples, 0 failures 통과.
+- 브라우저 smoke test 통과.
+- smoke 확인 항목:
+  - admin root/dashboard -> `/admin/teachers`
+  - teacher root/dashboard -> `/polls`
+  - admin nav에 `투표 목록`, `투표자 명단`, `교사 관리`, `전교임원선거 관리` 표시
+  - teacher nav에는 `투표 목록`, `투표자 명단`만 표시
+  - admin/elections 목록 카드 단순화 확인
+  - admin/elections/:id 제목 옆 배지 배치 확인
 
 ---
 

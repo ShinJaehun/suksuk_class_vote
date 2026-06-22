@@ -6,11 +6,14 @@ module Admin
 
     def new
       authorize @election, :show?
+      return unless ensure_draft_election!
+
       @election_candidate = @election_contest.election_candidates.build
     end
 
     def edit
       authorize @election, :show?
+      return unless ensure_draft_election!
     end
 
     def create

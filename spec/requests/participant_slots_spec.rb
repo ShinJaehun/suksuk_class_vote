@@ -30,7 +30,7 @@ RSpec.describe "Voter slots", type: :request do
 
       get new_participant_group_participant_slot_path(participant_group)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
     end
 
@@ -183,7 +183,7 @@ RSpec.describe "Voter slots", type: :request do
 
       get edit_participant_group_participant_slot_path(participant_slot.participant_group, participant_slot)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
     end
 
@@ -299,7 +299,7 @@ RSpec.describe "Voter slots", type: :request do
         delete participant_group_participant_slot_path(participant_slot.participant_group, participant_slot)
       end.not_to change(ParticipantSlot, :count)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
     end
 
     it "allows admins to delete another teacher's participant slot" do
@@ -321,7 +321,7 @@ RSpec.describe "Voter slots", type: :request do
 
       delete participant_group_participant_slot_path(participant_group, deleted_slot)
 
-      expect(participant_group.participant_slots.order(:number).pluck(:number)).to eq([1, 3])
+      expect(participant_group.participant_slots.order(:number).pluck(:number)).to eq([ 1, 3 ])
     end
 
     it "deletes while the group is used by an in-progress poll and keeps the poll voter snapshot" do

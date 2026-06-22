@@ -1,63 +1,99 @@
-<section>
-  <h2>전체 진행 현황</h2>
-
-  <dl>
-    <dt>전체 배정 학급 수</dt>
-    <dd><%= aggregate_status_counts[:total] %></dd>
-    <dt>종료된 학급 수</dt>
-    <dd><%= aggregate_status_counts[:closed] %></dd>
-    <dt>진행 중 학급 수</dt>
-    <dd><%= aggregate_status_counts[:in_progress] %></dd>
-    <dt>준비 중 학급 수</dt>
-    <dd><%= aggregate_status_counts[:draft] %></dd>
-    <% if aggregate_status_counts[:stopped].to_i.positive? %>
-      <dt>중단 학급 수</dt>
-      <dd><%= aggregate_status_counts[:stopped] %></dd>
+<section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h2 class="text-xl font-semibold">전체 진행 현황</h2>
+      <p class="text-sm text-stone-600">닫힌 학급 <%= aggregate_status_counts[:closed] %>개가 전체 집계에 반영됩니다.</p>
+    </div>
+    <% if aggregate_partial %>
+      <span class="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-sm font-medium text-amber-700">잠정 집계 · 일부 학급 제외</span>
+    <% else %>
+      <span class="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-sm font-medium text-emerald-700">전체 학급 반영</span>
     <% end %>
-  </dl>
+  </div>
+
+  <div class="grid gap-3 sm:grid-cols-4">
+    <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+      <p class="text-xs font-medium text-stone-500">완료 학급</p>
+      <p class="mt-1 text-2xl font-semibold"><%= aggregate_status_counts[:closed] %>/<%= aggregate_status_counts[:total] %></p>
+    </div>
+    <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+      <p class="text-xs font-medium text-stone-500">진행 중</p>
+      <p class="mt-1 text-2xl font-semibold"><%= aggregate_status_counts[:in_progress] %></p>
+    </div>
+    <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+      <p class="text-xs font-medium text-stone-500">준비 중</p>
+      <p class="mt-1 text-2xl font-semibold"><%= aggregate_status_counts[:draft] %></p>
+    </div>
+    <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+      <p class="text-xs font-medium text-stone-500">중단</p>
+      <p class="mt-1 text-2xl font-semibold"><%= aggregate_status_counts[:stopped] %></p>
+    </div>
+  </div>
 </section>
 
-<section>
-  <h2>전체 집계</h2>
-  <% if aggregate_partial %>
-    <p>잠정 집계</p>
-  <% end %>
+<section class="space-y-4">
+  <div>
+    <h2 class="text-xl font-semibold">전체 집계</h2>
+    <p class="text-sm text-stone-600">후보별 득표와 기권은 닫힌 학급 투표만 합산합니다.</p>
+  </div>
 
   <% aggregate_results.each do |contest_result| %>
-    <section>
-      <h3><%= contest_result[:contest].title %></h3>
-
-      <% if contest_result[:top_candidates].any? %>
-        <p>
-          최다 득표 후보:
-          <%= contest_result[:top_candidates].map { |candidate| "기호 #{candidate.number}번 #{candidate.name}" }.join(", ") %>
-        </p>
-      <% else %>
-        <p>최다 득표 후보: 없음</p>
-      <% end %>
-
-      <table>
-        <thead>
-          <tr>
-            <th>번호</th>
-            <th>후보자</th>
-            <th>총 득표 수</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% contest_result[:candidate_results].each do |candidate_result| %>
-            <tr>
-              <td>기호 <%= candidate_result[:candidate].number %>번</td>
-              <td><%= candidate_result[:candidate].name %></td>
-              <td><%= candidate_result[:votes_count] %>표</td>
-            </tr>
+    <% contest_total_votes = contest_result[:candidate_results].sum { |candidate_result| candidate_result[:votes_count].to_i } + contest_result[:abstentions_count].to_i %>
+    <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 class="text-lg font-semibold"><%= contest_result[:contest].title %></h3>
+          <% if contest_result[:top_candidates].any? %>
+            <p class="text-sm text-stone-600">
+              최다 득표 후보:
+              <%= contest_result[:top_candidates].map { |candidate| "기호 #{candidate.number}번 #{candidate.name}" }.join(", ") %>
+            </p>
+          <% else %>
+            <p class="text-sm text-stone-600">최다 득표 후보 없음</p>
           <% end %>
-          <tr>
-            <td colspan="2">기권</td>
-            <td><%= contest_result[:abstentions_count] %>표</td>
-          </tr>
-        </tbody>
-      </table>
+        </div>
+        <span class="rounded-md bg-stone-100 px-2 py-1 text-sm font-medium text-stone-700">집계 <%= contest_total_votes %>표</span>
+      </div>
+
+      <div class="space-y-3">
+        <% contest_result[:candidate_results].each do |candidate_result| %>
+          <% candidate = candidate_result[:candidate] %>
+          <% votes_count = candidate_result[:votes_count].to_i %>
+          <% percentage = contest_total_votes.positive? ? ((votes_count.to_f / contest_total_votes) * 100).round : 0 %>
+          <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+            <div class="flex items-center gap-3">
+              <% if candidate.photo.attached? %>
+                <%= image_tag rails_blob_path(candidate.photo, only_path: true),
+                              alt: "#{candidate.name} 후보 사진",
+                              class: "h-12 w-12 rounded-md object-cover" %>
+              <% end %>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center justify-between gap-3">
+                  <p class="font-medium">기호 <%= candidate.number %>번 <%= candidate.name %></p>
+                  <p class="shrink-0 font-semibold"><%= votes_count %>표</p>
+                </div>
+                <div class="mt-2 h-2 overflow-hidden rounded-full bg-stone-200">
+                  <div class="h-full rounded-full bg-emerald-500" style="width: <%= percentage %>%"></div>
+                </div>
+                <p class="mt-1 text-xs text-stone-500"><%= percentage %>%</p>
+              </div>
+            </div>
+          </div>
+        <% end %>
+
+        <% abstention_count = contest_result[:abstentions_count].to_i %>
+        <% abstention_percentage = contest_total_votes.positive? ? ((abstention_count.to_f / contest_total_votes) * 100).round : 0 %>
+        <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+          <div class="flex items-center justify-between gap-3">
+            <p class="font-medium">기권</p>
+            <p class="font-semibold"><%= abstention_count %>표</p>
+          </div>
+          <div class="mt-2 h-2 overflow-hidden rounded-full bg-stone-200">
+            <div class="h-full rounded-full bg-stone-500" style="width: <%= abstention_percentage %>%"></div>
+          </div>
+          <p class="mt-1 text-xs text-stone-500"><%= abstention_percentage %>%</p>
+        </div>
+      </div>
     </section>
   <% end %>
 </section>

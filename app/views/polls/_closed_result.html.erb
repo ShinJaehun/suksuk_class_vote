@@ -3,12 +3,12 @@
 
   <% if @poll.school_election_poll? %>
     <p class="rounded-md bg-amber-50 p-3 text-sm text-amber-900">
-      이 화면은 해당 학급 투표의 결과입니다. 전체 전교학생회 선거 최종 집계는 관리자 개표 화면에서 확인합니다.
+      이 화면은 해당 학급 투표의 결과입니다. 전체 전교임원선거 최종 집계는 관리자 개표 화면에서 확인합니다.
     </p>
   <% end %>
 
-  <h2 class="text-xl font-semibold"><%= @poll.school_election_poll? ? "학급별 #{@poll.activity_label} 결과" : "#{@poll.activity_label} 결과" %></h2>
-
+  <h2 class="text-xl font-semibold"><%= @poll.school_election_poll? ? "학급별 투표 결과" : "#{@poll.activity_label} 결과" %></h2>
+  
   <% result_summary.contest_results.each do |contest_result| %>
     <section class="space-y-3">
       <% if result_summary.contest_results.many? %>

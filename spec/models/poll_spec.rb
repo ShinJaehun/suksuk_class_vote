@@ -130,7 +130,7 @@ RSpec.describe Poll, type: :model do
     it "returns poll labels" do
       poll = build(:poll)
 
-      expect(poll.activity_label).to eq("선거")
+      expect(poll.activity_label).to eq("학급선거")
       expect(poll.choice_label).to eq("후보자")
       expect(poll.choice_list_label).to eq("후보자")
       expect(poll.choice_number_label).to eq("기호")
@@ -141,7 +141,7 @@ RSpec.describe Poll, type: :model do
     it "returns discussion labels" do
       poll = build(:poll, :discussion)
 
-      expect(poll.activity_label).to eq("토의")
+      expect(poll.activity_label).to eq("학급토의")
       expect(poll.choice_label).to eq("의견")
       expect(poll.choice_list_label).to eq("의견")
       expect(poll.choice_number_label).to eq("번호")
@@ -152,7 +152,7 @@ RSpec.describe Poll, type: :model do
     it "returns debate labels" do
       poll = build(:poll, :debate)
 
-      expect(poll.activity_label).to eq("토론")
+      expect(poll.activity_label).to eq("학급토론")
       expect(poll.choice_label).to eq("입장")
       expect(poll.choice_list_label).to eq("입장")
       expect(poll.choice_number_label).to eq("번호")

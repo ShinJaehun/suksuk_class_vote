@@ -1,38 +1,21 @@
 <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
   <h2 class="text-xl font-semibold">세션 결과</h2>
 
-  <dl class="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+  <dl class="grid gap-3 text-sm sm:grid-cols-3">
     <div>
-      <dt class="font-medium text-stone-500">상태</dt>
-      <dd class="mt-1 text-stone-900"><%= election_session.status %></dd>
+      <dt class="font-medium text-stone-500">투표시작</dt>
+      <dd class="mt-1 text-stone-900"><%= kst_datetime(election_session.started_at) %></dd>
     </div>
     <div>
-      <dt class="font-medium text-stone-500">담당 교사</dt>
-      <dd class="mt-1 text-stone-900"><%= [election_session.teacher&.name, election_session.teacher&.email].compact.join(" / ") %></dd>
-    </div>
-    <div>
-      <dt class="font-medium text-stone-500">명단</dt>
-      <dd class="mt-1 text-stone-900"><%= election_session.participant_group&.name || "명단 없음" %></dd>
-    </div>
-    <div>
-      <dt class="font-medium text-stone-500">투표자</dt>
-      <dd class="mt-1 text-stone-900"><%= integrity_report.summary[:voter_count] %>명</dd>
-    </div>
-    <div>
-      <dt class="font-medium text-stone-500">시작 시각</dt>
-      <dd class="mt-1 text-stone-900"><%= election_session.started_at || "기록 없음" %></dd>
-    </div>
-    <div>
-      <dt class="font-medium text-stone-500">종료 시각</dt>
-      <dd class="mt-1 text-stone-900"><%= election_session.closed_at || "기록 없음" %></dd>
+      <dt class="font-medium text-stone-500">투표종료</dt>
+      <dd class="mt-1 text-stone-900"><%= kst_datetime(election_session.closed_at) %></dd>
     </div>
     <div>
       <dt class="font-medium text-stone-500">참여 상태</dt>
       <dd class="mt-1 text-stone-900">
         완료 <%= participation_counts.fetch("completed", 0) %>명 /
         결석 <%= participation_counts.fetch("absent", 0) %>명 /
-        기권 <%= participation_counts.fetch("abstained", 0) %>명 /
-        대기 <%= participation_counts.fetch("pending", 0) %>명
+        기권 <%= participation_counts.fetch("abstained", 0) %>명
       </dd>
     </div>
   </dl>
@@ -73,13 +56,7 @@
       <% contest_tally = contest_tallies_by_contest_id[contest.id] %>
 
       <div class="space-y-3 rounded-md border border-stone-200 p-4">
-        <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <h4 class="text-base font-medium"><%= contest.title %></h4>
-          <p class="text-sm text-stone-600">
-            <%= contest.vote_method %> / <%= contest.min_selections %>-<%= contest.max_selections %>명 선택 /
-            선출 <%= contest.seats_count %>명
-          </p>
-        </div>
+        <h4 class="text-base font-medium"><%= contest.title %></h4>
 
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-stone-200 text-sm">

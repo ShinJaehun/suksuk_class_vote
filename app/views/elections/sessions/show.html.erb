@@ -5,9 +5,9 @@
 
   <% if current_user.admin? %>
     <div class="space-y-2">
-      <p class="text-sm font-medium text-stone-600">Election Session</p>
       <div class="flex flex-wrap items-center gap-2">
         <h1 class="text-3xl font-semibold"><%= @election.title %></h1>
+        <%= election_kind_badge(@election) %>
       </div>
     </div>
 
@@ -22,6 +22,11 @@
                candidate_tallies_by_candidate_id: @candidate_tallies_by_candidate_id,
                contest_tallies_by_contest_id: @contest_tallies_by_contest_id %>
   <% elsif @election_session.closed? %>
+    <%= render "teacher_progress",
+               election_session: @election_session,
+               progress: @progress,
+               current_voter: @current_voter %>
+
     <%= render "closed_results",
                election_session: @election_session,
                contests: @contests,

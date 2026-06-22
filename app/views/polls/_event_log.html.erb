@@ -15,7 +15,7 @@
 
           <li class="grid gap-2 py-4 text-base sm:grid-cols-[11rem_1fr_1fr]">
             <time class="text-stone-500" datetime="<%= event.occurred_at.iso8601 %>">
-              <%= l(event.occurred_at, format: "%m월 %d일 %H:%M") %>
+              <%= kst_datetime(event.occurred_at) %>
             </time>
             <span class="text-stone-600"><%= target %></span>
             <span class="font-medium"><%= event.display_label %></span>

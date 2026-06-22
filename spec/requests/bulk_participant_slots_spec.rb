@@ -30,7 +30,7 @@ RSpec.describe "Bulk participant slots", type: :request do
 
       get new_participant_group_bulk_participant_slots_path(participant_group)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
     end
 
@@ -118,13 +118,13 @@ RSpec.describe "Bulk participant slots", type: :request do
       expect do
         post participant_group_bulk_participant_slots_path(participant_group), params: {
           bulk_participant_slots: {
-            names: ["김민준", "이서연"]
+            names: [ "김민준", "이서연" ]
           }
         }
       end.to change(ParticipantSlot, :count).by(2)
 
       expect(participant_group.participant_slots.order(:number).pluck(:number, :name)).to eq(
-        [[1, "기존 학생"], [2, "김민준"], [3, "이서연"]]
+        [ [ 1, "기존 학생" ], [ 2, "김민준" ], [ 3, "이서연" ] ]
       )
       expect(response).to redirect_to(participant_group_path(participant_group))
     end
@@ -137,7 +137,7 @@ RSpec.describe "Bulk participant slots", type: :request do
       expect do
         post participant_group_bulk_participant_slots_path(participant_group), params: {
           bulk_participant_slots: {
-            names: ["김민준", ""]
+            names: [ "김민준", "" ]
           }
         }
       end.not_to change(ParticipantSlot, :count)
@@ -156,7 +156,7 @@ RSpec.describe "Bulk participant slots", type: :request do
 
       expect do
         post participant_group_bulk_participant_slots_path(participant_group), params: {
-          bulk_participant_slots: { names: ["김민준", "이서연"] }
+          bulk_participant_slots: { names: [ "김민준", "이서연" ] }
         }
       end.to change(ParticipantSlot, :count).by(2)
 
@@ -171,7 +171,7 @@ RSpec.describe "Bulk participant slots", type: :request do
 
       expect do
         post participant_group_bulk_participant_slots_path(participant_group), params: {
-          bulk_participant_slots: { names: ["김민준", "이서연"] }
+          bulk_participant_slots: { names: [ "김민준", "이서연" ] }
         }
       end.to change(ParticipantSlot, :count).by(2)
 

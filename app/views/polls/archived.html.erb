@@ -20,6 +20,12 @@
               <p class="text-sm text-stone-600">
                 <%= poll.participant_group_display_name || "-" %>
                 · 투표자 <%= @poll_voter_counts.fetch(poll.id, 0) %>명
+                <% if poll.poll_progress&.started_at.present? %>
+                  · 시작 <%= kst_datetime(poll.poll_progress.started_at) %>
+                <% end %>
+                <% if poll.poll_progress&.closed_at.present? %>
+                  · 종료 <%= kst_datetime(poll.poll_progress.closed_at) %>
+                <% end %>
               </p>
             </div>
 
@@ -36,12 +42,17 @@
             <div class="space-y-1">
               <div class="flex flex-wrap items-center gap-2">
                 <h2 class="font-medium"><%= election_session.election.title %></h2>
-                <span class="rounded-full bg-sky-50 px-2 py-1 text-xs font-medium text-sky-700">선거</span>
+                <%= election_kind_badge(election_session.election) %>
                 <span class="rounded-full bg-stone-100 px-2 py-1 text-xs font-medium text-stone-700">종료됨</span>
               </div>
               <p class="text-sm text-stone-600">
                 <%= election_session.participant_group&.name || "-" %>
-                · 종료 <%= election_session.closed_at || "기록 없음" %>
+                <% if election_session.started_at.present? %>
+                  · 시작 <%= kst_datetime(election_session.started_at) %>
+                <% end %>
+                <% if election_session.closed_at.present? %>
+                  · 종료 <%= kst_datetime(election_session.closed_at) %>
+                <% end %>
               </p>
             </div>
 

@@ -60,7 +60,8 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include(election_session.election.title)
       expect(response.body).to include(elections_session_path(election_session))
       expect(response.body).to include("선거")
-      expect(response.body).to include("시작 전")
+      expect(response.body).to include("준비")
+      expect(response.body).not_to include("시작 전")
       expect(response.body).to include(participant_group.name)
       expect(response.body).to include("투표자 1명")
       expect(response.body).not_to include("다른 반 선거")
@@ -98,7 +99,7 @@ RSpec.describe "Polls", type: :request do
       get polls_path
 
       expect(response.body).to include("진행 중인 선거")
-      expect(response.body).to include("진행 중")
+      expect(response.body).to include("진행")
       expect(response.body).to include("투표자 2명")
       expect(response.body).not_to include("종료된 선거")
       expect(response.body).not_to include("중단된 선거")
@@ -237,6 +238,9 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("보관된 투표")
       expect(response.body).to include(closed_session.election.title)
       expect(response.body).to include(participant_group.name)
+      expect(response.body).to include("종료 2026-05-01 19:30")
+      expect(response.body).not_to include("시작 -")
+      expect(response.body).not_to include("종료 -")
       expect(response.body).to include("결과 보기")
       expect(response.body).to include(elections_session_path(closed_session))
       expect(response.body).not_to include("중단된 임원 선거")
@@ -366,7 +370,7 @@ RSpec.describe "Polls", type: :request do
 
       get poll_path(poll)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
     end
 
@@ -484,7 +488,7 @@ RSpec.describe "Polls", type: :request do
       get poll_path(poll)
 
       expect(response.body).to include("전교학생회 선거")
-      expect(response.body).to include("전교학생회 선거 투표는 아직 일반 투표 화면에서 시작할 수 없습니다.")
+      expect(response.body).to include("전교임원선거 투표는 아직 일반 투표 화면에서 시작할 수 없습니다.")
       expect(response.body).not_to include(start_poll_path(poll))
       expect(response.body).not_to include("투표 시작")
       expect(response.body).to include("운영 준비 중")
@@ -495,7 +499,7 @@ RSpec.describe "Polls", type: :request do
       poll = create_started_poll(user: teacher)
       poll_option = poll.poll_options.order(:number).first
       participants = poll.poll_participants.order(:number)
-      create(:poll_event, poll: poll, actor: teacher, event_type: "poll_started", details: { voter_count: 2, poll_option_count: 2 })
+      create(:poll_event, poll: poll, actor: teacher, event_type: "poll_started", occurred_at: Time.utc(2026, 6, 21, 8, 37), details: { voter_count: 2, poll_option_count: 2 })
       create(:poll_event, poll: poll, actor: teacher, event_type: "poll_closed")
       create(:poll_event, poll: poll, actor: teacher, poll_participant: participants[0], event_type: "vote_completed")
       create(:poll_event, poll: poll, actor: teacher, poll_participant: participants[0], event_type: "participant_marked_absent")
@@ -507,7 +511,7 @@ RSpec.describe "Polls", type: :request do
 
       event_log = response.body.match(%r{<section[^>]*data-testid="poll-event-log"[^>]*>.*?</section>}m).to_s
       expect(event_log).to include("투표 진행 상황")
-      expect(event_log).to match(/\d{2}월 \d{2}일 \d{2}:\d{2}/)
+      expect(event_log).to include("2026-06-21 17:37")
       expect(event_log).to include("투표 시작")
       expect(event_log).to include("투표 종료")
       expect(event_log).to include("담임교사")
@@ -750,7 +754,7 @@ RSpec.describe "Polls", type: :request do
         post start_poll_path(poll)
       end.not_to change(PollParticipant, :count)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
       expect(poll.reload).to be_draft
     end
@@ -1590,9 +1594,8 @@ RSpec.describe "Polls", type: :request do
 
       get poll_path(poll)
 
-      expect(response.body).to include("학급별 선거 결과")
-      expect(response.body).to include("이 화면은 해당 학급 투표의 결과입니다. 전체 전교학생회 선거 최종 집계는 관리자 개표 화면에서 확인합니다.")
-
+      expect(response.body).to include("학급별 투표 결과")
+      expect(response.body).to include("이 화면은 해당 학급 투표의 결과입니다. 전체 전교임원선거 최종 집계는 관리자 개표 화면에서 확인합니다.")
       general_poll = create_closed_multi_contest_poll(user: teacher)
 
       get poll_path(general_poll)
@@ -1704,7 +1707,7 @@ RSpec.describe "Polls", type: :request do
 
       post stop_poll_path(poll)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(poll.reload).to be_in_progress
     end
   end
@@ -1820,7 +1823,7 @@ RSpec.describe "Polls", type: :request do
 
       delete poll_path(poll)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(Poll.exists?(poll.id)).to be(true)
     end
 
@@ -1830,7 +1833,7 @@ RSpec.describe "Polls", type: :request do
       sign_in teacher
 
       delete poll_path(in_progress_poll)
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(Poll.exists?(in_progress_poll.id)).to be(true)
     end
   end
@@ -1893,7 +1896,7 @@ RSpec.describe "Polls", type: :request do
   end
 
   def operation_screen_broadcasts_for(poll)
-    broadcasts(Turbo::StreamsChannel.send(:stream_name_from, [poll, :operation_screen]))
+    broadcasts(Turbo::StreamsChannel.send(:stream_name_from, [ poll, :operation_screen ]))
   end
 
   def integrity_report_broadcast_for(poll)

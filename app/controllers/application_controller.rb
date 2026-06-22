@@ -10,11 +10,15 @@ class ApplicationController < ActionController::Base
 
   private
 
-  def after_sign_in_path_for(_resource)
-    dashboard_path
+  def after_sign_in_path_for(resource)
+    default_landing_path_for(resource)
   end
 
   def user_not_authorized
-    redirect_to dashboard_path, alert: "접근 권한이 없습니다."
+    redirect_to default_landing_path_for(current_user), alert: "접근 권한이 없습니다."
+  end
+
+  def default_landing_path_for(user)
+    user&.admin? ? admin_teachers_path : polls_path
   end
 end

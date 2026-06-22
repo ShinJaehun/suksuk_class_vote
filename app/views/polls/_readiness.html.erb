@@ -17,7 +17,7 @@
       <% end %>
 
       <p class="text-sm text-stone-600">
-        <%= poll.school_election_poll? ? "전교학생회 선거 투표는 아직 일반 투표 화면에서 시작할 수 없습니다." : (poll.startable_by_configuration? ? "투표를 시작할 수 있습니다." : "투표를 시작할 수 없습니다.") %>
+        <%= poll.school_election_poll? ? "전교임원선거 투표는 아직 일반 투표 화면에서 시작할 수 없습니다." : (poll.startable_by_configuration? ? "투표를 시작할 수 있습니다." : "투표를 시작할 수 없습니다.") %>
       </p>
 
       <% unless readiness_ok %>

@@ -4,7 +4,7 @@
 
     <% if poll.draft? %>
       <% if poll.school_election_poll? %>
-        <p class="text-stone-600">전교학생회 선거 투표는 아직 일반 투표 화면에서 시작할 수 없습니다.</p>
+        <p class="text-stone-600">전교임원선거 투표는 아직 일반 투표 화면에서 시작할 수 없습니다.</p>
       <% elsif poll.startable_by_configuration? %>
         <%= button_to "투표 시작",
                       start_poll_path(poll),

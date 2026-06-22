@@ -18,7 +18,7 @@ RSpec.describe "Admin school election candidates", type: :request do
 
       get new_admin_school_election_school_election_contest_school_election_candidate_path(school_election, contest)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
     end
 
     it "shows the candidate creation form to admins" do
@@ -110,7 +110,7 @@ RSpec.describe "Admin school election candidates", type: :request do
         }
       end.not_to change(SchoolElectionCandidate, :count)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
     end
 
     it "does not create a candidate under a contest from another school election" do
@@ -149,7 +149,7 @@ RSpec.describe "Admin school election candidates", type: :request do
 
       get edit_admin_school_election_school_election_contest_school_election_candidate_path(school_election, contest, candidate)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
     end
 
     it "shows the candidate edit form to admins" do
@@ -230,7 +230,7 @@ RSpec.describe "Admin school election candidates", type: :request do
         }
       }
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
       expect(candidate.reload.name).not_to eq("차단 수정 후보")
     end
 
@@ -275,7 +275,7 @@ RSpec.describe "Admin school election candidates", type: :request do
         delete admin_school_election_school_election_contest_school_election_candidate_path(school_election, contest, candidate)
       end.not_to change(SchoolElectionCandidate, :count)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
     end
 
     it "does not destroy a candidate through another contest" do
@@ -297,6 +297,6 @@ RSpec.describe "Admin school election candidates", type: :request do
     school_election = create(:school_election)
     contest = create(:school_election_contest, school_election: school_election, title: "회장", position: 1)
 
-    [school_election, contest]
+    [ school_election, contest ]
   end
 end

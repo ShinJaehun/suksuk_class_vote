@@ -105,7 +105,7 @@ RSpec.describe "Admin election sessions", type: :request do
         }
       end.not_to change(ElectionSession, :count)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
     end
 
     it "does not create election sessions after the election starts" do
@@ -248,7 +248,7 @@ RSpec.describe "Admin election sessions", type: :request do
         delete admin_election_election_session_path(session.election, session)
       end.not_to change(ElectionSession, :count)
 
-      expect(response).to redirect_to(dashboard_path)
+      expect(response).to redirect_to(polls_path)
     end
 
     it "does not destroy a session through another election" do

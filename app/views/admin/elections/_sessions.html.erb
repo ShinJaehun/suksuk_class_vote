@@ -1,71 +1,101 @@
-<%= tag.section id: dom_id(election, :admin_sessions) do %>
-  <h2>학급 세션</h2>
+<%= tag.section id: dom_id(election, :admin_sessions), class: "space-y-4 rounded-md border border-stone-200 bg-white p-4" do %>
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h2 class="text-xl font-semibold">학급 세션</h2>
+    </div>
+  </div>
 
   <% if election.draft? %>
     <% if election_session.errors.any? %>
-      <h3>학급 세션을 배정할 수 없습니다.</h3>
-      <ul>
+      <div class="rounded-md border border-rose-200 bg-rose-50 p-3 text-rose-800">
+      <h3 class="font-medium">학급 세션을 배정할 수 없습니다.</h3>
+      <ul class="mt-2 list-disc pl-5 text-sm">
         <% election_session.errors.full_messages.each do |message| %>
           <li><%= message %></li>
         <% end %>
       </ul>
+      </div>
     <% end %>
 
-    <%= form_with model: [:admin, election, election_session] do |form| %>
-      <div>
+    <%= form_with model: [:admin, election, election_session], class: "grid gap-3 rounded-md border border-stone-200 bg-stone-50 p-4 md:grid-cols-[1fr_1fr_auto]" do |form| %>
+      <div class="space-y-1">
         <%= form.label :teacher_id, "담당 교사" %>
         <%= form.collection_select :teacher_id,
                                    teachers,
                                    :id,
                                    ->(teacher) { "#{teacher.name}/#{teacher.email}" },
-                                   prompt: "담당 교사를 선택하세요" %>
+                                   { prompt: "담당 교사를 선택하세요" },
+                                   class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
       </div>
 
-      <div>
+      <div class="space-y-1">
         <%= form.label :participant_group_id, "학급/그룹" %>
         <%= form.collection_select :participant_group_id,
                                    participant_groups,
                                    :id,
                                    ->(group) { "#{group.user.name}/#{group.user.email} - #{group.name}" },
-                                   prompt: "학급/그룹을 선택하세요" %>
+                                   { prompt: "학급/그룹을 선택하세요" },
+                                   class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
       </div>
 
-      <%= form.submit "학급 세션 배정" %>
+      <div class="flex items-end">
+        <%= form.submit "학급 세션 배정", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+      </div>
     <% end %>
   <% else %>
-    <p>선거 시작 후에는 구성을 변경할 수 없습니다.</p>
+    <p class="rounded-md border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600">선거 시작 후에는 구성을 변경할 수 없습니다.</p>
   <% end %>
 
   <% if election_sessions.any? %>
-    <table>
-      <thead>
-        <tr>
-          <th>학급/그룹</th>
-          <th>담당 교사</th>
-          <th>상태</th>
-          <th>작업</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% session_deletion_allowed = election.draft? && election_sessions.none? { |election_session| !election_session.draft? } %>
-        <% election_sessions.each do |session| %>
-          <tr>
-            <td><%= session.participant_group.name %></td>
-            <td><%= session.teacher.name.presence || session.teacher.email %></td>
-            <td><%= session.status %></td>
-            <td>
-              <% if session_deletion_allowed && session.draft? %>
-                <%= button_to "삭제",
-                              admin_election_election_session_path(election, session),
-                              method: :delete,
-                              data: { turbo_confirm: "학급 세션을 삭제할까요?" } %>
+    <% session_deletion_allowed = election.draft? && election_sessions.none? { |election_session| !election_session.draft? } %>
+    <div class="space-y-2">
+      <% election_sessions.each do |session| %>
+        <% voter_count = session.participant_group.participant_slots.size %>
+        <% display_status = { "draft" => "시작 전", "in_progress" => "진행 중", "closed" => "종료됨", "stopped" => "중단됨" }.fetch(session.status, session.status) %>
+        <% status_class =
+          if session.draft?
+            "border-amber-200 bg-amber-50 text-amber-700"
+          elsif session.in_progress?
+            "border-emerald-200 bg-emerald-50 text-emerald-700"
+          elsif session.closed?
+            "border-stone-300 bg-stone-100 text-stone-700"
+          else
+            "border-rose-200 bg-rose-50 text-rose-700"
+          end %>
+        <div class="flex flex-col gap-3 rounded-md border border-stone-200 bg-stone-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div class="space-y-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="font-medium"><%= session.participant_group.name %></h3>
+              <span class="rounded-md border px-2 py-1 text-xs font-medium <%= status_class %>"><%= display_status %></span>
+            </div>
+            <p class="text-sm text-stone-600">
+              담당 교사: <%= session.teacher.name.presence || session.teacher.email %>
+              · 투표자 <%= voter_count %>명
+              <% if session.started_at.present? %>
+                · 투표시작 <%= kst_datetime(session.started_at) %>
               <% end %>
-            </td>
-          </tr>
+              <% if session.closed_at.present? %>
+                · 투표종료 <%= kst_datetime(session.closed_at) %>
+              <% end %>
+            </p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <%= link_to "상세",
+                        elections_session_path(session),
+                        class: "text-sm font-medium text-stone-700 underline" %>
+            <% if session_deletion_allowed && session.draft? %>
+              <%= button_to "삭제",
+                            admin_election_election_session_path(election, session),
+                            method: :delete,
+                            data: { turbo_confirm: "학급 세션을 삭제할까요?" },
+                            class: "text-sm font-medium text-rose-700 underline" %>
+            <% end %>
+          </div>
+        </div>
         <% end %>
-      </tbody>
-    </table>
+    </div>
   <% else %>
-    <p>아직 배정된 학급 세션이 없습니다.</p>
+    <p class="rounded-md border border-dashed border-stone-300 bg-stone-50 p-3 text-sm text-stone-600">아직 배정된 학급 세션이 없습니다.</p>
   <% end %>
 <% end %>
