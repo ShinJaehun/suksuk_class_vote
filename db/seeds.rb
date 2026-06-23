@@ -8,9 +8,11 @@
 #     MovieGenre.find_or_create_by!(name: genre_name)
 #   end
 
-# Development-only admin account. Do not use this password for production data.
-User.find_or_create_by!(email: "a@a") do |user|
-  user.password = "password"
-  user.name = "관리자"
-  user.role = :admin
+# Development/test-only admin account. Production admins must be created explicitly.
+if Rails.env.development? || Rails.env.test?
+  User.find_or_create_by!(email: "a@a") do |user|
+    user.password = "password"
+    user.name = "관리자"
+    user.role = :admin
+  end
 end

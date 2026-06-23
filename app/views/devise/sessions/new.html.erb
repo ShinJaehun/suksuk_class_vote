@@ -6,14 +6,6 @@
       <p class="mt-2 text-sm text-stone-600">교사·관리자 로그인</p>
     </div>
 
-    <% if alert.present? %>
-      <p class="mb-4 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800"><%= alert %></p>
-    <% end %>
-
-    <% if notice.present? %>
-      <p class="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"><%= notice %></p>
-    <% end %>
-
     <%= form_for(resource, as: resource_name, url: session_path(resource_name), html: { class: "space-y-4" }) do |form| %>
       <div class="space-y-1">
         <%= form.label :email, "이메일", class: "text-sm font-medium text-stone-700" %>
