@@ -1,57 +1,57 @@
-<div class="space-y-6">
+<% voters = election_session.election_voters.includes(:election_participation).to_a %>
+<% total_voter_count = voters.size %>
+<% completed_count = voters.count { |voter| voter.election_participation&.completed? } %>
+<% abstained_count = voters.count { |voter| voter.election_participation&.abstained? } %>
+<% absent_count = voters.count { |voter| voter.election_participation&.absent? } %>
+
+<section class="space-y-5 rounded-md border border-stone-200 bg-white p-4">
   <header class="space-y-2">
     <div class="flex flex-wrap items-center gap-2">
-      <h1 class="text-3xl font-semibold"><%= election_session.election.title %></h1>
-      <span class="rounded-full bg-stone-100 px-2 py-1 text-xs font-medium text-stone-700">종료</span>
+      <h1 class="text-2xl font-semibold text-stone-900">투표 결과</h1>
     </div>
-    <p class="text-stone-600">투표가 종료되었습니다.</p>
   </header>
 
-  <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
-    <h2 class="text-xl font-semibold"><%= election_kind_label(election_session.election) %> 결과</h2>
+  <dl class="grid gap-2 text-sm sm:grid-cols-3">
+    <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+      <dt class="text-stone-500">전체 투표자</dt>
+      <dd class="mt-1 font-semibold text-stone-900"><%= total_voter_count %>명</dd>
+    </div>
+    <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+      <dt class="text-stone-500">투표 완료</dt>
+      <dd class="mt-1 font-semibold text-stone-900"><%= completed_count + abstained_count %>명</dd>
+    </div>
+    <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+      <dt class="text-stone-500">미참여</dt>
+      <dd class="mt-1 font-semibold text-stone-900"><%= absent_count %>명</dd>
+    </div>
+  </dl>
 
+  <div class="grid gap-3 lg:grid-cols-2">
     <% contests.each do |contest| %>
       <% candidates = contest.election_candidates.order(:number) %>
-      <% candidate_rows = candidates.map { |candidate| [candidate, candidate_tallies_by_candidate_id[candidate.id]&.votes_count.to_i] } %>
-      <% highest_votes = candidate_rows.map(&:second).max %>
-      <% leading_rows = highest_votes.present? ? candidate_rows.select { |(_candidate, votes_count)| votes_count == highest_votes } : [] %>
+      <% candidate_rows = candidates.map { |candidate| [ candidate, candidate_tallies_by_candidate_id[candidate.id]&.votes_count.to_i ] } %>
       <% contest_tally = contest_tallies_by_contest_id[contest.id] %>
+      <% abstentions_count = contest_tally&.abstentions_count.to_i %>
 
-      <article class="space-y-4 rounded-md border border-stone-200 p-4">
-        <h3 class="text-lg font-medium"><%= contest.title %></h3>
+      <article class="space-y-3 rounded-md border border-stone-200 bg-stone-50 p-3">
+        <div class="space-y-1">
+          <h2 class="text-lg font-semibold text-stone-900"><%= contest.title %></h2>
+        </div>
 
-        <% if leading_rows.any? %>
-          <% leading_labels = leading_rows.map { |candidate, _votes_count| "#{candidate.number}번 #{candidate.name}" }.join(", ") %>
-          <p class="text-sm font-medium text-stone-800">
-            <%= leading_rows.one? ? "최다 득표 후보" : "공동 최다 득표 후보" %>: <%= leading_labels %>
-          </p>
-        <% else %>
-          <p class="text-sm text-stone-600">집계된 후보가 없습니다.</p>
-        <% end %>
+        <div class="grid gap-1 md:grid-cols-2">
+          <% candidate_rows.each do |candidate, votes_count| %>
+            <div class="flex items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-2 text-sm">
+              <span class="w-14 shrink-0 whitespace-nowrap font-medium text-stone-500">기호 <%= candidate.number %></span>
+              <span class="min-w-0 flex-1 font-medium text-stone-900"><%= candidate.name %></span>
+              <span class="w-12 shrink-0 text-right font-semibold tabular-nums text-stone-900"><%= votes_count %>표</span>
+            </div>
+          <% end %>
+        </div>
 
-        <table class="w-full border-collapse text-sm">
-          <thead>
-            <tr class="border-b border-stone-200 text-left text-stone-600">
-              <th class="py-2 pr-3 font-medium">기호</th>
-              <th class="py-2 pr-3 font-medium">후보자</th>
-              <th class="py-2 font-medium">득표수</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% candidate_rows.each do |candidate, votes_count| %>
-              <tr class="border-b border-stone-100">
-                <td class="py-2 pr-3"><%= candidate.number %></td>
-                <td class="py-2 pr-3"><%= candidate.name %></td>
-                <td class="py-2"><%= votes_count %>표</td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-
-        <% if contest_tally&.abstentions_count.to_i.positive? %>
-          <p class="text-sm text-stone-600">기권 <%= contest_tally.abstentions_count %>표</p>
-        <% end %>
+        <div class="border-t border-stone-200 pt-2 text-sm">
+          <p class="font-medium text-stone-700">기권 <%= abstentions_count %>표</p>
+        </div>
       </article>
     <% end %>
-  </section>
-</div>
+  </div>
+</section>

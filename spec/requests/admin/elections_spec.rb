@@ -653,13 +653,17 @@ RSpec.describe "Admin elections", type: :request do
 
       get results_admin_election_path(election)
 
-      expect(response.body).to include("학급별 집계 검산")
-      expect(response.body).to include("6학년 1반")
       visible_text = Nokogiri::HTML(response.body).text.squish
+      session_results_text = visible_text[visible_text.index("학급별 집계")..]
 
-      expect(visible_text).to include("완료 2명")
-      expect(visible_text).to include("기권 1명")
-      expect(visible_text).to include("미참여 1명")
+      expect(response.body).to include("학급별 집계")
+      expect(response.body).not_to include("학급별 집계 검산")
+      expect(session_results_text).to include("6학년 1반")
+      expect(session_results_text).to include("집계 포함")
+      expect(session_results_text).to include("전체 투표자 4명")
+      expect(session_results_text).to include("투표 완료 3명")
+      expect(session_results_text).to include("미참여 1명")
+      expect(session_results_text).not_to include("기권 1명")
     end
 
     it "shows closed per-class detail results" do
@@ -667,17 +671,29 @@ RSpec.describe "Admin elections", type: :request do
       election = create(:election)
       contest = create(:election_contest, election: election, title: "회장")
       candidate = create(:election_candidate, election_contest: contest, number: 1, name: "상세후보")
+      zero_vote_candidate = create(:election_candidate, election_contest: contest, number: 10, name: "영표후보")
       session = create_admin_election_session(election: election, status: :closed, group_name: "6학년 1반")
       create(:election_candidate_tally, election_session: session, election_contest: contest, election_candidate: candidate, votes_count: 7)
+      create(:election_candidate_tally, election_session: session, election_contest: contest, election_candidate: zero_vote_candidate, votes_count: 0)
       create(:election_contest_tally, election_session: session, election_contest: contest, abstentions_count: 2)
 
       get results_admin_election_path(election)
+      session_results_text = Nokogiri::HTML(response.body).text.squish
+      session_results_text = session_results_text[session_results_text.index("학급별 집계")..]
 
       expect(response.body).to include("<details")
-      expect(response.body).to include("상세 결과")
-      expect(response.body).to include("상세후보")
-      expect(response.body).to include("7표")
-      expect(response.body).to include("2표")
+      expect(session_results_text).to include("학급 상세 결과 보기")
+      expect(session_results_text).to include("회장")
+      expect(session_results_text).to include("기호 1")
+      expect(session_results_text).to include("상세후보")
+      expect(session_results_text).to include("7표")
+      expect(session_results_text).to include("기호 10")
+      expect(session_results_text).to include("영표후보")
+      expect(session_results_text).to include("0표")
+      expect(session_results_text).to include("기권 2표")
+      expect(session_results_text).not_to include("최다 득표 후보")
+      expect(session_results_text).not_to include("공동 최다 득표 후보")
+      expect(session_results_text).not_to include("후보 득표")
     end
 
     it "shows non-closed sessions as excluded in per-class results" do

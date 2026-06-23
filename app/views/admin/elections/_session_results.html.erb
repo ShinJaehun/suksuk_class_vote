@@ -1,6 +1,6 @@
 <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
   <div>
-    <h2 class="text-xl font-semibold">학급별 집계 검산</h2>
+    <h2 class="text-xl font-semibold">학급별 집계</h2>
     <p class="text-sm text-stone-600">어떤 학급이 집계에 포함되었는지와 제외되었는지 확인합니다.</p>
   </div>
 
@@ -21,30 +21,32 @@
 
         <% if session.closed? %>
           <div class="grid gap-2 text-sm sm:grid-cols-3">
-            <div class="rounded-md border border-stone-200 bg-white p-3">완료 <span class="font-semibold"><%= summary[:participation_counts][:completed] %>명</span></div>
-            <div class="rounded-md border border-stone-200 bg-white p-3">기권 <span class="font-semibold"><%= summary[:participation_counts][:abstained] %>명</span></div>
+            <div class="rounded-md border border-stone-200 bg-white p-3">전체 투표자 <span class="font-semibold"><%= summary[:participation_counts].values.sum %>명</span></div>
+            <div class="rounded-md border border-stone-200 bg-white p-3">투표 완료 <span class="font-semibold"><%= summary[:participation_counts][:completed].to_i + summary[:participation_counts][:abstained].to_i %>명</span></div>
             <div class="rounded-md border border-stone-200 bg-white p-3">미참여 <span class="font-semibold"><%= summary[:participation_counts][:absent] %>명</span></div>
           </div>
 
           <details class="rounded-md border border-stone-200 bg-white p-3">
-            <summary class="cursor-pointer text-sm font-medium text-stone-700">상세 결과</summary>
-            <% summary[:contest_results].each do |contest_result| %>
-              <section class="mt-3 space-y-2">
-                <h4 class="font-medium"><%= contest_result[:contest].title %></h4>
-                <div class="space-y-1 text-sm">
+            <summary class="cursor-pointer text-sm font-medium text-stone-700">학급 상세 결과 보기</summary>
+            <div class="mt-3 grid gap-3 lg:grid-cols-2">
+              <% summary[:contest_results].each do |contest_result| %>
+                <section class="space-y-3 rounded-md border border-stone-200 bg-stone-50 p-3">
+                  <h4 class="font-medium"><%= contest_result[:contest].title %></h4>
+                  <div class="grid gap-1 md:grid-cols-2">
                     <% contest_result[:candidate_results].each do |candidate_result| %>
-                      <div class="flex justify-between rounded-md bg-stone-50 px-3 py-2">
-                        <span>기호 <%= candidate_result[:candidate].number %>번 <%= candidate_result[:candidate].name %></span>
-                        <span class="font-medium"><%= candidate_result[:votes_count] %>표</span>
+                      <div class="flex items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-2 text-sm">
+                        <span class="w-14 shrink-0 whitespace-nowrap font-medium text-stone-500">기호 <%= candidate_result[:candidate].number %></span>
+                        <span class="min-w-0 flex-1 font-medium text-stone-900"><%= candidate_result[:candidate].name %></span>
+                        <span class="w-12 shrink-0 text-right font-semibold tabular-nums text-stone-900"><%= candidate_result[:votes_count] %>표</span>
                       </div>
                     <% end %>
-                    <div class="flex justify-between rounded-md bg-stone-50 px-3 py-2">
-                      <span>기권</span>
-                      <span class="font-medium"><%= contest_result[:abstentions_count] %>표</span>
-                    </div>
-                </div>
-              </section>
-            <% end %>
+                  </div>
+                  <div class="border-t border-stone-200 pt-2 text-sm">
+                    <p class="font-medium text-stone-700">기권 <%= contest_result[:abstentions_count] %>표</p>
+                  </div>
+                </section>
+              <% end %>
+            </div>
           </details>
         <% else %>
           <p class="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">이 학급은 아직 닫힌 세션이 아니므로 전체 결과 합산에서 제외됩니다.</p>

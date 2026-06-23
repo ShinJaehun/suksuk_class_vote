@@ -303,19 +303,39 @@ RSpec.describe "Election sessions", type: :request do
       sign_in election_session.teacher
 
       get elections_session_path(election_session)
+      visible_text = page_text
+      result_text = visible_text[visible_text.index("투표 결과")..]
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("투표가 종료되었습니다.")
-      expect(response.body).to include("선거 결과")
+      expect(response.body).to include("투표 결과")
+      expect(result_text).to include("전체 투표자")
+      expect(result_text).to include("투표 완료")
+      expect(result_text).to include("미참여")
       expect(response.body).to include("Contest 1")
-      expect(response.body).to include("최다 득표 후보")
+      expect(response.body).to include("기호 1")
       expect(response.body).to include("후보1")
       expect(response.body).to include("1표")
+      expect(response.body).to include("기호 2")
+      expect(response.body).to include("후보2")
+      expect(response.body).to include("0표")
       expect(response.body).to include("기권 1표")
       expect(response.body).to include("투표 종료")
+      expect(visible_text.index("투표 진행 상황")).to be < visible_text.index("투표 결과")
+      expect(visible_text.rindex("투표자 명단")).to be < visible_text.index("투표 결과")
 
+      expect(response.body).not_to include("학급 결과 검산")
+      expect(response.body).not_to include("이 화면을 인쇄하거나 결과를 메모해 개표 때 학급 집계와 비교하세요.")
       expect(response.body).not_to include("세션 결과")
       expect(response.body).not_to include("무결성 확인")
+      expect(result_text).not_to include("선거명")
+      expect(result_text).not_to include("학급명")
+      expect(result_text).not_to include("상태")
+      expect(result_text).not_to include("종료 시각")
+      expect(result_text).not_to include("기권 수")
+      expect(response.body).not_to include("최다 득표 후보")
+      expect(response.body).not_to include("공동 최다 득표 후보")
+      expect(response.body).not_to include("후보 득표")
+      expect(response.body).not_to include("합계 검산 필요")
       expect(response.body).not_to include("completed")
       expect(response.body).not_to include("abstained")
       expect(response.body).not_to include("투표 화면 열기")
@@ -643,8 +663,9 @@ RSpec.describe "Election sessions", type: :request do
       follow_redirect!
 
       expect(election_session.reload).to be_closed
-      expect(response.body).to include("투표가 종료되었습니다.")
-      expect(response.body).to include("선거 결과")
+      expect(response.body).to include("투표 결과")
+      expect(response.body).not_to include("학급 결과 검산")
+      expect(response.body).not_to include("합계 검산 필요")
     end
   end
 
@@ -853,8 +874,13 @@ RSpec.describe "Election sessions", type: :request do
   end
 
   def closed_session_with_results
-    election_session = started_session
+    election_session = draft_session
     contest = election_session.election.election_contests.sole
+    create(:election_candidate, election_contest: contest, number: 2, name: "후보2")
+
+    Elections::StartSession.new(election_session: election_session, actor: election_session.teacher).call
+    election_session.reload
+
     candidate = contest.election_candidates.order(:number).first
     voters = election_session.election_voters.order(:position).to_a
 
