@@ -259,18 +259,26 @@ RSpec.describe "Election sessions", type: :request do
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
     end
 
-    it "shows integrity report information for admins on closed sessions" do
+    it "shows result summary information for admins on closed sessions" do
       election_session = closed_session
       sign_in create(:user, :admin)
 
       get elections_session_path(election_session)
+      visible_text = page_text
+      result_text = visible_text[visible_text.index("투표 결과")..]
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("세션 결과")
-      expect(response.body).to include("투표시작")
-      expect(response.body).to include("투표종료")
-      expect(response.body).to include("무결성 확인 통과")
-      expect(response.body).to include("완료")
+      expect(result_text).to include("투표 결과")
+      expect(result_text).to include("전체 투표자")
+      expect(result_text).to include("투표 완료")
+      expect(result_text).to include("미참여")
+      expect(result_text).not_to include("세션 결과")
+      expect(result_text).not_to include("투표시작")
+      expect(result_text).not_to include("투표종료")
+      expect(result_text).not_to include("참여 상태")
+      expect(result_text).not_to include("무결성 확인")
+      expect(result_text).not_to include("항목별 결과")
+      expect(result_text).not_to include("결석")
       expect(response.body).not_to include("single_choice")
       expect(response.body).not_to include("1-1명 선택")
       expect(response.body).not_to include("선출 1명")
@@ -282,16 +290,33 @@ RSpec.describe "Election sessions", type: :request do
       sign_in create(:user, :admin)
 
       get elections_session_path(election_session)
+      visible_text = page_text
+      result_text = visible_text[visible_text.index("투표 결과")..]
+      result_html = response.body.split("투표 결과", 2).last.split("투표 대상 학생", 2).first
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("세션 결과")
-      expect(response.body).to include("Contest 1")
-      expect(response.body).to include("후보1")
-      expect(response.body).to include("1표")
-      expect(response.body).to include("기권 1표")
-      expect(response.body).to include("무결성 확인 통과")
-      expect(response.body).to include("완료 1명")
-      expect(response.body).to include("기권 1명")
+      expect(result_text).to include("투표 결과")
+      expect(result_text).to include("전체 투표자")
+      expect(result_text).to include("투표 완료")
+      expect(result_text).to include("미참여")
+      expect(result_text).to include("Contest 1")
+      expect(result_text).to include("기호 1")
+      expect(result_text).to include("후보1")
+      expect(result_text).to include("1표")
+      expect(result_text).to include("기호 2")
+      expect(result_text).to include("후보2")
+      expect(result_text).to include("0표")
+      expect(result_text).to include("기권 1표")
+      expect(result_text).not_to include("세션 결과")
+      expect(result_text).not_to include("투표시작")
+      expect(result_text).not_to include("투표종료")
+      expect(result_text).not_to include("참여 상태")
+      expect(result_text).not_to include("결석")
+      expect(result_text).not_to include("무결성 확인")
+      expect(result_text).not_to include("항목별 결과")
+      expect(result_html).not_to include("번호</th>")
+      expect(result_html).not_to include("후보</th>")
+      expect(result_html).not_to include("득표</th>")
       expect(response.body).not_to include("대기")
       expect(response.body).not_to include("single_choice")
       expect(response.body).not_to include("1-1명 선택")
