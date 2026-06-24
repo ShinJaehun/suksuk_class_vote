@@ -64,10 +64,13 @@ RSpec.describe "Voter groups", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("관리자 확인 그룹")
       expect(response.body).to include("4-11")
+      expect(response.body).to include("투표자 명단 이름 수정")
+      expect(response.body).to include(edit_participant_group_path(participant_group))
+      expect(response.body).to include("투표자 명단 삭제")
       expect(response.body).not_to include("4-11 &lt;teacher411@example.com&gt;")
     end
 
-    it "shows student entry placeholders" do
+    it "shows student entry controls and hides group management from teachers" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       participant_slot = create(:participant_slot, participant_group: participant_group)
@@ -80,10 +83,9 @@ RSpec.describe "Voter groups", type: :request do
       expect(response.body).to include(new_participant_group_participant_slot_path(participant_group))
       expect(response.body).to include("여러 명 추가")
       expect(response.body).to include(new_participant_group_bulk_participant_slots_path(participant_group))
-      expect(response.body).to include("투표자 명단 이름 수정")
-      expect(response.body).to include(edit_participant_group_path(participant_group))
-      expect(response.body).to include("투표자 명단 삭제")
-      expect(response.body).to include(participant_group_path(participant_group))
+      expect(response.body).not_to include("투표자 명단 이름 수정")
+      expect(response.body).not_to include(edit_participant_group_path(participant_group))
+      expect(response.body).not_to include("투표자 명단 삭제")
       expect(response.body).to include("수정")
       expect(response.body).to include(edit_participant_group_participant_slot_path(participant_group, participant_slot))
       expect(response.body).to include("삭제")
@@ -101,7 +103,8 @@ RSpec.describe "Voter groups", type: :request do
 
       expect(response.body).to include("#{poll.title} 투표로 돌아가기")
       expect(response.body).to include(poll_path(poll))
-      expect(response.body).to include(edit_participant_group_path(participant_group, return_to_poll_id: poll.id))
+      expect(response.body).not_to include(edit_participant_group_path(participant_group, return_to_poll_id: poll.id))
+      expect(response.body).not_to include("투표자 명단 이름 수정")
       expect(response.body).to include(new_participant_group_participant_slot_path(participant_group, return_to_poll_id: poll.id))
       expect(response.body).to include(new_participant_group_bulk_participant_slots_path(participant_group, return_to_poll_id: poll.id))
       expect(response.body).to include(edit_participant_group_participant_slot_path(participant_group, participant_slot, return_to_poll_id: poll.id))
@@ -122,7 +125,7 @@ RSpec.describe "Voter groups", type: :request do
       expect(response.body).not_to include("투표로 돌아가기")
     end
 
-    it "shows group and student change links while used by an in-progress poll" do
+    it "shows student change links while used by an in-progress poll" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       participant_slot = create(:participant_slot, participant_group: participant_group)
@@ -131,7 +134,8 @@ RSpec.describe "Voter groups", type: :request do
 
       get participant_group_path(participant_group)
 
-      expect(response.body).to include(edit_participant_group_path(participant_group))
+      expect(response.body).not_to include(edit_participant_group_path(participant_group))
+      expect(response.body).not_to include("투표자 명단 이름 수정")
       expect(response.body).to include(new_participant_group_participant_slot_path(participant_group))
       expect(response.body).to include(new_participant_group_bulk_participant_slots_path(participant_group))
       expect(response.body).to include(edit_participant_group_participant_slot_path(participant_group, participant_slot))

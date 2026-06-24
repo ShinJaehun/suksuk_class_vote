@@ -21,7 +21,9 @@ RSpec.describe "Voter slots", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("투표자 1명 추가")
-      expect(response.body).to include("1번 투표자를 추가합니다.")
+      expect(response.body).to include("번호")
+      expect(response.body).to include(">1</div>")
+      expect(response.body).to include('placeholder="이름"')
     end
 
     it "does not allow teachers to access another teacher's participant group single add form" do
@@ -53,7 +55,7 @@ RSpec.describe "Voter slots", type: :request do
 
       get new_participant_group_participant_slot_path(participant_group)
 
-      expect(response.body).to include("3번 투표자를 추가합니다.")
+      expect(response.body).to include(">3</div>")
     end
 
     it "allows access while the group is used by an in-progress poll" do
@@ -173,7 +175,10 @@ RSpec.describe "Voter slots", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("투표자 이름 수정")
-      expect(response.body).to include("1번 투표자입니다.")
+      expect(response.body).to include("번호")
+      expect(response.body).to include('name="participant_slot[number]"')
+      expect(response.body).to include('placeholder="번호"')
+      expect(response.body).to include('placeholder="이름"')
       expect(response.body).to include("수정 전")
     end
 
@@ -212,7 +217,7 @@ RSpec.describe "Voter slots", type: :request do
   end
 
   describe "PATCH /participant_groups/:participant_group_id/participant_slots/:id" do
-    it "updates a participant slot name without changing its number" do
+    it "updates a participant slot name and number" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
       participant_slot = create(:participant_slot, participant_group: participant_group, number: 3, name: "수정 전")
@@ -227,7 +232,7 @@ RSpec.describe "Voter slots", type: :request do
 
       participant_slot.reload
       expect(participant_slot.name).to eq("수정 후")
-      expect(participant_slot.number).to eq(3)
+      expect(participant_slot.number).to eq(1)
       expect(response).to redirect_to(participant_group_path(participant_group))
     end
 

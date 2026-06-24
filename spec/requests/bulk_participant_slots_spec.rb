@@ -52,10 +52,12 @@ RSpec.describe "Bulk participant slots", type: :request do
       get new_participant_group_bulk_participant_slots_path(participant_group), params: { count: 3 }
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("1번")
-      expect(response.body).to include("2번")
-      expect(response.body).to include("3번")
-      expect(response.body).to include("투표자 명단 저장")
+      expect(response.body).to include("번호")
+      expect(response.body).to include(">1</div>")
+      expect(response.body).to include(">2</div>")
+      expect(response.body).to include(">3</div>")
+      expect(response.body).to include('placeholder="이름"')
+      expect(response.body).to include("투표자 추가")
     end
 
     it "starts input numbers after existing participant slots" do
@@ -68,8 +70,8 @@ RSpec.describe "Bulk participant slots", type: :request do
 
       get new_participant_group_bulk_participant_slots_path(participant_group), params: { count: 2 }
 
-      expect(response.body).to include("4번")
-      expect(response.body).to include("5번")
+      expect(response.body).to include(">4</div>")
+      expect(response.body).to include(">5</div>")
     end
 
     it "shows an error for invalid count" do
