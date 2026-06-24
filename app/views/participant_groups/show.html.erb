@@ -14,17 +14,19 @@
         <p class="text-sm text-stone-600"><%= owner_label %></p>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2">
-        <%= link_to "투표자 명단 이름 수정",
-                    edit_participant_group_path(@participant_group, return_to_poll_id: @return_poll&.id),
-                    class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
-        <% unless @participant_group.used_by_draft_poll? %>
-          <%= button_to "투표자 명단 삭제",
-                        participant_group_path(@participant_group),
-                        method: :delete,
-                        class: "rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100" %>
-        <% end %>
-      </div>
+      <% if current_user.admin? %>
+        <div class="flex flex-wrap items-center gap-2">
+          <%= link_to "투표자 명단 이름 수정",
+                      edit_participant_group_path(@participant_group, return_to_poll_id: @return_poll&.id),
+                      class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
+          <% unless @participant_group.used_by_draft_poll? %>
+            <%= button_to "투표자 명단 삭제",
+                          participant_group_path(@participant_group),
+                          method: :delete,
+                          class: "rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100" %>
+          <% end %>
+        </div>
+      <% end %>
     </div>
   </div>
 

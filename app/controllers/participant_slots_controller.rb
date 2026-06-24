@@ -55,7 +55,7 @@ class ParticipantSlotsController < ApplicationController
   end
 
   def participant_slot_params
-    params.require(:participant_slot).permit(:name)
+    params.require(:participant_slot).permit(:name, :number)
   end
 
   def next_number

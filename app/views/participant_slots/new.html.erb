@@ -17,12 +17,17 @@
   <% end %>
 
   <div class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
-    <p class="text-sm text-stone-600"><%= @participant_slot.number %>번 투표자를 추가합니다.</p>
-
     <%= form_with model: [@participant_group, @participant_slot], url: participant_group_participant_slots_path(@participant_group, return_to_poll_id: params[:return_to_poll_id]), class: "space-y-4" do |form| %>
-      <div class="space-y-1">
-        <%= form.label :name, "이름", class: "text-sm font-medium text-stone-700" %>
-        <%= form.text_field :name, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+      <div class="grid gap-3 sm:grid-cols-[8rem_1fr]">
+        <div class="space-y-1">
+          <span class="text-sm font-medium text-stone-700">번호</span>
+          <div class="rounded-md border border-stone-200 bg-stone-50 px-3 py-2 text-stone-700"><%= @participant_slot.number %></div>
+        </div>
+
+        <div class="space-y-1">
+          <%= form.label :name, "이름", class: "text-sm font-medium text-stone-700" %>
+          <%= form.text_field :name, class: "w-full rounded-md border border-stone-300 px-3 py-2", placeholder: "이름" %>
+        </div>
       </div>
 
       <%= form.submit "투표자 추가", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>

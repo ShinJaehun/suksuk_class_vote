@@ -35,17 +35,25 @@
 
         <div class="space-y-3">
           <% @count.times do |index| %>
-            <div class="space-y-1">
-              <%= label_tag "bulk_participant_slots_names_#{index}", "#{start_number + index}번", class: "text-sm font-medium text-stone-700" %>
-              <%= text_field_tag "bulk_participant_slots[names][]",
-                                 @names&.[](index),
-                                 id: "bulk_participant_slots_names_#{index}",
-                                 class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+            <div class="grid gap-3 sm:grid-cols-[8rem_1fr]">
+              <div class="space-y-1">
+                <span class="text-sm font-medium text-stone-700">번호</span>
+                <div class="rounded-md border border-stone-200 bg-stone-50 px-3 py-2 text-stone-700"><%= start_number + index %></div>
+              </div>
+
+              <div class="space-y-1">
+                <%= label_tag "bulk_participant_slots_names_#{index}", "이름", class: "text-sm font-medium text-stone-700" %>
+                <%= text_field_tag "bulk_participant_slots[names][]",
+                                   @names&.[](index),
+                                   id: "bulk_participant_slots_names_#{index}",
+                                   class: "w-full rounded-md border border-stone-300 px-3 py-2",
+                                   placeholder: "이름" %>
+              </div>
             </div>
           <% end %>
         </div>
 
-        <%= form.submit "투표자 명단 저장", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+        <%= form.submit "투표자 추가", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
       <% end %>
     <% end %>
   </div>
