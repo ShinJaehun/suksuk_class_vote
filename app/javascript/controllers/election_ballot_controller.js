@@ -1,7 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = ["contest", "submit", "card", "stamp"]
+  static targets = ["contest", "submit", "card", "stamp", "warning"]
 
   connect() {
     this.transitioning = false
@@ -19,6 +19,22 @@ export default class extends Controller {
     const currentIndex = this.contestTargets.findIndex((contest) => !contest.hidden)
     const currentContest = this.contestTargets[currentIndex]
     if (!currentContest) return
+
+    this.hideWarning(currentContest)
+    this.syncContestSelection(currentContest)
+  }
+
+  submitContest() {
+    if (this.transitioning) return
+
+    const currentIndex = this.contestTargets.findIndex((contest) => !contest.hidden)
+    const currentContest = this.contestTargets[currentIndex]
+    if (!currentContest) return
+
+    if (!this.selectedChoiceFor(currentContest)) {
+      this.showWarning(currentContest)
+      return
+    }
 
     this.transitioning = true
     this.syncContestSelection(currentContest)
@@ -42,16 +58,22 @@ export default class extends Controller {
     this.cardsFor(contest).forEach((card) => {
       const choice = document.getElementById(card.dataset.electionBallotChoiceIdParam)
       const selected = choice?.checked === true
+      const abstain = choice?.value === "abstain"
 
-      card.classList.toggle("border-emerald-600", selected)
-      card.classList.toggle("bg-emerald-50", selected)
+      card.classList.toggle("border-emerald-600", selected && !abstain)
+      card.classList.toggle("bg-emerald-50", selected && !abstain)
+      card.classList.toggle("ring-emerald-500", selected && !abstain)
+      card.classList.toggle("border-amber-600", selected && abstain)
+      card.classList.toggle("bg-amber-100", selected && abstain)
+      card.classList.toggle("ring-amber-500", selected && abstain)
       card.classList.toggle("shadow-lg", selected)
       card.classList.toggle("ring-2", selected)
-      card.classList.toggle("ring-emerald-500", selected)
       card.classList.toggle("scale-[1.01]", selected)
 
-      card.classList.toggle("border-stone-200", !selected)
-      card.classList.toggle("bg-white", !selected)
+      card.classList.toggle("border-stone-200", !selected && !abstain)
+      card.classList.toggle("bg-white", !selected && !abstain)
+      card.classList.toggle("border-amber-300", !selected && abstain)
+      card.classList.toggle("bg-amber-50", !selected && abstain)
       card.classList.toggle("shadow-sm", !selected)
 
       const stamp = card.querySelector("[data-election-ballot-target~='stamp']")
@@ -66,5 +88,23 @@ export default class extends Controller {
 
   cardsFor(contest) {
     return this.cardTargets.filter((card) => contest.contains(card))
+  }
+
+  selectedChoiceFor(contest) {
+    return this.cardsFor(contest)
+      .map((card) => document.getElementById(card.dataset.electionBallotChoiceIdParam))
+      .find((choice) => choice?.checked === true)
+  }
+
+  showWarning(contest) {
+    this.warningTargets
+      .filter((warning) => contest.contains(warning))
+      .forEach((warning) => warning.classList.remove("hidden"))
+  }
+
+  hideWarning(contest) {
+    this.warningTargets
+      .filter((warning) => contest.contains(warning))
+      .forEach((warning) => warning.classList.add("hidden"))
   }
 }

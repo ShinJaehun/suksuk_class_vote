@@ -184,9 +184,10 @@ RSpec.describe "Election sessions", type: :request do
       visible_text = page_text
 
       expect(response).to have_http_status(:ok)
-      expect(visible_text).to include("투표 진행을 마무리합니다.")
+      expect(visible_text).to include("모든 학생의 투표가 끝났다면 반드시 투표 종료를 눌러 주세요.")
+      expect(visible_text).to include("종료 후에는 이 세션의 투표가 마감됩니다.")
       expect(visible_text).to include("투표 종료")
-      expect(response.body).to include("투표를 종료할까요?")
+      expect(response.body).to include("투표를 종료하면 이 세션의 투표가 마감됩니다. 종료하시겠습니까?")
     end
 
     it "does not show close controls when the progress is open" do
