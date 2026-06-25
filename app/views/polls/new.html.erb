@@ -1,4 +1,6 @@
 <div class="space-y-6">
+  <p><%= link_to "투표 목록으로 돌아가기", polls_path, class: "text-sm font-medium text-stone-700 underline" %></p>
+
   <div class="space-y-2">
     <h1 class="text-2xl font-semibold">새 투표</h1>
   </div>
@@ -29,15 +31,13 @@
     </div>
 
     <div class="space-y-1">
-      <%= form.label :participant_group_id, "투표자 명단", class: "text-sm font-medium text-stone-700" %>
+      <%= form.label :participant_group_id, "투표자 목록", class: "text-sm font-medium text-stone-700" %>
       <%= form.select :participant_group_id,
                       @selectable_participant_groups.map { |participant_group| ["#{participant_group.name} (투표자 #{participant_group.participant_slots.size}명)", participant_group.id] },
-                      { prompt: "투표자 명단을 선택하세요" },
+                      { prompt: "투표자 목록을 선택하세요" },
                       class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
     </div>
 
     <%= form.submit "투표 생성", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
   <% end %>
-
-  <p><%= link_to "투표 목록으로 돌아가기", polls_path, class: "text-sm font-medium text-stone-700 underline" %></p>
 </div>

@@ -1,4 +1,6 @@
 <div class="space-y-6">
+  <p><%= link_to "전교임원선거 투표자 목록으로 돌아가기", admin_election_rosters_path(school_id: @school.id), class: "text-sm font-medium text-stone-700 underline" %></p>
+
   <h1 class="text-2xl font-semibold">전교임원선거 학급 학년 단위 추가</h1>
 
   <% if @bulk_errors.present? %>
@@ -39,16 +41,16 @@
               <% end %>
             </p>
 
-            <div class="grid gap-3 sm:grid-cols-[8rem_1fr]">
-              <div class="space-y-1">
-                <%= label_tag "class_rows_#{index}_class_label", "반", class: "text-sm font-medium text-stone-700" %>
+            <div class="grid gap-3 sm:grid-cols-[3fr_6fr_4rem] sm:items-end">
+              <div>
+                <%= label_tag "class_rows_#{index}_class_label", "반", class: "sr-only" %>
                 <%= text_field_tag "class_rows[#{index}][class_label]",
                                    class_row["class_label"],
                                    id: "class_rows_#{index}_class_label",
                                    class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
               </div>
 
-              <div class="space-y-1">
+              <div>
                 <%= label_tag "class_rows_#{index}_teacher_id", "담당 교사", class: "sr-only" %>
                 <%= select_tag "class_rows[#{index}][teacher_id]",
                                options_from_collection_for_select(@teachers, :id, ->(teacher) { "#{teacher.name}/#{teacher.email}" }, class_row["teacher_id"]),
@@ -56,13 +58,13 @@
                                prompt: "담당 교사를 선택하세요",
                                class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
               </div>
-            </div>
 
-            <button type="button"
-                    class="text-sm font-medium text-rose-700 underline"
-                    data-action="bulk-class-roster#removeCard">
-              삭제
-            </button>
+              <button type="button"
+                      class="h-10 text-sm font-medium text-rose-700 underline"
+                      data-action="bulk-class-roster#removeCard">
+                삭제
+              </button>
+            </div>
           </div>
         <% end %>
       </div>
@@ -87,6 +89,4 @@
       <%= form.submit "다음", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
     <% end %>
   <% end %>
-
-  <p><%= link_to "전교임원선거 투표자 목록으로 돌아가기", admin_election_rosters_path(school_id: @school.id), class: "text-sm font-medium text-stone-700 underline" %></p>
 </div>

@@ -1,4 +1,6 @@
 <div class="space-y-6">
+  <p><%= link_to "전교임원선거 투표자 목록으로 돌아가기", admin_election_rosters_path, class: "text-sm font-medium text-stone-700 underline" %></p>
+
   <h1 class="text-2xl font-semibold">전교임원선거 학교 추가</h1>
 
   <% if @school.errors.any? %>
@@ -20,6 +22,4 @@
 
     <%= form.submit "학교 추가", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
   <% end %>
-
-  <p><%= link_to "전교임원선거 투표자 목록으로 돌아가기", admin_election_rosters_path, class: "text-sm font-medium text-stone-700 underline" %></p>
 </div>

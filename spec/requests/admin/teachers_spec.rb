@@ -28,6 +28,7 @@ RSpec.describe "Admin teachers", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("교사 계정 관리")
       expect(response.body).to include("교사 추가")
+      expect(response.body).not_to include("실전 운영 전 교사 계정을 미리 생성하고 확인합니다.")
       expect(response.body).to include(teacher.name)
       expect(response.body).to include(teacher.email)
       expect(response.body).to include("생성일")
@@ -42,8 +43,8 @@ RSpec.describe "Admin teachers", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("교사 추가")
-      expect(response.body).to include("실전 운영 전 교사 계정을 미리 생성합니다.")
-      expect(response.body).to include("초기 비밀번호는 별도로 교사에게 안내하세요.")
+      expect(response.body).not_to include("실전 운영 전 교사 계정을 미리 생성합니다.")
+      expect(response.body).not_to include("초기 비밀번호는 별도로 교사에게 안내하세요.")
       expect(response.body).to include("초기 비밀번호")
       expect(response.body).to include("초기 비밀번호 확인")
       expect(response.body).to include("교사 계정 생성")

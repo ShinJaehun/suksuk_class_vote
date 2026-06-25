@@ -126,7 +126,7 @@ RSpec.describe "Admin election rosters", type: :request do
         }
       end.not_to change(ParticipantGroup.school_election, :count)
 
-      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response).to have_http_status(:unprocessable_content)
       expect(response.body).to include("Class label")
     end
   end
@@ -189,7 +189,7 @@ RSpec.describe "Admin election rosters", type: :request do
         }
       end.not_to change(ParticipantGroup.school_election, :count)
 
-      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response).to have_http_status(:unprocessable_content)
       expect(response.body).to include("추가할 학급을 1개 이상 남겨두세요.")
     end
 
@@ -211,7 +211,7 @@ RSpec.describe "Admin election rosters", type: :request do
         }
       end.not_to change(ParticipantGroup.school_election, :count)
 
-      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response).to have_http_status(:unprocessable_content)
       expect(response.body).to include("이미 등록된 학급이 있습니다")
       expect(response.body).to include("4학년 해님반")
       expect(response.body).to include("삭제")
@@ -254,7 +254,7 @@ RSpec.describe "Admin election rosters", type: :request do
         }
       end.not_to change(ParticipantGroup.school_election, :count)
 
-      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response).to have_http_status(:unprocessable_content)
       expect(response.body).to include("모든 학급의 담당 교사를 선택하세요.")
     end
   end

@@ -265,6 +265,8 @@ RSpec.describe "Polls", type: :request do
       get new_poll_path
 
       expect(response).to have_http_status(:ok)
+      expect(response.body).to include("투표자 목록")
+      expect(response.body).to include("투표자 목록을 선택하세요")
       expect(response.body).to include("선택 가능 그룹 (투표자 1명)")
       expect(response.body).not_to include("빈 그룹")
       expect(response.body).not_to include("다른 교사 그룹")

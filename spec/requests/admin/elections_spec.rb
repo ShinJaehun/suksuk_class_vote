@@ -54,7 +54,7 @@ RSpec.describe "Admin elections", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("전교임원선거 만들기")
-      expect(response.body).to include("전교임원선거를 만든 뒤 후보/선거구/학급 세션을 구성합니다.")
+      expect(response.body).not_to include("전교임원선거를 만든 뒤 후보/선거구/학급 세션을 구성합니다.")
       expect(response.body).to include("선거 이름")
       expect(response.body).not_to include("선거 종류")
     end
@@ -142,7 +142,7 @@ RSpec.describe "Admin elections", type: :request do
 
     it "subscribes to admin overview updates and renders replace targets" do
       sign_in create(:user, :admin)
-      election = create(:election)
+      election = create(:election, status: :closed)
 
       get admin_election_path(election)
 
@@ -566,7 +566,7 @@ RSpec.describe "Admin elections", type: :request do
   describe "GET /admin/elections/:id/results" do
     it "shows aggregate session status counts to admins" do
       sign_in create(:user, :admin)
-      election = create(:election)
+      election = create(:election, status: :closed)
       create_admin_election_session(election: election, status: :closed, group_name: "6학년 1반")
       create_admin_election_session(election: election, status: :in_progress, group_name: "6학년 2반")
       create_admin_election_session(election: election, status: :draft, group_name: "6학년 3반")
@@ -576,6 +576,8 @@ RSpec.describe "Admin elections", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("선거 상세로 돌아가기")
+      expect(response.body).to include("종료됨")
+      expect(response.body).not_to include("닫힌 학급 투표만 결과에 집계됩니다.")
       expect(response.body).to include("전체 진행 현황")
       expect(response.body).to include("완료 학급")
       expect(response.body).to include("1/4")
