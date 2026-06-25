@@ -26,21 +26,15 @@
                                class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
   </div>
 
-  <div class="grid gap-4 sm:grid-cols-2">
-    <div class="space-y-1">
-      <%= form.label :grade, "학년", class: "text-sm font-medium text-stone-700" %>
-      <%= form.number_field :grade, min: 1, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
-    </div>
-
-    <div class="space-y-1">
-      <%= form.label :class_number, "반", class: "text-sm font-medium text-stone-700" %>
-      <%= form.number_field :class_number, min: 1, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
-    </div>
+  <div class="space-y-1">
+    <%= form.label :grade, "학년", class: "text-sm font-medium text-stone-700" %>
+    <%= form.number_field :grade, min: 1, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
   </div>
 
   <div class="space-y-1">
-    <%= form.label :name, "학급 이름", class: "text-sm font-medium text-stone-700" %>
-    <%= form.text_field :name, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+    <%= form.label :class_label, "반", class: "text-sm font-medium text-stone-700" %>
+    <%= form.text_field :class_label, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+    <p class="text-xs text-stone-500">예: 1, 2, 해님반, 달님반</p>
   </div>
 
   <%= form.submit "저장", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>

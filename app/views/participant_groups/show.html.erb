@@ -13,7 +13,7 @@
       <% owner_label = owner&.name.presence || owner&.email.presence || "담당 교사 정보 없음" %>
       <div class="space-y-1">
         <div class="flex flex-wrap items-center gap-2">
-          <h1 class="text-2xl font-semibold"><%= @participant_group.name %></h1>
+          <h1 class="text-2xl font-semibold"><%= @participant_group.display_name %></h1>
           <% if @participant_group.school_election? %>
             <span class="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-sm font-medium text-indigo-700">전교임원선거</span>
           <% end %>
@@ -21,7 +21,7 @@
         <p class="text-sm text-stone-600">
           <% if @participant_group.school_election? %>
             <%= @participant_group.school&.name || "학교 정보 없음" %>
-            · <%= @participant_group.grade %>-<%= @participant_group.class_number %>
+            · <%= @participant_group.school_election_short_label %>
             · 담당 교사: <%= owner_label %>
           <% else %>
             담당 교사: <%= owner_label %>

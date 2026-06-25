@@ -12,7 +12,7 @@ module Admin
       end
 
       @participant_groups = if @school.present?
-        @school.participant_groups.school_election.includes(:user, :participant_slots).order(:grade, :class_number, :name)
+        @school.participant_groups.school_election.includes(:user, :participant_slots).order(:grade, :class_label, :name)
       else
         ParticipantGroup.none
       end
@@ -37,13 +37,12 @@ module Admin
 
       @step = params[:step]
       @grade = params[:grade]
-      @start_class_number = params[:start_class_number]
-      @end_class_number = params[:end_class_number]
+      @class_count = params[:class_count]
       @bulk_errors = []
 
       return unless @step == "assign"
 
-      @class_numbers = bulk_class_numbers
+      @class_rows = bulk_class_rows_from_count
     end
 
     def create
@@ -71,12 +70,10 @@ module Admin
 
       @step = "assign"
       @grade = params[:grade]
-      @start_class_number = params[:start_class_number]
-      @end_class_number = params[:end_class_number]
       @bulk_errors = []
-      @class_numbers = bulk_class_numbers
+      @class_rows = submitted_class_rows
+      validate_class_rows
       validate_duplicate_classes
-      validate_teacher_assignments
 
       if @bulk_errors.any?
         render :new_bulk, status: :unprocessable_entity
@@ -84,12 +81,12 @@ module Admin
       end
 
       ParticipantGroup.transaction do
-        @class_numbers.each do |class_number|
+        @class_rows.each do |row|
           @school.participant_groups.create!(
             purpose: :school_election,
             grade: @grade.to_i,
-            class_number: class_number,
-            user_id: teacher_assignments[class_number.to_s]
+            class_label: row["class_label"],
+            user_id: row["teacher_id"]
           )
         end
       end
@@ -140,44 +137,51 @@ module Admin
     end
 
     def participant_group_params
-      params.require(:participant_group).permit(:user_id, :grade, :class_number, :name)
+      params.require(:participant_group).permit(:user_id, :grade, :class_label)
     end
 
-    def bulk_class_numbers
-      if params[:class_numbers_present].present?
-        class_numbers = Array(params[:class_numbers]).filter_map do |class_number|
-          Integer(class_number, exception: false)
-        end.uniq
-
-        @bulk_errors << "추가할 학급을 1개 이상 남겨두세요." if class_numbers.empty?
-        return @bulk_errors.empty? ? class_numbers : []
-      end
-
+    def bulk_class_rows_from_count
       grade = @grade.to_i
-      start_class_number = @start_class_number.to_i
-      end_class_number = @end_class_number.to_i
+      class_count = @class_count.to_i
 
       @bulk_errors << "학년은 1 이상의 숫자로 입력하세요." if grade < 1
-      @bulk_errors << "시작 반은 1 이상의 숫자로 입력하세요." if start_class_number < 1
-      @bulk_errors << "끝 반은 1 이상의 숫자로 입력하세요." if end_class_number < 1
-      @bulk_errors << "시작 반은 끝 반보다 클 수 없습니다." if start_class_number.positive? && end_class_number.positive? && start_class_number > end_class_number
+      @bulk_errors << "학급 수는 1 이상의 숫자로 입력하세요." if class_count < 1
+      @bulk_errors << "한 번에 최대 30개 학급까지만 추가할 수 있습니다." if class_count > 30
 
-      class_numbers = start_class_number..end_class_number
-      @bulk_errors << "한 번에 최대 30개 반까지만 추가할 수 있습니다." if @bulk_errors.empty? && class_numbers.count > 30
+      return [] if @bulk_errors.any?
 
-      @bulk_errors.empty? ? class_numbers.to_a : []
+      Array.new(class_count) do |index|
+        { "class_label" => (index + 1).to_s, "teacher_id" => "" }
+      end
     end
 
-    def validate_teacher_assignments
+    def submitted_class_rows
+      rows = params[:class_rows]
+      return [] if rows.blank?
+
+      row_hash = rows.respond_to?(:to_unsafe_h) ? rows.to_unsafe_h : rows
+      row_hash.values.map do |row|
+        {
+          "class_label" => row["class_label"].to_s.strip,
+          "teacher_id" => row["teacher_id"].to_s
+        }
+      end
+    end
+
+    def validate_class_rows
+      @bulk_errors << "학년은 1 이상의 숫자로 입력하세요." if @grade.to_i < 1
+      @bulk_errors << "추가할 학급을 1개 이상 남겨두세요." if @class_rows.empty?
       return if @bulk_errors.any?
 
-      missing_class_numbers = @class_numbers.select { |class_number| teacher_assignments[class_number.to_s].blank? }
-      if missing_class_numbers.any?
-        @bulk_errors << "모든 학급의 담당 교사를 선택하세요."
-        return
+      if @class_rows.any? { |row| row["class_label"].blank? }
+        @bulk_errors << "모든 학급의 반을 입력하세요."
       end
 
-      selected_teacher_ids = teacher_assignments.values_at(*@class_numbers.map(&:to_s)).map(&:to_i)
+      if @class_rows.any? { |row| row["teacher_id"].blank? }
+        @bulk_errors << "모든 학급의 담당 교사를 선택하세요."
+      end
+
+      selected_teacher_ids = @class_rows.map { |row| row["teacher_id"].to_i }.reject(&:zero?)
       valid_teacher_ids = @teachers.where(id: selected_teacher_ids.uniq).pluck(:id)
       @bulk_errors << "담당 교사 선택이 올바르지 않습니다." if (selected_teacher_ids.uniq - valid_teacher_ids).any?
     end
@@ -187,18 +191,29 @@ module Admin
 
       duplicate_participant_groups = @school.participant_groups
                                             .school_election
-                                            .where(grade: @grade.to_i, class_number: @class_numbers)
-                                            .order(:grade, :class_number, :name)
-      return if duplicate_participant_groups.empty?
+                                            .where(grade: @grade.to_i)
 
-      @bulk_errors << "이미 등록된 학급이 있습니다: #{duplicate_participant_groups.map { |participant_group| "#{participant_group.grade}학년 #{participant_group.class_number}반" }.join(", ")}"
+      duplicate_labels = @class_rows.filter_map { |row| row["class_label"].presence }
+      existing_duplicates = []
+      existing_duplicates += duplicate_participant_groups.where(class_label: duplicate_labels).to_a if duplicate_labels.any?
+
+      row_keys = @class_rows.map { |row| row["class_label"] }
+      duplicate_row_keys = row_keys.tally.select { |_key, count| count > 1 }.keys
+
+      return if existing_duplicates.empty? && duplicate_row_keys.empty?
+
+      duplicate_display_names = existing_duplicates.map(&:display_name)
+      duplicate_display_names += @class_rows.select { |row| duplicate_row_keys.include?(row["class_label"]) }
+                                            .map { |row| class_row_display_name(row) }
+                                            .uniq
+
+      @bulk_errors << "이미 등록된 학급이 있습니다: #{duplicate_display_names.join(", ")}"
     end
 
-    def teacher_assignments
-      assignments = params[:teacher_assignments]
-      return {} if assignments.blank?
-
-      assignments.respond_to?(:to_unsafe_h) ? assignments.to_unsafe_h : assignments
+    def class_row_display_name(row)
+      label = row["class_label"].to_s
+      label_for_display = label.match?(/\A\d+\z/) ? "#{label}반" : label
+      "#{@grade.to_i}학년 #{label_for_display}"
     end
 
   end

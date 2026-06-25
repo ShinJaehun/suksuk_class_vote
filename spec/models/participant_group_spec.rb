@@ -25,19 +25,35 @@ RSpec.describe ParticipantGroup, type: :model do
     end
 
     it "requires school fields for school election groups" do
-      participant_group = build(:participant_group, :school_election, school: nil, grade: nil, class_number: nil)
+      participant_group = build(:participant_group, :school_election, school: nil, grade: nil, class_label: nil, name: nil)
 
       expect(participant_group).not_to be_valid
       expect(participant_group.errors[:school]).to be_present
       expect(participant_group.errors[:grade]).to be_present
-      expect(participant_group.errors[:class_number]).to be_present
+      expect(participant_group.errors[:class_label]).to be_present
     end
 
-    it "sets a default name for school election groups" do
-      participant_group = build(:participant_group, :school_election, name: nil, grade: 5, class_number: 2)
+    it "sets a default name for numeric school election class labels" do
+      participant_group = build(:participant_group, :school_election, name: nil, grade: 5, class_label: "2")
 
       expect(participant_group).to be_valid
       expect(participant_group.name).to eq("5학년 2반")
+      expect(participant_group.display_name).to eq("5학년 2반")
+    end
+
+    it "sets a default name for text school election class labels" do
+      participant_group = build(:participant_group, :school_election, name: nil, grade: 5, class_label: "해님반")
+
+      expect(participant_group).to be_valid
+      expect(participant_group.name).to eq("5학년 해님반")
+      expect(participant_group.display_name).to eq("5학년 해님반")
+    end
+
+    it "does not add a duplicate class suffix when class label already includes it" do
+      participant_group = build(:participant_group, :school_election, name: nil, grade: 5, class_label: "1반")
+
+      expect(participant_group).to be_valid
+      expect(participant_group.name).to eq("5학년 1반")
     end
 
     it "requires a teacher owner for school election groups" do
@@ -49,11 +65,19 @@ RSpec.describe ParticipantGroup, type: :model do
 
     it "prevents duplicate school election classes in the same school" do
       school = create(:school)
-      create(:participant_group, :school_election, school: school, grade: 4, class_number: 1)
-      duplicate_group = build(:participant_group, :school_election, school: school, grade: 4, class_number: 1)
+      create(:participant_group, :school_election, school: school, grade: 4, class_label: "해님반")
+      duplicate_group = build(:participant_group, :school_election, school: school, grade: 4, class_label: "해님반")
 
       expect(duplicate_group).not_to be_valid
-      expect(duplicate_group.errors[:class_number]).to be_present
+      expect(duplicate_group.errors[:class_label]).to be_present
+    end
+
+    it "syncs the name when the school election class label changes" do
+      participant_group = create(:participant_group, :school_election, grade: 4, class_label: "1")
+
+      participant_group.update!(class_label: "달님반")
+
+      expect(participant_group.reload.name).to eq("4학년 달님반")
     end
 
     it "allows teacher personal groups with the same class numbers" do

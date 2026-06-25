@@ -6,32 +6,64 @@ class ParticipantGroup < ApplicationRecord
 
   enum :purpose, { teacher_personal: 0, school_election: 10 }
 
+  before_validation :normalize_school_election_class_label
   before_validation :set_default_school_election_name
   before_destroy :ensure_not_used_by_draft_polls, prepend: true
 
-  validates :name, presence: true
+  validates :name, presence: true, unless: :school_election?
   validates :user, presence: true
   validates :purpose, presence: true
   validates :school, presence: true, if: :school_election?
   validates :grade, presence: true, numericality: { only_integer: true, greater_than: 0 }, if: :school_election?
-  validates :class_number, presence: true, numericality: { only_integer: true, greater_than: 0 }, if: :school_election?
-  validates :class_number,
-            uniqueness: { scope: %i[school_id purpose grade], message: "is already registered for this school and grade" },
-            if: :school_election?
+  validates :class_label, presence: true, if: :school_election?
+  validate :school_election_class_identity_must_be_unique
   validate :school_election_user_must_be_teacher
 
   def used_by_draft_poll?
     polls.draft.exists?
   end
 
+  def display_name
+    return school_election_default_name.presence || name if school_election?
+
+    name.presence || school_election_default_name
+  end
+
+  def school_election_default_name
+    return unless school_election?
+    return if grade.blank? || class_label.blank?
+
+    "#{grade}학년 #{class_label_for_display}"
+  end
+
+  def school_election_short_label
+    return display_name unless school_election?
+    return display_name if grade.blank? || class_label.blank?
+
+    "#{grade}-#{class_label}"
+  end
+
+  def class_label_for_display
+    label = class_label.to_s.strip
+    return if label.blank?
+    return "#{label}반" if label.match?(/\A\d+\z/)
+
+    label
+  end
+
   private
+
+  def normalize_school_election_class_label
+    return unless school_election?
+
+    self.class_label = class_label.to_s.strip.presence
+  end
 
   def set_default_school_election_name
     return unless school_election?
-    return if name.present?
-    return if grade.blank? || class_number.blank?
+    return if grade.blank? || class_label.blank?
 
-    self.name = "#{grade}학년 #{class_number}반"
+    self.name = school_election_default_name
   end
 
   def ensure_not_used_by_draft_polls
@@ -47,5 +79,17 @@ class ParticipantGroup < ApplicationRecord
     return if user.teacher?
 
     errors.add(:user, "must be a teacher")
+  end
+
+  def school_election_class_identity_must_be_unique
+    return unless school_election?
+    return if school_id.blank? || grade.blank? || class_label.blank?
+
+    scope = ParticipantGroup.school_election.where(school_id: school_id, grade: grade)
+    scope = scope.where.not(id: id) if persisted?
+
+    duplicate_exists = scope.where(class_label: class_label).exists?
+
+    errors.add(:class_label, "is already registered for this school and grade") if duplicate_exists
   end
 end

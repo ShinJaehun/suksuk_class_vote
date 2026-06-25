@@ -120,7 +120,7 @@ module Admin
         .includes(:user)
         .school_election
         .where.not(id: assigned_participant_group_ids)
-        .order(:grade, :class_number, "users.name", "users.email", :name)
+        .order(:grade, :class_label, "users.name", "users.email", :name)
       @election_status_report = Elections::StatusReport.new(election: @election).to_h
     end
 

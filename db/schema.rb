@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_25_000200) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_25_000300) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -178,6 +178,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_25_000200) do
   end
 
   create_table "participant_groups", force: :cascade do |t|
+    t.string "class_label"
     t.integer "class_number"
     t.datetime "created_at", null: false
     t.integer "grade"
@@ -188,6 +189,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_25_000200) do
     t.bigint "user_id", null: false
     t.index ["purpose", "grade", "class_number"], name: "index_participant_groups_on_purpose_and_grade_and_class_number"
     t.index ["purpose"], name: "index_participant_groups_on_purpose"
+    t.index ["school_id", "purpose", "grade", "class_label"], name: "idx_on_school_id_purpose_grade_class_label_6233e209ee"
     t.index ["school_id"], name: "index_participant_groups_on_school_id"
     t.index ["user_id"], name: "index_participant_groups_on_user_id"
   end

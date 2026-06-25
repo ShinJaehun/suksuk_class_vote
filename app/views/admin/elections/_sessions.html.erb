@@ -28,7 +28,7 @@
                 <div class="flex flex-col gap-3 rounded-md border border-indigo-100 bg-indigo-50/30 p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div class="space-y-1">
                     <div class="flex flex-wrap items-center gap-2">
-                      <h4 class="font-medium"><%= participant_group.grade %>학년 <%= participant_group.class_number %>반</h4>
+                      <h4 class="font-medium"><%= participant_group.display_name %></h4>
                       <span class="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-sm font-medium text-indigo-700">전교임원선거</span>
                     </div>
                     <p class="text-sm text-stone-600">
@@ -73,7 +73,7 @@
         <div class="flex flex-col gap-3 rounded-md border border-stone-200 bg-stone-50 p-3 sm:flex-row sm:items-center sm:justify-between">
           <div class="space-y-1">
             <div class="flex flex-wrap items-center gap-2">
-              <h3 class="font-medium"><%= session.participant_group.name %></h3>
+              <h3 class="font-medium"><%= session.participant_group.display_name %></h3>
               <span class="rounded-md border px-2 py-1 text-xs font-medium <%= status_class %>"><%= display_status %></span>
             </div>
             <p class="text-sm text-stone-600">

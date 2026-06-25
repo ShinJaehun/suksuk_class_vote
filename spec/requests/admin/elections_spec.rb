@@ -156,7 +156,7 @@ RSpec.describe "Admin elections", type: :request do
       sign_in create(:user, :admin)
       election = create(:election, title: "2026 전교학생회 선거")
       teacher = create(:user, name: "김담임", email: "teacher@example.com")
-      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, name: "6학년 1반", grade: 6, class_number: 1)
+      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, name: "6학년 1반", grade: 6, class_label: "1")
       create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
 
       get admin_election_path(election)
@@ -356,7 +356,7 @@ RSpec.describe "Admin elections", type: :request do
       teacher = create(:user)
       sign_in teacher
       election = create(:election, title: "중단된 전교임원선거", status: :stopped)
-      participant_group = create(:participant_group, :school_election, user: teacher, name: "6학년 1반", grade: 6, class_number: 1)
+      participant_group = create(:participant_group, :school_election, user: teacher, name: "6학년 1반", grade: 6, class_label: "1")
       create(:election_session, election: election, teacher: teacher, participant_group: participant_group, status: :in_progress)
 
       get polls_path
@@ -710,9 +710,24 @@ RSpec.describe "Admin elections", type: :request do
 
   def create_admin_election_session(election:, status:, group_name:)
     teacher = create(:user)
-    participant_group = create(:participant_group, :school_election, user: teacher, name: group_name)
-
+    grade, class_label = parse_school_election_group_name(group_name)
+    participant_group = create(:participant_group,
+                               :school_election,
+                               user: teacher,
+                               grade: grade,
+                               class_label: class_label)
     create(:election_session, election: election, teacher: teacher, participant_group: participant_group, status: status)
+  end
+
+  def parse_school_election_group_name(group_name)
+    match = group_name.match(/\A(\d+)학년\s+(.+)\z/)
+    raise ArgumentError, "invalid school election group name: #{group_name}" unless match
+
+    grade = match[1].to_i
+    class_label = match[2].strip
+    class_label_match = class_label.match(/\A(\d+)반\z/)
+    class_label = class_label_match[1] if class_label_match
+    [ grade, class_label ]
   end
 
   def startable_election

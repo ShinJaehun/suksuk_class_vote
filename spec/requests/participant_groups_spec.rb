@@ -202,7 +202,7 @@ RSpec.describe "Voter groups", type: :request do
     it "allows teachers to manage students in their school election participant group without container controls" do
       teacher = create(:user)
       school = create(:school, name: "아라초")
-      participant_group = create(:participant_group, :school_election, user: teacher, school: school, grade: 4, class_number: 1)
+      participant_group = create(:participant_group, :school_election, user: teacher, school: school, grade: 4, class_label: "1")
       participant_slot = create(:participant_slot, participant_group: participant_group)
       sign_in teacher
 

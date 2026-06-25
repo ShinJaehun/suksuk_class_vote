@@ -9,6 +9,8 @@ FactoryBot.define do
       association :school
       grade { 4 }
       class_number { 1 }
+      class_label { "1" }
+      name { nil }
     end
 
     trait :with_participant_slot do
