@@ -23,6 +23,29 @@ RSpec.describe ParticipantGroup, type: :model do
       expect(participant_group).not_to be_valid
       expect(participant_group.errors[:user]).to be_present
     end
+
+    it "requires school fields for school election groups" do
+      participant_group = build(:participant_group, :school_election, school_name: nil, grade: nil, class_number: nil)
+
+      expect(participant_group).not_to be_valid
+      expect(participant_group.errors[:school_name]).to be_present
+      expect(participant_group.errors[:grade]).to be_present
+      expect(participant_group.errors[:class_number]).to be_present
+    end
+
+    it "sets a default name for school election groups" do
+      participant_group = build(:participant_group, :school_election, name: nil, grade: 5, class_number: 2)
+
+      expect(participant_group).to be_valid
+      expect(participant_group.name).to eq("5학년 2반")
+    end
+
+    it "requires a teacher owner for school election groups" do
+      participant_group = build(:participant_group, :school_election, user: build(:user, :admin))
+
+      expect(participant_group).not_to be_valid
+      expect(participant_group.errors[:user]).to be_present
+    end
   end
 
   describe "destroy guard" do

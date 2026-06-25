@@ -38,6 +38,7 @@
               <% if current_user.admin? %>
                 <%= link_to "교사 관리", admin_teachers_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
                 <%= link_to "전교임원선거 관리", admin_elections_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
+                <%= link_to "전교임원선거 투표자 명단", admin_election_rosters_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
               <% end %>
             <% end %>
           </div>

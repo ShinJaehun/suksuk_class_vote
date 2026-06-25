@@ -4,7 +4,7 @@ class ParticipantGroupsController < ApplicationController
   before_action :set_return_poll, only: %i[show edit update destroy]
 
   def index
-    @participant_groups = policy_scope(ParticipantGroup).includes(:participant_slots, :user).order(:name)
+    @participant_groups = current_user.participant_groups.teacher_personal.includes(:participant_slots).order(:name)
     authorize ParticipantGroup
   end
 
@@ -14,15 +14,16 @@ class ParticipantGroupsController < ApplicationController
 
   def edit
     authorize @participant_group
+    redirect_to edit_admin_election_roster_path(@participant_group) if admin_school_election_group?
   end
 
   def new
-    @participant_group = ParticipantGroup.new
+    @participant_group = current_user.participant_groups.build(purpose: :teacher_personal)
     authorize ParticipantGroup
   end
 
   def create
-    @participant_group = current_user.participant_groups.build(participant_group_params)
+    @participant_group = current_user.participant_groups.build(teacher_participant_group_params.merge(purpose: :teacher_personal))
     authorize @participant_group
 
     if @participant_group.save
@@ -34,6 +35,10 @@ class ParticipantGroupsController < ApplicationController
 
   def update
     authorize @participant_group
+    if admin_school_election_group?
+      redirect_to edit_admin_election_roster_path(@participant_group), alert: "전교임원선거 투표자 명단은 별도 메뉴에서 수정합니다."
+      return
+    end
 
     if @participant_group.update(participant_group_params)
       redirect_to participant_group_return_path, notice: "투표자 명단을 수정했습니다."
@@ -44,6 +49,10 @@ class ParticipantGroupsController < ApplicationController
 
   def destroy
     authorize @participant_group
+    if admin_school_election_group?
+      redirect_to admin_election_rosters_path(school_name: @participant_group.school_name), alert: "전교임원선거 투표자 명단은 별도 메뉴에서 삭제합니다."
+      return
+    end
 
     if @participant_group.destroy
       redirect_to participant_groups_path, notice: "투표자 명단을 삭제했습니다."
@@ -59,6 +68,10 @@ class ParticipantGroupsController < ApplicationController
   end
 
   def participant_group_params
+    teacher_participant_group_params
+  end
+
+  def teacher_participant_group_params
     params.require(:participant_group).permit(:name)
   end
 
@@ -68,5 +81,9 @@ class ParticipantGroupsController < ApplicationController
 
   def participant_group_return_path
     participant_group_path(@participant_group, return_to_poll_id: @return_poll&.id)
+  end
+
+  def admin_school_election_group?
+    current_user.admin? && @participant_group.school_election?
   end
 end

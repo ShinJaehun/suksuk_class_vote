@@ -156,7 +156,7 @@ RSpec.describe "Admin elections", type: :request do
       sign_in create(:user, :admin)
       election = create(:election, title: "2026 전교학생회 선거")
       teacher = create(:user, name: "김담임", email: "teacher@example.com")
-      participant_group = create(:participant_group, :with_participant_slot, user: teacher, name: "6학년 1반")
+      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, name: "6학년 1반", grade: 6, class_number: 1)
       create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
 
       get admin_election_path(election)
@@ -164,7 +164,6 @@ RSpec.describe "Admin elections", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("학급 세션")
       expect(response.body).to include("담당 교사")
-      expect(response.body).to include("학급/그룹")
       expect(response.body).to include("김담임")
       expect(response.body).to include("6학년 1반")
       expect(response.body).to include("투표자 1명")
@@ -357,7 +356,7 @@ RSpec.describe "Admin elections", type: :request do
       teacher = create(:user)
       sign_in teacher
       election = create(:election, title: "중단된 전교임원선거", status: :stopped)
-      participant_group = create(:participant_group, user: teacher, name: "6학년 1반")
+      participant_group = create(:participant_group, :school_election, user: teacher, name: "6학년 1반", grade: 6, class_number: 1)
       create(:election_session, election: election, teacher: teacher, participant_group: participant_group, status: :in_progress)
 
       get polls_path
@@ -711,7 +710,7 @@ RSpec.describe "Admin elections", type: :request do
 
   def create_admin_election_session(election:, status:, group_name:)
     teacher = create(:user)
-    participant_group = create(:participant_group, user: teacher, name: group_name)
+    participant_group = create(:participant_group, :school_election, user: teacher, name: group_name)
 
     create(:election_session, election: election, teacher: teacher, participant_group: participant_group, status: status)
   end

@@ -9,7 +9,7 @@ RSpec.describe Elections::StartSession do
       contest = create(:election_contest, election: election)
       candidates = create_list(:election_candidate, 2, election_contest: contest)
       teacher = create(:user)
-      participant_group = create(:participant_group, user: teacher)
+      participant_group = create(:participant_group, :school_election, user: teacher)
       first_slot = create(:participant_slot, participant_group: participant_group, number: 1, name: "김민준")
       second_slot = create(:participant_slot, participant_group: participant_group, number: 2, name: "이서연")
       election_session = create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
@@ -284,7 +284,7 @@ RSpec.describe Elections::StartSession do
 
   def create_startable_session(election: create(:election), status: :draft, operation_mode: :supervised, with_participant_slot: true)
     teacher = create(:user)
-    participant_group = create(:participant_group, user: teacher)
+    participant_group = create(:participant_group, :school_election, user: teacher)
     create(:participant_slot, participant_group: participant_group) if with_participant_slot
     create(:election_session, election: election, teacher: teacher, participant_group: participant_group, status: status, operation_mode: operation_mode)
   end

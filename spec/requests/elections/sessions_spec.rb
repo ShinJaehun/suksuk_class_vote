@@ -249,7 +249,7 @@ RSpec.describe "Election sessions", type: :request do
 
     it "does not allow the session teacher to view a draft election session before the election starts" do
       teacher = create(:user)
-      participant_group = create(:participant_group, user: teacher)
+      participant_group = create(:participant_group, :school_election, user: teacher)
       election = create(:election, status: :draft)
       election_session = create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
       sign_in teacher
@@ -844,7 +844,7 @@ RSpec.describe "Election sessions", type: :request do
 
   def draft_session
     teacher = create(:user)
-    participant_group = create(:participant_group, user: teacher, name: "4학년 1반")
+    participant_group = create(:participant_group, :school_election, user: teacher, name: "4학년 1반")
     create(:participant_slot, participant_group: participant_group, number: 1, name: "학생1")
     create(:participant_slot, participant_group: participant_group, number: 2, name: "학생2")
     election = create(:election, title: "학급 임원 선거", status: :in_progress)

@@ -10,8 +10,13 @@ module Admin
         return
       end
 
-      @election_session = @election.election_sessions.build(election_session_params)
-      @election_session.operation_mode = :supervised
+      participant_group = ParticipantGroup.school_election.find_by(id: election_session_params[:participant_group_id])
+      @election_session = @election.election_sessions.build(
+        participant_group: participant_group,
+        teacher: participant_group&.user,
+        operation_mode: :supervised
+      )
+      @election_session.errors.add(:participant_group, "must be a school election participant group") if participant_group.blank?
 
       if @election_session.save
         redirect_to admin_election_path(@election), notice: "학급 세션을 배정했습니다."
@@ -46,13 +51,13 @@ module Admin
     def prepare_show
       @election_contests = @election.election_contests.includes(:election_candidates).order(:position)
       @election_sessions = @election.election_sessions.includes(:teacher, :participant_group).order(:created_at)
-      @teachers = User.where(role: %i[teacher admin]).order(:name, :email)
       assigned_participant_group_ids = @election_sessions.map(&:participant_group_id)
       @participant_groups = ParticipantGroup
         .joins(:user)
         .includes(:user)
+        .school_election
         .where.not(id: assigned_participant_group_ids)
-        .order("users.name", "users.email", "participant_groups.name")
+        .order(:grade, :class_number, "users.name", "users.email", :name)
       @election_status_report = Elections::StatusReport.new(election: @election).to_h
     end
 
@@ -61,7 +66,7 @@ module Admin
     end
 
     def election_session_params
-      params.require(:election_session).permit(:teacher_id, :participant_group_id)
+      params.require(:election_session).permit(:participant_group_id)
     end
   end
 end

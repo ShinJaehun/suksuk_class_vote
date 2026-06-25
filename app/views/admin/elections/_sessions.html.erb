@@ -17,30 +17,38 @@
       </div>
     <% end %>
 
-    <%= form_with model: [:admin, election, election_session], class: "grid gap-3 rounded-md border border-stone-200 bg-stone-50 p-4 md:grid-cols-[1fr_1fr_auto]" do |form| %>
-      <div class="space-y-1">
-        <%= form.label :teacher_id, "담당 교사" %>
-        <%= form.collection_select :teacher_id,
-                                   teachers,
-                                   :id,
-                                   ->(teacher) { "#{teacher.name}/#{teacher.email}" },
-                                   { prompt: "담당 교사를 선택하세요" },
-                                   class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
-      </div>
+    <% if participant_groups.any? %>
+      <div class="space-y-4">
+        <% participant_groups.group_by(&:grade).sort_by { |grade, _groups| grade.to_i }.each do |grade, grade_groups| %>
+          <section class="space-y-2 rounded-md border border-stone-200 bg-stone-50 p-3">
+            <h3 class="font-medium"><%= grade %>학년</h3>
+            <div class="space-y-2">
+              <% grade_groups.each do |participant_group| %>
+                <% teacher = participant_group.user %>
+                <div class="flex flex-col gap-3 rounded-md border border-indigo-100 bg-indigo-50/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div class="space-y-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <h4 class="font-medium"><%= participant_group.grade %>학년 <%= participant_group.class_number %>반</h4>
+                      <span class="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-sm font-medium text-indigo-700">전교임원선거</span>
+                    </div>
+                    <p class="text-sm text-stone-600">
+                      담당 교사 <%= teacher.name.presence || teacher.email %>
+                      · 투표자 <%= participant_group.participant_slots.size %>명
+                    </p>
+                  </div>
 
-      <div class="space-y-1">
-        <%= form.label :participant_group_id, "학급/그룹" %>
-        <%= form.collection_select :participant_group_id,
-                                   participant_groups,
-                                   :id,
-                                   ->(group) { "#{group.user.name}/#{group.user.email} - #{group.name}" },
-                                   { prompt: "학급/그룹을 선택하세요" },
-                                   class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+                  <%= form_with model: [:admin, election, election_session], class: "flex justify-start sm:justify-end" do |form| %>
+                    <%= form.hidden_field :participant_group_id, value: participant_group.id %>
+                    <%= form.submit "학급 세션 배정", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          </section>
+        <% end %>
       </div>
-
-      <div class="flex items-end">
-        <%= form.submit "학급 세션 배정", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
-      </div>
+    <% else %>
+      <p class="rounded-md border border-dashed border-stone-300 bg-stone-50 p-3 text-sm text-stone-600">배정 가능한 공식 투표자 명단이 없습니다.</p>
     <% end %>
   <% else %>
     <p class="rounded-md border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600">선거 시작 후에는 구성을 변경할 수 없습니다.</p>

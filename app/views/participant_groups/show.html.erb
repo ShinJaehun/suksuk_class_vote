@@ -10,27 +10,55 @@
       <% owner = @participant_group.user %>
       <% owner_label = owner&.name.presence || owner&.email.presence || "담당 교사 정보 없음" %>
       <div class="space-y-1">
-        <h1 class="text-2xl font-semibold"><%= @participant_group.name %></h1>
-        <p class="text-sm text-stone-600"><%= owner_label %></p>
+        <div class="flex flex-wrap items-center gap-2">
+          <h1 class="text-2xl font-semibold"><%= @participant_group.name %></h1>
+          <% if @participant_group.school_election? %>
+            <span class="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-sm font-medium text-indigo-700">전교임원선거</span>
+          <% end %>
+        </div>
+        <p class="text-sm text-stone-600">
+          <% if @participant_group.school_election? %>
+            <%= @participant_group.school_name %>
+            · <%= @participant_group.grade %>학년 <%= @participant_group.class_number %>반
+            · 담당 교사: <%= owner_label %>
+          <% else %>
+            <%= owner_label %>
+          <% end %>
+        </p>
       </div>
 
-      <% if current_user.admin? %>
+      <% if policy(@participant_group).update? || (current_user.admin? && policy(@participant_group).destroy?) %>
         <div class="flex flex-wrap items-center gap-2">
-          <%= link_to "투표자 명단 이름 수정",
-                      edit_participant_group_path(@participant_group, return_to_poll_id: @return_poll&.id),
-                      class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
-          <% unless @participant_group.used_by_draft_poll? %>
-            <%= button_to "투표자 명단 삭제",
-                          participant_group_path(@participant_group),
-                          method: :delete,
-                          class: "rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100" %>
+          <% if policy(@participant_group).update? %>
+            <% if @participant_group.school_election? && current_user.admin? %>
+              <%= link_to "공식 명단 수정",
+                          edit_admin_election_roster_path(@participant_group),
+                          class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
+            <% else %>
+              <%= link_to "투표자 명단 이름 수정",
+                          edit_participant_group_path(@participant_group, return_to_poll_id: @return_poll&.id),
+                          class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
+            <% end %>
+          <% end %>
+          <% if current_user.admin? && policy(@participant_group).destroy? && !@participant_group.used_by_draft_poll? %>
+            <% if @participant_group.school_election? %>
+              <%= button_to "투표자 명단 삭제",
+                            admin_election_roster_path(@participant_group),
+                            method: :delete,
+                            class: "rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100" %>
+            <% else %>
+              <%= button_to "투표자 명단 삭제",
+                            participant_group_path(@participant_group),
+                            method: :delete,
+                            class: "rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100" %>
+            <% end %>
           <% end %>
         </div>
       <% end %>
     </div>
   </div>
 
-  <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
+  <section class="space-y-4 <%= @participant_group.school_election? ? "rounded-md border border-indigo-100 bg-indigo-50/30 p-4" : "rounded-md border border-stone-200 bg-white p-4" %>">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <h2 class="text-xl font-semibold">투표자</h2>
 

@@ -18,7 +18,7 @@ RSpec.describe ElectionSession, type: :model do
     end
 
     it "requires a teacher" do
-      participant_group = create(:participant_group)
+      participant_group = create(:participant_group, :school_election)
       session = build(:election_session, teacher: nil, participant_group: participant_group)
 
       expect(session).not_to be_valid
@@ -49,7 +49,7 @@ RSpec.describe ElectionSession, type: :model do
     it "does not allow the same participant group twice in the same election" do
       election = create(:election)
       teacher = create(:user)
-      participant_group = create(:participant_group, user: teacher)
+      participant_group = create(:participant_group, :school_election, user: teacher)
       create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
       session = build(:election_session, election: election, teacher: teacher, participant_group: participant_group)
 
@@ -59,7 +59,7 @@ RSpec.describe ElectionSession, type: :model do
 
     it "allows the same participant group in different elections" do
       teacher = create(:user)
-      participant_group = create(:participant_group, user: teacher)
+      participant_group = create(:participant_group, :school_election, user: teacher)
       create(:election_session, teacher: teacher, participant_group: participant_group)
       session = build(:election_session, teacher: teacher, participant_group: participant_group)
 
@@ -68,7 +68,7 @@ RSpec.describe ElectionSession, type: :model do
 
     it "allows a teacher to use their own participant group" do
       teacher = create(:user, :teacher)
-      participant_group = create(:participant_group, user: teacher)
+      participant_group = create(:participant_group, :school_election, user: teacher)
       session = build(:election_session, teacher: teacher, participant_group: participant_group)
 
       expect(session).to be_valid
@@ -77,20 +77,20 @@ RSpec.describe ElectionSession, type: :model do
     it "does not allow a teacher to use another teacher's participant group" do
       teacher = create(:user, :teacher)
       other_teacher = create(:user, :teacher)
-      participant_group = create(:participant_group, user: other_teacher)
+      participant_group = create(:participant_group, :school_election, user: other_teacher)
       session = build(:election_session, teacher: teacher, participant_group: participant_group)
 
       expect(session).not_to be_valid
       expect(session.errors[:participant_group]).to be_present
     end
 
-    it "allows an admin to use any participant group" do
-      admin = create(:user, :admin)
+    it "does not allow teacher personal participant groups" do
       teacher = create(:user, :teacher)
       participant_group = create(:participant_group, user: teacher)
-      session = build(:election_session, teacher: admin, participant_group: participant_group)
+      session = build(:election_session, teacher: teacher, participant_group: participant_group)
 
-      expect(session).to be_valid
+      expect(session).not_to be_valid
+      expect(session.errors[:participant_group]).to be_present
     end
   end
 

@@ -62,6 +62,13 @@ RSpec.describe ParticipantGroupPolicy do
       expect(described_class.new(teacher, participant_group)).to be_update
     end
 
+    it "does not allow teachers to update their school election participant group" do
+      teacher = create(:user)
+      participant_group = create(:participant_group, :school_election, user: teacher)
+
+      expect(described_class.new(teacher, participant_group)).not_to be_update
+    end
+
     it "does not allow teachers to update another teacher's participant group" do
       teacher = create(:user)
       participant_group = create(:participant_group)
@@ -83,6 +90,13 @@ RSpec.describe ParticipantGroupPolicy do
       participant_group = create(:participant_group, user: teacher)
 
       expect(described_class.new(teacher, participant_group)).to be_destroy
+    end
+
+    it "does not allow teachers to destroy their school election participant group" do
+      teacher = create(:user)
+      participant_group = create(:participant_group, :school_election, user: teacher)
+
+      expect(described_class.new(teacher, participant_group)).not_to be_destroy
     end
 
     it "does not allow teachers to destroy another teacher's participant group" do

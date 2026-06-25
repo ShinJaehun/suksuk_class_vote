@@ -12,11 +12,15 @@ class ParticipantGroupPolicy < ApplicationPolicy
   end
 
   def update?
-    admin? || owner?
+    return true if admin?
+
+    owner? && record.teacher_personal?
   end
 
   def destroy?
-    admin? || owner?
+    return true if admin?
+
+    owner? && record.teacher_personal?
   end
 
   class Scope < ApplicationPolicy::Scope

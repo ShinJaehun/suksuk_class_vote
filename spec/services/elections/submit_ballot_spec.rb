@@ -454,7 +454,7 @@ RSpec.describe Elections::SubmitBallot do
       contest
     end
     teacher = create(:user)
-    participant_group = create(:participant_group, user: teacher)
+    participant_group = create(:participant_group, :school_election, user: teacher)
     voter_count.times do |index|
       create(:participant_slot, participant_group: participant_group, number: index + 1, name: "학생#{index + 1}")
     end

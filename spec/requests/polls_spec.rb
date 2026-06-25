@@ -21,7 +21,8 @@ RSpec.describe "Polls", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("투표")
       expect(response.body).to include("담당 표시 투표")
-      expect(response.body).to include("담당 교사: 4-11")
+      expect(response.body).not_to include("담당 교사:")
+      expect(response.body).to include("4학년 1반")
     end
 
     it "hides archived polls from the default list" do
@@ -40,7 +41,7 @@ RSpec.describe "Polls", type: :request do
     it "shows assigned election sessions as vote list items for teachers" do
       teacher = create(:user)
       other_teacher = create(:user)
-      participant_group = create(:participant_group, user: teacher, name: "4학년 1반")
+      participant_group = create(:participant_group, :school_election, user: teacher, name: "4학년 1반")
       create(:participant_slot, participant_group: participant_group)
       poll = create(:poll, user: teacher, title: "기존 투표")
       election_session = create(
@@ -53,7 +54,7 @@ RSpec.describe "Polls", type: :request do
         :election_session,
         election: create(:election, title: "다른 반 선거", status: :in_progress),
         teacher: other_teacher,
-        participant_group: create(:participant_group, :with_participant_slot, user: other_teacher)
+        participant_group: create(:participant_group, :school_election, :with_participant_slot, user: other_teacher)
       )
       sign_in teacher
 
@@ -65,7 +66,7 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include(elections_session_path(election_session))
       expect(response.body).to include("선거")
       expect(response.body).to include("준비")
-      expect(response.body).to include("담당 교사: #{teacher.name}")
+      expect(response.body).not_to include("담당 교사:")
       expect(response.body).not_to include("시작 전")
       expect(response.body).to include(participant_group.name)
       expect(response.body).to include("투표자 1명")
@@ -75,7 +76,7 @@ RSpec.describe "Polls", type: :request do
 
     it "shows assigned in-progress election sessions and hides finished election sessions" do
       teacher = create(:user)
-      participant_group = create(:participant_group, user: teacher, name: "5학년 2반")
+      participant_group = create(:participant_group, :school_election, user: teacher, name: "5학년 2반")
       in_progress_session = create(
         :election_session,
         status: :in_progress,
@@ -113,7 +114,7 @@ RSpec.describe "Polls", type: :request do
 
     it "hides election sessions until the election starts" do
       teacher = create(:user)
-      participant_group = create(:participant_group, :with_participant_slot, user: teacher, name: "6학년 1반")
+      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, name: "6학년 1반")
       create(
         :election_session,
         election: create(:election, title: "시작 전 선거", status: :draft),
@@ -129,7 +130,7 @@ RSpec.describe "Polls", type: :request do
 
     it "shows election sessions after the election starts" do
       teacher = create(:user)
-      participant_group = create(:participant_group, :with_participant_slot, user: teacher, name: "6학년 1반")
+      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, name: "6학년 1반")
       election_session = create(
         :election_session,
         election: create(:election, title: "시작된 선거", status: :in_progress),
@@ -146,7 +147,7 @@ RSpec.describe "Polls", type: :request do
 
     it "hides closed election sessions from the active teacher vote list" do
       teacher = create(:user)
-      participant_group = create(:participant_group, :with_participant_slot, user: teacher, name: "6학년 1반")
+      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, name: "6학년 1반")
       create(
         :election_session,
         status: :closed,
@@ -220,7 +221,7 @@ RSpec.describe "Polls", type: :request do
 
     it "shows closed election sessions as archived vote results" do
       teacher = create(:user)
-      participant_group = create(:participant_group, user: teacher, name: "6학년 1반")
+      participant_group = create(:participant_group, :school_election, user: teacher, name: "6학년 1반")
       closed_session = create(
         :election_session,
         status: :closed,

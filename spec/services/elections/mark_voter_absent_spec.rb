@@ -186,7 +186,7 @@ RSpec.describe Elections::MarkVoterAbsent do
     contest = create(:election_contest, election: election)
     create(:election_candidate, election_contest: contest)
     teacher = create(:user)
-    participant_group = create(:participant_group, user: teacher)
+    participant_group = create(:participant_group, :school_election, user: teacher)
     create(:participant_slot, participant_group: participant_group)
     election_session = create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
 

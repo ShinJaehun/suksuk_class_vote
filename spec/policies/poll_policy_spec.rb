@@ -2,13 +2,15 @@ require "rails_helper"
 
 RSpec.describe PollPolicy do
   describe "scope" do
-    it "includes all polls for admins" do
+    it "includes only the admin's own polls for admins" do
       admin = create(:user, :admin)
-      poll = create(:poll)
+      own_poll = create(:poll, user: admin)
+      other_poll = create(:poll)
 
       scope = described_class::Scope.new(admin, Poll).resolve
 
-      expect(scope).to include(poll)
+      expect(scope).to include(own_poll)
+      expect(scope).not_to include(other_poll)
     end
 
     it "includes only owned polls for teachers" do

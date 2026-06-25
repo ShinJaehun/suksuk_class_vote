@@ -209,7 +209,7 @@ RSpec.describe Elections::AdvanceVoter do
     contest = create(:election_contest, election: election)
     create(:election_candidate, election_contest: contest)
     teacher = create(:user)
-    participant_group = create(:participant_group, user: teacher)
+    participant_group = create(:participant_group, :school_election, user: teacher)
     voter_count.times do |index|
       create(:participant_slot, participant_group: participant_group, number: index + 1)
     end

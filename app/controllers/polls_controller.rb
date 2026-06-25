@@ -299,6 +299,7 @@ class PollsController < ApplicationController
 
   def selectable_participant_groups
     policy_scope(ParticipantGroup)
+      .teacher_personal
       .left_joins(:participant_slots)
       .group("participant_groups.id")
       .having("COUNT(participant_slots.id) > 0")

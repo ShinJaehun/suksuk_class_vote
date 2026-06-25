@@ -50,7 +50,6 @@ module Elections
           election: election,
           election_sessions: sessions,
           election_session: election.election_sessions.build(operation_mode: :supervised),
-          teachers: User.where(role: %i[teacher admin]).order(:name, :email),
           participant_groups: available_participant_groups(sessions)
         }
       )
@@ -61,8 +60,9 @@ module Elections
       ParticipantGroup
         .joins(:user)
         .includes(:user)
+        .school_election
         .where.not(id: assigned_participant_group_ids)
-        .order("users.name", "users.email", "participant_groups.name")
+        .order(:grade, :class_number, "users.name", "users.email", :name)
     end
   end
 end

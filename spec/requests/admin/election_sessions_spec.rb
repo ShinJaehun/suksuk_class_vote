@@ -7,13 +7,12 @@ RSpec.describe "Admin election sessions", type: :request do
     it "creates a supervised election session for admins" do
       election = create(:election)
       teacher = create(:user)
-      participant_group = create(:participant_group, :with_participant_slot, user: teacher)
+      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher)
       sign_in create(:user, :admin)
 
       expect do
         post admin_election_election_sessions_path(election), params: {
           election_session: {
-            teacher_id: teacher.id,
             participant_group_id: participant_group.id
           }
         }
@@ -29,10 +28,11 @@ RSpec.describe "Admin election sessions", type: :request do
       expect(session).to be_draft
     end
 
-    it "allows admins to assign a participant group to an admin operator" do
+    it "ignores submitted teacher ids and uses the participant group teacher" do
       election = create(:election)
       admin = create(:user, :admin)
-      participant_group = create(:participant_group)
+      teacher = create(:user)
+      participant_group = create(:participant_group, :school_election, user: teacher)
       sign_in admin
 
       expect do
@@ -43,19 +43,20 @@ RSpec.describe "Admin election sessions", type: :request do
           }
         }
       end.to change(election.election_sessions, :count).by(1)
+
+      expect(election.election_sessions.last.teacher).to eq(teacher)
     end
 
     it "shows validation errors without creating duplicate participant group assignments" do
       election = create(:election)
       teacher = create(:user)
-      participant_group = create(:participant_group, :with_participant_slot, user: teacher)
+      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher)
       create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
       sign_in create(:user, :admin)
 
       expect do
         post admin_election_election_sessions_path(election), params: {
           election_session: {
-            teacher_id: teacher.id,
             participant_group_id: participant_group.id
           }
         }
@@ -67,17 +68,15 @@ RSpec.describe "Admin election sessions", type: :request do
       expect(response.body).to include(participant_group.name)
     end
 
-    it "shows validation errors when the participant group does not belong to the selected teacher" do
+    it "shows validation errors for teacher personal participant groups" do
       election = create(:election)
-      teacher = create(:user, name: "선택한 담당 교사")
-      other_teacher = create(:user, name: "다른 교사")
-      participant_group = create(:participant_group, :with_participant_slot, user: other_teacher, name: "5학년 1반")
+      teacher = create(:user, name: "담당 교사")
+      participant_group = create(:participant_group, :with_participant_slot, user: teacher, name: "개인 명단")
       sign_in create(:user, :admin)
 
       expect do
         post admin_election_election_sessions_path(election), params: {
           election_session: {
-            teacher_id: teacher.id,
             participant_group_id: participant_group.id
           }
         }
@@ -85,9 +84,7 @@ RSpec.describe "Admin election sessions", type: :request do
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.body).to include("학급 세션을 배정할 수 없습니다.")
-      expect(response.body).to include("선택한 담당 교사")
-      expect(response.body).to include("다른 교사")
-      expect(response.body).to include("5학년 1반")
+      expect(response.body).not_to include("개인 명단")
     end
 
     it "does not allow teachers to create election sessions" do
@@ -266,7 +263,7 @@ RSpec.describe "Admin election sessions", type: :request do
 
   def create_election_session
     teacher = create(:user)
-    participant_group = create(:participant_group, :with_participant_slot, user: teacher)
+    participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher)
     create(:election_session, teacher: teacher, participant_group: participant_group)
   end
 end

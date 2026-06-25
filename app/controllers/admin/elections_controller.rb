@@ -114,13 +114,13 @@ module Admin
       @election_contests = @election.election_contests.includes(election_candidates: { photo_attachment: :blob }).order(:position)
       @election_sessions = @election.election_sessions.includes(:teacher, :participant_group).order(:created_at)
       @election_session = @election.election_sessions.build(operation_mode: :supervised)
-      @teachers = User.where(role: %i[teacher admin]).order(:name, :email)
       assigned_participant_group_ids = @election_sessions.map(&:participant_group_id)
       @participant_groups = ParticipantGroup
         .joins(:user)
         .includes(:user)
+        .school_election
         .where.not(id: assigned_participant_group_ids)
-        .order("users.name", "users.email", "participant_groups.name")
+        .order(:grade, :class_number, "users.name", "users.email", :name)
       @election_status_report = Elections::StatusReport.new(election: @election).to_h
     end
 

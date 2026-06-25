@@ -36,6 +36,7 @@ Rails.application.routes.draw do
   end
 
   namespace :admin do
+    resources :election_rosters, only: %i[index new create edit update destroy]
     resources :elections, only: %i[index show new create destroy] do
       get :results, on: :member
       post :start, on: :member

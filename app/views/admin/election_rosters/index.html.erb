@@ -1,0 +1,68 @@
+<div class="space-y-6">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <h1 class="text-2xl font-semibold">전교임원선거 투표자 명단</h1>
+
+    <%= link_to "학급 명단 만들기",
+                new_admin_election_roster_path(school_name: @selected_school_name),
+                class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+  </div>
+
+  <% if @school_names.any? %>
+    <%= form_with url: admin_election_rosters_path, method: :get, class: "rounded-md border border-stone-200 bg-white p-4" do |form| %>
+      <div class="space-y-1">
+        <%= form.label :school_name, "학교 선택", class: "text-sm font-medium text-stone-700" %>
+        <%= form.select :school_name,
+                        @school_names.map { |school_name| [school_name, school_name] },
+                        { selected: @selected_school_name },
+                        class: "w-full rounded-md border border-stone-300 px-3 py-2",
+                        onchange: "this.form.requestSubmit()" %>
+      </div>
+    <% end %>
+  <% else %>
+    <p class="rounded-md border border-dashed border-stone-300 bg-stone-50 p-3 text-sm text-stone-600">아직 등록된 전교임원선거 투표자 명단이 없습니다.</p>
+  <% end %>
+
+  <% if @participant_groups.any? %>
+    <div class="space-y-4">
+      <% @participant_groups.group_by(&:grade).sort_by { |grade, _groups| grade.to_i }.each do |grade, grade_groups| %>
+        <section class="space-y-2 rounded-md border border-stone-200 bg-white p-4">
+          <h2 class="text-xl font-semibold"><%= grade %>학년</h2>
+
+          <div class="space-y-2">
+            <% grade_groups.each do |participant_group| %>
+              <% teacher = participant_group.user %>
+              <div class="flex flex-col gap-3 rounded-md border border-indigo-100 bg-indigo-50/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div class="space-y-1">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <h3 class="font-medium"><%= participant_group.grade %>-<%= participant_group.class_number %></h3>
+                    <span class="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-sm font-medium text-indigo-700">전교임원선거</span>
+                  </div>
+                  <p class="text-sm text-stone-600">
+                    담당 교사 <%= teacher.name.presence || teacher.email %>
+                    · 투표자 <%= participant_group.participant_slots.size %>명
+                  </p>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                  <%= link_to "관리",
+                              participant_group_path(participant_group),
+                              class: "text-sm font-medium text-stone-700 underline" %>
+                  <%= link_to "수정",
+                              edit_admin_election_roster_path(participant_group),
+                              class: "text-sm font-medium text-stone-700 underline" %>
+                  <% unless participant_group.used_by_draft_poll? %>
+                    <%= button_to "삭제",
+                                  admin_election_roster_path(participant_group),
+                                  method: :delete,
+                                  data: { turbo_confirm: "학급 명단을 삭제할까요?" },
+                                  class: "text-sm font-medium text-rose-700 underline" %>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </section>
+      <% end %>
+    </div>
+  <% end %>
+</div>

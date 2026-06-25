@@ -19,6 +19,7 @@ class ElectionSession < ApplicationRecord
   validates :operation_mode, presence: true
   validates :participant_group_id, uniqueness: { scope: :election_id }
   validate :teacher_can_operate_session
+  validate :participant_group_must_be_school_election, on: :create
 
   def operable_status?
     draft? || in_progress?
@@ -38,5 +39,12 @@ class ElectionSession < ApplicationRecord
     return if participant_group.user_id == teacher.id
 
     errors.add(:participant_group, "must belong to teacher")
+  end
+
+  def participant_group_must_be_school_election
+    return if participant_group.blank?
+    return if participant_group.school_election?
+
+    errors.add(:participant_group, "must be a school election participant group")
   end
 end
