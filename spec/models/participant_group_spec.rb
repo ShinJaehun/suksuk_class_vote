@@ -46,6 +46,22 @@ RSpec.describe ParticipantGroup, type: :model do
       expect(participant_group).not_to be_valid
       expect(participant_group.errors[:user]).to be_present
     end
+
+    it "prevents duplicate school election classes in the same school" do
+      school = create(:school)
+      create(:participant_group, :school_election, school: school, grade: 4, class_number: 1)
+      duplicate_group = build(:participant_group, :school_election, school: school, grade: 4, class_number: 1)
+
+      expect(duplicate_group).not_to be_valid
+      expect(duplicate_group.errors[:class_number]).to be_present
+    end
+
+    it "allows teacher personal groups with the same class numbers" do
+      create(:participant_group, grade: 4, class_number: 1)
+      participant_group = build(:participant_group, grade: 4, class_number: 1)
+
+      expect(participant_group).to be_valid
+    end
   end
 
   describe "destroy guard" do

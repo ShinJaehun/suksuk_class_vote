@@ -20,6 +20,8 @@ RSpec.describe "Admin election rosters", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("전교임원선거 투표자 명단")
       expect(response.body).to include(school.name)
+      expect(response.body).to include("학급 추가")
+      expect(response.body).to include("학년 단위 추가")
       expect(response.body).to include("4학년")
       expect(response.body).to include("4-1")
       expect(response.body).to include("담당 교사")
@@ -38,6 +40,48 @@ RSpec.describe "Admin election rosters", type: :request do
       expect(response.body).to include("등록된 학교가 없습니다.")
       expect(response.body).to include(new_admin_school_path)
       expect(response.body).not_to include(new_admin_election_roster_path)
+    end
+  end
+
+  describe "GET /admin/election_rosters/new_bulk" do
+    it "shows the bulk class form" do
+      admin = create(:user, :admin)
+      school = create(:school, name: "아라초등학교")
+      sign_in admin
+
+      get new_bulk_admin_election_rosters_path, params: { school_id: school.id }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("전교임원선거 학년 단위 추가")
+      expect(response.body).to include("학년 단위 추가")
+      expect(response.body).to include(school.name)
+    end
+
+    it "shows removable class cards on the assignment step" do
+      admin = create(:user, :admin)
+      school = create(:school, name: "아라초등학교")
+      sign_in admin
+
+      get new_bulk_admin_election_rosters_path, params: {
+        school_id: school.id,
+        step: "assign",
+        grade: 4,
+        start_class_number: 1,
+        end_class_number: 2
+      }
+
+      expect(response.body).to include("4학년 1반")
+      expect(response.body).to include("담당 교사를 선택하세요")
+      expect(response.body).to include("data-action=\"bulk-class-roster#removeCard\"")
+      expect(response.body).to include("삭제")
+    end
+
+    it "redirects without a valid school" do
+      sign_in create(:user, :admin)
+
+      get new_bulk_admin_election_rosters_path, params: { school_id: -1 }
+
+      expect(response).to redirect_to(admin_election_rosters_path)
     end
   end
 
@@ -63,6 +107,150 @@ RSpec.describe "Admin election rosters", type: :request do
       participant_group = ParticipantGroup.school_election.find_by!(school: school, grade: 5, class_number: 2)
       expect(participant_group).to have_attributes(user: teacher, name: "5학년 2반")
       expect(response).to redirect_to(admin_election_rosters_path(school_id: school.id))
+    end
+  end
+
+  describe "POST /admin/election_rosters/bulk_create" do
+    it "creates multiple school election participant groups" do
+      admin = create(:user, :admin)
+      school = create(:school, name: "아라초등학교")
+      first_teacher = create(:user, name: "1반 교사")
+      second_teacher = create(:user, name: "2반 교사")
+      sign_in admin
+
+      expect do
+        post bulk_create_admin_election_rosters_path, params: {
+          school_id: school.id,
+          grade: 4,
+          start_class_number: 1,
+          end_class_number: 2,
+          teacher_assignments: {
+            "1" => first_teacher.id,
+            "2" => second_teacher.id
+          }
+        }
+      end.to change(ParticipantGroup.school_election, :count).by(2)
+
+      expect(ParticipantGroup.school_election.find_by!(school: school, grade: 4, class_number: 1)).to have_attributes(user: first_teacher, name: "4학년 1반")
+      expect(ParticipantGroup.school_election.find_by!(school: school, grade: 4, class_number: 2)).to have_attributes(user: second_teacher, name: "4학년 2반")
+      expect(response).to redirect_to(admin_election_rosters_path(school_id: school.id))
+    end
+
+    it "creates only class numbers submitted by the form" do
+      admin = create(:user, :admin)
+      school = create(:school)
+      teacher = create(:user)
+      sign_in admin
+
+      expect do
+        post bulk_create_admin_election_rosters_path, params: {
+          school_id: school.id,
+          grade: 4,
+          start_class_number: 1,
+          end_class_number: 3,
+          class_numbers_present: "1",
+          class_numbers: %w[1 3],
+          teacher_assignments: {
+            "1" => teacher.id,
+            "3" => teacher.id
+          }
+        }
+      end.to change(ParticipantGroup.school_election, :count).by(2)
+
+      expect(ParticipantGroup.school_election.exists?(school: school, grade: 4, class_number: 1)).to be true
+      expect(ParticipantGroup.school_election.exists?(school: school, grade: 4, class_number: 2)).to be false
+      expect(ParticipantGroup.school_election.exists?(school: school, grade: 4, class_number: 3)).to be true
+    end
+
+    it "does not create any group when no class number remains" do
+      admin = create(:user, :admin)
+      school = create(:school)
+      sign_in admin
+
+      expect do
+        post bulk_create_admin_election_rosters_path, params: {
+          school_id: school.id,
+          grade: 4,
+          start_class_number: 1,
+          end_class_number: 2,
+          class_numbers_present: "1"
+        }
+      end.not_to change(ParticipantGroup.school_election, :count)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.body).to include("추가할 학급을 1개 이상 남겨두세요.")
+    end
+
+    it "does not create any group when one class already exists" do
+      admin = create(:user, :admin)
+      school = create(:school)
+      teacher = create(:user)
+      create(:participant_group, :school_election, school: school, grade: 4, class_number: 1)
+      sign_in admin
+
+      expect do
+        post bulk_create_admin_election_rosters_path, params: {
+          school_id: school.id,
+          grade: 4,
+          start_class_number: 1,
+          end_class_number: 2,
+          teacher_assignments: {
+            "1" => teacher.id,
+            "2" => teacher.id
+          }
+        }
+      end.not_to change(ParticipantGroup.school_election, :count)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.body).to include("이미 등록된 학급이 있습니다")
+      expect(response.body).to include("4학년 1반")
+      expect(response.body).to include("삭제")
+      expect(response.body).to include("data-action=\"bulk-class-roster#removeCard\"")
+    end
+
+    it "does not require teachers for removed class numbers" do
+      admin = create(:user, :admin)
+      school = create(:school)
+      teacher = create(:user)
+      sign_in admin
+
+      expect do
+        post bulk_create_admin_election_rosters_path, params: {
+          school_id: school.id,
+          grade: 4,
+          start_class_number: 1,
+          end_class_number: 2,
+          class_numbers_present: "1",
+          class_numbers: %w[1],
+          teacher_assignments: {
+            "1" => teacher.id
+          }
+        }
+      end.to change(ParticipantGroup.school_election, :count).by(1)
+
+      expect(response).to redirect_to(admin_election_rosters_path(school_id: school.id))
+      expect(ParticipantGroup.school_election.exists?(school: school, grade: 4, class_number: 1)).to be true
+      expect(ParticipantGroup.school_election.exists?(school: school, grade: 4, class_number: 2)).to be false
+    end
+
+    it "checks missing teachers only for submitted class numbers" do
+      admin = create(:user, :admin)
+      school = create(:school)
+      sign_in admin
+
+      expect do
+        post bulk_create_admin_election_rosters_path, params: {
+          school_id: school.id,
+          grade: 4,
+          start_class_number: 1,
+          end_class_number: 2,
+          class_numbers_present: "1",
+          class_numbers: %w[1]
+        }
+      end.not_to change(ParticipantGroup.school_election, :count)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.body).to include("모든 학급의 담당 교사를 선택하세요.")
     end
   end
 

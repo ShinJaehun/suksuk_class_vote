@@ -7,9 +7,12 @@
                   new_admin_school_path,
                   class: "rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700" %>
       <% if @school.present? %>
-        <%= link_to "학급 명단 만들기",
+        <%= link_to "학급 추가",
                     new_admin_election_roster_path(school_id: @school.id),
                     class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+        <%= link_to "학년 단위 추가",
+                    new_bulk_admin_election_rosters_path(school_id: @school.id),
+                    class: "rounded-md border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700" %>
       <% end %>
     </div>
   </div>
@@ -46,7 +49,7 @@
                   </div>
                   <p class="text-sm text-stone-600">
                     담당 교사 <%= teacher.name.presence || teacher.email %>
-                    · 투표자 <%= participant_group.participant_slots.size %>명
+                    : 투표자 <%= participant_group.participant_slots.size %>명
                   </p>
                 </div>
 

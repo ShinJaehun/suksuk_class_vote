@@ -1,0 +1,85 @@
+<div class="space-y-6">
+  <h1 class="text-2xl font-semibold">전교임원선거 학년 단위 추가</h1>
+
+  <% if @bulk_errors.present? %>
+    <div class="rounded-md border border-red-200 bg-red-50 p-4 text-red-800">
+      <h2 class="font-medium">학년 단위로 학급을 추가할 수 없습니다.</h2>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
+        <% @bulk_errors.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="rounded-md border border-indigo-100 bg-indigo-50/30 p-4">
+    <p class="text-sm font-medium text-stone-700">학교</p>
+    <p class="mt-1 rounded-md border border-stone-200 bg-white px-3 py-2 text-stone-900"><%= @school.name %></p>
+  </div>
+
+  <% if @step == "assign" && @class_numbers.present? %>
+    <%= form_with url: bulk_create_admin_election_rosters_path, class: "space-y-4 rounded-md border border-indigo-100 bg-indigo-50/30 p-4", data: { controller: "bulk-class-roster" } do |form| %>
+      <%= hidden_field_tag :school_id, @school.id %>
+      <%= hidden_field_tag :grade, @grade %>
+      <%= hidden_field_tag :start_class_number, @start_class_number %>
+      <%= hidden_field_tag :end_class_number, @end_class_number %>
+      <%= hidden_field_tag :class_numbers_present, "1" %>
+
+      <div class="space-y-1">
+        <p class="text-sm font-medium text-stone-700">학년</p>
+        <p class="rounded-md border border-stone-200 bg-white px-3 py-2 text-stone-900"><%= @grade.to_i %>학년</p>
+      </div>
+
+      <div class="space-y-3">
+        <% @class_numbers.each do |class_number| %>
+          <div class="grid gap-3 rounded-md border border-stone-200 bg-white p-3 sm:grid-cols-[1fr_2fr] sm:items-center" data-bulk-class-roster-target="card">
+            <p class="font-medium"><%= @grade.to_i %>학년 <%= class_number %>반</p>
+            <%= hidden_field_tag "class_numbers[]", class_number %>
+            <div class="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
+              <div>
+                <%= label_tag "teacher_assignments_#{class_number}", "담당 교사", class: "sr-only" %>
+                <%= select_tag "teacher_assignments[#{class_number}]",
+                               options_from_collection_for_select(@teachers, :id, ->(teacher) { "#{teacher.name}/#{teacher.email}" }, params.dig(:teacher_assignments, class_number.to_s)),
+                               prompt: "담당 교사를 선택하세요",
+                               class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+              </div>
+              <button type="button"
+                      class="text-sm font-medium text-rose-700 underline"
+                      data-action="bulk-class-roster#removeCard">
+                삭제
+              </button>
+            </div>
+          </div>
+        <% end %>
+      </div>
+
+      <%= form.submit "학년 단위 추가", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+    <% end %>
+  <% else %>
+    <%= form_with url: new_bulk_admin_election_rosters_path, method: :get, class: "space-y-4 rounded-md border border-indigo-100 bg-indigo-50/30 p-4" do |form| %>
+      <%= hidden_field_tag :school_id, @school.id %>
+      <%= hidden_field_tag :step, "assign" %>
+
+      <div class="space-y-1">
+        <%= form.label :grade, "학년", class: "text-sm font-medium text-stone-700" %>
+        <%= form.number_field :grade, value: @grade, min: 1, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+      </div>
+
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div class="space-y-1">
+          <%= form.label :start_class_number, "시작 반", class: "text-sm font-medium text-stone-700" %>
+          <%= form.number_field :start_class_number, value: @start_class_number, min: 1, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+        </div>
+
+        <div class="space-y-1">
+          <%= form.label :end_class_number, "끝 반", class: "text-sm font-medium text-stone-700" %>
+          <%= form.number_field :end_class_number, value: @end_class_number, min: 1, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+        </div>
+      </div>
+
+      <%= form.submit "다음", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+    <% end %>
+  <% end %>
+
+  <p><%= link_to "전교임원선거 투표자 명단으로 돌아가기", admin_election_rosters_path(school_id: @school.id), class: "text-sm font-medium text-stone-700 underline" %></p>
+</div>

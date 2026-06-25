@@ -37,7 +37,10 @@ Rails.application.routes.draw do
 
   namespace :admin do
     resources :schools, only: %i[new create]
-    resources :election_rosters, only: %i[index new create edit update destroy]
+    resources :election_rosters, only: %i[index new create edit update destroy] do
+      get :new_bulk, on: :collection
+      post :bulk_create, on: :collection
+    end
     resources :elections, only: %i[index show new create destroy] do
       get :results, on: :member
       post :start, on: :member

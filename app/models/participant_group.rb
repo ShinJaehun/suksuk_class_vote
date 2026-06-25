@@ -15,6 +15,9 @@ class ParticipantGroup < ApplicationRecord
   validates :school, presence: true, if: :school_election?
   validates :grade, presence: true, numericality: { only_integer: true, greater_than: 0 }, if: :school_election?
   validates :class_number, presence: true, numericality: { only_integer: true, greater_than: 0 }, if: :school_election?
+  validates :class_number,
+            uniqueness: { scope: %i[school_id purpose grade], message: "is already registered for this school and grade" },
+            if: :school_election?
   validate :school_election_user_must_be_teacher
 
   def used_by_draft_poll?
