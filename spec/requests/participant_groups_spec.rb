@@ -211,7 +211,8 @@ RSpec.describe "Voter groups", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("전교임원선거")
       expect(response.body).to include("아라초")
-      expect(response.body).to include("4-1")
+      expect(response.body).to include("4학년 1반")
+      expect(response.body).not_to include("· 4-1")
       expect(response.body).to include("담당 교사: #{teacher.name}")
       expect(response.body).not_to include(edit_participant_group_path(participant_group))
       expect(response.body).not_to include("정보 수정")
@@ -240,7 +241,7 @@ RSpec.describe "Voter groups", type: :request do
       get edit_participant_group_path(participant_group)
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("투표자 명단 수정")
+      expect(response.body).to include("투표자 목록 정보 수정")
       expect(response.body).to include("4학년 1반")
     end
 
@@ -283,7 +284,7 @@ RSpec.describe "Voter groups", type: :request do
       get edit_participant_group_path(participant_group)
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("투표자 명단 수정")
+      expect(response.body).to include("투표자 목록 정보 수정")
     end
   end
 

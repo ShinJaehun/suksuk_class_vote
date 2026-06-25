@@ -21,7 +21,6 @@
         <p class="text-sm text-stone-600">
           <% if @participant_group.school_election? %>
             <%= @participant_group.school&.name || "학교 정보 없음" %>
-            · <%= @participant_group.school_election_short_label %>
             · 담당 교사: <%= owner_label %>
           <% else %>
             담당 교사: <%= owner_label %>
