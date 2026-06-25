@@ -28,6 +28,7 @@ RSpec.describe "Admin election rosters", type: :request do
       expect(response.body).to include("김담임")
       expect(response.body).to include("투표자 1명")
       expect(response.body).to include(participant_group_path(selected_group))
+      expect(response.body).to include(participant_group_path(selected_group, return_to: admin_election_rosters_path(school_id: school.id)))
       expect(response.body).not_to include(other_school_group.name)
       expect(response.body).not_to include("개인 명단")
     end

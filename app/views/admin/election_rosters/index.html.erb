@@ -55,7 +55,7 @@
 
                 <div class="flex flex-wrap items-center gap-2">
                   <%= link_to "관리",
-                              participant_group_path(participant_group),
+                              participant_group_path(participant_group, return_to: admin_election_rosters_path(school_id: @school.id)),
                               class: "text-sm font-medium text-stone-700 underline" %>
                   <%= link_to "수정",
                               edit_admin_election_roster_path(participant_group),

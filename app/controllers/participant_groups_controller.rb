@@ -2,6 +2,7 @@ class ParticipantGroupsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_participant_group, only: %i[show edit update destroy]
   before_action :set_return_poll, only: %i[show edit update destroy]
+  before_action :set_safe_return_to, only: %i[show edit update destroy]
 
   def index
     @participant_groups = current_user.participant_groups.teacher_personal.includes(:participant_slots).order(:name)
@@ -80,10 +81,15 @@ class ParticipantGroupsController < ApplicationController
   end
 
   def participant_group_return_path
-    participant_group_path(@participant_group, return_to_poll_id: @return_poll&.id)
+    participant_group_path(@participant_group, return_to_poll_id: @return_poll&.id, return_to: @safe_return_to)
   end
 
   def admin_school_election_group?
     current_user.admin? && @participant_group.school_election?
+  end
+
+  def set_safe_return_to
+    return_to = params[:return_to].to_s
+    @safe_return_to = return_to if return_to.start_with?("/") && !return_to.start_with?("//")
   end
 end

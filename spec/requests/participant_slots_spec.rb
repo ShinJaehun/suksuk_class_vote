@@ -110,6 +110,22 @@ RSpec.describe "Voter slots", type: :request do
       expect(response).to redirect_to(participant_group_path(participant_group, return_to_poll_id: poll.id))
     end
 
+    it "keeps a safe return path after creating" do
+      admin = create(:user, :admin)
+      school = create(:school)
+      participant_group = create(:participant_group, :school_election, school: school)
+      return_to = admin_election_rosters_path(school_id: school.id)
+      sign_in admin
+
+      expect do
+        post participant_group_participant_slots_path(participant_group, return_to: return_to), params: {
+          participant_slot: { name: "새 학생" }
+        }
+      end.to change(ParticipantSlot, :count).by(1)
+
+      expect(response).to redirect_to(participant_group_path(participant_group, return_to: return_to))
+    end
+
     it "does not create a participant slot when the name is blank" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
@@ -236,6 +252,21 @@ RSpec.describe "Voter slots", type: :request do
       expect(response).to redirect_to(participant_group_path(participant_group))
     end
 
+    it "keeps a safe return path after updating" do
+      admin = create(:user, :admin)
+      school = create(:school)
+      participant_group = create(:participant_group, :school_election, school: school)
+      participant_slot = create(:participant_slot, participant_group: participant_group)
+      return_to = admin_election_rosters_path(school_id: school.id)
+      sign_in admin
+
+      patch participant_group_participant_slot_path(participant_group, participant_slot, return_to: return_to), params: {
+        participant_slot: { name: "수정 후" }
+      }
+
+      expect(response).to redirect_to(participant_group_path(participant_group, return_to: return_to))
+    end
+
     it "does not update a participant slot with a blank name" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
@@ -294,6 +325,21 @@ RSpec.describe "Voter slots", type: :request do
       end.to change(ParticipantSlot, :count).by(-1)
 
       expect(response).to redirect_to(participant_group_path(participant_group))
+    end
+
+    it "keeps a safe return path after deleting" do
+      admin = create(:user, :admin)
+      school = create(:school)
+      participant_group = create(:participant_group, :school_election, school: school)
+      participant_slot = create(:participant_slot, participant_group: participant_group)
+      return_to = admin_election_rosters_path(school_id: school.id)
+      sign_in admin
+
+      expect do
+        delete participant_group_participant_slot_path(participant_group, participant_slot, return_to: return_to)
+      end.to change(ParticipantSlot, :count).by(-1)
+
+      expect(response).to redirect_to(participant_group_path(participant_group, return_to: return_to))
     end
 
     it "does not allow teachers to delete another teacher's participant slot" do

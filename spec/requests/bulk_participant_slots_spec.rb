@@ -131,6 +131,24 @@ RSpec.describe "Bulk participant slots", type: :request do
       expect(response).to redirect_to(participant_group_path(participant_group))
     end
 
+    it "keeps a safe return path after creating participant slots" do
+      admin = create(:user, :admin)
+      school = create(:school)
+      participant_group = create(:participant_group, :school_election, school: school)
+      return_to = admin_election_rosters_path(school_id: school.id)
+      sign_in admin
+
+      expect do
+        post participant_group_bulk_participant_slots_path(participant_group, return_to: return_to), params: {
+          bulk_participant_slots: {
+            names: [ "김민준", "이서연" ]
+          }
+        }
+      end.to change(ParticipantSlot, :count).by(2)
+
+      expect(response).to redirect_to(participant_group_path(participant_group, return_to: return_to))
+    end
+
     it "does not create any participant slots when a name is blank" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)

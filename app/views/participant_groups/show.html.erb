@@ -2,6 +2,8 @@
   <div class="space-y-2">
     <% if @return_poll.present? %>
       <p><%= link_to "#{@return_poll.title} 투표로 돌아가기", poll_path(@return_poll), class: "text-sm font-medium text-stone-600 underline" %></p>
+    <% elsif @safe_return_to.present? %>
+      <p><%= link_to "전교임원선거 투표자 명단으로 돌아가기", @safe_return_to, class: "text-sm font-medium text-stone-600 underline" %></p>
     <% else %>
       <p><%= link_to "투표자 명단 목록으로 돌아가기", participant_groups_path, class: "text-sm font-medium text-stone-600 underline" %></p>
     <% end %>
@@ -64,10 +66,10 @@
 
       <div class="flex flex-wrap items-center gap-2">
         <%= link_to "투표자 1명 추가",
-                    new_participant_group_participant_slot_path(@participant_group, return_to_poll_id: @return_poll&.id),
+                    new_participant_group_participant_slot_path(@participant_group, return_to_poll_id: @return_poll&.id, return_to: @safe_return_to),
                     class: "rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white" %>
         <%= link_to "여러 명 추가",
-                    new_participant_group_bulk_participant_slots_path(@participant_group, return_to_poll_id: @return_poll&.id),
+                    new_participant_group_bulk_participant_slots_path(@participant_group, return_to_poll_id: @return_poll&.id, return_to: @safe_return_to),
                     class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
       </div>
     </div>
@@ -90,10 +92,10 @@
                 <td class="px-3 py-3">
                   <div class="flex flex-wrap items-center gap-2">
                     <%= link_to "수정",
-                                edit_participant_group_participant_slot_path(@participant_group, participant_slot, return_to_poll_id: @return_poll&.id),
+                                edit_participant_group_participant_slot_path(@participant_group, participant_slot, return_to_poll_id: @return_poll&.id, return_to: @safe_return_to),
                                 class: "text-sm font-medium text-stone-700 underline" %>
                     <%= button_to "삭제",
-                                  participant_group_participant_slot_path(@participant_group, participant_slot, return_to_poll_id: @return_poll&.id),
+                                  participant_group_participant_slot_path(@participant_group, participant_slot, return_to_poll_id: @return_poll&.id, return_to: @safe_return_to),
                                   method: :delete,
                                   class: "text-sm font-medium text-stone-700 underline" %>
                   </div>

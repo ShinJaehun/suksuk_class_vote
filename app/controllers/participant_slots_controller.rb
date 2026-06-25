@@ -2,6 +2,7 @@ class ParticipantSlotsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_participant_group
   before_action :set_participant_slot, only: %i[edit update destroy]
+  before_action :set_safe_return_to
 
   def new
     authorize @participant_group, :show?
@@ -63,6 +64,11 @@ class ParticipantSlotsController < ApplicationController
   end
 
   def participant_group_return_path
-    participant_group_path(@participant_group, return_to_poll_id: params[:return_to_poll_id])
+    participant_group_path(@participant_group, return_to_poll_id: params[:return_to_poll_id], return_to: @safe_return_to)
+  end
+
+  def set_safe_return_to
+    return_to = params[:return_to].to_s
+    @safe_return_to = return_to if return_to.start_with?("/") && !return_to.start_with?("//")
   end
 end

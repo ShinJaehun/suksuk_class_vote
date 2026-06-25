@@ -153,6 +153,35 @@ RSpec.describe "Voter groups", type: :request do
       expect(response.body).not_to include("투표로 돌아가기")
     end
 
+    it "uses a safe return path for the back link and nested student links" do
+      admin = create(:user, :admin)
+      school = create(:school)
+      participant_group = create(:participant_group, :school_election, school: school)
+      participant_slot = create(:participant_slot, participant_group: participant_group)
+      return_to = admin_election_rosters_path(school_id: school.id)
+      sign_in admin
+
+      get participant_group_path(participant_group, return_to: return_to)
+
+      expect(response.body).to include("전교임원선거 투표자 명단으로 돌아가기")
+      expect(response.body).to include(return_to)
+      expect(response.body).to include(new_participant_group_participant_slot_path(participant_group, return_to: return_to))
+      expect(response.body).to include(new_participant_group_bulk_participant_slots_path(participant_group, return_to: return_to))
+      expect(response.body).to include(edit_participant_group_participant_slot_path(participant_group, participant_slot, return_to: return_to))
+    end
+
+    it "ignores unsafe return paths" do
+      admin = create(:user, :admin)
+      participant_group = create(:participant_group)
+      sign_in admin
+
+      get participant_group_path(participant_group, return_to: "https://example.com/admin/election_rosters")
+
+      expect(response.body).to include("투표자 명단 목록으로 돌아가기")
+      expect(response.body).to include(participant_groups_path)
+      expect(response.body).not_to include("https://example.com")
+    end
+
     it "shows student change links while used by an in-progress poll" do
       teacher = create(:user)
       participant_group = create(:participant_group, user: teacher)
