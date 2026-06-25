@@ -1,5 +1,5 @@
 <div class="space-y-6">
-  <h1 class="text-2xl font-semibold">전교임원선거 학년 단위 추가</h1>
+  <h1 class="text-2xl font-semibold">전교임원선거 학급 학년 단위 추가</h1>
 
   <% if @bulk_errors.present? %>
     <div class="rounded-md border border-red-200 bg-red-50 p-4 text-red-800">
@@ -81,5 +81,5 @@
     <% end %>
   <% end %>
 
-  <p><%= link_to "전교임원선거 투표자 명단으로 돌아가기", admin_election_rosters_path(school_id: @school.id), class: "text-sm font-medium text-stone-700 underline" %></p>
+  <p><%= link_to "전교임원선거 투표자 목록으로 돌아가기", admin_election_rosters_path(school_id: @school.id), class: "text-sm font-medium text-stone-700 underline" %></p>
 </div>

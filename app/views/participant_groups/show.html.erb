@@ -3,9 +3,9 @@
     <% if @return_poll.present? %>
       <p><%= link_to "#{@return_poll.title} 투표로 돌아가기", poll_path(@return_poll), class: "text-sm font-medium text-stone-600 underline" %></p>
     <% elsif @safe_return_to.present? %>
-      <p><%= link_to "전교임원선거 투표자 명단으로 돌아가기", @safe_return_to, class: "text-sm font-medium text-stone-600 underline" %></p>
+      <p><%= link_to "전교임원선거 투표자 목록으로 돌아가기", @safe_return_to, class: "text-sm font-medium text-stone-600 underline" %></p>
     <% else %>
-      <p><%= link_to "투표자 명단 목록으로 돌아가기", participant_groups_path, class: "text-sm font-medium text-stone-600 underline" %></p>
+      <p><%= link_to "투표자 목록으로 돌아가기", participant_groups_path, class: "text-sm font-medium text-stone-600 underline" %></p>
     <% end %>
 
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -21,10 +21,10 @@
         <p class="text-sm text-stone-600">
           <% if @participant_group.school_election? %>
             <%= @participant_group.school&.name || "학교 정보 없음" %>
-            · <%= @participant_group.grade %>학년 <%= @participant_group.class_number %>반
+            · <%= @participant_group.grade %>-<%= @participant_group.class_number %>
             · 담당 교사: <%= owner_label %>
           <% else %>
-            <%= owner_label %>
+            담당 교사: <%= owner_label %>
           <% end %>
         </p>
       </div>
@@ -33,11 +33,11 @@
         <div class="flex flex-wrap items-center gap-2">
           <% if policy(@participant_group).update? %>
             <% if @participant_group.school_election? && current_user.admin? %>
-              <%= link_to "공식 명단 수정",
+              <%= link_to "정보 수정",
                           edit_admin_election_roster_path(@participant_group),
                           class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
             <% else %>
-              <%= link_to "투표자 명단 이름 수정",
+              <%= link_to "정보 수정",
                           edit_participant_group_path(@participant_group, return_to_poll_id: @return_poll&.id),
                           class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
             <% end %>

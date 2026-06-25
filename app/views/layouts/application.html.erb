@@ -33,12 +33,12 @@
               <span>쑥쑥교실투표</span>
             <% end %>
             <% if user_signed_in? %>
-              <%= link_to "투표 목록", polls_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
-              <%= link_to "투표자 명단", participant_groups_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
+              <%= link_to "투표", polls_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
+              <%= link_to "투표자", participant_groups_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
               <% if current_user.admin? %>
                 <%= link_to "교사 관리", admin_teachers_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
-                <%= link_to "전교임원선거 관리", admin_elections_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
-                <%= link_to "전교임원선거 투표자 명단", admin_election_rosters_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
+                <%= link_to "전교임원선거", admin_elections_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
+                <%= link_to "전교임원선거 투표자", admin_election_rosters_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
               <% end %>
             <% end %>
           </div>

@@ -18,7 +18,7 @@ RSpec.describe "Admin election rosters", type: :request do
       get admin_election_rosters_path, params: { school_id: school.id }
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("전교임원선거 투표자 명단")
+      expect(response.body).to include("전교임원선거 투표자 목록")
       expect(response.body).to include(school.name)
       expect(response.body).to include("학급 추가")
       expect(response.body).to include("학년 단위 추가")
@@ -53,7 +53,7 @@ RSpec.describe "Admin election rosters", type: :request do
       get new_bulk_admin_election_rosters_path, params: { school_id: school.id }
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("전교임원선거 학년 단위 추가")
+      expect(response.body).to include("전교임원선거 학급 학년 단위 추가")
       expect(response.body).to include("학년 단위 추가")
       expect(response.body).to include(school.name)
     end

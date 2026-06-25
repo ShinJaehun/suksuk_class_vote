@@ -1,5 +1,5 @@
 <div class="space-y-6">
-  <h1 class="text-2xl font-semibold">새 투표자 명단 만들기</h1>
+  <h1 class="text-2xl font-semibold">새 투표자 목록 만들기</h1>
 
   <% if @participant_group.errors.any? %>
     <div class="rounded-md border border-red-200 bg-red-50 p-4 text-red-800">
@@ -18,7 +18,7 @@
       <%= form.text_field :name, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
     </div>
 
-    <%= form.submit "투표자 명단 만들기", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+    <%= form.submit "투표자 목록 만들기", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
   <% end %>
 
   <p><%= link_to "목록으로 돌아가기", participant_groups_path, class: "text-sm font-medium text-stone-700 underline" %></p>

@@ -26,7 +26,7 @@ RSpec.describe "Admin school elections", type: :request do
       get admin_school_elections_path
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("전교임원선거 관리")
+      expect(response.body).to include("전교임원선거")
       expect(response.body).to include(school_election.title)
     end
   end

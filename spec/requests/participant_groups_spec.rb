@@ -18,7 +18,7 @@ RSpec.describe "Voter groups", type: :request do
       get participant_groups_path
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("내 투표자 명단")
+      expect(response.body).to include("내 투표자 목록")
       expect(response.body).to include("4학년 11반")
       expect(response.body).to include("투표자 0명")
       expect(response.body).to include(participant_group_path(participant_group))
@@ -31,7 +31,7 @@ RSpec.describe "Voter groups", type: :request do
 
       get participant_groups_path
 
-      expect(response.body).not_to include("새 투표자 명단 만들기")
+      expect(response.body).not_to include("새 투표자 목록 만들기")
       expect(response.body).not_to include(new_participant_group_path)
     end
 
@@ -44,11 +44,11 @@ RSpec.describe "Voter groups", type: :request do
 
       get participant_groups_path
 
-      expect(response.body).to include("내 투표자 명단")
+      expect(response.body).to include("내 투표자 목록")
       expect(response.body).to include("내 개인 명단")
       expect(response.body).not_to include("다른 교사 개인 명단")
       expect(response.body).not_to include("전교 명단")
-      expect(response.body).to include("전교임원선거 투표자 명단")
+      expect(response.body).to include("전교임원선거 투표자")
     end
   end
 
@@ -92,7 +92,7 @@ RSpec.describe "Voter groups", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("관리자 확인 그룹")
       expect(response.body).to include("4-11")
-      expect(response.body).to include("투표자 명단 이름 수정")
+      expect(response.body).to include("정보 수정")
       expect(response.body).to include(edit_participant_group_path(participant_group))
       expect(response.body).to include("투표자 명단 삭제")
       expect(response.body).not_to include("4-11 &lt;teacher411@example.com&gt;")
@@ -111,7 +111,7 @@ RSpec.describe "Voter groups", type: :request do
       expect(response.body).to include(new_participant_group_participant_slot_path(participant_group))
       expect(response.body).to include("여러 명 추가")
       expect(response.body).to include(new_participant_group_bulk_participant_slots_path(participant_group))
-      expect(response.body).to include("투표자 명단 이름 수정")
+      expect(response.body).to include("정보 수정")
       expect(response.body).to include(edit_participant_group_path(participant_group))
       expect(response.body).not_to include("투표자 명단 삭제")
       expect(response.body).to include("수정")
@@ -132,7 +132,7 @@ RSpec.describe "Voter groups", type: :request do
       expect(response.body).to include("#{poll.title} 투표로 돌아가기")
       expect(response.body).to include(poll_path(poll))
       expect(response.body).to include(edit_participant_group_path(participant_group, return_to_poll_id: poll.id))
-      expect(response.body).to include("투표자 명단 이름 수정")
+      expect(response.body).to include("정보 수정")
       expect(response.body).to include(new_participant_group_participant_slot_path(participant_group, return_to_poll_id: poll.id))
       expect(response.body).to include(new_participant_group_bulk_participant_slots_path(participant_group, return_to_poll_id: poll.id))
       expect(response.body).to include(edit_participant_group_participant_slot_path(participant_group, participant_slot, return_to_poll_id: poll.id))
@@ -149,7 +149,7 @@ RSpec.describe "Voter groups", type: :request do
 
       get participant_group_path(participant_group, return_to_poll_id: poll.id)
 
-      expect(response.body).to include("투표자 명단 목록으로 돌아가기")
+      expect(response.body).to include("투표자 목록으로 돌아가기")
       expect(response.body).not_to include("투표로 돌아가기")
     end
 
@@ -163,7 +163,7 @@ RSpec.describe "Voter groups", type: :request do
 
       get participant_group_path(participant_group, return_to: return_to)
 
-      expect(response.body).to include("전교임원선거 투표자 명단으로 돌아가기")
+      expect(response.body).to include("전교임원선거 투표자 목록으로 돌아가기")
       expect(response.body).to include(return_to)
       expect(response.body).to include(new_participant_group_participant_slot_path(participant_group, return_to: return_to))
       expect(response.body).to include(new_participant_group_bulk_participant_slots_path(participant_group, return_to: return_to))
@@ -177,7 +177,7 @@ RSpec.describe "Voter groups", type: :request do
 
       get participant_group_path(participant_group, return_to: "https://example.com/admin/election_rosters")
 
-      expect(response.body).to include("투표자 명단 목록으로 돌아가기")
+      expect(response.body).to include("투표자 목록으로 돌아가기")
       expect(response.body).to include(participant_groups_path)
       expect(response.body).not_to include("https://example.com")
     end
@@ -192,7 +192,7 @@ RSpec.describe "Voter groups", type: :request do
       get participant_group_path(participant_group)
 
       expect(response.body).to include(edit_participant_group_path(participant_group))
-      expect(response.body).to include("투표자 명단 이름 수정")
+      expect(response.body).to include("정보 수정")
       expect(response.body).to include(new_participant_group_participant_slot_path(participant_group))
       expect(response.body).to include(new_participant_group_bulk_participant_slots_path(participant_group))
       expect(response.body).to include(edit_participant_group_participant_slot_path(participant_group, participant_slot))
@@ -201,7 +201,8 @@ RSpec.describe "Voter groups", type: :request do
 
     it "allows teachers to manage students in their school election participant group without container controls" do
       teacher = create(:user)
-      participant_group = create(:participant_group, :school_election, user: teacher)
+      school = create(:school, name: "아라초")
+      participant_group = create(:participant_group, :school_election, user: teacher, school: school, grade: 4, class_number: 1)
       participant_slot = create(:participant_slot, participant_group: participant_group)
       sign_in teacher
 
@@ -209,8 +210,11 @@ RSpec.describe "Voter groups", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("전교임원선거")
+      expect(response.body).to include("아라초")
+      expect(response.body).to include("4-1")
+      expect(response.body).to include("담당 교사: #{teacher.name}")
       expect(response.body).not_to include(edit_participant_group_path(participant_group))
-      expect(response.body).not_to include("공식 명단 수정")
+      expect(response.body).not_to include("정보 수정")
       expect(response.body).not_to include("투표자 명단 삭제")
       expect(response.body).to include(new_participant_group_participant_slot_path(participant_group))
       expect(response.body).to include(new_participant_group_bulk_participant_slots_path(participant_group))

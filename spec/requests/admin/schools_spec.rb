@@ -10,8 +10,8 @@ RSpec.describe "Admin schools", type: :request do
       get new_admin_school_path
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("학교 추가")
-      expect(response.body).to include("학교명")
+      expect(response.body).to include("전교임원선거 학교 추가")
+      expect(response.body).to include("학교 이름")
     end
   end
 
