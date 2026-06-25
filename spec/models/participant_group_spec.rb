@@ -25,10 +25,10 @@ RSpec.describe ParticipantGroup, type: :model do
     end
 
     it "requires school fields for school election groups" do
-      participant_group = build(:participant_group, :school_election, school_name: nil, grade: nil, class_number: nil)
+      participant_group = build(:participant_group, :school_election, school: nil, grade: nil, class_number: nil)
 
       expect(participant_group).not_to be_valid
-      expect(participant_group.errors[:school_name]).to be_present
+      expect(participant_group.errors[:school]).to be_present
       expect(participant_group.errors[:grade]).to be_present
       expect(participant_group.errors[:class_number]).to be_present
     end

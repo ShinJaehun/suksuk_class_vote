@@ -1,7 +1,7 @@
 <div class="space-y-6">
   <h1 class="text-2xl font-semibold">전교임원선거 학급 명단 수정</h1>
 
-  <%= render "form", participant_group: @participant_group, teachers: @teachers %>
+  <%= render "form", participant_group: @participant_group, school: @school, teachers: @teachers %>
 
-  <p><%= link_to "전교임원선거 투표자 명단으로 돌아가기", admin_election_rosters_path(school_name: @participant_group.school_name), class: "text-sm font-medium text-stone-700 underline" %></p>
+  <p><%= link_to "전교임원선거 투표자 명단으로 돌아가기", admin_election_rosters_path(school_id: @school.id), class: "text-sm font-medium text-stone-700 underline" %></p>
 </div>

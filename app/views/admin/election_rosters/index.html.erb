@@ -2,27 +2,34 @@
   <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <h1 class="text-2xl font-semibold">전교임원선거 투표자 명단</h1>
 
-    <%= link_to "학급 명단 만들기",
-                new_admin_election_roster_path(school_name: @selected_school_name),
-                class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+    <div class="flex flex-wrap items-center gap-2">
+      <%= link_to "학교 추가",
+                  new_admin_school_path,
+                  class: "rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700" %>
+      <% if @school.present? %>
+        <%= link_to "학급 명단 만들기",
+                    new_admin_election_roster_path(school_id: @school.id),
+                    class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+      <% end %>
+    </div>
   </div>
 
-  <% if @school_names.any? %>
+  <% if @schools.any? %>
     <%= form_with url: admin_election_rosters_path, method: :get, class: "rounded-md border border-stone-200 bg-white p-4" do |form| %>
       <div class="space-y-1">
-        <%= form.label :school_name, "학교 선택", class: "text-sm font-medium text-stone-700" %>
-        <%= form.select :school_name,
-                        @school_names.map { |school_name| [school_name, school_name] },
-                        { selected: @selected_school_name },
+        <%= form.label :school_id, "학교 선택", class: "text-sm font-medium text-stone-700" %>
+        <%= form.select :school_id,
+                        @schools.map { |school| [school.name, school.id] },
+                        { selected: @school&.id },
                         class: "w-full rounded-md border border-stone-300 px-3 py-2",
                         onchange: "this.form.requestSubmit()" %>
       </div>
     <% end %>
   <% else %>
-    <p class="rounded-md border border-dashed border-stone-300 bg-stone-50 p-3 text-sm text-stone-600">아직 등록된 전교임원선거 투표자 명단이 없습니다.</p>
+    <p class="rounded-md border border-dashed border-stone-300 bg-stone-50 p-3 text-sm text-stone-600">등록된 학교가 없습니다.</p>
   <% end %>
 
-  <% if @participant_groups.any? %>
+  <% if @school.present? && @participant_groups.any? %>
     <div class="space-y-4">
       <% @participant_groups.group_by(&:grade).sort_by { |grade, _groups| grade.to_i }.each do |grade, grade_groups| %>
         <section class="space-y-2 rounded-md border border-stone-200 bg-white p-4">
@@ -64,5 +71,7 @@
         </section>
       <% end %>
     </div>
+  <% elsif @school.present? %>
+    <p class="rounded-md border border-dashed border-stone-300 bg-stone-50 p-3 text-sm text-stone-600">선택한 학교에 등록된 학급 명단이 없습니다.</p>
   <% end %>
 </div>

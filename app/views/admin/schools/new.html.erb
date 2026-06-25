@@ -1,0 +1,25 @@
+<div class="space-y-6">
+  <h1 class="text-2xl font-semibold">학교 추가</h1>
+
+  <% if @school.errors.any? %>
+    <div class="rounded-md border border-red-200 bg-red-50 p-4 text-red-800">
+      <h2 class="font-medium">학교를 추가할 수 없습니다.</h2>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
+        <% @school.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <%= form_with model: [:admin, @school], class: "space-y-4 rounded-md border border-stone-200 bg-white p-4" do |form| %>
+    <div class="space-y-1">
+      <%= form.label :name, "학교명", class: "text-sm font-medium text-stone-700" %>
+      <%= form.text_field :name, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+    </div>
+
+    <%= form.submit "학교 추가", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+  <% end %>
+
+  <p><%= link_to "전교임원선거 투표자 명단으로 돌아가기", admin_election_rosters_path, class: "text-sm font-medium text-stone-700 underline" %></p>
+</div>

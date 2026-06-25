@@ -6,7 +6,7 @@ FactoryBot.define do
 
     trait :school_election do
       purpose { :school_election }
-      school_name { "쑥쑥초등학교" }
+      association :school
       grade { 4 }
       class_number { 1 }
     end

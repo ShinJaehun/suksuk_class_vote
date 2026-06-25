@@ -18,7 +18,7 @@
         </div>
         <p class="text-sm text-stone-600">
           <% if @participant_group.school_election? %>
-            <%= @participant_group.school_name %>
+            <%= @participant_group.school&.name || "학교 정보 없음" %>
             · <%= @participant_group.grade %>학년 <%= @participant_group.class_number %>반
             · 담당 교사: <%= owner_label %>
           <% else %>

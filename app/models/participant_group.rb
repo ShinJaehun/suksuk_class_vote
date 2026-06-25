@@ -1,5 +1,6 @@
 class ParticipantGroup < ApplicationRecord
   belongs_to :user
+  belongs_to :school, optional: true
   has_many :participant_slots, dependent: :destroy
   has_many :polls, dependent: :nullify
 
@@ -11,7 +12,7 @@ class ParticipantGroup < ApplicationRecord
   validates :name, presence: true
   validates :user, presence: true
   validates :purpose, presence: true
-  validates :school_name, presence: true, if: :school_election?
+  validates :school, presence: true, if: :school_election?
   validates :grade, presence: true, numericality: { only_integer: true, greater_than: 0 }, if: :school_election?
   validates :class_number, presence: true, numericality: { only_integer: true, greater_than: 0 }, if: :school_election?
   validate :school_election_user_must_be_teacher

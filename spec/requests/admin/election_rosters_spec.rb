@@ -7,17 +7,19 @@ RSpec.describe "Admin election rosters", type: :request do
     it "shows school election participant groups grouped by the selected school" do
       admin = create(:user, :admin)
       teacher = create(:user, name: "김담임")
-      selected_group = create(:participant_group, :school_election, user: teacher, school_name: "아라초등학교", grade: 4, class_number: 1)
-      other_school_group = create(:participant_group, :school_election, school_name: "다른초등학교", name: "다른 학교 명단")
+      school = create(:school, name: "아라초등학교")
+      other_school = create(:school, name: "다른초등학교")
+      selected_group = create(:participant_group, :school_election, user: teacher, school: school, grade: 4, class_number: 1)
+      other_school_group = create(:participant_group, :school_election, school: other_school, name: "다른 학교 명단")
       create(:participant_group, name: "개인 명단")
       create(:participant_slot, participant_group: selected_group)
       sign_in admin
 
-      get admin_election_rosters_path, params: { school_name: "아라초등학교" }
+      get admin_election_rosters_path, params: { school_id: school.id }
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("전교임원선거 투표자 명단")
-      expect(response.body).to include("아라초등학교")
+      expect(response.body).to include(school.name)
       expect(response.body).to include("4학년")
       expect(response.body).to include("4-1")
       expect(response.body).to include("담당 교사")
@@ -27,19 +29,30 @@ RSpec.describe "Admin election rosters", type: :request do
       expect(response.body).not_to include(other_school_group.name)
       expect(response.body).not_to include("개인 명단")
     end
+
+    it "shows an empty school state" do
+      sign_in create(:user, :admin)
+
+      get admin_election_rosters_path
+
+      expect(response.body).to include("등록된 학교가 없습니다.")
+      expect(response.body).to include(new_admin_school_path)
+      expect(response.body).not_to include(new_admin_election_roster_path)
+    end
   end
 
   describe "POST /admin/election_rosters" do
     it "creates a school election participant group" do
       admin = create(:user, :admin)
       teacher = create(:user)
+      school = create(:school, name: "아라초등학교")
       sign_in admin
 
       expect do
         post admin_election_rosters_path, params: {
           participant_group: {
             user_id: teacher.id,
-            school_name: "아라초등학교",
+            school_id: school.id,
             grade: 5,
             class_number: 2,
             name: ""
@@ -47,9 +60,9 @@ RSpec.describe "Admin election rosters", type: :request do
         }
       end.to change(ParticipantGroup.school_election, :count).by(1)
 
-      participant_group = ParticipantGroup.school_election.find_by!(school_name: "아라초등학교", grade: 5, class_number: 2)
+      participant_group = ParticipantGroup.school_election.find_by!(school: school, grade: 5, class_number: 2)
       expect(participant_group).to have_attributes(user: teacher, name: "5학년 2반")
-      expect(response).to redirect_to(admin_election_rosters_path(school_name: "아라초등학교"))
+      expect(response).to redirect_to(admin_election_rosters_path(school_id: school.id))
     end
   end
 
@@ -57,35 +70,37 @@ RSpec.describe "Admin election rosters", type: :request do
     it "updates a school election participant group" do
       admin = create(:user, :admin)
       teacher = create(:user)
-      participant_group = create(:participant_group, :school_election, school_name: "수정 전", grade: 4, class_number: 1)
+      school = create(:school, name: "수정 전")
+      participant_group = create(:participant_group, :school_election, school: school, grade: 4, class_number: 1)
       sign_in admin
 
       patch admin_election_roster_path(participant_group), params: {
         participant_group: {
           user_id: teacher.id,
-          school_name: "수정 후",
+          school_id: create(:school, name: "무시할 학교").id,
           grade: 6,
           class_number: 3,
           name: "6학년 3반"
         }
       }
 
-      expect(response).to redirect_to(admin_election_rosters_path(school_name: "수정 후"))
-      expect(participant_group.reload).to have_attributes(user: teacher, school_name: "수정 후", grade: 6, class_number: 3, name: "6학년 3반")
+      expect(response).to redirect_to(admin_election_rosters_path(school_id: school.id))
+      expect(participant_group.reload).to have_attributes(user: teacher, school: school, grade: 6, class_number: 3, name: "6학년 3반")
     end
   end
 
   describe "DELETE /admin/election_rosters/:id" do
     it "destroys a school election participant group" do
       admin = create(:user, :admin)
-      participant_group = create(:participant_group, :school_election, school_name: "아라초등학교")
+      school = create(:school, name: "아라초등학교")
+      participant_group = create(:participant_group, :school_election, school: school)
       sign_in admin
 
       expect do
         delete admin_election_roster_path(participant_group)
       end.to change(ParticipantGroup.school_election, :count).by(-1)
 
-      expect(response).to redirect_to(admin_election_rosters_path(school_name: "아라초등학교"))
+      expect(response).to redirect_to(admin_election_rosters_path(school_id: school.id))
     end
   end
 end

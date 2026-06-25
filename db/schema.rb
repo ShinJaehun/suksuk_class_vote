@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_25_000100) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_25_000200) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -183,11 +183,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_25_000100) do
     t.integer "grade"
     t.string "name", null: false
     t.integer "purpose", default: 0, null: false
-    t.string "school_name"
+    t.bigint "school_id"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["purpose", "grade", "class_number"], name: "index_participant_groups_on_purpose_and_grade_and_class_number"
     t.index ["purpose"], name: "index_participant_groups_on_purpose"
+    t.index ["school_id"], name: "index_participant_groups_on_school_id"
     t.index ["user_id"], name: "index_participant_groups_on_user_id"
   end
 
@@ -360,6 +361,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_25_000100) do
     t.index ["user_id"], name: "index_school_elections_on_user_id"
   end
 
+  create_table "schools", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name"], name: "index_schools_on_name", unique: true
+  end
+
   create_table "users", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email", default: "", null: false
@@ -395,6 +403,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_25_000100) do
   add_foreign_key "election_voters", "election_sessions"
   add_foreign_key "election_voters", "participant_slots", column: "source_participant_slot_id", on_delete: :nullify
   add_foreign_key "elections", "users"
+  add_foreign_key "participant_groups", "schools"
   add_foreign_key "participant_groups", "users"
   add_foreign_key "participant_slots", "participant_groups"
   add_foreign_key "poll_contest_tallies", "poll_contests"

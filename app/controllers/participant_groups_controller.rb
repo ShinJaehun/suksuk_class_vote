@@ -50,7 +50,7 @@ class ParticipantGroupsController < ApplicationController
   def destroy
     authorize @participant_group
     if admin_school_election_group?
-      redirect_to admin_election_rosters_path(school_name: @participant_group.school_name), alert: "전교임원선거 투표자 명단은 별도 메뉴에서 삭제합니다."
+      redirect_to admin_election_rosters_path(school_id: @participant_group.school_id), alert: "전교임원선거 투표자 명단은 별도 메뉴에서 삭제합니다."
       return
     end
 
