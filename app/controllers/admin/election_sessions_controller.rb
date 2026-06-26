@@ -82,7 +82,7 @@ module Admin
 
     def prepare_show
       @election_contests = @election.election_contests.includes(:election_candidates).order(:position)
-      @election_sessions = @election.election_sessions.includes(:teacher, :participant_group).order(:created_at)
+      @election_sessions = @election.election_sessions.includes(:teacher, participant_group: :participant_slots).order(:created_at)
       @election_session ||= @election.election_sessions.build(operation_mode: :supervised)
       assigned_participant_group_ids = @election_sessions.map(&:participant_group_id)
       @participant_groups = ParticipantGroup

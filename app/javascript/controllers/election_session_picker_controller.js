@@ -3,9 +3,7 @@ import { Controller } from "@hotwired/stimulus"
 export default class extends Controller {
   static targets = [
     "gradeCheckbox",
-    "classCheckbox",
-    "selectedCount",
-    "selectedVoterCount"
+    "classCheckbox"
   ]
 
   connect() {
@@ -38,13 +36,5 @@ export default class extends Controller {
       gradeCheckbox.checked = checkedCount === classCheckboxes.length
       gradeCheckbox.indeterminate = checkedCount > 0 && checkedCount < classCheckboxes.length
     })
-
-    const selectedClassCheckboxes = this.classCheckboxTargets.filter((checkbox) => checkbox.checked)
-    const selectedVoterCount = selectedClassCheckboxes.reduce((sum, checkbox) => {
-      return sum + Number.parseInt(checkbox.dataset.votersCount || "0", 10)
-    }, 0)
-
-    this.selectedCountTarget.textContent = selectedClassCheckboxes.length
-    this.selectedVoterCountTarget.textContent = selectedVoterCount
   }
 }

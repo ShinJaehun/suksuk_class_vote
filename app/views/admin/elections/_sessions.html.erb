@@ -62,8 +62,7 @@
                                       data: {
                                         election_session_picker_target: "classCheckbox",
                                         action: "election-session-picker#toggleClass",
-                                        grade: grade,
-                                        voters_count: voter_count
+                                        grade: grade
                                       },
                                       class: "mt-1 h-4 w-4 rounded border-stone-300" %>
                     <span class="space-y-1">
@@ -81,15 +80,16 @@
         </section>
 
         <aside class="space-y-3 rounded-md border border-stone-200 bg-stone-50 p-4 lg:sticky lg:top-4 lg:self-start">
-          <h3 class="font-semibold">선택 요약</h3>
+          <% assigned_voter_count = election_sessions.sum { |session| session.participant_group.participant_slots.size } %>
+          <h3 class="font-semibold">배정 현황</h3>
           <dl class="grid grid-cols-2 gap-3 text-sm">
             <div>
-              <dt class="text-stone-500">선택된 학급</dt>
-              <dd class="mt-1 text-2xl font-semibold" data-election-session-picker-target="selectedCount"><%= participant_groups.size %></dd>
+              <dt class="text-stone-500">배정 학급</dt>
+              <dd class="mt-1 text-2xl font-semibold"><%= election_sessions.size %></dd>
             </div>
             <div>
               <dt class="text-stone-500">배정 투표 인원</dt>
-              <dd class="mt-1 text-2xl font-semibold" data-election-session-picker-target="selectedVoterCount"><%= participant_groups.sum { |group| group.participant_slots.size } %></dd>
+              <dd class="mt-1 text-2xl font-semibold"><%= assigned_voter_count %></dd>
             </div>
           </dl>
           <%= submit_tag "선택한 학급 세션 배정", class: "w-full rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>

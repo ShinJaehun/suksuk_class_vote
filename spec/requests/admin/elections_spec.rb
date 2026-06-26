@@ -209,7 +209,11 @@ RSpec.describe "Admin elections", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("배정 가능 학급")
-      expect(response.body).to include("선택 요약")
+      expect(response.body).to include("배정 현황")
+      expect(response.body).to include("배정 학급")
+      expect(response.body).to include("배정 투표 인원")
+      expect(response.body).not_to include("선택 요약")
+      expect(response.body).not_to include("선택된 학급")
       expect(response.body).to include(assignable_group.display_name)
       expect(response.body).to include("이미 배정된 학급 세션")
       expect(response.body).to include(assigned_group.display_name)
