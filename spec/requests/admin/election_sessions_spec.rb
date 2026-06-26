@@ -182,6 +182,25 @@ RSpec.describe "Admin election sessions", type: :request do
       expect(election.election_sessions.map(&:status)).to all(eq("draft"))
     end
 
+    it "replaces election overview sections for turbo stream requests" do
+      election = create(:election)
+      teacher = create(:user)
+      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school)
+      sign_in create(:user, :admin)
+
+      expect do
+        post bulk_create_admin_election_election_sessions_path(election),
+             params: { participant_group_ids: [ participant_group.id ] },
+             headers: turbo_stream_headers
+      end.to change(election.election_sessions, :count).by(1)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.media_type).to eq("text/vnd.turbo-stream.html")
+      expect_turbo_replace_for(election, :admin_summary)
+      expect_turbo_replace_for(election, :admin_status_report)
+      expect_turbo_replace_for(election, :admin_sessions)
+    end
+
     it "ignores participant groups from other schools" do
       election = create(:election)
       teacher = create(:user)
@@ -257,6 +276,22 @@ RSpec.describe "Admin election sessions", type: :request do
       end.to change(ElectionSession, :count).by(-1)
 
       expect(response).to redirect_to(admin_election_path(session.election))
+    end
+
+    it "replaces election overview sections for turbo stream requests" do
+      session = create_election_session
+      election = session.election
+      sign_in create(:user, :admin)
+
+      expect do
+        delete admin_election_election_session_path(election, session), headers: turbo_stream_headers
+      end.to change(ElectionSession, :count).by(-1)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.media_type).to eq("text/vnd.turbo-stream.html")
+      expect_turbo_replace_for(election, :admin_summary)
+      expect_turbo_replace_for(election, :admin_status_report)
+      expect_turbo_replace_for(election, :admin_sessions)
     end
 
     it "does not destroy draft sessions after the election starts" do
@@ -354,5 +389,14 @@ RSpec.describe "Admin election sessions", type: :request do
     teacher = create(:user)
     participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school)
     create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
+  end
+
+  def turbo_stream_headers
+    { "ACCEPT" => "text/vnd.turbo-stream.html" }
+  end
+
+  def expect_turbo_replace_for(election, target)
+    dom_id = ActionView::RecordIdentifier.dom_id(election, target)
+    expect(response.body).to include(%(turbo-stream action="replace" target="#{dom_id}"))
   end
 end

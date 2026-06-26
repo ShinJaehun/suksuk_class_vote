@@ -35,7 +35,7 @@ module Admin
 
       participant_group_ids = Array(params[:participant_group_ids]).reject(&:blank?)
       if participant_group_ids.blank?
-        redirect_to admin_election_path(@election), alert: "배정할 학급을 선택하세요."
+        respond_to_assignment_failure("배정할 학급을 선택하세요.")
         return
       end
 
@@ -51,22 +51,23 @@ module Admin
       end
 
       if created_count.positive?
-        redirect_to admin_election_path(@election), notice: "#{created_count}개 학급 세션을 배정했습니다."
+        respond_to_assignment_success("#{created_count}개 학급 세션을 배정했습니다.")
       else
-        redirect_to admin_election_path(@election), alert: "배정할 수 있는 학급이 없습니다."
+        respond_to_assignment_failure("배정할 수 있는 학급이 없습니다.")
       end
     end
 
     def destroy
       authorize @election, :show?
       unless destroyable_session?
-        redirect_to admin_election_path(@election), alert: "삭제할 수 없는 학급 세션입니다."
+        respond_to_assignment_failure("삭제할 수 없는 학급 세션입니다.")
         return
       end
 
       @election_session.destroy
+      @election_session = nil
 
-      redirect_to admin_election_path(@election), notice: "학급 세션 배정을 해제했습니다."
+      respond_to_assignment_success("학급 세션 배정을 해제했습니다.")
     end
 
     private
@@ -92,6 +93,52 @@ module Admin
         .where.not(id: assigned_participant_group_ids)
         .order(:grade, :class_label, "users.name", "users.email", :name)
       @election_status_report = Elections::StatusReport.new(election: @election).to_h
+    end
+
+    def respond_to_assignment_success(message)
+      respond_to do |format|
+        format.html { redirect_to admin_election_path(@election), notice: message }
+        format.turbo_stream do
+          flash.now[:notice] = message
+          render_election_overview_streams
+        end
+      end
+    end
+
+    def respond_to_assignment_failure(message)
+      respond_to do |format|
+        format.html { redirect_to admin_election_path(@election), alert: message }
+        format.turbo_stream do
+          flash.now[:alert] = message
+          render_election_overview_streams(status: :unprocessable_content)
+        end
+      end
+    end
+
+    def render_election_overview_streams(status: :ok)
+      prepare_show
+      render turbo_stream: [
+        turbo_stream.replace(
+          ActionView::RecordIdentifier.dom_id(@election, :admin_summary),
+          partial: "admin/elections/summary",
+          locals: { election: @election }
+        ),
+        turbo_stream.replace(
+          ActionView::RecordIdentifier.dom_id(@election, :admin_status_report),
+          partial: "admin/elections/status_report",
+          locals: { election: @election, election_status_report: @election_status_report }
+        ),
+        turbo_stream.replace(
+          ActionView::RecordIdentifier.dom_id(@election, :admin_sessions),
+          partial: "admin/elections/sessions",
+          locals: {
+            election: @election,
+            election_sessions: @election_sessions,
+            election_session: @election_session,
+            participant_groups: @participant_groups
+          }
+        )
+      ], status: status
     end
 
     def assignable_participant_groups
