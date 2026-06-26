@@ -129,7 +129,7 @@ module Admin
 
     def prepare_results
       @election_contests = @election.election_contests.includes(:election_candidates).order(:position)
-      @election_sessions = @election.election_sessions.includes(:teacher, participant_group: :participant_slots).order(:created_at)
+      @election_sessions = @election.election_sessions.includes(:election_progress, :teacher, participant_group: :participant_slots).order(:created_at)
       prepare_aggregate_results
     end
 
@@ -172,7 +172,28 @@ module Admin
         .sum(:abstentions_count)
 
       @aggregate_results = build_contest_results(candidate_vote_totals, contest_abstention_totals)
+      @printable_aggregate_summary = build_printable_aggregate_summary(closed_sessions, closed_session_ids)
       @session_result_summaries = build_session_result_summaries(session_ids)
+    end
+
+    def build_printable_aggregate_summary(closed_sessions, closed_session_ids)
+      participation_counts = ElectionParticipation
+        .joins(:election_voter)
+        .where(election_voters: { election_session_id: closed_session_ids })
+        .group(:status)
+        .count
+      total_voter_count = ElectionVoter.where(election_session_id: closed_session_ids).count
+      completed_count = participation_counts["completed"].to_i + participation_counts["abstained"].to_i
+      aggregate_date = closed_sessions
+        .filter_map { |session| session.closed_at || session.election_progress&.closed_at }
+        .max
+
+      {
+        total_voter_count: total_voter_count,
+        completed_count: completed_count,
+        not_participated_count: total_voter_count - completed_count,
+        vote_date: aggregate_date&.in_time_zone("Asia/Seoul")&.strftime("%-m/%-d") || "-"
+      }
     end
 
     def build_contest_results(candidate_vote_totals, contest_abstention_totals)

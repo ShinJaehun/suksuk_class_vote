@@ -665,6 +665,62 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("기호 1번 김후보")
     end
 
+    it "shows a printable aggregate result card" do
+      sign_in create(:user, :admin)
+      election = create(:election, title: "2026학년도 아라초 전교어린이회임원선거(모의)")
+      contest = create(:election_contest, election: election, title: "회장")
+      first_candidate = create(:election_candidate, election_contest: contest, number: 1, name: "한지민")
+      second_candidate = create(:election_candidate, election_contest: contest, number: 2, name: "류가온")
+      closed_session = create_admin_election_session(election: election, status: :closed, group_name: "4학년 11반")
+      closed_session.update!(closed_at: Time.zone.local(2026, 6, 26, 10, 30))
+      create_participation(closed_session, :completed)
+      create_participation(closed_session, :abstained)
+      create_participation(closed_session, :absent)
+      create(:election_candidate_tally,
+             election_session: closed_session,
+             election_contest: contest,
+             election_candidate: first_candidate,
+             votes_count: 1)
+      create(:election_candidate_tally,
+             election_session: closed_session,
+             election_contest: contest,
+             election_candidate: second_candidate,
+             votes_count: 0)
+      create(:election_contest_tally,
+             election_session: closed_session,
+             election_contest: contest,
+             abstentions_count: 1)
+
+      get results_admin_election_path(election)
+
+      document = Nokogiri::HTML(response.body)
+      visible_text = document.text.squish
+      print_card_text = document.at_css(".admin-election-result-print-area").text.squish
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("admin-election-result-print-area")
+      expect(response.body).to include("window.print()")
+      expect(visible_text).to include("결과 인쇄")
+      expect(print_card_text).to include("2026학년도 아라초 전교어린이회임원선거(모의) 투표 결과")
+      expect(print_card_text).to include("6/26 시행")
+      expect(visible_text).not_to include("전체 투표 결과 카드")
+      expect(visible_text).not_to include("닫힌 학급 세션만 합산한 인쇄용 결과입니다.")
+      expect(print_card_text).not_to include("전체 학급")
+      expect(print_card_text).to include("전체 투표자")
+      expect(print_card_text).to include("3명")
+      expect(print_card_text).to include("투표 완료")
+      expect(print_card_text).to include("2명")
+      expect(print_card_text).to include("미참여")
+      expect(print_card_text).to include("1명")
+      expect(print_card_text).to include("회장")
+      expect(print_card_text).to include("한지민")
+      expect(print_card_text).to include("1표")
+      expect(print_card_text).to include("류가온")
+      expect(print_card_text).to include("0표")
+      expect(print_card_text).to include("기권 1표")
+      expect(visible_text).not_to include("확인:")
+    end
+
     it "excludes draft and in progress session tallies from aggregate results" do
       sign_in create(:user, :admin)
       election = create(:election)

@@ -29,6 +29,11 @@
              aggregate_results: @aggregate_results,
              aggregate_partial: @aggregate_partial %>
 
+  <%= render "admin/elections/printable_aggregate_result_card",
+             election: @election,
+             aggregate_results: @aggregate_results,
+             printable_aggregate_summary: @printable_aggregate_summary %>
+
   <%= render "admin/elections/session_results",
              session_result_summaries: @session_result_summaries %>
 </div>
