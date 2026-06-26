@@ -1,5 +1,6 @@
 class Election < ApplicationRecord
   belongs_to :user
+  belongs_to :school, optional: true
   has_many :election_contests, dependent: :destroy
   has_many :election_sessions, dependent: :destroy
   has_many :election_candidates, through: :election_contests
@@ -9,6 +10,7 @@ class Election < ApplicationRecord
 
   validates :title, presence: true
   validates :user, presence: true
+  validates :school, presence: true, on: :create
   validates :kind, presence: true
   validates :status, presence: true
 end

@@ -56,6 +56,7 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("전교임원선거 만들기")
       expect(response.body).not_to include("전교임원선거를 만든 뒤 후보/선거구/학급 세션을 구성합니다.")
       expect(response.body).to include("선거 이름")
+      expect(response.body).to include("대상 학교")
       expect(response.body).not_to include("선거 종류")
     end
 
@@ -72,20 +73,41 @@ RSpec.describe "Admin elections", type: :request do
   describe "POST /admin/elections" do
     it "creates an election with default contests for admins" do
       admin = create(:user, :admin)
+      school = create(:school, name: "쑥쑥초등학교")
       sign_in admin
 
       expect do
         post admin_elections_path, params: {
           election: {
             title: "2026학년도 전교학생회 선거",
-            kind: "school_council"
+            kind: "school_council",
+            school_id: school.id
           }
         }
       end.to change { Election.where(user: admin).count }.by(1)
 
       election = Election.find_by!(title: "2026학년도 전교학생회 선거")
+      expect(election.school).to eq(school)
       expect(election.election_contests.order(:position).pluck(:title)).to eq([ "회장", "6학년 부회장", "5학년 부회장" ])
       expect(response).to redirect_to(admin_election_path(election))
+    end
+
+    it "does not create an election without a school" do
+      sign_in create(:user, :admin)
+
+      expect do
+        post admin_elections_path, params: {
+          election: {
+            title: "학교 없는 선거",
+            kind: "school_council"
+          }
+        }
+      end.not_to change(Election, :count)
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include("선거를 만들 수 없습니다.")
+      expect(response.body).to include("대상 학교")
+      expect(ElectionContest.count).to eq(0)
     end
 
     it "shows validation errors without creating default contests" do
@@ -95,7 +117,8 @@ RSpec.describe "Admin elections", type: :request do
         post admin_elections_path, params: {
           election: {
             title: "",
-            kind: "school_council"
+            kind: "school_council",
+            school_id: create(:school).id
           }
         }
       end.not_to change(Election, :count)
@@ -114,7 +137,8 @@ RSpec.describe "Admin elections", type: :request do
         post admin_elections_path, params: {
           election: {
             title: "차단된 선거",
-            kind: "school_council"
+            kind: "school_council",
+            school_id: create(:school).id
           }
         }
       end.not_to change(Election, :count)
@@ -156,7 +180,7 @@ RSpec.describe "Admin elections", type: :request do
       sign_in create(:user, :admin)
       election = create(:election, title: "2026 전교학생회 선거")
       teacher = create(:user, name: "김담임", email: "teacher@example.com")
-      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, name: "6학년 1반", grade: 6, class_label: "1")
+      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school, name: "6학년 1반", grade: 6, class_label: "1")
       create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
 
       get admin_election_path(election)
@@ -167,6 +191,31 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("김담임")
       expect(response.body).to include("6학년 1반")
       expect(response.body).to include("투표자 1명")
+    end
+
+    it "shows only unassigned official rosters from the election school" do
+      sign_in create(:user, :admin)
+      school = create(:school, name: "쑥쑥초등학교")
+      other_school = create(:school, name: "다른초등학교")
+      election = create(:election, school: school)
+      teacher = create(:user, name: "김담임")
+      assignable_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: school, grade: 6, class_label: "1")
+      assigned_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: school, grade: 6, class_label: "2")
+      other_school_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: other_school, grade: 6, class_label: "3")
+      personal_group = create(:participant_group, :with_participant_slot, user: teacher, name: "개인 명단")
+      create(:election_session, election: election, teacher: teacher, participant_group: assigned_group)
+
+      get admin_election_path(election)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("배정 가능 학급")
+      expect(response.body).to include("선택 요약")
+      expect(response.body).to include(assignable_group.display_name)
+      expect(response.body).to include("이미 배정된 학급 세션")
+      expect(response.body).to include(assigned_group.display_name)
+      expect(response.body).not_to include(other_school_group.display_name)
+      expect(response.body).not_to include(personal_group.name)
+      expect(response.body).to include("checked=\"checked\"")
     end
 
     it "hides the session assignment form after the election starts or closes" do
@@ -356,7 +405,7 @@ RSpec.describe "Admin elections", type: :request do
       teacher = create(:user)
       sign_in teacher
       election = create(:election, title: "중단된 전교임원선거", status: :stopped)
-      participant_group = create(:participant_group, :school_election, user: teacher, name: "6학년 1반", grade: 6, class_label: "1")
+      participant_group = create(:participant_group, :school_election, user: teacher, school: election.school, name: "6학년 1반", grade: 6, class_label: "1")
       create(:election_session, election: election, teacher: teacher, participant_group: participant_group, status: :in_progress)
 
       get polls_path
@@ -716,6 +765,7 @@ RSpec.describe "Admin elections", type: :request do
     participant_group = create(:participant_group,
                                :school_election,
                                user: teacher,
+                               school: election.school,
                                grade: grade,
                                class_label: class_label)
     create(:election_session, election: election, teacher: teacher, participant_group: participant_group, status: status)

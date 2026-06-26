@@ -31,6 +31,9 @@
               <h2 class="text-lg font-semibold"><%= link_to election.title, admin_election_path(election), class: "hover:underline" %></h2>
               <%= election_kind_badge(election) %>
               <span class="rounded-md border px-2 py-1 text-xs font-medium <%= status_class %>"><%= status_label %></span>
+              <% if election.school.present? %>
+                <span class="text-sm text-stone-600"><%= election.school.name %></span>
+              <% end %>
             </div>
 
             <%= link_to action_label,

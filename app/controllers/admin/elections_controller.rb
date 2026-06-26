@@ -66,11 +66,13 @@ module Admin
 
     def new
       @election = Election.new(user: current_user, kind: :school_council)
+      @schools = School.order(:name)
       authorize @election
     end
 
     def create
       @election = Election.new(election_params.merge(user: current_user))
+      @schools = School.order(:name)
       authorize @election
 
       if create_election
@@ -107,7 +109,7 @@ module Admin
     end
 
     def election_params
-      params.require(:election).permit(:title, :kind)
+      params.require(:election).permit(:title, :kind, :school_id)
     end
 
     def prepare_show
@@ -117,8 +119,9 @@ module Admin
       assigned_participant_group_ids = @election_sessions.map(&:participant_group_id)
       @participant_groups = ParticipantGroup
         .joins(:user)
-        .includes(:user)
+        .includes(:user, :participant_slots)
         .school_election
+        .where(school: @election.school)
         .where.not(id: assigned_participant_group_ids)
         .order(:grade, :class_label, "users.name", "users.email", :name)
       @election_status_report = Elections::StatusReport.new(election: @election).to_h

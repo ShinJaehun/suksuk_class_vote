@@ -45,7 +45,9 @@ Rails.application.routes.draw do
       get :results, on: :member
       post :start, on: :member
       post :stop, on: :member
-      resources :election_sessions, path: "sessions", only: %i[create destroy]
+      resources :election_sessions, path: "sessions", only: %i[create destroy] do
+        post :bulk_create, on: :collection
+      end
       resources :election_contests, path: "contests", only: [] do
         resources :election_candidates, path: "candidates", only: %i[new create edit update destroy]
       end

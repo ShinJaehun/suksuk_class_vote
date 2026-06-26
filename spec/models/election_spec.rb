@@ -24,6 +24,13 @@ RSpec.describe Election, type: :model do
       expect(election.errors[:user]).to be_present
     end
 
+    it "requires a school when creating a new election" do
+      election = build(:election, school: nil)
+
+      expect(election).not_to be_valid
+      expect(election.errors[:school]).to be_present
+    end
+
     it "requires a kind" do
       election = build(:election, kind: nil)
 

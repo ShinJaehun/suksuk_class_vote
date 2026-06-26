@@ -1,4 +1,6 @@
 FactoryBot.define do
+  sequence(:school_election_class_label) { |n| n.to_s }
+
   factory :participant_group do
     association :user
     name { "4학년 1반" }
@@ -9,7 +11,7 @@ FactoryBot.define do
       association :school
       grade { 4 }
       class_number { 1 }
-      class_label { "1" }
+      class_label { generate(:school_election_class_label) }
       name { nil }
     end
 

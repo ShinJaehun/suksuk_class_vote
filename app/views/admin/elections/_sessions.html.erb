@@ -5,6 +5,19 @@
     </div>
   </div>
 
+   
+  <% if election_session&.errors&.any? %>
+    <div class="rounded-md border border-rose-200 bg-rose-50 p-4">
+      <p class="font-medium text-rose-800">학급 세션을 배정할 수 없습니다.</p>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-rose-700">
+        <% election_session.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+
   <% if election.draft? %>
     <% if election_session.errors.any? %>
       <div class="rounded-md border border-rose-200 bg-rose-50 p-3 text-rose-800">
@@ -18,35 +31,70 @@
     <% end %>
 
     <% if participant_groups.any? %>
-      <div class="space-y-4">
-        <% participant_groups.group_by(&:grade).sort_by { |grade, _groups| grade.to_i }.each do |grade, grade_groups| %>
-          <section class="space-y-2 rounded-md border border-stone-200 bg-stone-50 p-3">
-            <h3 class="font-medium"><%= grade %>학년</h3>
-            <div class="space-y-2">
-              <% grade_groups.each do |participant_group| %>
-                <% teacher = participant_group.user %>
-                <div class="flex flex-col gap-3 rounded-md border border-indigo-100 bg-indigo-50/30 p-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div class="space-y-1">
-                    <div class="flex flex-wrap items-center gap-2">
-                      <h4 class="font-medium"><%= participant_group.display_name %></h4>
-                      <span class="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-sm font-medium text-indigo-700">전교임원선거</span>
-                    </div>
-                    <p class="text-sm text-stone-600">
-                      담당 교사 <%= teacher.name.presence || teacher.email %>
-                      · 투표자 <%= participant_group.participant_slots.size %>명
-                    </p>
-                  </div>
+      <%= form_with url: bulk_create_admin_election_election_sessions_path(election),
+                    method: :post,
+                    data: { controller: "election-session-picker" },
+                    class: "grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]" do %>
+        <section class="space-y-4">
+          <h3 class="font-semibold">배정 가능 학급</h3>
+          <% participant_groups.group_by(&:grade).sort_by { |grade, _groups| grade.to_i }.each do |grade, grade_groups| %>
+            <section class="space-y-2 rounded-md border border-stone-200 bg-stone-50 p-3">
+              <label class="flex items-center gap-2 font-medium">
+                <%= check_box_tag "grade_#{grade}",
+                                  "1",
+                                  true,
+                                  data: {
+                                    election_session_picker_target: "gradeCheckbox",
+                                    action: "election-session-picker#toggleGrade",
+                                    grade: grade
+                                  },
+                                  class: "h-4 w-4 rounded border-stone-300" %>
+                <span><%= grade %>학년 전체</span>
+              </label>
+              <div class="space-y-2">
+                <% grade_groups.each do |participant_group| %>
+                  <% teacher = participant_group.user %>
+                  <% voter_count = participant_group.participant_slots.size %>
+                  <label class="flex gap-3 rounded-md border border-indigo-100 bg-indigo-50/30 p-3">
+                    <%= check_box_tag "participant_group_ids[]",
+                                      participant_group.id,
+                                      true,
+                                      data: {
+                                        election_session_picker_target: "classCheckbox",
+                                        action: "election-session-picker#toggleClass",
+                                        grade: grade,
+                                        voters_count: voter_count
+                                      },
+                                      class: "mt-1 h-4 w-4 rounded border-stone-300" %>
+                    <span class="space-y-1">
+                      <span class="block font-medium"><%= participant_group.display_name %></span>
+                      <span class="block text-sm text-stone-600">
+                        담당 교사 <%= teacher.name.presence || teacher.email %>
+                        · 투표자 <%= voter_count %>명
+                      </span>
+                    </span>
+                  </label>
+                <% end %>
+              </div>
+            </section>
+          <% end %>
+        </section>
 
-                  <%= form_with model: [:admin, election, election_session], class: "flex justify-start sm:justify-end" do |form| %>
-                    <%= form.hidden_field :participant_group_id, value: participant_group.id %>
-                    <%= form.submit "학급 세션 배정", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
-                  <% end %>
-                </div>
-              <% end %>
+        <aside class="space-y-3 rounded-md border border-stone-200 bg-stone-50 p-4 lg:sticky lg:top-4 lg:self-start">
+          <h3 class="font-semibold">선택 요약</h3>
+          <dl class="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <dt class="text-stone-500">선택된 학급</dt>
+              <dd class="mt-1 text-2xl font-semibold" data-election-session-picker-target="selectedCount"><%= participant_groups.size %></dd>
             </div>
-          </section>
-        <% end %>
-      </div>
+            <div>
+              <dt class="text-stone-500">배정 투표 인원</dt>
+              <dd class="mt-1 text-2xl font-semibold" data-election-session-picker-target="selectedVoterCount"><%= participant_groups.sum { |group| group.participant_slots.size } %></dd>
+            </div>
+          </dl>
+          <%= submit_tag "선택한 학급 세션 배정", class: "w-full rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+        </aside>
+      <% end %>
     <% else %>
       <p class="rounded-md border border-dashed border-stone-300 bg-stone-50 p-3 text-sm text-stone-600">배정 가능한 공식 투표자 명단이 없습니다.</p>
     <% end %>
@@ -57,6 +105,7 @@
   <% if election_sessions.any? %>
     <% session_deletion_allowed = election.draft? && election_sessions.none? { |election_session| !election_session.draft? } %>
     <div class="space-y-2">
+      <h3 class="font-semibold">이미 배정된 학급 세션</h3>
       <% election_sessions.each do |session| %>
         <% voter_count = session.participant_group.participant_slots.size %>
         <% display_status = { "draft" => "시작 전", "in_progress" => "진행 중", "closed" => "종료됨", "stopped" => "중단됨" }.fetch(session.status, session.status) %>
@@ -93,10 +142,9 @@
                         elections_session_path(session),
                         class: "text-sm font-medium text-stone-700 underline" %>
             <% if session_deletion_allowed && session.draft? %>
-              <%= button_to "삭제",
+              <%= button_to "배정 해제",
                             admin_election_election_session_path(election, session),
                             method: :delete,
-                            data: { turbo_confirm: "학급 세션을 삭제할까요?" },
                             class: "text-sm font-medium text-rose-700 underline" %>
             <% end %>
           </div>

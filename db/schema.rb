@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_25_000300) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_25_000400) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -168,11 +168,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_25_000300) do
   create_table "elections", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "kind", default: 0, null: false
+    t.bigint "school_id"
     t.integer "status", default: 0, null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["kind"], name: "index_elections_on_kind"
+    t.index ["school_id"], name: "index_elections_on_school_id"
     t.index ["status"], name: "index_elections_on_status"
     t.index ["user_id"], name: "index_elections_on_user_id"
   end
@@ -404,6 +406,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_25_000300) do
   add_foreign_key "election_sessions", "users", column: "teacher_id"
   add_foreign_key "election_voters", "election_sessions"
   add_foreign_key "election_voters", "participant_slots", column: "source_participant_slot_id", on_delete: :nullify
+  add_foreign_key "elections", "schools"
   add_foreign_key "elections", "users"
   add_foreign_key "participant_groups", "schools"
   add_foreign_key "participant_groups", "users"

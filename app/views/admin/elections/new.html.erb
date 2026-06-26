@@ -24,8 +24,21 @@
         <%= form.text_field :title, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
       </div>
 
+      <div class="space-y-1">
+        <%= form.label :school_id, "대상 학교", class: "text-sm font-medium text-stone-700" %>
+        <%= form.collection_select :school_id,
+                                   @schools,
+                                   :id,
+                                   :name,
+                                   { prompt: "학교를 선택하세요" },
+                                   class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+        <% if @schools.blank? %>
+          <p class="text-sm text-rose-700">등록된 학교가 없어 전교임원선거를 만들 수 없습니다.</p>
+        <% end %>
+      </div>
+
       <div class="flex flex-wrap gap-2">
-        <%= form.submit "전교임원선거 만들기", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+        <%= form.submit "전교임원선거 만들기", disabled: @schools.blank?, class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-stone-300" %>
         <%= link_to "취소", admin_elections_path, class: "inline-flex rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700" %>
       </div>
     <% end %>

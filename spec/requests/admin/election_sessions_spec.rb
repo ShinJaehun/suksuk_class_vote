@@ -7,7 +7,7 @@ RSpec.describe "Admin election sessions", type: :request do
     it "creates a supervised election session for admins" do
       election = create(:election)
       teacher = create(:user)
-      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher)
+      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school)
       sign_in create(:user, :admin)
 
       expect do
@@ -32,7 +32,7 @@ RSpec.describe "Admin election sessions", type: :request do
       election = create(:election)
       admin = create(:user, :admin)
       teacher = create(:user)
-      participant_group = create(:participant_group, :school_election, user: teacher)
+      participant_group = create(:participant_group, :school_election, user: teacher, school: election.school)
       sign_in admin
 
       expect do
@@ -50,7 +50,7 @@ RSpec.describe "Admin election sessions", type: :request do
     it "shows validation errors without creating duplicate participant group assignments" do
       election = create(:election)
       teacher = create(:user)
-      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher)
+      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school)
       create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
       sign_in create(:user, :admin)
 
@@ -159,6 +159,94 @@ RSpec.describe "Admin election sessions", type: :request do
     end
   end
 
+  describe "POST /admin/elections/:election_id/sessions/bulk_create" do
+    it "creates supervised draft sessions for selected participant groups" do
+      election = create(:election)
+      teacher = create(:user)
+      first_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school, grade: 5, class_label: "1")
+      second_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school, grade: 5, class_label: "2")
+      unselected_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school, grade: 5, class_label: "3")
+      sign_in create(:user, :admin)
+
+      expect do
+        post bulk_create_admin_election_election_sessions_path(election), params: {
+          participant_group_ids: [ first_group.id, second_group.id ]
+        }
+      end.to change(election.election_sessions, :count).by(2)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:notice]).to eq("2개 학급 세션을 배정했습니다.")
+      expect(election.election_sessions.pluck(:participant_group_id)).to contain_exactly(first_group.id, second_group.id)
+      expect(election.election_sessions.pluck(:participant_group_id)).not_to include(unselected_group.id)
+      expect(election.election_sessions.pluck(:teacher_id)).to all(eq(teacher.id))
+      expect(election.election_sessions.map(&:status)).to all(eq("draft"))
+    end
+
+    it "ignores participant groups from other schools" do
+      election = create(:election)
+      teacher = create(:user)
+      same_school_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school, grade: 6, class_label: "1")
+      other_school_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: create(:school), grade: 6, class_label: "1")
+      sign_in create(:user, :admin)
+
+      expect do
+        post bulk_create_admin_election_election_sessions_path(election), params: {
+          participant_group_ids: [ same_school_group.id, other_school_group.id ]
+        }
+      end.to change(election.election_sessions, :count).by(1)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(election.election_sessions.sole.participant_group).to eq(same_school_group)
+    end
+
+    it "does not create duplicate sessions for already assigned classes" do
+      election = create(:election)
+      teacher = create(:user)
+      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school)
+      create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
+      sign_in create(:user, :admin)
+
+      expect do
+        post bulk_create_admin_election_election_sessions_path(election), params: {
+          participant_group_ids: [ participant_group.id ]
+        }
+      end.not_to change(election.election_sessions, :count)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("배정할 수 있는 학급이 없습니다.")
+    end
+
+    it "redirects with an alert when no classes are selected" do
+      election = create(:election)
+      sign_in create(:user, :admin)
+
+      expect do
+        post bulk_create_admin_election_election_sessions_path(election), params: {
+          participant_group_ids: [ "" ]
+        }
+      end.not_to change(election.election_sessions, :count)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("배정할 학급을 선택하세요.")
+    end
+
+    it "does not create sessions after the election starts" do
+      election = create(:election, status: :in_progress)
+      teacher = create(:user)
+      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school)
+      sign_in create(:user, :admin)
+
+      expect do
+        post bulk_create_admin_election_election_sessions_path(election), params: {
+          participant_group_ids: [ participant_group.id ]
+        }
+      end.not_to change(ElectionSession, :count)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("선거 시작 후에는 학급 세션을 배정할 수 없습니다.")
+    end
+  end
+
   describe "DELETE /admin/elections/:election_id/sessions/:id" do
     it "destroys an election session for admins" do
       session = create_election_session
@@ -262,8 +350,9 @@ RSpec.describe "Admin election sessions", type: :request do
   end
 
   def create_election_session
+    election = create(:election)
     teacher = create(:user)
-    participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher)
-    create(:election_session, teacher: teacher, participant_group: participant_group)
+    participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school)
+    create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
   end
 end
