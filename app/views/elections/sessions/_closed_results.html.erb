@@ -3,12 +3,98 @@
 <% completed_count = voters.count { |voter| voter.election_participation&.completed? } %>
 <% abstained_count = voters.count { |voter| voter.election_participation&.abstained? } %>
 <% absent_count = voters.count { |voter| voter.election_participation&.absent? } %>
+<% closed_at = election_session.closed_at || election_session.election_progress&.closed_at %>
+<% vote_date = closed_at&.in_time_zone("Asia/Seoul")&.strftime("%-m/%-d") || "-" %>
+<% participant_group = election_session.participant_group %>
 
-<section class="space-y-5 rounded-md border border-stone-200 bg-white p-4">
+<style>
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+
+    .election-session-result-print-area,
+    .election-session-result-print-area * {
+      visibility: visible;
+    }
+
+    .election-session-result-print-area {
+      background: #fff !important;
+      border-color: #000 !important;
+      font-size: 12px !important;
+      left: 0;
+      padding: 10mm !important;
+      position: absolute;
+      top: 0;
+      width: 100%;
+    }
+
+    .election-session-result-print-area header {
+      margin-bottom: 8px !important;
+    }
+
+    .election-session-result-print-area dl {
+      gap: 6px !important;
+      margin-bottom: 10px !important;
+    }
+
+    .election-session-result-print-area dl > div {
+      padding: 6px !important;
+    }
+
+    .election-session-result-contests {
+      display: grid !important;
+      gap: 8px !important;
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    .election-session-result-contest {
+      padding: 8px !important;
+    }
+
+    .election-session-result-candidates {
+      column-gap: 8px !important;
+      display: grid !important;
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      row-gap: 3px !important;
+    }
+
+    .election-session-result-candidate {
+      align-items: center !important;
+      column-gap: 4px !important;
+      display: grid !important;
+      font-size: 10px !important;
+      grid-template-columns: 2.4rem max-content max-content !important;
+      justify-content: start !important;
+      line-height: 1.15 !important;
+      padding: 3px 4px !important;
+    }
+
+    .election-session-result-candidate span,
+    .election-session-result-candidate strong {
+      white-space: nowrap !important;
+    }
+
+    .election-session-result-candidate strong {
+      text-align: right !important;
+    }
+
+    .election-session-result-signature {
+      margin-top: 12px !important;
+    }
+
+    .election-session-result-print-button {
+      display: none !important;
+    }
+  }
+</style>
+
+<section class="election-session-result-print-area space-y-5 rounded-md border border-stone-200 bg-white p-4">
   <header class="space-y-2">
     <div class="flex flex-wrap items-center gap-2">
-      <h1 class="text-2xl font-semibold text-stone-900">투표 결과</h1>
+      <h1 class="text-2xl font-semibold text-stone-900"><%= election_session.election.title %> 투표 결과</h1>
     </div>
+    <p class="text-lg font-semibold text-stone-700"><%= participant_group.grade %>학년 <%= participant_group.class_label_for_display %> <%= vote_date %> 시행</p>
   </header>
 
   <dl class="grid gap-2 text-sm sm:grid-cols-3">
@@ -26,21 +112,21 @@
     </div>
   </dl>
 
-  <div class="grid gap-3 lg:grid-cols-2">
+  <div class="election-session-result-contests grid gap-3 lg:grid-cols-2">
     <% contests.each do |contest| %>
       <% candidates = contest.election_candidates.order(:number) %>
       <% candidate_rows = candidates.map { |candidate| [ candidate, candidate_tallies_by_candidate_id[candidate.id]&.votes_count.to_i ] } %>
       <% contest_tally = contest_tallies_by_contest_id[contest.id] %>
       <% abstentions_count = contest_tally&.abstentions_count.to_i %>
 
-      <article class="space-y-3 rounded-md border border-stone-200 bg-stone-50 p-3">
+      <article class="election-session-result-contest space-y-3 rounded-md border border-stone-200 bg-stone-50 p-3">
         <div class="space-y-1">
           <h2 class="text-lg font-semibold text-stone-900"><%= contest.title %></h2>
         </div>
 
-        <div class="grid gap-1 md:grid-cols-2">
+        <div class="election-session-result-candidates grid gap-1 md:grid-cols-2">
           <% candidate_rows.each do |candidate, votes_count| %>
-            <div class="flex items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-2 text-sm">
+            <div class="election-session-result-candidate flex items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-2 text-sm">
               <span class="w-14 shrink-0 whitespace-nowrap font-medium text-stone-500">기호 <%= candidate.number %></span>
               <span class="min-w-0 flex-1 font-medium text-stone-900"><%= candidate.name %></span>
               <span class="w-12 shrink-0 text-right font-semibold tabular-nums text-stone-900"><%= votes_count %>표</span>
@@ -53,5 +139,9 @@
         </div>
       </article>
     <% end %>
+  </div>
+
+  <div class="election-session-result-signature text-right text-base font-medium text-stone-900">
+    확인: <span class="inline-block w-40 border-b border-stone-400 align-middle"></span> (인)
   </div>
 </section>

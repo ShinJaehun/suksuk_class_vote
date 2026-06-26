@@ -370,6 +370,59 @@ RSpec.describe "Election sessions", type: :request do
       expect(response.body).not_to include("세션 종료")
     end
 
+    it "shows the print result link only for closed sessions" do
+      closed_election_session = closed_session_with_results
+      in_progress_election_session = started_session
+      draft_election_session = draft_session
+
+      sign_in closed_election_session.teacher
+
+      get elections_session_path(closed_election_session)
+      expect(response.body).to include("결과 인쇄")
+      expect(response.body).to include("window.print()")
+
+      sign_in in_progress_election_session.teacher
+
+      get elections_session_path(in_progress_election_session)
+      expect(response.body).not_to include("결과 인쇄")
+
+      sign_in draft_election_session.teacher
+
+      get elections_session_path(draft_election_session)
+      expect(response.body).not_to include("결과 인쇄")
+    end
+
+    it "renders the printable result card on the closed session page" do
+      election_session = printable_closed_session
+      sign_in election_session.teacher
+
+      get elections_session_path(election_session)
+      visible_text = page_text
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("election-session-result-print-area")
+      expect(visible_text).to include("2026학년도 아라초 전교어린이회임원선거(모의) 투표 결과")
+      expect(visible_text).to include("4학년 11반 6/25 시행")
+      expect(visible_text).not_to include("투표일:")
+      expect(visible_text).to include("전체 투표자")
+      expect(visible_text).to include("3명")
+      expect(visible_text).to include("투표 완료")
+      expect(visible_text).to include("2명")
+      expect(visible_text).to include("미참여")
+      expect(visible_text).to include("1명")
+      expect(visible_text).to include("회장")
+      expect(visible_text).to include("기호 1")
+      expect(visible_text).to include("한지민")
+      expect(visible_text).to include("1표")
+      expect(visible_text).to include("기호 2")
+      expect(visible_text).to include("류가온")
+      expect(visible_text).to include("0표")
+      expect(visible_text).to include("기권 1표")
+      expect(visible_text).to include("확인:")
+      expect(visible_text).to include("(인)")
+      expect(response.body).not_to include("후보 사진")
+    end
+
     it "does not show closed session results for in progress sessions" do
       election_session = started_session
       sign_in election_session.teacher
@@ -916,6 +969,39 @@ RSpec.describe "Election sessions", type: :request do
     contest_tally_for(election_session, contest).update!(abstentions_count: 1)
     election_session.election_progress.update!(ballot_state: :locked, current_election_voter: nil)
     Elections::CloseSession.new(election_session: election_session, actor: election_session.teacher).call
+
+    election_session.reload
+  end
+
+  def printable_closed_session
+    teacher = create(:user)
+    participant_group = create(:participant_group,
+                               :school_election,
+                               user: teacher,
+                               grade: 4,
+                               class_label: "11")
+    create(:participant_slot, participant_group: participant_group, number: 1, name: "학생1")
+    create(:participant_slot, participant_group: participant_group, number: 2, name: "학생2")
+    create(:participant_slot, participant_group: participant_group, number: 3, name: "학생3")
+    election = create(:election, title: "2026학년도 아라초 전교어린이회임원선거(모의)", status: :in_progress)
+    contest = create(:election_contest, election: election, position: 1, title: "회장")
+    first_candidate = create(:election_candidate, election_contest: contest, number: 1, name: "한지민")
+    create(:election_candidate, election_contest: contest, number: 2, name: "류가온")
+    election_session = create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
+
+    Elections::StartSession.new(election_session: election_session, actor: teacher).call
+    election_session.reload
+
+    voters = election_session.election_voters.order(:position).to_a
+    voters.first.election_participation.update!(status: :completed, submitted_at: Time.current)
+    voters.second.election_participation.update!(status: :abstained, submitted_at: Time.current)
+    voters.third.election_participation.update!(status: :absent, submitted_at: Time.current)
+    tally_for(election_session, first_candidate).update!(votes_count: 1)
+    contest_tally_for(election_session, contest).update!(abstentions_count: 1)
+    election_session.election_progress.update!(ballot_state: :locked, current_election_voter: nil)
+    Elections::CloseSession.new(election_session: election_session, actor: teacher).call
+    election_session.update!(closed_at: Time.zone.local(2026, 6, 25, 10, 30))
+    election_session.election_progress.update!(closed_at: Time.zone.local(2026, 6, 25, 10, 30))
 
     election_session.reload
   end

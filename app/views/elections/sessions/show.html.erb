@@ -27,6 +27,14 @@
                progress: @progress,
                current_voter: @current_voter %>
 
+    <div class="flex justify-end">
+      <button type="button"
+              onclick="window.print()"
+              class="election-session-result-print-button inline-flex rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700">
+        결과 인쇄
+      </button>
+    </div>
+
     <%= render "closed_results",
                election_session: @election_session,
                contests: @contests,
