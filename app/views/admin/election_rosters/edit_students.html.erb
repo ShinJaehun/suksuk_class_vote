@@ -1,0 +1,32 @@
+<div class="space-y-6">
+  <p><%= link_to "전교임원선거 투표자 목록으로 돌아가기",
+                 admin_election_rosters_path(school_id: @participant_group.school_id),
+                 class: "text-sm font-medium text-stone-600 underline" %></p>
+
+  <div class="space-y-1">
+    <div class="flex flex-wrap items-center gap-2">
+      <h1 class="text-2xl font-semibold"><%= @participant_group.display_name %> 학생 명단</h1>
+      <span class="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-sm font-medium text-indigo-700">전교임원선거</span>
+    </div>
+    <p class="text-sm text-stone-600"><%= @participant_group.school&.name %></p>
+  </div>
+
+  <%= form_with url: edit_students_admin_election_roster_path(@participant_group),
+                method: :get,
+                class: "flex flex-wrap items-end gap-3 rounded-md border border-indigo-100 bg-indigo-50/30 p-4" do |form| %>
+    <div class="space-y-1">
+      <%= form.label :new_count, "추가할 학생 수", class: "text-sm font-medium text-stone-700" %>
+      <%= form.number_field :new_count, value: @new_count, min: 1, max: 40, class: "w-36 rounded-md border border-stone-300 px-3 py-2" %>
+    </div>
+    <%= form.submit "입력칸 만들기", class: "rounded-md border border-indigo-200 bg-white px-3 py-2 text-sm font-medium text-indigo-700" %>
+  <% end %>
+
+  <%= render "participant_group_rosters/form",
+             participant_group: @participant_group,
+             slot_rows: @slot_rows,
+             new_slot_rows: @new_slot_rows,
+             roster_errors: @roster_errors,
+             submit_path: update_students_admin_election_roster_path(@participant_group),
+             cancel_path: admin_election_rosters_path(school_id: @participant_group.school_id),
+             allow_destroy: true %>
+</div>

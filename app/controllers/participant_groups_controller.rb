@@ -5,7 +5,9 @@ class ParticipantGroupsController < ApplicationController
   before_action :set_safe_return_to, only: %i[show edit update destroy]
 
   def index
-    @participant_groups = current_user.participant_groups.teacher_personal.includes(:participant_slots).order(:name)
+    participant_groups = current_user.participant_groups.includes(:participant_slots)
+    @participant_groups = participant_groups.teacher_personal.order(:name)
+    @school_election_participant_groups = participant_groups.school_election.order(:grade, :class_label)
     authorize ParticipantGroup
   end
 

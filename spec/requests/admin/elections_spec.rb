@@ -262,6 +262,34 @@ RSpec.describe "Admin elections", type: :request do
       expect(completed_count.text.squish).to eq("1/1")
     end
 
+    it "shows stopped sessions and counts them when the parent election is stopped" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :stopped)
+      first_session = create_admin_election_session(
+        election: election,
+        status: :stopped,
+        group_name: "6학년 1반"
+      )
+      second_session = create_admin_election_session(
+        election: election,
+        status: :stopped,
+        group_name: "6학년 2반"
+      )
+
+      get admin_election_path(election)
+
+      document = Nokogiri::HTML(response.body)
+      session_count = document.xpath("//p[normalize-space()='학급 세션']/following-sibling::p").first
+      completed_count = document.xpath("//p[normalize-space()='완료 세션']/following-sibling::p").first
+
+      expect(response.body).to include(first_session.participant_group.display_name)
+      expect(response.body).to include(second_session.participant_group.display_name)
+      expect(response.body).to include("중단됨")
+      expect(response.body).not_to include("아직 배정된 학급 세션이 없습니다.")
+      expect(session_count.text.squish).to eq("2")
+      expect(completed_count.text.squish).to eq("0/2")
+    end
+
     it "hides the session assignment form after the election starts or closes" do
       sign_in create(:user, :admin)
       in_progress_election = create(:election, status: :in_progress)

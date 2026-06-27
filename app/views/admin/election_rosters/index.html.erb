@@ -46,6 +46,9 @@
                   <div class="flex flex-wrap items-center gap-2">
                     <h3 class="font-medium"><%= participant_group.school_election_short_label %></h3>
                     <span class="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-sm font-medium text-indigo-700">전교임원선거</span>
+                    <% if @assigned_participant_group_ids.include?(participant_group.id) %>
+                      <span class="rounded-md border border-stone-200 bg-stone-100 px-2 py-1 text-xs font-medium text-stone-600">선거 배정됨</span>
+                    <% end %>
                   </div>
                   <p class="text-sm text-stone-600">
                     담당 교사 <%= teacher.name.presence || teacher.email %>
@@ -54,13 +57,16 @@
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2">
-                  <%= link_to "관리",
-                              participant_group_path(participant_group, return_to: admin_election_rosters_path(school_id: @school.id)),
+                  <%= link_to "상세",
+                              participant_group_path(
+                                participant_group,
+                                return_to: admin_election_rosters_path(school_id: @school.id)
+                              ),
                               class: "text-sm font-medium text-stone-700 underline" %>
-                  <%= link_to "수정",
+                  <%= link_to "정보 수정",
                               edit_admin_election_roster_path(participant_group),
                               class: "text-sm font-medium text-stone-700 underline" %>
-                  <% unless participant_group.used_by_draft_poll? %>
+                  <% unless participant_group.used_by_draft_poll? || @assigned_participant_group_ids.include?(participant_group.id) %>
                     <%= button_to "삭제",
                                   admin_election_roster_path(participant_group),
                                   method: :delete,

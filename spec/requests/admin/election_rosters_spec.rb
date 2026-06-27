@@ -27,8 +27,16 @@ RSpec.describe "Admin election rosters", type: :request do
       expect(response.body).to include("담당 교사")
       expect(response.body).to include("김담임")
       expect(response.body).to include("투표자 1명")
-      expect(response.body).to include(participant_group_path(selected_group))
-      expect(response.body).to include(participant_group_path(selected_group, return_to: admin_election_rosters_path(school_id: school.id)))
+      expect(response.body).to include(
+        participant_group_path(
+          selected_group,
+          return_to: admin_election_rosters_path(school_id: school.id)
+        )
+      )
+      expect(response.body).to include("상세")
+      expect(response.body).not_to include("학생 명단")
+      expect(response.body).to include("정보 수정")
+      expect(response.body).not_to include(new_participant_group_bulk_participant_slots_path(selected_group))
       expect(response.body).not_to include(other_school_group.name)
       expect(response.body).not_to include("개인 명단")
     end
@@ -41,6 +49,68 @@ RSpec.describe "Admin election rosters", type: :request do
       expect(response.body).to include("등록된 학교가 없습니다.")
       expect(response.body).to include(new_admin_school_path)
       expect(response.body).not_to include(new_admin_election_roster_path)
+    end
+
+    it "explains why an assigned roster cannot be deleted" do
+      admin = create(:user, :admin)
+      school = create(:school)
+      participant_group = create(:participant_group, :school_election, school: school)
+      create(:election_session, participant_group: participant_group, teacher: participant_group.user)
+      sign_in admin
+
+      get admin_election_rosters_path, params: { school_id: school.id }
+
+      document = Nokogiri::HTML(response.body)
+      expect(document.at_css(%(form[action="#{admin_election_roster_path(participant_group)}"]))).to be_nil
+      expect(response.body).to include("선거 배정됨")
+    end
+
+    it "allows deletion when only stopped session history remains" do
+      admin = create(:user, :admin)
+      school = create(:school)
+      participant_group = create(:participant_group, :school_election, school: school)
+      stopped_session = create(
+        :election_session,
+        participant_group: participant_group,
+        teacher: participant_group.user,
+        status: :stopped
+      )
+      sign_in admin
+
+      get admin_election_rosters_path, params: { school_id: school.id }
+
+      document = Nokogiri::HTML(response.body)
+      expect(document.at_css(%(form[action="#{admin_election_roster_path(participant_group)}"]))).to be_present
+      expect(response.body).not_to include("선거 배정됨")
+
+      expect do
+        delete admin_election_roster_path(participant_group)
+      end.to change(ParticipantGroup, :count).by(-1)
+
+      expect(ElectionSession.exists?(stopped_session.id)).to be(false)
+    end
+
+    it "keeps closed session rosters locked" do
+      admin = create(:user, :admin)
+      school = create(:school)
+      participant_group = create(:participant_group, :school_election, school: school)
+      create(
+        :election_session,
+        participant_group: participant_group,
+        teacher: participant_group.user,
+        status: :closed
+      )
+      sign_in admin
+
+      get admin_election_rosters_path, params: { school_id: school.id }
+
+      document = Nokogiri::HTML(response.body)
+      expect(document.at_css(%(form[action="#{admin_election_roster_path(participant_group)}"]))).to be_nil
+      expect(response.body).to include("선거 배정됨")
+
+      expect do
+        delete admin_election_roster_path(participant_group)
+      end.not_to change(ParticipantGroup, :count)
     end
   end
 
@@ -281,6 +351,32 @@ RSpec.describe "Admin election rosters", type: :request do
     end
   end
 
+  describe "PATCH /admin/election_rosters/:id/update_students" do
+    it "updates and adds students before returning to the admin roster flow" do
+      admin = create(:user, :admin)
+      teacher = create(:user)
+      school = create(:school)
+      participant_group = create(:participant_group, :school_election, user: teacher, school: school)
+      slot = create(:participant_slot, participant_group: participant_group, number: 1, name: "기존 학생")
+      sign_in admin
+
+      patch update_students_admin_election_roster_path(participant_group), params: {
+        roster: {
+          slots: {
+            "0" => { id: slot.id, number: 2, name: "수정 학생" }
+          },
+          new_slots: {
+            "0" => { number: 1, name: "추가 학생" }
+          }
+        }
+      }
+
+      expect(response).to redirect_to(admin_election_rosters_path(school_id: school.id))
+      expect(slot.reload).to have_attributes(number: 2, name: "수정 학생")
+      expect(participant_group.participant_slots.find_by!(number: 1).name).to eq("추가 학생")
+    end
+  end
+
   describe "DELETE /admin/election_rosters/:id" do
     it "destroys a school election participant group" do
       admin = create(:user, :admin)
@@ -293,6 +389,21 @@ RSpec.describe "Admin election rosters", type: :request do
       end.to change(ParticipantGroup.school_election, :count).by(-1)
 
       expect(response).to redirect_to(admin_election_rosters_path(school_id: school.id))
+    end
+
+    it "does not destroy a roster assigned to an election session" do
+      admin = create(:user, :admin)
+      school = create(:school)
+      participant_group = create(:participant_group, :school_election, school: school)
+      create(:election_session, participant_group: participant_group, teacher: participant_group.user)
+      sign_in admin
+
+      expect do
+        delete admin_election_roster_path(participant_group)
+      end.not_to change(ParticipantGroup, :count)
+
+      expect(response).to redirect_to(admin_election_rosters_path(school_id: school.id))
+      expect(flash[:alert]).to include("선거 세션에 연결된 학급 명단")
     end
   end
 end

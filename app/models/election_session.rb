@@ -14,6 +14,8 @@ class ElectionSession < ApplicationRecord
   enum :status, { draft: 0, in_progress: 10, closed: 20, stopped: 30 }
   enum :operation_mode, { supervised: 0, pin_login: 10 }
 
+  scope :roster_locking, -> { where.not(status: :stopped) }
+
   validates :election, presence: true
   validates :teacher, presence: true
   validates :participant_group, presence: true

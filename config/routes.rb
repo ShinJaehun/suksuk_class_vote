@@ -19,6 +19,7 @@ Rails.application.routes.draw do
   resources :participant_groups, only: %i[index show new create edit update destroy] do
     resources :participant_slots, only: %i[new create edit update destroy]
     resource :bulk_participant_slots, only: %i[new create], controller: "bulk_participant_slots"
+    resource :roster, only: %i[edit update], controller: "participant_group_rosters"
   end
 
   namespace :elections do
@@ -40,6 +41,8 @@ Rails.application.routes.draw do
     resources :election_rosters, only: %i[index new create edit update destroy] do
       get :new_bulk, on: :collection
       post :bulk_create, on: :collection
+      get :edit_students, on: :member
+      patch :update_students, on: :member
     end
     resources :elections, only: %i[index show new create destroy] do
       get :results, on: :member

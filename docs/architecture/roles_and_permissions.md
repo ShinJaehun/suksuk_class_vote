@@ -241,6 +241,11 @@ teacher는 본인에게 배정된 `ElectionSession`만 운영할 수 있다.
 draft parent `Election`의 세션은 교사 목록에 보이지 않고, 직접 접근도 운영 화면으로 들어가지 못한다.
 closed parent `Election`의 세션은 진행 목록이 아니라 종료/보관 흐름에서 다룬다.
 
+`ParticipantGroup.purpose = school_election`인 명단은 전교임원선거 투표자 명단으로
+구분한다. admin은 `/admin/election_rosters`에서 학급 정보와 학생 명단을 관리한다.
+담당 teacher는 그룹 자체를 생성·수정·삭제할 수 없지만, 본인 학급의
+`ParticipantSlot` 번호와 이름을 추가·수정·삭제할 수 있다.
+
 Admin 전체 집계는 `closed` `ElectionSession`만 합산한다.
 draft/in_progress/stopped 세션은 전체 득표 합산에서 제외하지만, 학급별 검산 목록에는 상태와 함께 표시한다.
 

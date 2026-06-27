@@ -34,11 +34,11 @@
             <% if @participant_group.school_election? && current_user.admin? %>
               <%= link_to "정보 수정",
                           edit_admin_election_roster_path(@participant_group),
-                          class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
+                          class: "rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700" %>
             <% else %>
               <%= link_to "정보 수정",
                           edit_participant_group_path(@participant_group, return_to_poll_id: @return_poll&.id),
-                          class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
+                          class: "rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700" %>
             <% end %>
           <% end %>
           <% if current_user.admin? && policy(@participant_group).destroy? && !@participant_group.used_by_draft_poll? %>
@@ -64,46 +64,27 @@
       <h2 class="text-xl font-semibold">투표자</h2>
 
       <div class="flex flex-wrap items-center gap-2">
+        <%= link_to "명단 수정",
+                    edit_participant_group_roster_path(@participant_group, return_to: @safe_return_to),
+                    class: "rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700" %>
         <%= link_to "투표자 1명 추가",
                     new_participant_group_participant_slot_path(@participant_group, return_to_poll_id: @return_poll&.id, return_to: @safe_return_to),
                     class: "rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white" %>
         <%= link_to "여러 명 추가",
                     new_participant_group_bulk_participant_slots_path(@participant_group, return_to_poll_id: @return_poll&.id, return_to: @safe_return_to),
-                    class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700" %>
+                    class: "rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700" %>
       </div>
     </div>
 
     <% if @participant_group.participant_slots.any? %>
-      <div class="overflow-x-auto">
-        <table class="min-w-full text-left text-sm">
-          <thead class="border-b border-stone-200 text-stone-500">
-            <tr>
-              <th class="px-3 py-2 font-medium">번호</th>
-              <th class="px-3 py-2 font-medium">이름</th>
-              <th class="px-3 py-2 font-medium">관리</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-stone-100">
-            <% @participant_group.participant_slots.order(:number).each do |participant_slot| %>
-              <tr>
-                <td class="px-3 py-3"><%= participant_slot.number %>번</td>
-                <td class="px-3 py-3 font-medium"><%= participant_slot.name %></td>
-                <td class="px-3 py-3">
-                  <div class="flex flex-wrap items-center gap-2">
-                    <%= link_to "수정",
-                                edit_participant_group_participant_slot_path(@participant_group, participant_slot, return_to_poll_id: @return_poll&.id, return_to: @safe_return_to),
-                                class: "text-sm font-medium text-stone-700 underline" %>
-                    <%= button_to "삭제",
-                                  participant_group_participant_slot_path(@participant_group, participant_slot, return_to_poll_id: @return_poll&.id, return_to: @safe_return_to),
-                                  method: :delete,
-                                  class: "text-sm font-medium text-stone-700 underline" %>
-                  </div>
-                </td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
+      <ul class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <% @participant_group.participant_slots.order(:number).each do |participant_slot| %>
+          <li class="flex items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-2 text-sm">
+            <span class="shrink-0 text-stone-500"><%= participant_slot.number %>번</span>
+            <span class="font-medium text-stone-900"><%= participant_slot.name %></span>
+          </li>
+        <% end %>
+      </ul>
     <% else %>
       <p class="text-stone-600">아직 등록된 투표자가 없습니다.</p>
     <% end %>

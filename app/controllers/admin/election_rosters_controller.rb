@@ -1,6 +1,6 @@
 module Admin
   class ElectionRostersController < BaseController
-    before_action :set_participant_group, only: %i[edit update destroy]
+    before_action :set_participant_group, only: %i[edit update destroy edit_students update_students]
     before_action :set_teachers, only: %i[new create edit update new_bulk bulk_create]
 
     def index
@@ -16,6 +16,10 @@ module Admin
       else
         ParticipantGroup.none
       end
+      @assigned_participant_group_ids = ElectionSession.roster_locking
+        .where(participant_group_id: @participant_groups.select(:id))
+        .distinct
+        .pluck(:participant_group_id)
     end
 
     def new
@@ -113,10 +117,42 @@ module Admin
     def destroy
       school_id = @participant_group.school_id
 
-      if @participant_group.destroy
-        redirect_to admin_election_rosters_path(school_id: school_id), notice: "전교임원선거 학급 명단을 삭제했습니다."
+      if ElectionSession.roster_locking.where(participant_group: @participant_group).exists?
+        redirect_to admin_election_rosters_path(school_id: school_id), alert: "선거 세션에 연결된 학급 명단은 삭제할 수 없습니다."
+        return
+      end
+
+      ParticipantGroup.transaction do
+        ElectionSession.stopped.where(participant_group: @participant_group).destroy_all
+        @participant_group.destroy!
+      end
+
+      redirect_to admin_election_rosters_path(school_id: school_id), notice: "전교임원선거 학급 명단을 삭제했습니다."
+    rescue ActiveRecord::RecordNotDestroyed, ActiveRecord::InvalidForeignKey => e
+      message = e.respond_to?(:record) ? e.record.errors.full_messages.to_sentence : nil
+      redirect_to admin_election_rosters_path(school_id: school_id), alert: message.presence || "전교임원선거 학급 명단을 삭제할 수 없습니다."
+    end
+
+    def edit_students
+      @new_count = parsed_new_count
+      prepare_student_rows
+    end
+
+    def update_students
+      result = ParticipantGroups::UpdateRoster.new(
+        participant_group: @participant_group,
+        slot_attributes: roster_params.fetch("slots", {}),
+        new_slot_attributes: roster_params.fetch("new_slots", {})
+      ).call
+
+      if result.success?
+        redirect_to admin_election_rosters_path(school_id: @participant_group.school_id), notice: "학생 명단을 수정했습니다."
       else
-        redirect_to admin_election_rosters_path(school_id: school_id), alert: @participant_group.errors.full_messages.to_sentence
+        @roster_errors = result.errors
+        @slot_rows = result.slot_rows
+        @new_slot_rows = result.new_slot_rows
+        @new_count = @new_slot_rows.size
+        render :edit_students, status: :unprocessable_entity
       end
     end
 
@@ -138,6 +174,28 @@ module Admin
 
     def participant_group_params
       params.require(:participant_group).permit(:user_id, :grade, :class_label)
+    end
+
+    def roster_params
+      params.require(:roster).permit(slots: {}, new_slots: {}).to_h
+    end
+
+    def parsed_new_count
+      count = params[:new_count].to_i
+      return 0 if count < 1
+
+      [count, 40].min
+    end
+
+    def prepare_student_rows
+      @roster_errors = []
+      @slot_rows = @participant_group.participant_slots.order(:number).map do |slot|
+        { "id" => slot.id.to_s, "number" => slot.number, "name" => slot.name, "_destroy" => "0" }
+      end
+      next_number = @participant_group.participant_slots.maximum(:number).to_i + 1
+      @new_slot_rows = Array.new(@new_count) do |index|
+        { "number" => next_number + index, "name" => "" }
+      end
     end
 
     def bulk_class_rows_from_count
