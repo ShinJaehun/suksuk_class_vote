@@ -92,7 +92,7 @@ RSpec.describe "Participant group rosters", type: :request do
       }
     }
 
-    expect(response).to have_http_status(:unprocessable_entity)
+    expect(response).to have_http_status(:unprocessable_content)
     expect(response.body).to include("같은 번호가 있습니다.")
     expect(first.reload.number).to eq(1)
     expect(second.reload.number).to eq(2)

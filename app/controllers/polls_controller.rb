@@ -14,6 +14,7 @@ class PollsController < ApplicationController
     @polls = policy_scope(Poll).archived.includes(:participant_group).order(archived_at: :desc)
     @poll_voter_counts = voter_counts_for(@polls)
     @closed_election_sessions = closed_election_sessions
+    @election_session_voter_counts = election_session_voter_counts_for(@closed_election_sessions)
     authorize Poll, :index?
   end
 
@@ -327,8 +328,9 @@ class PollsController < ApplicationController
 
     ElectionSession
       .joins(:election)
-      .where(teacher: current_user, status: %i[draft in_progress])
-      .where(elections: { status: :in_progress })
+      .where(teacher: current_user, status: %i[draft in_progress stopped])
+      .where(elections: { status: %i[in_progress stopped closed] })
+      .where(hidden_from_teacher_at: nil)
       .includes(:election, :participant_group)
       .order(created_at: :desc)
   end

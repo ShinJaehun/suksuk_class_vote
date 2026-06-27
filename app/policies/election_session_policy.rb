@@ -45,4 +45,8 @@ class ElectionSessionPolicy < ApplicationPolicy
   def revote?
     user&.admin? && record.election.in_progress?
   end
+
+  def hide_from_teacher?
+    user&.teacher? && record.teacher_id == user.id && record.stopped?
+  end
 end

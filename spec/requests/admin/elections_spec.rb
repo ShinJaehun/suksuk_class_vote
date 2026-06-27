@@ -222,9 +222,9 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("checked=\"checked\"")
     end
 
-    it "hides stopped history and counts only the replacement session" do
+    it "shows stopped history separately while counting only the replacement session" do
       sign_in create(:user, :admin)
-      election = create(:election, status: :in_progress)
+      election = create(:election, status: :closed)
       teacher = create(:user)
       participant_group = create(
         :participant_group,
@@ -236,6 +236,14 @@ RSpec.describe "Admin elections", type: :request do
         class_label: "1"
       )
       stopped_session = create(
+        :election_session,
+        election: election,
+        teacher: teacher,
+        participant_group: participant_group,
+        status: :stopped,
+        hidden_from_teacher_at: 1.day.ago
+      )
+      second_stopped_session = create(
         :election_session,
         election: election,
         teacher: teacher,
@@ -256,7 +264,10 @@ RSpec.describe "Admin elections", type: :request do
       session_count = document.xpath("//p[normalize-space()='학급 세션']/following-sibling::p").first
       completed_count = document.xpath("//p[normalize-space()='완료 세션']/following-sibling::p").first
 
-      expect(response.body).not_to include(elections_session_path(stopped_session))
+      expect(response.body).to include("중단된 학급 세션 이력")
+      expect(response.body).to include("중단됨")
+      expect(response.body).to include(elections_session_path(stopped_session))
+      expect(response.body).to include(elections_session_path(second_stopped_session))
       expect(response.body).to include(elections_session_path(replacement))
       expect(session_count.text.squish).to eq("1")
       expect(completed_count.text.squish).to eq("1/1")
@@ -515,11 +526,20 @@ RSpec.describe "Admin elections", type: :request do
       sign_in teacher
       election = create(:election, title: "중단된 전교임원선거", status: :stopped)
       participant_group = create(:participant_group, :school_election, user: teacher, school: election.school, name: "6학년 1반", grade: 6, class_label: "1")
-      create(:election_session, election: election, teacher: teacher, participant_group: participant_group, status: :in_progress)
+      stopped_session = create(:election_session, election: election, teacher: teacher, participant_group: participant_group, status: :stopped)
 
       get polls_path
 
-      expect(response.body).not_to include("중단된 전교임원선거")
+      expect(response.body).to include("중단된 전교임원선거")
+      expect(response.body).to include("중단됨")
+      expect(response.body).to include(elections_session_path(stopped_session))
+      expect(response.body).not_to include("투표 시작")
+      expect(response.body).not_to include("투표 화면 열기")
+      expect(response.body).not_to include("다음 투표자")
+      expect(response.body).not_to include("미참여 처리")
+      expect(response.body).not_to include("투표 종료")
+      expect(response.body).not_to include("투표 삭제")
+      expect(response.body).not_to include("목록에서 삭제")
       expect(response.body).not_to include("전교임원선거 중단")
       expect(response.body).not_to include("전교임원선거 삭제")
     end
@@ -775,10 +795,12 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).not_to include("닫힌 학급 투표만 결과에 집계됩니다.")
       expect(response.body).to include("전체 진행 현황")
       expect(response.body).to include("완료 학급")
-      expect(response.body).to include("1/4")
-      expect(response.body).to include("진행 중")
-      expect(response.body).to include("준비 중")
-      expect(response.body).to include("중단")
+      expect(response.body).to include("1/1")
+      expect(response.body).not_to include("잠정 집계")
+      expect(response.body).not_to include("집계 제외: 중단")
+      expect(response.body).not_to include("진행 중")
+      expect(response.body).not_to include("준비 중")
+      expect(response.body).not_to include("중단")
     end
 
     it "sums candidate tallies from closed sessions in aggregate results" do
@@ -884,6 +906,11 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).not_to include("99표")
       expect(response.body).not_to include("88표")
       expect(response.body).not_to include("77표")
+      expect(response.body).to include("6학년 1반")
+      expect(response.body).not_to include("6학년 2반")
+      expect(response.body).not_to include("6학년 3반")
+      expect(response.body).not_to include("6학년 4반")
+      expect(response.body).not_to include("집계 제외: 중단")
     end
 
     it "includes a closed replacement while excluding its stopped historical session" do
@@ -898,7 +925,8 @@ RSpec.describe "Admin elections", type: :request do
         election: election,
         teacher: teacher,
         participant_group: participant_group,
-        status: :stopped
+        status: :stopped,
+        hidden_from_teacher_at: 1.day.ago
       )
       replacement = create(
         :election_session,
@@ -915,9 +943,13 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("재투표후보")
       expect(response.body).to include("6표")
       expect(response.body).not_to include("90표")
+      expect(response.body).to include("완료 학급")
+      expect(response.body).to include("1/1")
+      expect(response.body).not_to include("잠정 집계")
+      expect(response.body).not_to include("집계 제외: 중단")
     end
 
-    it "shows provisional aggregate when not every session is closed" do
+    it "does not treat non-closed sessions as partial result sessions" do
       sign_in create(:user, :admin)
       election = create(:election, status: :closed)
       create_admin_election_session(election: election, status: :closed, group_name: "6학년 1반")
@@ -925,7 +957,9 @@ RSpec.describe "Admin elections", type: :request do
 
       get results_admin_election_path(election)
 
-      expect(response.body).to include("잠정 집계")
+      expect(response.body).to include("완료 학급")
+      expect(response.body).to include("1/1")
+      expect(response.body).not_to include("잠정 집계")
     end
 
     it "shows per-class result summaries" do
@@ -982,16 +1016,16 @@ RSpec.describe "Admin elections", type: :request do
       expect(session_results_text).not_to include("후보 득표")
     end
 
-    it "shows non-closed sessions as excluded in per-class results" do
+    it "does not show non-closed sessions in per-class results" do
       sign_in create(:user, :admin)
       election = create(:election, status: :closed)
       create_admin_election_session(election: election, status: :draft, group_name: "6학년 2반")
 
       get results_admin_election_path(election)
 
-      expect(response.body).to include("6학년 2반")
-      expect(response.body).to include("시작 전")
-      expect(response.body).to include("전체 결과 합산에서 제외")
+      expect(response.body).not_to include("6학년 2반")
+      expect(response.body).not_to include("시작 전")
+      expect(response.body).not_to include("전체 결과 합산에서 제외")
     end
   end
 

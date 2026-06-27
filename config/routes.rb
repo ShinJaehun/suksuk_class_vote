@@ -26,6 +26,7 @@ Rails.application.routes.draw do
     resources :sessions, only: %i[show] do
       get :ballot, on: :member
       post :close_ballot_screen, on: :member
+      post :hide_from_teacher, on: :member
       post :start, on: :member
       post :open_ballot, on: :member
       post :lock_ballot, on: :member

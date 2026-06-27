@@ -17,6 +17,16 @@
     </div>
   <% end %>
 
+  <% if policy(@election_session).hide_from_teacher? && @election_session.hidden_from_teacher_at.nil? %>
+    <div class="flex justify-end">
+      <%= button_to "투표 삭제",
+                    hide_from_teacher_elections_session_path(@election_session),
+                    method: :post,
+                    data: { turbo_confirm: "중단된 투표를 내 투표 목록에서 삭제할까요? 관리자 화면의 중단 이력은 유지됩니다." },
+                    class: "inline-flex rounded-md border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100" %>
+    </div>
+  <% end %>
+
   <% if current_user.admin? %>
     <div class="space-y-2">
       <div class="flex flex-wrap items-center gap-2">

@@ -465,9 +465,15 @@ RSpec.describe "Election sessions", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("중단된 세션")
+      expect(response.body).to include("투표 삭제")
+      expect(response.body).to include("중단된 투표를 내 투표 목록에서 삭제할까요? 관리자 화면의 중단 이력은 유지됩니다.")
+      expect(response.body).to include("전체 투표자")
+      expect(response.body).to include("투표 진행 상황")
+      expect(response.body).to include("투표자 명단")
       expect(response.body).not_to include("세션 결과")
       expect(response.body).not_to include("투표 화면 열기")
       expect(response.body).not_to include("미참여 처리")
+      expect(response.body).not_to include(close_elections_session_path(election_session))
     end
 
     it "removes a stale ballot submission notice from a stopped session" do
@@ -688,6 +694,50 @@ RSpec.describe "Election sessions", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("학생 투표 화면")
       expect(response.body).not_to include("투표 화면을 열 수 없습니다.")
+    end
+  end
+
+  describe "POST /elections/sessions/:id/hide_from_teacher" do
+    it "does not allow a teacher to hide another teacher's stopped session" do
+      owner = create(:user)
+      participant_group = create(:participant_group, :school_election, user: owner)
+      election_session = create(
+        :election_session,
+        status: :stopped,
+        election: create(:election, status: :stopped),
+        teacher: owner,
+        participant_group: participant_group
+      )
+      sign_in create(:user)
+
+      post hide_from_teacher_elections_session_path(election_session)
+
+      expect(response).to redirect_to(polls_path)
+      expect(flash[:alert]).to eq("접근 권한이 없습니다.")
+      expect(election_session.reload.hidden_from_teacher_at).to be_nil
+    end
+
+    it "does not allow a teacher to hide non-stopped sessions" do
+      teacher = create(:user)
+      sign_in teacher
+
+      %i[draft in_progress closed].each do |status|
+        participant_group = create(:participant_group, :school_election, user: teacher)
+        election = create(:election, status: status == :closed ? :closed : :in_progress)
+        election_session = create(
+          :election_session,
+          status: status,
+          election: election,
+          teacher: teacher,
+          participant_group: participant_group
+        )
+
+        post hide_from_teacher_elections_session_path(election_session)
+
+        expect(response).to redirect_to(polls_path)
+        expect(flash[:alert]).to eq("접근 권한이 없습니다.")
+        expect(election_session.reload.hidden_from_teacher_at).to be_nil
+      end
     end
   end
 

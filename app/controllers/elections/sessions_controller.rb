@@ -36,6 +36,13 @@ module Elections
       head :no_content
     end
 
+    def hide_from_teacher
+      authorize @election_session, :hide_from_teacher?
+
+      @election_session.update!(hidden_from_teacher_at: Time.current) if @election_session.hidden_from_teacher_at.nil?
+      redirect_to polls_path, notice: "중단된 투표를 목록에서 삭제했습니다."
+    end
+
     def open_ballot
       authorize @election_session
 

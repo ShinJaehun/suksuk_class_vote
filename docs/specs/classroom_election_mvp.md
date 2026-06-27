@@ -582,5 +582,6 @@ Admin `Election`은 여러 학급 `ElectionSession`을 배정하고 전체 운�
 - 재투표 처리 시 기존 투표자, 참여, 집계, 이벤트 기록은 삭제하지 않고 parent `Election` 상태는 변경하지 않는다.
 - 시작 뒤에는 학급 세션 추가/삭제와 후보자 등록/수정/삭제를 막고, admin show는 읽기 전용 목록을 보여준다.
 - 결과 집계 페이지는 parent `Election`이 `closed` 된 뒤 접근할 수 있으며, `closed` `ElectionSession`만 전체 득표 합산에 포함한다.
-- draft/in_progress/stopped 세션은 전체 집계에서 제외하지만, 학급별 검산 목록에는 상태와 함께 표시한다.
+- 결과 집계 페이지의 전체 진행 현황, 학급별 집계, 후보별 합산은 `closed` 세션만 대상으로 하며 draft/in_progress/stopped 세션 이력은 표시하지 않는다.
+- 담당 교사는 `/polls`에서 stopped 학급 세션을 확인한 뒤 해당 세션 상세 화면에서 자신의 목록에서 숨길 수 있으며, 이는 `hidden_from_teacher_at`만 기록하고 세션과 감사 이력을 삭제하지 않는다.
 - admin show는 Turbo Stream으로 summary, status_report, sessions 영역을 갱신한다.

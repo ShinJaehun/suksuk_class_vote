@@ -46,11 +46,13 @@
               <%= button_to "투표자 명단 삭제",
                             admin_election_roster_path(@participant_group),
                             method: :delete,
+                            data: { turbo_confirm: "투표자 명단을 삭제할까요?" },
                             class: "rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100" %>
             <% else %>
               <%= button_to "투표자 명단 삭제",
                             participant_group_path(@participant_group),
                             method: :delete,
+                            data: { turbo_confirm: "투표자 명단을 삭제할까요?" },
                             class: "rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100" %>
             <% end %>
           <% end %>

@@ -1,4 +1,5 @@
-<% election_sessions = election_sessions.reject(&:stopped?) unless election.stopped? %>
+<% current_sessions = election.stopped? ? election_sessions : election_sessions.reject(&:stopped?) %>
+<% stopped_history_sessions = election.stopped? ? [] : election_sessions.select(&:stopped?) %>
 <%= tag.section id: dom_id(election, :admin_sessions), class: "space-y-4 rounded-md border border-stone-200 bg-white p-4" do %>
   <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
     <div>
@@ -81,12 +82,12 @@
         </section>
 
         <aside class="space-y-3 rounded-md border border-stone-200 bg-stone-50 p-4 lg:sticky lg:top-4 lg:self-start">
-          <% assigned_voter_count = election_sessions.sum { |session| session.participant_group.participant_slots.size } %>
+          <% assigned_voter_count = current_sessions.sum { |session| session.participant_group.participant_slots.size } %>
           <h3 class="font-semibold">배정 현황</h3>
           <dl class="grid grid-cols-2 gap-3 text-sm">
             <div>
               <dt class="text-stone-500">배정 학급</dt>
-              <dd class="mt-1 text-2xl font-semibold"><%= election_sessions.size %></dd>
+              <dd class="mt-1 text-2xl font-semibold"><%= current_sessions.size %></dd>
             </div>
             <div>
               <dt class="text-stone-500">배정 투표 인원</dt>
@@ -103,11 +104,11 @@
     <p class="rounded-md border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600">선거 시작 후에는 구성을 변경할 수 없습니다.</p>
   <% end %>
 
-  <% if election_sessions.any? %>
-    <% session_deletion_allowed = election.draft? && election_sessions.none? { |election_session| !election_session.draft? } %>
+  <% if current_sessions.any? %>
+    <% session_deletion_allowed = election.draft? && current_sessions.none? { |election_session| !election_session.draft? } %>
     <div class="space-y-2">
       <h3 class="font-semibold">이미 배정된 학급 세션</h3>
-      <% election_sessions.each do |session| %>
+      <% current_sessions.each do |session| %>
         <% voter_count = session.participant_group.participant_slots.size %>
         <% display_status = { "draft" => "시작 전", "in_progress" => "진행 중", "closed" => "종료됨", "stopped" => "중단됨" }.fetch(session.status, session.status) %>
         <% status_class =
@@ -152,7 +153,38 @@
         </div>
         <% end %>
     </div>
-  <% else %>
+  <% elsif stopped_history_sessions.empty? %>
     <p class="rounded-md border border-dashed border-stone-300 bg-stone-50 p-3 text-sm text-stone-600">아직 배정된 학급 세션이 없습니다.</p>
+  <% end %>
+
+  <% if stopped_history_sessions.any? %>
+    <div class="space-y-2">
+      <h3 class="font-semibold">중단된 학급 세션 이력</h3>
+      <% stopped_history_sessions.each do |session| %>
+        <% voter_count = session.election_voters.size %>
+        <div class="flex flex-col gap-3 rounded-md border border-rose-100 bg-rose-50/40 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div class="space-y-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="font-medium"><%= session.participant_group.display_name %></h3>
+              <span class="rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-medium text-rose-700">중단됨</span>
+            </div>
+            <p class="text-sm text-stone-600">
+              담당 교사: <%= session.teacher.name.presence || session.teacher.email %>
+              · 투표자 <%= voter_count %>명
+              <% if session.started_at.present? %>
+                · 투표시작 <%= kst_datetime(session.started_at) %>
+              <% end %>
+              <% if session.closed_at.present? %>
+                · 투표종료 <%= kst_datetime(session.closed_at) %>
+              <% end %>
+            </p>
+          </div>
+
+          <%= link_to "상세",
+                      elections_session_path(session),
+                      class: "text-sm font-medium text-stone-700 underline" %>
+        </div>
+      <% end %>
+    </div>
   <% end %>
 <% end %>

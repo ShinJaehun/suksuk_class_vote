@@ -147,7 +147,10 @@ module Admin
 
     def prepare_results
       @election_contests = @election.election_contests.includes(:election_candidates).order(:position)
-      @election_sessions = @election.election_sessions.includes(:election_progress, :teacher, participant_group: :participant_slots).order(:created_at)
+      @election_sessions = @election.election_sessions
+        .closed
+        .includes(:election_progress, :teacher, participant_group: :participant_slots)
+        .order(:created_at)
       prepare_aggregate_results
     end
 
@@ -173,12 +176,8 @@ module Admin
 
       @aggregate_status_counts = {
         total: sessions.size,
-        closed: closed_sessions.size,
-        in_progress: sessions.count(&:in_progress?),
-        draft: sessions.count(&:draft?),
-        stopped: sessions.count(&:stopped?)
+        closed: closed_sessions.size
       }
-      @aggregate_partial = sessions.any? && closed_sessions.size < sessions.size
 
       candidate_vote_totals = ElectionCandidateTally
         .where(election_session_id: closed_session_ids)

@@ -110,6 +110,7 @@ RSpec.describe "Voter groups", type: :request do
       expect(response.body).to include("정보 수정")
       expect(response.body).to include(edit_participant_group_path(participant_group))
       expect(response.body).to include("투표자 명단 삭제")
+      expect(response.body).to include('data-turbo-confirm="투표자 명단을 삭제할까요?"')
       expect(response.body).not_to include("4-11 &lt;teacher411@example.com&gt;")
     end
 

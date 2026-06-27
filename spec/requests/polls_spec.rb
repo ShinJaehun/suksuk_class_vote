@@ -74,7 +74,7 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include("ElectionSession")
     end
 
-    it "shows assigned in-progress election sessions and hides finished election sessions" do
+    it "shows in-progress and stopped election sessions while hiding closed sessions" do
       teacher = create(:user)
       participant_group = create(:participant_group, :school_election, user: teacher, name: "5학년 2반")
       in_progress_session = create(
@@ -93,7 +93,7 @@ RSpec.describe "Polls", type: :request do
         teacher: teacher,
         participant_group: participant_group
       )
-      create(
+      stopped_session = create(
         :election_session,
         status: :stopped,
         election: create(:election, title: "중단된 선거", status: :in_progress),
@@ -108,7 +108,13 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("진행")
       expect(response.body).to include("투표자 2명")
       expect(response.body).not_to include("종료된 선거")
-      expect(response.body).not_to include("중단된 선거")
+      expect(response.body).to include("중단된 선거")
+      expect(response.body).to include("중단됨")
+      expect(response.body).to include("전교임원선거")
+      expect(response.body).to include(elections_session_path(stopped_session))
+      expect(response.body).not_to include("투표 삭제")
+      expect(response.body).not_to include("목록에서 삭제")
+      expect(response.body).not_to include("중단된 투표를 내 투표 목록에서 삭제할까요?")
       expect(response.body).not_to include("in_progress")
     end
 
@@ -193,6 +199,36 @@ RSpec.describe "Polls", type: :request do
     end
   end
 
+  describe "POST /elections/sessions/:id/hide_from_teacher" do
+    it "hides the teacher's stopped session from polls without deleting it" do
+      teacher = create(:user)
+      participant_group = create(:participant_group, :school_election, user: teacher)
+      election_session = create(
+        :election_session,
+        status: :stopped,
+        election: create(:election, title: "숨길 중단 선거", status: :stopped),
+        teacher: teacher,
+        participant_group: participant_group
+      )
+      sign_in teacher
+
+      post hide_from_teacher_elections_session_path(election_session)
+
+      expect(response).to redirect_to(polls_path)
+      expect(flash[:notice]).to eq("중단된 투표를 목록에서 삭제했습니다.")
+      expect(election_session.reload.hidden_from_teacher_at).to be_present
+      expect(ElectionSession.exists?(election_session.id)).to be(true)
+
+      get polls_path
+      expect(response.body).not_to include("숨길 중단 선거")
+
+      get elections_session_path(election_session)
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("이 학급 투표는 중단되었습니다.")
+      expect(response.body).not_to include("투표 삭제")
+    end
+  end
+
   describe "GET /polls/archived" do
     it "shows only archived polls" do
       teacher = create(:user)
@@ -230,6 +266,7 @@ RSpec.describe "Polls", type: :request do
         teacher: teacher,
         participant_group: participant_group
       )
+      create(:election_voter, election_session: closed_session, teacher: teacher, participant_group: participant_group)
       create(
         :election_session,
         status: :stopped,
@@ -244,6 +281,10 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("보관된 투표")
       expect(response.body).to include(closed_session.election.title)
       expect(response.body).to include(participant_group.name)
+      expect(response.body).to include("전교임원선거")
+      expect(response.body).to include("border-indigo-100 bg-indigo-50/30")
+      expect(response.body).to include("종료됨")
+      expect(response.body).to include("투표자 1명")
       expect(response.body).to include("종료 2026-05-01 19:30")
       expect(response.body).not_to include("시작 -")
       expect(response.body).not_to include("종료 -")
