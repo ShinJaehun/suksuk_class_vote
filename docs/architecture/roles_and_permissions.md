@@ -48,7 +48,10 @@
 * 전체 후보 조회/관리
 * 전체 결과 조회
 * 운영상 필요한 데이터 정리
-* 전교임원선거 확장 시 전교 선거 생성/관리
+* 전교임원선거 생성과 후보/사진 관리
+* 학교별 공식 투표자 명단 관리와 학급 세션 배정
+* 전교임원선거 시작, 중단, 재투표, 명시적 종료
+* 종료된 전교임원선거 결과 집계 확인
 
 `admin`은 특정 선거 유형에만 묶인 역할이 아니다.
 학급 선거, 전교 선거, 운영 관리 전반에 대한 최고 권한을 가진다.
@@ -77,6 +80,10 @@
 * 본인 선거의 투표 진행
 * 본인 선거의 투표 종료
 * 본인 선거의 결과 확인
+* 본인에게 배정된 전교임원선거 학급 세션 시작과 진행
+* 담당 학급 학생의 미참여 처리와 학급 세션 종료
+* 담당 stopped 세션 상세와 당시 진행 기록 확인
+* 담당 stopped 세션을 본인 `/polls` 목록에서 숨김
 
 제한:
 
@@ -86,6 +93,8 @@
 * 다른 교사의 투표를 진행할 수 없다.
 * 다른 교사의 결과를 볼 수 없다.
 * admin 기능에 접근할 수 없다.
+* 전교임원선거 자체를 중단, 삭제 또는 종료할 수 없다.
+* 전교임원선거 학급 재투표를 실행할 수 없다.
 
 ---
 
@@ -230,16 +239,24 @@ Admin `Election`은 여러 학급 `ElectionSession`을 묶는 관리자 운영 �
 | 리소스/액션 | admin | teacher | guest | 비고 |
 | --- | ---: | ---: | ---: | --- |
 | 상세 조회 | 가능 | 불가 | 불가 | `admin/elections#show` |
-| 결과 집계 조회 | 가능 | 불가 | 불가 | `/admin/elections/:id/results` |
+| 결과 집계 조회 | closed 선거에서 가능 | 불가 | 불가 | `/admin/elections/:id/results`, closed session만 표시/집계 |
+| 선거 생성 | 가능 | 불가 | 불가 | 학교와 선거명을 기준으로 생성 |
 | 선거 시작 | 가능 | 불가 | 불가 | draft, 세션/항목/후보 구성 조건 충족 시 parent `Election`만 `in_progress`로 전환 |
+| 선거 중단 | in_progress에서 가능 | 불가 | 불가 | 운영 사고 시 parent와 미종료 학급 세션 중단 |
+| 선거 종료 | 모든 현재 세션 종료 후 가능 | 불가 | 불가 | parent 자동 종료 없이 admin이 명시적으로 확정 |
+| 특정 학급 재투표 | in_progress parent에서 가능 | 불가 | 불가 | 기존 세션은 stopped 이력, replacement는 draft |
 | 학급 세션 배정 | draft에서 가능 | 불가 | 불가 | 시작 후 생성 차단 |
 | 학급 세션 삭제 | 제한적으로 가능 | 불가 | 불가 | parent draft, 대상 session draft, 같은 election 안에 non-draft session 없음 |
-| 후보자 등록/수정/삭제 | draft에서 가능 | 불가 | 불가 | 시작 후 변경 차단 |
+| 후보자/사진 등록·수정·삭제 | draft에서 가능 | 불가 | 불가 | 시작 후 변경 차단 |
+| 공식 투표자 명단 관리 | 가능 | 그룹 metadata 변경 불가 | 불가 | teacher는 담당 명단의 학생 row 관리만 가능 |
 
 teacher는 본인에게 배정된 `ElectionSession`만 운영할 수 있다.
-단, parent `Election`이 `in_progress`인 세션만 교사 투표 목록에 노출한다.
+Parent `Election`이 `in_progress`이면 draft/in_progress 학급 세션을 운영할 수 있다.
 draft parent `Election`의 세션은 교사 목록에 보이지 않고, 직접 접근도 운영 화면으로 들어가지 못한다.
 closed parent `Election`의 세션은 진행 목록이 아니라 종료/보관 흐름에서 다룬다.
+stopped 학급 세션은 `/polls`에 `중단됨`으로 표시하고 상세를 읽기 전용으로 제공한다.
+담당 teacher는 stopped 상세에서 해당 세션을 본인 `/polls` 목록에서 숨길 수 있다.
+이 동작은 `hidden_from_teacher_at`만 기록하며 admin 이력과 직접 상세 접근은 유지한다.
 
 `ParticipantGroup.purpose = school_election`인 명단은 전교임원선거 투표자 명단으로
 구분한다. admin은 `/admin/election_rosters`에서 학급 정보와 학생 명단을 관리한다.
@@ -247,7 +264,9 @@ closed parent `Election`의 세션은 진행 목록이 아니라 종료/보관 �
 `ParticipantSlot` 번호와 이름을 추가·수정·삭제할 수 있다.
 
 Admin 전체 집계는 `closed` `ElectionSession`만 합산한다.
-draft/in_progress/stopped 세션은 전체 득표 합산에서 제외하지만, 학급별 검산 목록에는 상태와 함께 표시한다.
+결과 페이지의 학급별 목록도 `closed` 세션만 표시한다.
+draft/in_progress/stopped 세션은 결과 합산과 결과 검산 목록에서 제외한다.
+stopped 세션은 Admin 선거 상세의 중단 이력에서 확인한다.
 
 관리자 선거 UI 정책:
 
@@ -457,33 +476,13 @@ admin은 전체 데이터를 관리할 수 있다.
 
 ---
 
-## 향후 전교임원선거 확장 시 고려할 권한
+## 전교임원선거의 미구현 역할
 
-전교임원선거 확장 시에는 별도 권한이 필요할 수 있다.
+현재 전교임원선거는 `admin`과 `teacher` 역할만 사용한다.
+구체적인 운영 권한은 `docs/specs/school_council_election.md`를 따른다.
 
-예상 역할:
-
-* `admin`
-
-  * 전교 선거 생성
-  * 후보 등록
-  * 학급별 투표 진행 정보 생성
-  * 전체 진행률 확인
-  * 개표 관리
-
-* `teacher`
-
-  * 배정된 학급 투표 진행 정보 진행
-  * 자기 학급 진행률 확인
-  * 개표 전 후보별 결과 확인 불가
-
-* `election_officer`
-
-  * 선거관리위원 역할
-  * 개표 승인
-  * 결과 확인 입회
-
-초기 MVP에서는 `election_officer`를 구현하지 않는다.
+선거관리위원의 개표 승인이나 결과 확인 입회가 필요해지면
+`election_officer` 같은 별도 역할을 검토할 수 있다. 현재 배포 범위에는 포함하지 않는다.
 
 ---
 

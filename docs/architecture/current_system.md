@@ -4,10 +4,10 @@
 
 이 문서는 `쑥쑥교실투표(suksuk_class_vote)`의 현재 구현 상태와 문서 구조를 요약한다.
 
-현재 프로젝트는 교사가 교실에서 장치 하나로 선거, 토의, 토론 유형의 투표를 운영할 수 있도록
-기존 선거 흐름을 `Poll` 중심 도메인으로 확장하는 단계다.
-초기 운영 목표는 학급 반장/부반장 선거를 안정적으로 진행할 수 있는 MVP이며,
-토의/토론은 같은 진행·집계 구조를 재사용하는 방향으로 넓힌다.
+현재 프로젝트에는 두 운영 흐름이 있다. 교사가 학급에서 선거, 토의, 토론을 운영하는
+`Poll` 흐름과, admin이 여러 학급의 전교임원선거를 구성하고 각 교사가
+`ElectionSession`을 운영하는 `Election` 흐름이다.
+두 흐름은 화면 일부를 공유하지만 상태, 권한, 결과 집계 기준은 분리한다.
 
 ---
 
@@ -45,7 +45,8 @@
 - 중복 제출 방지
 - 종료 투표 수동 보관
 
-교사 주도 학급 `Poll` MVP 자체의 제외 범위:
+교사 주도 학급 `Poll` MVP 자체의 제외 범위이며, 일부는 별도 Admin `Election`
+흐름으로 구현되어 있다.
 
 - 전교임원선거 중앙 집계
 - 전교 투표용 관리자 대시보드
@@ -57,11 +58,14 @@
 - ActionCable 기반 실시간 대시보드
 - PDF 출력 고도화
 
-별도 Admin `Election` 흐름에서는 전교/여러 학급 운영을 위한 기본 관리 기능이 구현되어 있다.
-admin은 draft `Election`을 시작해 parent 상태를 `in_progress`로 전환하고,
-교사는 parent `Election`이 `in_progress`인 학급 `ElectionSession`만 진행 목록에서 확인한다.
+별도 Admin `Election` 흐름에서는 전교/여러 학급 운영을 위한 관리 기능이 구현되어 있다.
+admin은 공식 명단, 후보, 후보 사진, 학급 세션을 구성하고 draft `Election`을 시작한다.
+교사는 parent `Election`이 시작된 뒤 본인에게 배정된 `ElectionSession`을 운영한다.
+중단된 세션도 `/polls`에서 확인할 수 있으며, 상세를 확인한 뒤 본인 목록에서만 숨길 수 있다.
 Admin `ElectionCandidate` 후보자 사진은 전교임원선거 등에서 후보 식별을 돕기 위한 선택 입력이다.
 교사 주도 학급 `Poll` 흐름에는 사진 기능을 도입하지 않는다.
+
+전교임원선거의 canonical 정책은 `docs/specs/school_council_election.md`를 따른다.
 
 ## 배포 저장소 정책
 
@@ -149,9 +153,13 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - Admin `Election` 목록 카드에서는 후보 구성, 학급 수, 완료 수 요약을 표시하지 않음
 - Admin `Election` 상세 상단 요약 카드에서는 선거 이름 옆에 종류 배지와 상태 배지를 함께 표시
 - Admin 전체 집계는 `closed` `ElectionSession`의 tally만 합산하고, draft/in_progress/stopped 세션은 전체 득표 합산에서 제외
-- 학급별 집계 검산은 모든 `ElectionSession`을 상태와 함께 표시하며, 종료되지 않은 세션은 집계 제외로 표시
+- 결과 페이지의 전체 진행 현황과 학급별 집계도 `closed` `ElectionSession`만 표시
+- draft/in_progress/stopped 세션은 결과 페이지에 표시하지 않으며, stopped 이력은 Admin 선거 상세에서 별도 보존
 - admin의 `Election` 시작 조건 검증 추가: draft 상태, 학급 세션 1개 이상, 선거 항목 1개 이상, 각 항목 후보자 1명 이상
 - 중단 이력인 `stopped` 세션을 제외한 모든 `ElectionSession`이 `closed`가 되어도 parent `Election`은 `in_progress`를 유지하며, admin이 명시적으로 종료할 때만 `closed`로 전환
+- admin은 특정 학급 세션을 stopped 이력으로 보존하고 같은 학급의 draft replacement 세션을 만드는 재투표를 실행할 수 있음
+- stopped 세션은 Admin 선거 상세와 직접 상세에서 voter, participation, tally, event와 함께 보존
+- 담당 교사는 stopped 세션 상세에서 `hidden_from_teacher_at`을 기록해 본인의 `/polls` 목록에서만 숨길 수 있음
 - `Election` 시작 뒤 학급 세션 추가/삭제와 후보자 등록/수정/삭제 차단
 - 화면 표시 용어 정리: `Election` kind `school_council`은 `전교임원선거`, `Poll` kind `election`은 `학급선거`, `discussion`은 `학급토의`, `debate`는 `학급토론`으로 표시
 - 알 수 없거나 custom인 `Election` kind는 강제 번역하지 않고 원래 kind 값을 fallback으로 표시
@@ -171,6 +179,18 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 보관된 종료 투표는 `closed` 상태이면서 `archived_at`이 있는 투표다.
 보관된 종료 투표는 기록으로 남기기로 한 상태이므로 삭제하지 않는다.
 보관 해제와 종료 후 30일 자동 보관은 아직 구현하지 않았다.
+
+### Poll과 전교임원선거의 경계
+
+`Poll`은 교사가 직접 만드는 학급 활동 단위다. 생성, 후보/선택지 구성, 진행, 중단,
+종료, 보관을 해당 교사가 담당한다.
+
+전교임원선거는 admin이 만든 parent `Election` 아래에 학급별 `ElectionSession`을
+배정하는 구조다. Admin은 전체 구성, 중단, 재투표, 최종 종료와 결과 집계를 담당하고,
+teacher는 본인 학급 세션의 시작과 진행만 담당한다.
+
+Legacy Poll-backed `school_election` 구현은 현재 배포 전에 제거하지 않는다.
+실제 선거와 데이터 백업이 끝난 뒤 별도 리팩터링 대상으로 검토한다.
 
 ---
 
