@@ -87,6 +87,7 @@ test:
 production:
   primary: &primary_production
     <<: *default
+    host: <%= ENV.fetch("DB_HOST", "db") %>
     database: suksuk_class_vote_production
     username: suksuk_class_vote
     password: <%= ENV["SUKSUK_CLASS_VOTE_DATABASE_PASSWORD"] %>

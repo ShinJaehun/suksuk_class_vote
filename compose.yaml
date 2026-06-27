@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: suksuk_class_vote
+      POSTGRES_PASSWORD: ${SUKSUK_CLASS_VOTE_DATABASE_PASSWORD}
+      POSTGRES_DB: suksuk_class_vote_production
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "80:80"
+    environment:
+      RAILS_ENV: production
+      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
+      SUKSUK_CLASS_VOTE_DATABASE_PASSWORD: ${SUKSUK_CLASS_VOTE_DATABASE_PASSWORD}
+      DATABASE_URL: postgres://suksuk_class_vote:${SUKSUK_CLASS_VOTE_DATABASE_PASSWORD}@db:5432/suksuk_class_vote_production
+      SOLID_QUEUE_IN_PUMA: "true"
+    volumes:
+      - rails_storage:/rails/storage
+
+volumes:
+  postgres_data:
+  rails_storage:
