@@ -456,6 +456,22 @@ RSpec.describe "Election sessions", type: :request do
       expect(response.body).not_to include("미참여 처리")
     end
 
+    it "removes a stale ballot submission notice from a stopped session" do
+      election_session = opened_session
+      candidate = first_candidate(election_session)
+      sign_in election_session.teacher
+
+      post submit_ballot_elections_session_path(election_session), params: candidate_ballot_params(candidate)
+      expect(flash[:notice]).to eq("투표가 제출되었습니다.")
+
+      election_session.update!(status: :stopped)
+      get elections_session_path(election_session)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).not_to include("투표가 제출되었습니다.")
+      expect(response.body).to include("이 학급 투표는 중단되었습니다.")
+    end
+
     it "does not change election session data" do
       election_session = started_session
       before_counts = read_only_counts(election_session)
@@ -798,7 +814,7 @@ RSpec.describe "Election sessions", type: :request do
       post submit_ballot_elections_session_path(election_session, return_to: "ballot"), params: candidate_ballot_params(candidate)
 
       expect(response).to redirect_to(ballot_elections_session_path(election_session))
-      expect(flash[:notice]).to eq("투표가 제출되었습니다.")
+      expect(flash[:notice]).to be_blank
     end
 
     it "broadcasts teacher progress after student ballot submission" do

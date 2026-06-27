@@ -5,6 +5,7 @@ module Elections
 
     def show
       authorize @election_session
+      flash.delete(:notice) if @election_session.stopped?
 
       prepare_session_view
     end
@@ -93,7 +94,12 @@ module Elections
         broadcast_operation_progress
         broadcast_ballot
       end
-      redirect_with_result(result, notice: "투표가 제출되었습니다.", failure_return_to: params[:return_to])
+
+      if result.success? && params[:return_to] == "ballot"
+        redirect_to ballot_elections_session_path(@election_session)
+      else
+        redirect_with_result(result, notice: "투표가 제출되었습니다.", failure_return_to: params[:return_to])
+      end
     end
 
     def close
