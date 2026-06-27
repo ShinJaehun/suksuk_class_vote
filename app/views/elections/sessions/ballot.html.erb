@@ -1,7 +1,9 @@
 <% content_for :hide_navigation, true %>
 <% content_for :ballot_screen_layout, true %>
 
-<div class="space-y-2">
+<div class="space-y-2"
+     data-controller="election-ballot-screen"
+     data-election-ballot-screen-close-url-value="<%= close_ballot_screen_elections_session_path(@election_session) %>">
   <%= turbo_stream_from @election_session, :ballot_screen %>
 
   <%= render "ballot_content",

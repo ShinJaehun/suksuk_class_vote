@@ -24,6 +24,18 @@ module Elections
       end
     end
 
+    def close_ballot_screen
+      authorize @election_session, :operate?
+
+      result = Elections::LockBallot.new(
+        election_session: @election_session,
+        actor: current_user
+      ).call
+      broadcast_operation_progress if result.success?
+
+      head :no_content
+    end
+
     def open_ballot
       authorize @election_session
 

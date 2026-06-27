@@ -53,6 +53,16 @@ RSpec.describe "Election sessions", type: :request do
       expect(response.body).to include(
         %(data-election-session-progress-url-value="#{elections_session_path(election_session)}")
       )
+      expect(response.body).to include('data-controller="election-ballot-window"')
+      expect(response.body).to include(
+        %(data-election-ballot-window-url-value="#{ballot_elections_session_path(election_session)}")
+      )
+      expect(response.body).to include(
+        %(data-election-ballot-window-window-name-value="election_session_#{election_session.id}_ballot")
+      )
+      expect(response.body).to include('data-action="click-&gt;election-ballot-window#open"')
+      expect(response.body).to include('data-election-ballot-window-target="notice"')
+      expect(response.body).to include(%(href="#{ballot_elections_session_path(election_session)}"))
       expect(visible_text).to include("미참여 처리")
       expect(visible_text).not_to include("투표자 명단 수정")
       expect(visible_text).not_to include("현재 학급 투표가 진행 중입니다. 새로고침하거나 다시 접속해도 서버에 저장된 진행 위치에서 이어집니다.")
@@ -178,6 +188,8 @@ RSpec.describe "Election sessions", type: :request do
       expect(response).to have_http_status(:ok)
       expect(visible_text).to include("2번 학생2은 미참여 처리되었습니다.")
       expect(visible_text).to include("투표 종료")
+      expect(visible_text).not_to include("투표 화면 열기")
+      expect(response.body).not_to include('data-controller="election-ballot-window"')
       expect(visible_text).not_to include("다음 투표자는 다음 투표자입니다.")
       expect(visible_text).not_to include("모든 학생의 처리가 끝났습니다.")
     end
@@ -193,6 +205,8 @@ RSpec.describe "Election sessions", type: :request do
       expect(visible_text).to include("모든 학생의 투표가 끝났다면 반드시 투표 종료를 눌러 주세요.")
       expect(visible_text).to include("종료 후에는 이 세션의 투표가 마감됩니다.")
       expect(visible_text).to include("투표 종료")
+      expect(visible_text).not_to include("투표 화면 열기")
+      expect(response.body).not_to include('data-controller="election-ballot-window"')
       expect(response.body).to include("투표를 종료하면 이 세션의 투표가 마감됩니다. 종료하시겠습니까?")
     end
 
@@ -579,6 +593,10 @@ RSpec.describe "Election sessions", type: :request do
       expect(response.body).to include("value=\"candidate:")
       expect(response.body).to include("value=\"abstain\"")
       expect(response.body).to include("submit_ballot")
+      expect(response.body).to include('data-controller="election-ballot-screen"')
+      expect(response.body).to include(
+        %(data-election-ballot-screen-close-url-value="#{close_ballot_screen_elections_session_path(election_session)}")
+      )
       expect(response.body).not_to include('data-controller="election-session-progress"')
       expect(response.body).not_to include("투표 제출 기능은 다음 단계에서 연결됩니다.")
     end
@@ -646,6 +664,30 @@ RSpec.describe "Election sessions", type: :request do
       get ballot_elections_session_path(election_session)
 
       expect(response).to redirect_to(elections_session_path(election_session))
+    end
+  end
+
+  describe "POST /elections/sessions/:id/close_ballot_screen" do
+    it "locks an open ballot and returns no content" do
+      election_session = opened_session
+      sign_in election_session.teacher
+
+      post close_ballot_screen_elections_session_path(election_session)
+
+      expect(response).to have_http_status(:no_content)
+      expect(election_session.election_progress.reload).to be_locked
+    end
+
+    it "allows the ballot screen to load again after closing" do
+      election_session = opened_session
+      sign_in election_session.teacher
+
+      post close_ballot_screen_elections_session_path(election_session)
+      get ballot_elections_session_path(election_session)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("학생 투표 화면")
+      expect(response.body).not_to include("투표 화면을 열 수 없습니다.")
     end
   end
 

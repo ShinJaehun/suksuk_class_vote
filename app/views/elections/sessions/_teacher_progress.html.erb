@@ -31,6 +31,7 @@
   <% absent_count = election_session.election_voters.includes(:election_participation).count { |voter| voter.election_participation&.absent? } %>
   <% pending_count = [ total_voter_count - completed_count - absent_count, 0 ].max %>
   <% startable = election_session.draft? && election_session.election.in_progress? %>
+  <% can_open_ballot_screen = election_session.in_progress? && progress.present? && current_voter.present? && participation&.pending? %>
   <% absent_button_class = "rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100" %>
 
   <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -43,16 +44,24 @@
       <p class="text-sm text-stone-600"><%= election_session.participant_group&.name || "명단 없음" %></p>
     </div>
 
-    <div class="flex flex-wrap gap-2">
-      <% if election_session.in_progress? && progress.present? && current_voter.present? %>
+    <% if can_open_ballot_screen %>
+      <% ballot_window_name = "election_session_#{election_session.id}_ballot" %>
+      <div data-controller="election-ballot-window"
+           data-election-ballot-window-url-value="<%= ballot_elections_session_path(election_session) %>"
+           data-election-ballot-window-window-name-value="<%= ballot_window_name %>">
         <%= link_to "투표 화면 열기",
                     ballot_elections_session_path(election_session),
-                    target: "_blank",
-                    rel: "noopener",
-                    data: { turbo: false },
+                    target: ballot_window_name,
+                    data: {
+                      turbo: false,
+                      action: "click->election-ballot-window#open"
+                    },
                     class: "inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500" %>
-      <% end %>
-    </div>
+        <p hidden
+           data-election-ballot-window-target="notice"
+           class="mt-2 max-w-sm rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700"></p>
+      </div>
+    <% end %>
   </div>
 
   <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
