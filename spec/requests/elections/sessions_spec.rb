@@ -524,7 +524,8 @@ RSpec.describe "Election sessions", type: :request do
 
   describe "GET /elections/sessions/:id/ballot" do
     it "shows stopped guidance without ballot controls for stopped sessions" do
-      election_session = create(:election_session, status: :stopped)
+      election = create(:election, status: :in_progress)
+      election_session = create(:election_session, election: election, status: :stopped)
       sign_in election_session.teacher
 
       get ballot_elections_session_path(election_session)

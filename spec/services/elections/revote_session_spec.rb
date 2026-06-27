@@ -4,6 +4,7 @@ RSpec.describe Elections::RevoteSession do
   describe "#call" do
     it "stops an in-progress session and creates a replacement draft session" do
       old_session = create(:election_session, status: :in_progress)
+      old_session.election.update!(status: :in_progress)
       admin = create(:user, :admin)
 
       result = described_class.new(election_session: old_session, actor: admin).call
@@ -20,20 +21,31 @@ RSpec.describe Elections::RevoteSession do
       expect(old_session.election_events.where(event_type: :session_stopped).sole).to have_attributes(actor: admin)
     end
 
-    it "allows a closed session to be replaced without changing the parent election status" do
+    it "allows a closed session to be replaced while the parent election is in progress" do
       old_session = create(:election_session, status: :closed)
-      old_session.election.update!(status: :closed)
+      old_session.election.update!(status: :in_progress)
       admin = create(:user, :admin)
 
       result = described_class.new(election_session: old_session, actor: admin).call
 
       expect(result).to be_success
-      expect(old_session.election.reload).to be_closed
+      expect(old_session.election.reload).to be_in_progress
       expect(result.election_session).to be_draft
+    end
+
+    it "rejects a closed session after the parent election closes" do
+      old_session = create(:election_session, status: :closed)
+      old_session.election.update!(status: :closed)
+
+      result = described_class.new(election_session: old_session, actor: create(:user, :admin)).call
+
+      expect(result).not_to be_success
+      expect(old_session.reload).to be_closed
     end
 
     it "preserves voters, participations, tallies, and existing events" do
       old_session = create(:election_session, status: :in_progress)
+      old_session.election.update!(status: :in_progress)
       voter = create(
         :election_voter,
         election_session: old_session,
@@ -78,6 +90,7 @@ RSpec.describe Elections::RevoteSession do
 
     it "does not create a duplicate when an active replacement already exists" do
       old_session = create(:election_session, status: :stopped)
+      old_session.election.update!(status: :in_progress)
       active_session = create(
         :election_session,
         election: old_session.election,
@@ -98,6 +111,7 @@ RSpec.describe Elections::RevoteSession do
 
     it "rejects non-admin actors" do
       old_session = create(:election_session, status: :in_progress)
+      old_session.election.update!(status: :in_progress)
 
       result = described_class.new(election_session: old_session, actor: old_session.teacher).call
 

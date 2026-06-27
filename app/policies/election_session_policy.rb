@@ -43,6 +43,6 @@ class ElectionSessionPolicy < ApplicationPolicy
   end
 
   def revote?
-    user&.admin?
+    user&.admin? && record.election.in_progress?
   end
 end

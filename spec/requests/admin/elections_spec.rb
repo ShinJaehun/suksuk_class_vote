@@ -318,17 +318,27 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("사진 없음")
     end
 
-    it "links to the aggregate results page without rendering result details" do
+    it "shows results guidance before the election closes" do
       sign_in create(:user, :admin)
       election = create(:election)
 
       get admin_election_path(election)
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("결과 집계 보기")
-      expect(response.body).to include(results_admin_election_path(election))
+      expect(response.body).to include("선거 종료 후 결과를 확인할 수 있습니다.")
+      expect(response.body).not_to include(results_admin_election_path(election))
       expect(response.body).not_to include("전체 집계")
       expect(response.body).not_to include("학급별 집계 검산")
+    end
+
+    it "links to aggregate results after the election closes" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :closed)
+
+      get admin_election_path(election)
+
+      expect(response.body).to include("결과 집계 보기")
+      expect(response.body).to include(results_admin_election_path(election))
     end
 
     it "does not show session delete controls for non-draft sessions" do
@@ -394,6 +404,33 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("투표가 진행 중입니다.")
       expect(response.body).not_to include("Election이 draft 상태여야 합니다.")
       expect(response.body).not_to include(start_admin_election_path(election))
+    end
+
+    it "shows the close button when every non-stopped session is closed" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :in_progress)
+      create_admin_election_session(election: election, status: :closed, group_name: "6학년 1반")
+      create_admin_election_session(election: election, status: :stopped, group_name: "6학년 2반")
+
+      get admin_election_path(election)
+
+      expect(response.body).to include("모든 학급 투표가 종료되었습니다.")
+      expect(response.body).to include("결과를 확정하려면 선거 종료를 눌러 주세요.")
+      expect(response.body).to include(close_admin_election_path(election))
+      expect(response.body).to include("선거 종료")
+      expect(response.body).not_to include("전교임원선거 중단")
+    end
+
+    it "does not show the close button while a non-stopped session is unfinished" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :in_progress)
+      create_admin_election_session(election: election, status: :closed, group_name: "6학년 1반")
+      create_admin_election_session(election: election, status: :draft, group_name: "6학년 2반")
+
+      get admin_election_path(election)
+
+      expect(response.body).not_to include(close_admin_election_path(election))
+      expect(response.body).to include("전교임원선거 중단")
     end
 
     it "shows closed status reporting" do
@@ -540,6 +577,33 @@ RSpec.describe "Admin elections", type: :request do
     end
   end
 
+  describe "POST /admin/elections/:id/close" do
+    it "closes an election after every non-stopped session closes" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :in_progress)
+      create_admin_election_session(election: election, status: :closed, group_name: "6학년 1반")
+      create_admin_election_session(election: election, status: :stopped, group_name: "6학년 2반")
+
+      post close_admin_election_path(election)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:notice]).to eq("선거를 종료했습니다.")
+      expect(election.reload).to be_closed
+    end
+
+    it "does not close while a non-stopped session is unfinished" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :in_progress)
+      create_admin_election_session(election: election, status: :draft, group_name: "6학년 1반")
+
+      post close_admin_election_path(election)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to include("모든 학급 투표가 종료된 뒤")
+      expect(election.reload).to be_in_progress
+    end
+  end
+
   describe "POST /admin/elections/:id/stop" do
     it "stops an in progress election for admins" do
       sign_in create(:user, :admin)
@@ -657,6 +721,16 @@ RSpec.describe "Admin elections", type: :request do
   end
 
   describe "GET /admin/elections/:id/results" do
+    it "redirects to the election show before the election closes" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :in_progress)
+
+      get results_admin_election_path(election)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("선거 종료 후 결과를 확인할 수 있습니다.")
+    end
+
     it "shows aggregate session status counts to admins" do
       sign_in create(:user, :admin)
       election = create(:election, status: :closed)
@@ -681,7 +755,7 @@ RSpec.describe "Admin elections", type: :request do
 
     it "sums candidate tallies from closed sessions in aggregate results" do
       sign_in create(:user, :admin)
-      election = create(:election)
+      election = create(:election, status: :closed)
       contest = create(:election_contest, election: election, title: "회장")
       first_candidate = create(:election_candidate, election_contest: contest, number: 1, name: "김후보")
       second_candidate = create(:election_candidate, election_contest: contest, number: 2, name: "이후보")
@@ -707,7 +781,7 @@ RSpec.describe "Admin elections", type: :request do
 
     it "shows a printable aggregate result card" do
       sign_in create(:user, :admin)
-      election = create(:election, title: "2026학년도 아라초 전교어린이회임원선거(모의)")
+      election = create(:election, title: "2026학년도 아라초 전교어린이회임원선거(모의)", status: :closed)
       contest = create(:election_contest, election: election, title: "회장")
       first_candidate = create(:election_candidate, election_contest: contest, number: 1, name: "한지민")
       second_candidate = create(:election_candidate, election_contest: contest, number: 2, name: "류가온")
@@ -763,7 +837,7 @@ RSpec.describe "Admin elections", type: :request do
 
     it "excludes draft, in progress, and stopped session tallies from aggregate results" do
       sign_in create(:user, :admin)
-      election = create(:election)
+      election = create(:election, status: :closed)
       contest = create(:election_contest, election: election, title: "회장")
       candidate = create(:election_candidate, election_contest: contest, number: 1, name: "집계후보")
       closed_session = create_admin_election_session(election: election, status: :closed, group_name: "6학년 1반")
@@ -786,7 +860,7 @@ RSpec.describe "Admin elections", type: :request do
 
     it "includes a closed replacement while excluding its stopped historical session" do
       sign_in create(:user, :admin)
-      election = create(:election)
+      election = create(:election, status: :closed)
       contest = create(:election_contest, election: election, title: "회장")
       candidate = create(:election_candidate, election_contest: contest, number: 1, name: "재투표후보")
       teacher = create(:user)
@@ -817,7 +891,7 @@ RSpec.describe "Admin elections", type: :request do
 
     it "shows provisional aggregate when not every session is closed" do
       sign_in create(:user, :admin)
-      election = create(:election)
+      election = create(:election, status: :closed)
       create_admin_election_session(election: election, status: :closed, group_name: "6학년 1반")
       create_admin_election_session(election: election, status: :draft, group_name: "6학년 2반")
 
@@ -828,7 +902,7 @@ RSpec.describe "Admin elections", type: :request do
 
     it "shows per-class result summaries" do
       sign_in create(:user, :admin)
-      election = create(:election)
+      election = create(:election, status: :closed)
       session = create_admin_election_session(election: election, status: :closed, group_name: "6학년 1반")
       create_participation(session, :completed)
       create_participation(session, :completed)
@@ -852,7 +926,7 @@ RSpec.describe "Admin elections", type: :request do
 
     it "shows closed per-class detail results" do
       sign_in create(:user, :admin)
-      election = create(:election)
+      election = create(:election, status: :closed)
       contest = create(:election_contest, election: election, title: "회장")
       candidate = create(:election_candidate, election_contest: contest, number: 1, name: "상세후보")
       zero_vote_candidate = create(:election_candidate, election_contest: contest, number: 10, name: "영표후보")
@@ -882,7 +956,7 @@ RSpec.describe "Admin elections", type: :request do
 
     it "shows non-closed sessions as excluded in per-class results" do
       sign_in create(:user, :admin)
-      election = create(:election)
+      election = create(:election, status: :closed)
       create_admin_election_session(election: election, status: :draft, group_name: "6학년 2반")
 
       get results_admin_election_path(election)

@@ -25,9 +25,13 @@
     </div>
 
     <div class="flex flex-wrap gap-2">
-      <%= link_to "결과 집계 보기",
-                  results_admin_election_path(election),
-                  class: "inline-flex rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+      <% if election.closed? %>
+        <%= link_to "결과 집계 보기",
+                    results_admin_election_path(election),
+                    class: "inline-flex rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+      <% else %>
+        <p class="text-sm text-stone-600">선거 종료 후 결과를 확인할 수 있습니다.</p>
+      <% end %>
 
       <% if election.draft? || election.stopped? %>
         <%= button_to "전교임원선거 삭제",

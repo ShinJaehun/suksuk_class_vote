@@ -144,14 +144,14 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - 기본 투표 목록 `/polls`에서는 보관된 투표를 숨기고, 보관 목록 `/polls/archived`에서 확인
 - 보관된 투표 상세 `/polls/:id` 접근 가능
 - Admin `Election` 상세 화면에 상태점검, 기본 정보, 학급 세션 목록을 표시하고 Turbo Stream `admin_overview`로 갱신
-- Admin `Election` 결과 페이지 `/admin/elections/:id/results` 추가
+- Admin `Election`이 `closed` 된 뒤 접근 가능한 결과 페이지 `/admin/elections/:id/results` 추가
 - Admin `Election` 목록 `/admin/elections`는 선거 이름, 종류 배지, 상태 배지, 관리/시작 준비 버튼 중심으로 간결하게 표시
 - Admin `Election` 목록 카드에서는 후보 구성, 학급 수, 완료 수 요약을 표시하지 않음
 - Admin `Election` 상세 상단 요약 카드에서는 선거 이름 옆에 종류 배지와 상태 배지를 함께 표시
 - Admin 전체 집계는 `closed` `ElectionSession`의 tally만 합산하고, draft/in_progress/stopped 세션은 전체 득표 합산에서 제외
 - 학급별 집계 검산은 모든 `ElectionSession`을 상태와 함께 표시하며, 종료되지 않은 세션은 집계 제외로 표시
 - admin의 `Election` 시작 조건 검증 추가: draft 상태, 학급 세션 1개 이상, 선거 항목 1개 이상, 각 항목 후보자 1명 이상
-- 중단 이력인 `stopped` 세션을 제외한 모든 `ElectionSession`이 `closed`가 되면 parent `Election`도 `closed`로 전환
+- 중단 이력인 `stopped` 세션을 제외한 모든 `ElectionSession`이 `closed`가 되어도 parent `Election`은 `in_progress`를 유지하며, admin이 명시적으로 종료할 때만 `closed`로 전환
 - `Election` 시작 뒤 학급 세션 추가/삭제와 후보자 등록/수정/삭제 차단
 - 화면 표시 용어 정리: `Election` kind `school_council`은 `전교임원선거`, `Poll` kind `election`은 `학급선거`, `discussion`은 `학급토의`, `debate`는 `학급토론`으로 표시
 - 알 수 없거나 custom인 `Election` kind는 강제 번역하지 않고 원래 kind 값을 fallback으로 표시

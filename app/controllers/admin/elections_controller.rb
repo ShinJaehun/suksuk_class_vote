@@ -20,6 +20,11 @@ module Admin
     def results
       @election = policy_scope(Election).find(params[:id])
       authorize @election, :show?
+      unless @election.closed?
+        redirect_to admin_election_path(@election), alert: "선거 종료 후 결과를 확인할 수 있습니다."
+        return
+      end
+
       prepare_results
     end
 
@@ -44,6 +49,19 @@ module Admin
 
       if result.success?
         redirect_to admin_election_path(@election), notice: "전교임원선거를 중단했습니다."
+      else
+        redirect_to admin_election_path(@election), alert: result.error_message
+      end
+    end
+
+    def close
+      @election = policy_scope(Election).find(params[:id])
+      authorize @election, :show?
+
+      result = Elections::CloseElection.new(election: @election, actor: current_user).call
+
+      if result.success?
+        redirect_to admin_election_path(@election), notice: "선거를 종료했습니다."
       else
         redirect_to admin_election_path(@election), alert: result.error_message
       end

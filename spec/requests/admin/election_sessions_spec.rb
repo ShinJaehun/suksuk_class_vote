@@ -388,6 +388,7 @@ RSpec.describe "Admin election sessions", type: :request do
   describe "POST /admin/elections/:election_id/sessions/:id/revote" do
     it "lets an admin replace an in-progress session and redirects to the replacement" do
       old_session = create_election_session
+      old_session.election.update!(status: :in_progress)
       old_session.update!(status: :in_progress)
       sign_in create(:user, :admin)
 
@@ -409,6 +410,7 @@ RSpec.describe "Admin election sessions", type: :request do
 
     it "broadcasts stopped guidance to the old ballot screen" do
       old_session = create_election_session
+      old_session.election.update!(status: :in_progress)
       old_session.update!(status: :in_progress)
       sign_in create(:user, :admin)
 
@@ -422,6 +424,7 @@ RSpec.describe "Admin election sessions", type: :request do
 
     it "lets an admin replace a closed session" do
       old_session = create_election_session
+      old_session.election.update!(status: :in_progress)
       old_session.update!(status: :closed)
       sign_in create(:user, :admin)
 
@@ -429,10 +432,33 @@ RSpec.describe "Admin election sessions", type: :request do
 
       expect(response).to redirect_to(elections_session_path(old_session.election.election_sessions.order(:created_at).last))
       expect(old_session.reload).to be_stopped
+      expect(old_session.election.reload).to be_in_progress
+
+      replacement = old_session.election.election_sessions.where.not(id: old_session.id).sole
+      sign_out :user
+      sign_in old_session.teacher
+      get polls_path
+
+      expect(response.body).to include(elections_session_path(replacement))
+    end
+
+    it "does not replace a closed session after the parent election closes" do
+      old_session = create_election_session
+      old_session.update!(status: :closed)
+      old_session.election.update!(status: :closed)
+      sign_in create(:user, :admin)
+
+      expect do
+        post revote_admin_election_election_session_path(old_session.election, old_session)
+      end.not_to change(ElectionSession, :count)
+
+      expect(response).to redirect_to(admin_teachers_path)
+      expect(old_session.reload).to be_closed
     end
 
     it "does not allow teachers to replace sessions" do
       old_session = create_election_session
+      old_session.election.update!(status: :in_progress)
       old_session.update!(status: :in_progress)
       sign_in old_session.teacher
 
@@ -446,6 +472,7 @@ RSpec.describe "Admin election sessions", type: :request do
 
     it "redirects guests to sign in" do
       old_session = create_election_session
+      old_session.election.update!(status: :in_progress)
       old_session.update!(status: :in_progress)
 
       expect do
@@ -463,6 +490,7 @@ RSpec.describe "Admin election sessions", type: :request do
 
       %i[in_progress closed].each do |status|
         election_session = create_election_session
+        election_session.election.update!(status: :in_progress)
         election_session.update!(status: status)
 
         get elections_session_path(election_session)
@@ -476,6 +504,19 @@ RSpec.describe "Admin election sessions", type: :request do
         expect(revote_form["data-turbo-confirm"]).to eq("이 학급의 기존 투표를 중단 처리하고 재투표를 준비할까요?")
         expect(revote_form["data-turbo-confirm"]).not_to include("전체 집계에서는 제외됩니다")
       end
+    end
+
+    it "does not show the revote button after the parent election closes" do
+      election_session = create_election_session
+      election_session.update!(status: :closed)
+      election_session.election.update!(status: :closed)
+      sign_in create(:user, :admin)
+
+      get elections_session_path(election_session)
+
+      document = Nokogiri::HTML(response.body)
+      revote_path = revote_admin_election_election_session_path(election_session.election, election_session)
+      expect(document.at_css(%(form[action="#{revote_path}"]))).to be_nil
     end
 
     it "does not show the revote button for draft or stopped sessions" do

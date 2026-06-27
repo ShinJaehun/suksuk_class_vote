@@ -193,11 +193,11 @@ admin 상세 화면에서도 해당 UI를 숨기고 읽기 전용 목록으로 �
 학급 세션 삭제는 parent `Election`이 `draft`이고, 삭제 대상 세션이 `draft`이며,
 같은 `Election` 안에 draft가 아닌 세션이 하나도 없을 때만 허용한다.
 
-`ElectionSession` 종료 흐름에서는 같은 `Election`의 `stopped` 세션을 제외한 모든 세션이 `closed`인지 확인한다.
-중단 이력이 아닌 세션이 1개 이상이고 모두 `closed`이면 parent `Election`도 `closed`로 전환한다.
-draft/in_progress 세션이 남아 있으면 parent `Election`은 `closed`로 전환하지 않는다.
+`ElectionSession` 종료는 parent `Election`을 자동 종료하지 않는다.
+중단 이력이 아닌 세션이 1개 이상이고 모두 `closed`이면 admin 화면에서 명시적 `선거 종료`를 허용한다.
+admin이 종료를 확정하기 전까지 parent `Election`은 `in_progress`를 유지한다.
 
-Admin 결과 집계는 `closed` `ElectionSession`의 `ElectionCandidateTally`와
+Admin 결과 집계는 parent `Election`이 `closed` 된 뒤 `closed` `ElectionSession`의 `ElectionCandidateTally`와
 `ElectionContestTally`만 읽어 합산한다.
 draft/in_progress/stopped 세션의 tally는 전체 집계에서 제외하지만,
 학급별 검산 목록에는 세션 상태와 함께 표시한다.

@@ -31,7 +31,6 @@ module Elections
           election_session.update!(status: :closed, closed_at: closed_at)
           locked_progress.update!(closed_at: closed_at, ballot_state: :locked, current_election_voter: nil)
           record_event!(closed_at)
-          close_election_if_all_sessions_closed!
         end
       end
 
@@ -103,16 +102,6 @@ module Elections
         metadata: event_metadata,
         occurred_at: occurred_at
       )
-    end
-
-    def close_election_if_all_sessions_closed!
-      election = election_session.election
-      sessions = election.election_sessions.where.not(status: :stopped).reload
-
-      return if sessions.empty?
-      return unless sessions.all?(&:closed?)
-
-      election.update!(status: :closed)
     end
 
     def broadcast_admin_overview

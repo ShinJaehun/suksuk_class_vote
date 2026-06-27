@@ -18,20 +18,22 @@ module Elections
       return failure if errors.any?
 
       ElectionSession.transaction do
-        election_session.with_lock do
-          election_session.reload
-          validate_revoteable
-          raise ActiveRecord::Rollback if errors.any?
+        election_session.election.with_lock do
+          election_session.with_lock do
+            election_session.reload
+            validate_revoteable
+            raise ActiveRecord::Rollback if errors.any?
 
-          election_session.update!(status: :stopped)
-          record_stopped_event!
-          @new_election_session = ElectionSession.create!(
-            election: election_session.election,
-            participant_group: election_session.participant_group,
-            teacher: election_session.teacher,
-            operation_mode: election_session.operation_mode,
-            status: :draft
-          )
+            election_session.update!(status: :stopped)
+            record_stopped_event!
+            @new_election_session = ElectionSession.create!(
+              election: election_session.election,
+              participant_group: election_session.participant_group,
+              teacher: election_session.teacher,
+              operation_mode: election_session.operation_mode,
+              status: :draft
+            )
+          end
         end
       end
 
@@ -58,6 +60,7 @@ module Elections
       end
 
       errors << "관리자만 학급 재투표를 처리할 수 있습니다." unless actor&.admin?
+      errors << "진행 중인 전교임원선거에서만 재투표할 수 있습니다." unless election_session.election.in_progress?
       errors << "진행 중이거나 종료된 선거 세션만 재투표할 수 있습니다." unless election_session.in_progress? || election_session.closed?
       errors << "이미 활성 학급 세션이 있습니다." if active_session_exists?
     end

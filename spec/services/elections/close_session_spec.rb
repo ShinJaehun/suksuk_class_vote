@@ -13,7 +13,7 @@ RSpec.describe Elections::CloseSession do
       expect(result).to be_success
       expect(election_session.reload).to be_closed
       expect(election_session.closed_at).to be_present
-      expect(election.reload).to be_closed
+      expect(election.reload).to be_in_progress
 
       progress = election_session.election_progress.reload
       expect(progress.closed_at).to be_present
@@ -43,7 +43,7 @@ RSpec.describe Elections::CloseSession do
       expect(broadcasts.any? { |broadcast| broadcast.include?(ActionView::RecordIdentifier.dom_id(election_session.election, :admin_summary)) }).to be(true)
       expect(broadcasts.any? { |broadcast| broadcast.include?(ActionView::RecordIdentifier.dom_id(election_session.election, :admin_status_report)) }).to be(true)
       expect(broadcasts.any? { |broadcast| broadcast.include?(ActionView::RecordIdentifier.dom_id(election_session.election, :admin_sessions)) }).to be(true)
-      expect(broadcasts.join).to include("종료됨")
+      expect(broadcasts.join).to include("모든 학급 투표가 종료되었습니다.")
     end
 
     it "closes with mixed final participation statuses and records counts" do
@@ -84,7 +84,7 @@ RSpec.describe Elections::CloseSession do
       expect(election_session.reload).to be_closed
     end
 
-    it "closes the election after the last election session closes" do
+    it "keeps the election in progress after the last election session closes" do
       election_session = closable_session(statuses: [ :completed ])
       election = election_session.election
       election.update!(status: :in_progress)
@@ -92,7 +92,7 @@ RSpec.describe Elections::CloseSession do
       result = described_class.new(election_session: election_session, actor: election_session.teacher).call
 
       expect(result).to be_success
-      expect(election.reload).to be_closed
+      expect(election.reload).to be_in_progress
     end
 
     it "does not close the election while another session is not closed" do
@@ -107,7 +107,7 @@ RSpec.describe Elections::CloseSession do
       expect(election.reload).to be_in_progress
     end
 
-    it "ignores stopped historical sessions when closing the parent election" do
+    it "does not close the parent election when stopped historical sessions exist" do
       election_session = closable_session(statuses: [ :completed ])
       election = election_session.election
       election.update!(status: :in_progress)
@@ -116,7 +116,7 @@ RSpec.describe Elections::CloseSession do
       result = described_class.new(election_session: election_session, actor: election_session.teacher).call
 
       expect(result).to be_success
-      expect(election.reload).to be_closed
+      expect(election.reload).to be_in_progress
     end
 
     it "fails without an actor" do
@@ -240,7 +240,7 @@ RSpec.describe Elections::CloseSession do
   end
 
   def started_session(voter_count:)
-    election = create(:election)
+    election = create(:election, status: :in_progress)
     contest = create(:election_contest, election: election)
     create(:election_candidate, election_contest: contest)
     teacher = create(:user)
