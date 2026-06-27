@@ -30,9 +30,11 @@
 draft 선거는 아직 `PollParticipant` snapshot이 없고 원본 `ParticipantGroup`을 직접 참조한다.
 draft 상태에서도 원본 그룹 이름 수정과 `ParticipantSlot` 학생 추가/수정/삭제는 허용한다.
 다만 draft 선거가 현재 참조 중인 원본 `ParticipantGroup` 자체 삭제는 준비 중인 `Poll`이 필수 명단 설정을 잃지 않게 막는다.
-선거 중단 뒤에는 진행 중간 데이터를 보존 대상으로 보지 않는다.
-`stopped` 선거는 결과 확정 상태가 아니며 복구 또는 재개 대상이 아니다.
-`stopped` 선거를 삭제할 때는 `poll_progress`가 `poll_participants`를 참조하는 FK 문제를 피하기 위해 `poll_progress`를 먼저 정리한다.
+이 단락의 중단·삭제 정책은 교사 주도 일반 `Poll`에 대한 것이다.
+일반 `Poll` 중단 뒤에는 진행 중간 데이터를 보존 대상으로 보지 않는다.
+`stopped` Poll은 결과 확정 상태가 아니며 복구 또는 재개 대상이 아니다.
+`stopped` Poll을 삭제할 때는 `poll_progress`가 `poll_participants`를 참조하는 FK 문제를 피하기 위해 `poll_progress`를 먼저 정리한다.
+전교임원선거의 stopped `ElectionSession`은 이와 달리 감사 이력으로 보존한다.
 선거 종료 뒤에는 `PollParticipant` snapshot과 선거 시작 당시 그룹명 snapshot이 선거 자료 보존 기준이다.
 closed 선거는 `participant_group` 또는 `source_participant_slot` 참조가 비어도 `PollParticipant.number/name` 기준으로 투표 참여자 명단을 유지한다.
 보관 전 closed 선거는 삭제 또는 `archived_at` 기반 보관을 선택할 수 있다.
@@ -199,8 +201,9 @@ admin이 종료를 확정하기 전까지 parent `Election`은 `in_progress`를 
 
 Admin 결과 집계는 parent `Election`이 `closed` 된 뒤 `closed` `ElectionSession`의 `ElectionCandidateTally`와
 `ElectionContestTally`만 읽어 합산한다.
-draft/in_progress/stopped 세션의 tally는 전체 집계에서 제외하지만,
-학급별 검산 목록에는 세션 상태와 함께 표시한다.
+결과 페이지의 학급별 목록도 `closed` 세션만 표시한다.
+draft/in_progress/stopped 세션은 결과 합산과 results 화면에서 제외하고,
+stopped 이력은 Admin 선거 상세에서 확인한다.
 
 후보자 사진은 Admin `ElectionCandidate`의 후보 식별 보조 자료이며 결과/집계/검산에는 사용하지 않는다.
 사진은 선거 진행 중 사용하는 임시 자료로 보고, parent `Election`이 `closed`가 된 뒤 해당 Election 후보자들의
@@ -211,6 +214,32 @@ draft/in_progress/stopped 세션의 tally는 전체 집계에서 제외하지만
 Admin `Election` 상세 화면은 Turbo Stream `admin_overview`를 구독한다.
 학급 세션 시작/종료 뒤에는 `admin_summary`, `admin_status_report`, `admin_sessions` 영역을 replace해
 상단 상태, 상태점검 카드, 학급 세션 목록이 같은 DB 상태를 기준으로 보이게 한다.
+
+### ElectionSession 화면 복구
+
+전교임원선거 교사 화면은 `ElectionProgress`와 `ElectionParticipation`을 source of
+truth로 사용한다.
+
+- 교사 진행 영역은 Turbo Stream broadcast를 우선 사용한다.
+- broadcast를 놓치거나 WebSocket이 재연결되어도 2~3초 polling으로 해당 진행
+  Turbo Frame을 다시 읽는다.
+- polling은 교사 진행 영역에만 적용하며 학생 ballot이나 Admin summary에는 붙이지 않는다.
+- 새로고침, 재로그인, 브라우저 재실행, 컴퓨터 재부팅 뒤에도 DB의 current voter,
+  ballot state, participation을 기준으로 화면을 복구한다.
+
+Ballot 창은 세션별 named window를 사용한다. 같은 교사 화면에서 반복해서 열면 새
+창을 만들지 않고 기존 창을 focus한다. Ballot 창의 `pagehide`는 서버의 ballot
+상태를 잠그며, 창을 닫은 뒤 다시 열면 정상 ballot 화면을 새로 열 수 있다.
+
+클라이언트의 창 reference는 보조 장치일 뿐이다. 제출 시 서버는 session이
+`in_progress`인지, 현재 voter가 일치하는지, ballot이 열렸는지, participation이
+pending인지 다시 검증한다. 오래 열린 이전 ballot이나 중복 요청은 이 검증으로
+거부하고 tally를 변경하지 않는다.
+
+`stopped` `ElectionSession`은 복구하거나 재개하지 않는다. 당시 voter,
+participation, tally, progress, event를 보존하고 read-only 상세만 제공한다.
+재투표는 기존 세션을 `stopped` 이력으로 남기고 replacement `draft` 세션에서
+새로 시작한다. 자세한 운영 정책은 `docs/specs/school_council_election.md`를 따른다.
 
 `Polls::ResumeCurrentVoter`는 매우 제한적인 복구 액션이다.
 진행 중인 선거에서 `PollProgress`이 active이고, `current_poll_participant`가 비어 있으며,
@@ -549,10 +578,14 @@ transaction 안에서 `PollProgress`를 lock한 뒤 DB의 현재 참여자를 �
 - 교사 재로그인
 - 서버 재시작 후 DB 상태 기준 재진입
 - `current_poll_participant`가 nil이고, 다른 무결성 문제가 없으며, 미처리 학생이 남아 있는 경우 첫 미처리 학생으로 재개
+- 전교임원선거 교사 진행 화면의 broadcast 누락 후 polling 복구
+- ballot 창 종료 통지 뒤 같은 학급 ballot 창 재열기
+- `ElectionProgress` 기준 refresh/relogin/reboot 복구
 
 위 복구 가능 범위는 `in_progress` 선거에만 적용한다.
-`stopped` 선거는 진행 중단 상태이며 재시작하지 않는다.
-중단된 투표의 삭제는 결과 보존이 아니라 진행 중간 데이터 폐기 성격이다.
+`stopped` Poll과 `stopped` ElectionSession은 진행 중단 상태이며 재시작하지 않는다.
+일반 학급 Poll의 삭제 정책과 달리 전교임원선거 stopped 세션은 감사 이력으로
+삭제하지 않는다. Teacher 목록 숨김도 timestamp만 기록하며 세션 데이터는 보존한다.
 
 현재 자동 복구하지 않는 것:
 

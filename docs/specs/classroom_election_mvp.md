@@ -2,9 +2,11 @@
 
 ## 목적
 
-이 문서는 `쑥쑥교실투표`의 1차 목표인 학급 반장/부반장 선거 MVP 흐름을 정의한다.
+이 문서는 `쑥쑥교실투표`의 교사 주도 학급 `Poll` MVP 흐름을 정의한다.
 
 초기 MVP는 전교 선거가 아니라, 교사가 자기 학급에서 장치 하나로 반장/부반장 선거를 안정적으로 진행할 수 있는 기능에 집중한다.
+여러 학급을 묶는 `Election` / `ElectionSession` 기반 전교임원선거의 상세 기준은
+`docs/specs/school_council_election.md`를 따른다.
 
 ---
 
@@ -570,18 +572,10 @@ service가 lock 이후 DB의 현재 참여자와 비교한다.
 
 ## 별도 구현된 Admin Election 흐름
 
-Admin `Election`은 여러 학급 `ElectionSession`을 배정하고 전체 운영 상태를 확인하는 관리자 흐름이다.
-이 흐름은 교사 주도 학급 `Poll` MVP와 별도로 다음 정책을 가진다.
+Admin `Election`은 여러 학급 `ElectionSession`을 묶는 전교임원선거 흐름이다.
+학급 `Poll`과 별도 상태, 권한, 재투표, 결과 집계 정책을 사용하므로 이 문서에서
+중복 정의하지 않는다. 현재 canonical spec은
+`docs/specs/school_council_election.md`다.
 
-- admin은 draft `Election`을 시작해 parent 상태를 `in_progress`로 전환할 수 있다.
-- 시작 조건은 draft 상태, 학급 세션 1개 이상, 선거 항목 1개 이상, 각 항목 후보자 1명 이상이다.
-- parent `Election` 시작은 각 학급 `ElectionSession`을 자동 시작하지 않으며, 학급 세션 시작은 기존 교사 운영 흐름을 따른다.
-- teacher 투표 목록에는 parent `Election`이 `in_progress`인 세션만 노출한다.
-- `stopped` 이력 세션을 제외한 모든 학급 `ElectionSession`이 `closed`가 되어도 parent `Election`은 자동 종료되지 않으며, admin이 `선거 종료`를 눌러야 `closed`가 된다.
-- admin은 진행 중이거나 종료된 특정 학급 세션을 `stopped` 이력으로 보존하고 같은 학급의 draft 세션을 새로 만들어 재투표를 준비할 수 있다.
-- 재투표 처리 시 기존 투표자, 참여, 집계, 이벤트 기록은 삭제하지 않고 parent `Election` 상태는 변경하지 않는다.
-- 시작 뒤에는 학급 세션 추가/삭제와 후보자 등록/수정/삭제를 막고, admin show는 읽기 전용 목록을 보여준다.
-- 결과 집계 페이지는 parent `Election`이 `closed` 된 뒤 접근할 수 있으며, `closed` `ElectionSession`만 전체 득표 합산에 포함한다.
-- 결과 집계 페이지의 전체 진행 현황, 학급별 집계, 후보별 합산은 `closed` 세션만 대상으로 하며 draft/in_progress/stopped 세션 이력은 표시하지 않는다.
-- 담당 교사는 `/polls`에서 stopped 학급 세션을 확인한 뒤 해당 세션 상세 화면에서 자신의 목록에서 숨길 수 있으며, 이는 `hidden_from_teacher_at`만 기록하고 세션과 감사 이력을 삭제하지 않는다.
-- admin show는 Turbo Stream으로 summary, status_report, sessions 영역을 갱신한다.
+기존 Poll-backed `school_election` 흐름은 현재 배포 전에 제거하지 않는다.
+실제 선거 종료, 결과 검산, 데이터 백업 뒤 별도 리팩터링 후보로 남긴다.

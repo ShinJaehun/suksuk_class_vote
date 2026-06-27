@@ -8,6 +8,9 @@
 이번 문서는 설계 기준과 현재 구현 상태를 함께 정리한다. 이번 문서 갱신은 코드
 변경이 아니며, 현재 구현된 Election 엔진 흐름을 기준으로 남은 작업을 갱신한다.
 
+전교임원선거의 상태 전이, 역할별 화면 흐름, 중단·재투표·결과 정책은
+`docs/specs/school_council_election.md`를 canonical spec으로 따른다.
+
 ---
 
 ## 설계 결정 요약
@@ -38,9 +41,8 @@
 사용 사례로 본다. 따라서 `SchoolElection` 전용 구조가 아니라 범용 `Election`
 엔진을 기준으로 설계한다.
 
-현재 `SchoolElection` + `Poll` 재사용 기반 구현은 spike이자 기반 검증으로 본다.
-검증된 개념은 `Election` 엔진으로 일반화하고, Poll-backed 전교학생회 흐름은
-전환 완료 후 정리한다.
+현재 운영 기준은 `Election` 엔진이다. 기존 `SchoolElection` + `Poll` 재사용 기반
+구현은 실제 선거와 데이터 보존이 끝난 뒤 정리할 legacy 후보로 남긴다.
 
 ---
 
@@ -296,6 +298,11 @@ contest별 후보 외 집계다.
 초기 구현은 `supervised`만 한다. `pin_login`은 같은 voter, participation, tally
 구조를 재사용할 수 있게 필드와 흐름만 열어 둔다.
 
+같은 `election_id + participant_group_id` 조합은 `draft`, `in_progress`인 활성
+세션에 대해서만 하나를 허용한다. 모델 validation과 partial unique index
+`index_election_sessions_on_active_group_assignment`가 `status IN (0, 10)`을
+강제한다. `closed`, `stopped` 세션은 과거 기록으로 여러 개 보존할 수 있다.
+
 ---
 
 ## 투표자와 비밀투표 정책
@@ -388,8 +395,12 @@ contest별 무결성 확인에서는 후보별 득표 합계, 기권 수, partic
 - `Elections::LockBallot`
 - `Elections::SubmitBallot`
 - `Elections::MarkVoterAbsent`
+- `Elections::MarkNextVoterAbsent`
 - `Elections::AdvanceVoter`
 - `Elections::CloseSession`
+- `Elections::RevoteSession`
+- `Elections::StopElection`
+- `Elections::CloseElection`
 
 현재 닫힌 session 결과를 확인하기 위한 read-only report service도 구현되어 있다.
 이 service는 operation flow를 진행시키지 않고, DB 상태를 읽어 구조적 일관성만
@@ -399,21 +410,22 @@ contest별 무결성 확인에서는 후보별 득표 합계, 기권 수, partic
 
 현재 supervised operation의 기본 route, controller, view 연결도 구현되어 있다.
 
-- read-only `ElectionSession` show
+- 상태별 `ElectionSession` show
 - `start`, `open_ballot`, `lock_ballot`, `advance_voter`, `mark_absent`, `close` 운영 버튼
 - `submit_ballot` route/action
 - open ballot 상태의 contest별 supervised ballot form
+- Admin 선거 구성, 전체 중단, 특정 학급 재투표, 명시적 선거 종료
+- parent `Election` 종료 뒤 closed 학급 세션만 사용하는 결과 집계
+- stopped 학급 세션의 Admin 이력과 read-only 상세
+- 담당 teacher가 stopped 상세에서 본인 `/polls` 목록만 숨기는 흐름
 
 ### Not Implemented Yet
 
 다음 항목은 아직 구현하지 않았거나 의도적으로 미룬다.
 
-- `Election` 전체 close service와 전역 종료 정책
-- supervised operation UI polish
-- admin session result view
 - `yes_no` 찬반투표 제출 처리
 - `pin_login` voting mode
-- 기존 Poll-backed `SchoolElection` 흐름의 Election 엔진 전환
+- 실제 선거 후 기존 Poll-backed `SchoolElection` 흐름 정리
 - 개별 선택 기록 모델
 
 개별 선택 기록 모델은 현재 계획에서도 만들지 않는다. 비밀투표 원칙상 voter와
@@ -608,6 +620,14 @@ controller는 form params를 `Elections::SubmitBallot` service API에 맞춰 다
 - `absent`
 - `abstained`
 
+`stopped` 세션은 삭제하거나 재개하지 않는다. 전체 중단 또는 재투표 당시의
+`ElectionVoter`, participation, tally, progress, event를 그대로 보존하며 Admin
+선거 상세와 세션 직접 상세에서 확인한다. 재투표는 기존 세션을 `stopped`로 만들고
+같은 election, participant group, teacher의 replacement `draft` 세션을 생성한다.
+
+결과 집계와 results 학급 목록은 `closed` `ElectionSession`만 대상으로 한다.
+draft, in_progress, stopped 세션은 합산과 results 표시에서 모두 제외한다.
+
 `CloseSession` 조건:
 
 - session이 `in_progress`일 것
@@ -718,8 +738,9 @@ nested hash/array 안에 있어도 실패 처리한다.
 
 ## 기존 구현의 유지, 대체, 정리 후보
 
-현재 `SchoolElection` + `Poll` 기반 구현은 spike이자 기반 검증으로 본다. 삭제는 지금
-하지 않는다. 새 Election 엔진 전환 완료 후 정리한다.
+현재 `SchoolElection` + `Poll` 기반 구현은 legacy 호환 코드다. 실제 선거 전에는
+삭제하지 않는다. 선거 종료, 결과 검산, 데이터 백업이 끝난 뒤 별도 리팩터링에서
+사용 여부와 데이터 영향을 확인하고 정리한다.
 
 ### 유지 또는 일반화
 
@@ -730,7 +751,7 @@ nested hash/array 안에 있어도 실패 처리한다.
 - contest/candidate admin 관리 개념
 - session 배정 개념
 - 다중 contest decision count 개념
-- 전체 집계는 closed + integrity OK session만 합산한다는 정책
+- 전체 집계와 results 학급 목록은 closed session만 대상으로 한다는 정책
 
 ### 대체
 
@@ -746,26 +767,19 @@ nested hash/array 안에 있어도 실패 처리한다.
 - Poll 기반 `SchoolElections::ResultSummary`
 - `PollsController`와 Poll view에 전교학생회 분기를 더 추가하는 방향
 
-위 항목은 지금 삭제하지 않는다. 새 Election 엔진 전환 완료 후 정리한다.
+위 항목은 지금 삭제하지 않는다. 실제 선거 종료와 백업 이후 별도 승인으로 정리한다.
 
 ---
 
 ## Next Implementation Steps
 
-다음 구현 후보:
+다음 구현 또는 선거 후 정리 후보:
 
-- supervised operation UI polish
-- closed session result summary 표시 개선
-- admin session result view
-  - `IntegrityReport.success?`인 closed session만 안전하게 표시/집계 대상으로 삼는
-    방향을 우선 고려한다.
-- `Election` 전체 close service와 전역 종료 정책
 - `yes_no` tally schema 보강
 - `pin_login` operation mode
-- 기존 Poll-backed `SchoolElection` flow에서 Election 엔진으로 전환
 - 기존 Poll-backed school election flow cleanup
 - broader system/request/browser smoke
-- `docs/architecture/current_system.md` 반영
+- 운영 결과에 따른 감사·개표 승인 정책 검토
 
 이번 문서는 위 항목을 구현하지 않는다.
 
@@ -775,6 +789,6 @@ nested hash/array 안에 있어도 실패 처리한다.
 
 - 지금 당장 Poll을 삭제하지 않는다.
 - 지금 당장 SchoolElection 관련 코드를 삭제하지 않는다.
-- `IntegrityReport` 없이 전체 집계 정책을 확정하지 않는다.
+- stopped 세션과 그 voter, participation, tally, event를 삭제하지 않는다.
 - `yes_no` 제출을 현재 tally 구조에 억지로 끼워 넣지 않는다.
 - 개별 선택 기록 모델을 만들지 않는다.
