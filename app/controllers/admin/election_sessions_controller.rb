@@ -1,7 +1,7 @@
 module Admin
   class ElectionSessionsController < BaseController
     before_action :set_election
-    before_action :set_election_session, only: %i[destroy]
+    before_action :set_election_session, only: %i[destroy revote]
 
     def create
       authorize @election, :show?
@@ -68,6 +68,21 @@ module Admin
       @election_session = nil
 
       respond_to_assignment_success("학급 세션 배정을 해제했습니다.")
+    end
+
+    def revote
+      authorize @election_session, :revote?
+
+      result = Elections::RevoteSession.new(
+        election_session: @election_session,
+        actor: current_user
+      ).call
+
+      if result.success?
+        redirect_to elections_session_path(result.election_session), notice: "투표를 다시 시작합니다."
+      else
+        redirect_to elections_session_path(@election_session), alert: result.error_message
+      end
     end
 
     private

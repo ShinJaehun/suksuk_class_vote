@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_25_000400) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_27_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -142,7 +142,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_25_000400) do
     t.integer "status", default: 0, null: false
     t.bigint "teacher_id", null: false
     t.datetime "updated_at", null: false
-    t.index ["election_id", "participant_group_id"], name: "idx_on_election_id_participant_group_id_97a62cfbb6", unique: true
+    t.index ["election_id", "participant_group_id"], name: "index_election_sessions_on_active_group_assignment", unique: true, where: "(status = ANY (ARRAY[0, 10]))"
     t.index ["election_id"], name: "index_election_sessions_on_election_id"
     t.index ["operation_mode"], name: "index_election_sessions_on_operation_mode"
     t.index ["participant_group_id"], name: "index_election_sessions_on_participant_group_id"

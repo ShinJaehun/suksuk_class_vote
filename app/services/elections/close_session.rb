@@ -107,7 +107,7 @@ module Elections
 
     def close_election_if_all_sessions_closed!
       election = election_session.election
-      sessions = election.election_sessions.reload
+      sessions = election.election_sessions.where.not(status: :stopped).reload
 
       return if sessions.empty?
       return unless sessions.all?(&:closed?)

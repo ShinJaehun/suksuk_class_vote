@@ -107,6 +107,18 @@ RSpec.describe Elections::CloseSession do
       expect(election.reload).to be_in_progress
     end
 
+    it "ignores stopped historical sessions when closing the parent election" do
+      election_session = closable_session(statuses: [ :completed ])
+      election = election_session.election
+      election.update!(status: :in_progress)
+      create(:election_session, election: election, status: :stopped)
+
+      result = described_class.new(election_session: election_session, actor: election_session.teacher).call
+
+      expect(result).to be_success
+      expect(election.reload).to be_closed
+    end
+
     it "fails without an actor" do
       election_session = closable_session(statuses: [ :completed ])
 

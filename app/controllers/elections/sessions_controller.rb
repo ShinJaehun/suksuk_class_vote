@@ -18,7 +18,7 @@ module Elections
 
       prepare_session_view
 
-      unless ballot_viewable?
+      unless ballot_viewable? || @election_session.stopped?
         redirect_to elections_session_path(@election_session), alert: "투표 화면을 열 수 없습니다."
       end
     end

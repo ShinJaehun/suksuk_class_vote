@@ -151,7 +151,7 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - Admin 전체 집계는 `closed` `ElectionSession`의 tally만 합산하고, draft/in_progress/stopped 세션은 전체 득표 합산에서 제외
 - 학급별 집계 검산은 모든 `ElectionSession`을 상태와 함께 표시하며, 종료되지 않은 세션은 집계 제외로 표시
 - admin의 `Election` 시작 조건 검증 추가: draft 상태, 학급 세션 1개 이상, 선거 항목 1개 이상, 각 항목 후보자 1명 이상
-- 모든 학급 `ElectionSession`이 `closed`가 되면 parent `Election`도 `closed`로 전환
+- 중단 이력인 `stopped` 세션을 제외한 모든 `ElectionSession`이 `closed`가 되면 parent `Election`도 `closed`로 전환
 - `Election` 시작 뒤 학급 세션 추가/삭제와 후보자 등록/수정/삭제 차단
 - 화면 표시 용어 정리: `Election` kind `school_council`은 `전교임원선거`, `Poll` kind `election`은 `학급선거`, `discussion`은 `학급토의`, `debate`는 `학급토론`으로 표시
 - 알 수 없거나 custom인 `Election` kind는 강제 번역하지 않고 원래 kind 값을 fallback으로 표시

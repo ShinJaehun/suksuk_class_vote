@@ -1,7 +1,7 @@
 <%= tag.section id: dom_id(election, :admin_summary), class: "space-y-4 rounded-md border border-stone-200 bg-white p-4" do %>
   <% contests = election.election_contests.to_a %>
-  <% sessions = election.election_sessions.to_a.select(&:persisted?) %>
-  <% closed_session_count = election.election_sessions.closed.size %>
+  <% sessions = election.election_sessions.to_a.select { |session| session.persisted? && !session.stopped? } %>
+  <% closed_session_count = sessions.count(&:closed?) %>
   <% contest_candidate_summaries = contests.map { |contest| "#{contest.title} #{contest.election_candidates.size}명" } %>
   <% status_label = { "draft" => "준비 중", "in_progress" => "진행 중", "closed" => "종료됨", "stopped" => "중단됨" }.fetch(election.status, election.status) %>
   <% status_class =

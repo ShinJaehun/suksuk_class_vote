@@ -41,4 +41,8 @@ class ElectionSessionPolicy < ApplicationPolicy
   def close?
     operate?
   end
+
+  def revote?
+    user&.admin?
+  end
 end

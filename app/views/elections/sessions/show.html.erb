@@ -3,6 +3,20 @@
     <%= turbo_stream_from @election_session, :operation_screen %>
   <% end %>
 
+  <% if policy(@election_session).revote? && (@election_session.in_progress? || @election_session.closed?) %>
+    <div class="flex justify-end">
+      <%= button_to "재투표",
+                    revote_admin_election_election_session_path(@election, @election_session),
+                    method: :post,
+                    class: "inline-flex rounded-md border border-rose-600 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50",
+                    form: {
+                      data: {
+                        turbo_confirm: "이 학급의 기존 투표를 중단 처리하고 재투표를 준비할까요?"
+                      }
+                    } %>
+    </div>
+  <% end %>
+
   <% if current_user.admin? %>
     <div class="space-y-2">
       <div class="flex flex-wrap items-center gap-2">
@@ -21,6 +35,7 @@
                participation_counts: @participation_counts,
                candidate_tallies_by_candidate_id: @candidate_tallies_by_candidate_id,
                contest_tallies_by_contest_id: @contest_tallies_by_contest_id %>
+
   <% elsif @election_session.closed? %>
     <%= render "teacher_progress",
                election_session: @election_session,

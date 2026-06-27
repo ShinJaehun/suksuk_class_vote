@@ -577,7 +577,9 @@ Admin `Election`은 여러 학급 `ElectionSession`을 배정하고 전체 운�
 - 시작 조건은 draft 상태, 학급 세션 1개 이상, 선거 항목 1개 이상, 각 항목 후보자 1명 이상이다.
 - parent `Election` 시작은 각 학급 `ElectionSession`을 자동 시작하지 않으며, 학급 세션 시작은 기존 교사 운영 흐름을 따른다.
 - teacher 투표 목록에는 parent `Election`이 `in_progress`인 세션만 노출한다.
-- 모든 학급 `ElectionSession`이 `closed`가 되면 parent `Election`도 `closed`가 된다.
+- `stopped` 이력 세션을 제외한 모든 학급 `ElectionSession`이 `closed`가 되면 parent `Election`도 `closed`가 된다.
+- admin은 진행 중이거나 종료된 특정 학급 세션을 `stopped` 이력으로 보존하고 같은 학급의 draft 세션을 새로 만들어 재투표를 준비할 수 있다.
+- 재투표 처리 시 기존 투표자, 참여, 집계, 이벤트 기록은 삭제하지 않고 parent `Election` 상태는 변경하지 않는다.
 - 시작 뒤에는 학급 세션 추가/삭제와 후보자 등록/수정/삭제를 막고, admin show는 읽기 전용 목록을 보여준다.
 - 결과 집계 페이지는 `closed` `ElectionSession`만 전체 득표 합산에 포함한다.
 - draft/in_progress/stopped 세션은 전체 집계에서 제외하지만, 학급별 검산 목록에는 상태와 함께 표시한다.

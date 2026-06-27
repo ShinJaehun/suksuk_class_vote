@@ -3,7 +3,8 @@
   "ballot_submitted" => "투표 완료",
   "voter_marked_abstained" => "투표 완료",
   "voter_marked_absent" => "미참여",
-  "session_closed" => "투표 종료"
+  "session_closed" => "투표 종료",
+  "session_stopped" => "재투표 처리"
 } %>
 <% election_events = election_session.election_events
   .includes(:actor, :election_voter)

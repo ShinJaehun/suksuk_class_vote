@@ -1,4 +1,14 @@
-<%= turbo_frame_tag dom_id(election_session, :teacher_progress), class: "block space-y-6" do %>
+<% polling_data =
+  if election_session.in_progress?
+    {
+      controller: "election-session-progress",
+      election_session_progress_interval_value: 2500,
+      election_session_progress_url_value: elections_session_path(election_session)
+    }
+  else
+    {}
+  end %>
+<%= turbo_frame_tag dom_id(election_session, :teacher_progress), class: "block space-y-6", data: polling_data do %>
   <% display_status = { "draft" => "준비", "in_progress" => "진행", "closed" => "종료", "stopped" => "중단" }.fetch(election_session.status, election_session.status) %>
   <% status_class =
     if election_session.draft?

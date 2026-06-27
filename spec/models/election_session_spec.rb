@@ -66,6 +66,40 @@ RSpec.describe ElectionSession, type: :model do
       expect(session).to be_valid
     end
 
+    it "allows historical stopped and closed sessions for the same election and participant group" do
+      election = create(:election)
+      teacher = create(:user)
+      participant_group = create(:participant_group, :school_election, user: teacher)
+      create(:election_session, election: election, teacher: teacher, participant_group: participant_group, status: :stopped)
+
+      closed_session = build(
+        :election_session,
+        election: election,
+        teacher: teacher,
+        participant_group: participant_group,
+        status: :closed
+      )
+
+      expect(closed_session).to be_valid
+    end
+
+    it "allows one active session beside historical sessions" do
+      election = create(:election)
+      teacher = create(:user)
+      participant_group = create(:participant_group, :school_election, user: teacher)
+      create(:election_session, election: election, teacher: teacher, participant_group: participant_group, status: :stopped)
+
+      active_session = build(
+        :election_session,
+        election: election,
+        teacher: teacher,
+        participant_group: participant_group,
+        status: :draft
+      )
+
+      expect(active_session).to be_valid
+    end
+
     it "allows a teacher to use their own participant group" do
       teacher = create(:user, :teacher)
       participant_group = create(:participant_group, :school_election, user: teacher)

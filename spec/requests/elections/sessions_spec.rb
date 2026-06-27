@@ -48,6 +48,11 @@ RSpec.describe "Election sessions", type: :request do
       expect(visible_text).to include("투표자 명단")
       expect(visible_text).to include("학생1")
       expect(response.body).to include(ActionView::RecordIdentifier.dom_id(election_session, :teacher_progress))
+      expect(response.body).to include('data-controller="election-session-progress"')
+      expect(response.body).to include('data-election-session-progress-interval-value="2500"')
+      expect(response.body).to include(
+        %(data-election-session-progress-url-value="#{elections_session_path(election_session)}")
+      )
       expect(visible_text).to include("미참여 처리")
       expect(visible_text).not_to include("투표자 명단 수정")
       expect(visible_text).not_to include("현재 학급 투표가 진행 중입니다. 새로고침하거나 다시 접속해도 서버에 저장된 진행 위치에서 이어집니다.")
@@ -83,6 +88,7 @@ RSpec.describe "Election sessions", type: :request do
       expect(visible_text).to include("시작 가능")
       expect(visible_text).to include("선거 시작")
       expect(visible_text).to include("투표 진행 상황")
+      expect(response.body).not_to include('data-controller="election-session-progress"')
       expect(visible_text).to include("투표자 명단")
       expect(visible_text).to include("학생1")
       expect(visible_text).not_to include("이 학급 투표를 시작할 수 있습니다. 아래 선거 항목을 확인한 뒤 투표를 시작하세요.")
@@ -210,6 +216,7 @@ RSpec.describe "Election sessions", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include(election_session.election.title)
+      expect(response.body).not_to include('data-controller="election-session-progress"')
     end
 
     it "shows static roster information to admins for draft sessions" do
@@ -516,6 +523,21 @@ RSpec.describe "Election sessions", type: :request do
   end
 
   describe "GET /elections/sessions/:id/ballot" do
+    it "shows stopped guidance without ballot controls for stopped sessions" do
+      election_session = create(:election_session, status: :stopped)
+      sign_in election_session.teacher
+
+      get ballot_elections_session_path(election_session)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("이전 투표가 중단되었습니다.")
+      expect(response.body).to include("이 창을 닫고 새로 시작한 투표 화면을 열어 주세요.")
+      expect(response.body).not_to include("투표 제출")
+      expect(response.body).not_to include("contest_choices")
+      expect(response.body).not_to include(">기권<")
+      expect(response.body).not_to include('data-controller="election-ballot"')
+    end
+
     it "shows a ballot form when the current ballot is open" do
       election_session = opened_session
       sign_in election_session.teacher
@@ -540,6 +562,7 @@ RSpec.describe "Election sessions", type: :request do
       expect(response.body).to include("value=\"candidate:")
       expect(response.body).to include("value=\"abstain\"")
       expect(response.body).to include("submit_ballot")
+      expect(response.body).not_to include('data-controller="election-session-progress"')
       expect(response.body).not_to include("투표 제출 기능은 다음 단계에서 연결됩니다.")
     end
 

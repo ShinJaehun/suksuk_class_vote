@@ -2,6 +2,7 @@ require "rails_helper"
 
 RSpec.describe "Admin election sessions", type: :request do
   include Devise::Test::IntegrationHelpers
+  include ActionCable::TestHelper
 
   describe "POST /admin/elections/:election_id/sessions" do
     it "creates a supervised election session for admins" do
@@ -384,6 +385,129 @@ RSpec.describe "Admin election sessions", type: :request do
     end
   end
 
+  describe "POST /admin/elections/:election_id/sessions/:id/revote" do
+    it "lets an admin replace an in-progress session and redirects to the replacement" do
+      old_session = create_election_session
+      old_session.update!(status: :in_progress)
+      sign_in create(:user, :admin)
+
+      expect do
+        post revote_admin_election_election_session_path(old_session.election, old_session)
+      end.to change(ElectionSession, :count).by(1)
+
+      replacement = old_session.election.election_sessions.order(:created_at).last
+      expect(response).to redirect_to(elections_session_path(replacement))
+      expect(flash[:notice]).to eq("투표를 다시 시작합니다.")
+      expect(old_session.reload).to be_stopped
+      expect(replacement).to have_attributes(
+        election: old_session.election,
+        teacher: old_session.teacher,
+        participant_group: old_session.participant_group,
+        status: "draft"
+      )
+    end
+
+    it "broadcasts stopped guidance to the old ballot screen" do
+      old_session = create_election_session
+      old_session.update!(status: :in_progress)
+      sign_in create(:user, :admin)
+
+      post revote_admin_election_election_session_path(old_session.election, old_session)
+
+      broadcast = ballot_broadcast_for(old_session)
+      expect(broadcast).to include(ActionView::RecordIdentifier.dom_id(old_session, :ballot))
+      expect(broadcast).to include("이전 투표가 중단되었습니다.")
+      expect(broadcast).not_to include("투표 제출")
+    end
+
+    it "lets an admin replace a closed session" do
+      old_session = create_election_session
+      old_session.update!(status: :closed)
+      sign_in create(:user, :admin)
+
+      post revote_admin_election_election_session_path(old_session.election, old_session)
+
+      expect(response).to redirect_to(elections_session_path(old_session.election.election_sessions.order(:created_at).last))
+      expect(old_session.reload).to be_stopped
+    end
+
+    it "does not allow teachers to replace sessions" do
+      old_session = create_election_session
+      old_session.update!(status: :in_progress)
+      sign_in old_session.teacher
+
+      expect do
+        post revote_admin_election_election_session_path(old_session.election, old_session)
+      end.not_to change(ElectionSession, :count)
+
+      expect(response).to redirect_to(polls_path)
+      expect(old_session.reload).to be_in_progress
+    end
+
+    it "redirects guests to sign in" do
+      old_session = create_election_session
+      old_session.update!(status: :in_progress)
+
+      expect do
+        post revote_admin_election_election_session_path(old_session.election, old_session)
+      end.not_to change(ElectionSession, :count)
+
+      expect(response).to redirect_to(new_user_session_path)
+    end
+  end
+
+  describe "GET /elections/sessions/:id revote control" do
+    it "shows the revote button to admins for in-progress and closed sessions" do
+      admin = create(:user, :admin)
+      sign_in admin
+
+      %i[in_progress closed].each do |status|
+        election_session = create_election_session
+        election_session.update!(status: status)
+
+        get elections_session_path(election_session)
+
+        document = Nokogiri::HTML(response.body)
+        revote_path = revote_admin_election_election_session_path(election_session.election, election_session)
+        revote_form = document.at_css(%(form[action="#{revote_path}"]))
+
+        expect(revote_form).to be_present
+        expect(revote_form.text.squish).to eq("재투표")
+        expect(revote_form["data-turbo-confirm"]).to eq("이 학급의 기존 투표를 중단 처리하고 재투표를 준비할까요?")
+        expect(revote_form["data-turbo-confirm"]).not_to include("전체 집계에서는 제외됩니다")
+      end
+    end
+
+    it "does not show the revote button for draft or stopped sessions" do
+      sign_in create(:user, :admin)
+
+      %i[draft stopped].each do |status|
+        election_session = create_election_session
+        election_session.update!(status: status)
+
+        get elections_session_path(election_session)
+
+        document = Nokogiri::HTML(response.body)
+        revote_path = revote_admin_election_election_session_path(election_session.election, election_session)
+
+        expect(document.at_css(%(form[action="#{revote_path}"]))).to be_nil
+      end
+    end
+
+    it "does not show the revote button to teachers" do
+      election_session = create_election_session
+      election_session.update!(status: :in_progress)
+      sign_in election_session.teacher
+
+      get elections_session_path(election_session)
+
+      document = Nokogiri::HTML(response.body)
+      revote_path = revote_admin_election_election_session_path(election_session.election, election_session)
+
+      expect(document.at_css(%(form[action="#{revote_path}"]))).to be_nil
+    end
+  end
+
   def create_election_session
     election = create(:election)
     teacher = create(:user)
@@ -398,5 +522,18 @@ RSpec.describe "Admin election sessions", type: :request do
   def expect_turbo_replace_for(election, target)
     dom_id = ActionView::RecordIdentifier.dom_id(election, target)
     expect(response.body).to include(%(turbo-stream action="replace" target="#{dom_id}"))
+  end
+
+  def ballot_broadcast_for(election_session)
+    stream = Turbo::StreamsChannel.send(:stream_name_from, [ election_session, :ballot_screen ])
+    broadcasts(stream).map { |broadcast| decoded_broadcast(broadcast) }.find do |broadcast|
+      broadcast.include?(ActionView::RecordIdentifier.dom_id(election_session, :ballot))
+    end
+  end
+
+  def decoded_broadcast(broadcast)
+    JSON.parse(broadcast)
+  rescue JSON::ParserError
+    broadcast
   end
 end

@@ -222,6 +222,46 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("checked=\"checked\"")
     end
 
+    it "hides stopped history and counts only the replacement session" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :in_progress)
+      teacher = create(:user)
+      participant_group = create(
+        :participant_group,
+        :school_election,
+        :with_participant_slot,
+        user: teacher,
+        school: election.school,
+        grade: 6,
+        class_label: "1"
+      )
+      stopped_session = create(
+        :election_session,
+        election: election,
+        teacher: teacher,
+        participant_group: participant_group,
+        status: :stopped
+      )
+      replacement = create(
+        :election_session,
+        election: election,
+        teacher: teacher,
+        participant_group: participant_group,
+        status: :closed
+      )
+
+      get admin_election_path(election)
+
+      document = Nokogiri::HTML(response.body)
+      session_count = document.xpath("//p[normalize-space()='학급 세션']/following-sibling::p").first
+      completed_count = document.xpath("//p[normalize-space()='완료 세션']/following-sibling::p").first
+
+      expect(response.body).not_to include(elections_session_path(stopped_session))
+      expect(response.body).to include(elections_session_path(replacement))
+      expect(session_count.text.squish).to eq("1")
+      expect(completed_count.text.squish).to eq("1/1")
+    end
+
     it "hides the session assignment form after the election starts or closes" do
       sign_in create(:user, :admin)
       in_progress_election = create(:election, status: :in_progress)
@@ -721,7 +761,7 @@ RSpec.describe "Admin elections", type: :request do
       expect(visible_text).not_to include("확인:")
     end
 
-    it "excludes draft and in progress session tallies from aggregate results" do
+    it "excludes draft, in progress, and stopped session tallies from aggregate results" do
       sign_in create(:user, :admin)
       election = create(:election)
       contest = create(:election_contest, election: election, title: "회장")
@@ -729,9 +769,11 @@ RSpec.describe "Admin elections", type: :request do
       closed_session = create_admin_election_session(election: election, status: :closed, group_name: "6학년 1반")
       draft_session = create_admin_election_session(election: election, status: :draft, group_name: "6학년 2반")
       in_progress_session = create_admin_election_session(election: election, status: :in_progress, group_name: "6학년 3반")
+      stopped_session = create_admin_election_session(election: election, status: :stopped, group_name: "6학년 4반")
       create(:election_candidate_tally, election_session: closed_session, election_contest: contest, election_candidate: candidate, votes_count: 4)
       create(:election_candidate_tally, election_session: draft_session, election_contest: contest, election_candidate: candidate, votes_count: 99)
       create(:election_candidate_tally, election_session: in_progress_session, election_contest: contest, election_candidate: candidate, votes_count: 88)
+      create(:election_candidate_tally, election_session: stopped_session, election_contest: contest, election_candidate: candidate, votes_count: 77)
 
       get results_admin_election_path(election)
 
@@ -739,6 +781,38 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("4표")
       expect(response.body).not_to include("99표")
       expect(response.body).not_to include("88표")
+      expect(response.body).not_to include("77표")
+    end
+
+    it "includes a closed replacement while excluding its stopped historical session" do
+      sign_in create(:user, :admin)
+      election = create(:election)
+      contest = create(:election_contest, election: election, title: "회장")
+      candidate = create(:election_candidate, election_contest: contest, number: 1, name: "재투표후보")
+      teacher = create(:user)
+      participant_group = create(:participant_group, :school_election, user: teacher, school: election.school)
+      stopped_session = create(
+        :election_session,
+        election: election,
+        teacher: teacher,
+        participant_group: participant_group,
+        status: :stopped
+      )
+      replacement = create(
+        :election_session,
+        election: election,
+        teacher: teacher,
+        participant_group: participant_group,
+        status: :closed
+      )
+      create(:election_candidate_tally, election_session: stopped_session, election_contest: contest, election_candidate: candidate, votes_count: 90)
+      create(:election_candidate_tally, election_session: replacement, election_contest: contest, election_candidate: candidate, votes_count: 6)
+
+      get results_admin_election_path(election)
+
+      expect(response.body).to include("재투표후보")
+      expect(response.body).to include("6표")
+      expect(response.body).not_to include("90표")
     end
 
     it "shows provisional aggregate when not every session is closed" do

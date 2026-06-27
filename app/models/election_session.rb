@@ -1,4 +1,6 @@
 class ElectionSession < ApplicationRecord
+  ACTIVE_STATUSES = %i[draft in_progress].freeze
+
   belongs_to :election
   belongs_to :teacher, class_name: "User"
   belongs_to :participant_group
@@ -17,7 +19,12 @@ class ElectionSession < ApplicationRecord
   validates :participant_group, presence: true
   validates :status, presence: true
   validates :operation_mode, presence: true
-  validates :participant_group_id, uniqueness: { scope: :election_id }
+  validates :participant_group_id,
+            uniqueness: {
+              scope: :election_id,
+              conditions: -> { where(status: ElectionSession.statuses.values_at("draft", "in_progress")) }
+            },
+            if: :active_status?
   validate :teacher_can_operate_session
   validate :participant_group_must_be_school_election, on: :create
 
@@ -26,6 +33,10 @@ class ElectionSession < ApplicationRecord
   end
 
   private
+
+  def active_status?
+    status&.to_sym.in?(ACTIVE_STATUSES)
+  end
 
   def teacher_can_operate_session
     return if teacher.blank? || participant_group.blank?
