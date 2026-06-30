@@ -75,6 +75,16 @@ draft -> in_progress -> closed
 학급 세션이 모두 종료되어도 parent `Election`은 자동으로 종료되지 않는다.
 정상 종료는 admin의 명시적인 `선거 종료`로만 수행한다.
 
+## 준비 상태 구성 변경
+
+- 선거 이름은 parent `Election`이 `draft`일 때만 수정할 수 있다.
+- 대상 학교는 parent `Election`이 `draft`이고 등록된 `ElectionSession`이 없을 때만
+  변경할 수 있다.
+- 학급 세션의 등록, 개별 등록 해제, 학년 단위 등록 해제는 parent `Election`이
+  `draft`일 때만 가능하다.
+- 학급 세션 등록 화면은 학급을 기본 선택하지 않으며 admin이 필요한 학급만 선택한다.
+- 구성 변경 제한은 화면 표시뿐 아니라 policy와 controller에서도 검증한다.
+
 ### ElectionSession
 
 ```text
@@ -116,6 +126,22 @@ draft -> in_progress -> closed
 
 Admin 선거 상세에서는 현재 세션과 stopped 이력을 구분해 표시한다.
 같은 학급에 stopped 이력이 여러 개 있어도 감사와 확인을 위해 모두 보존한다.
+
+## Admin 비상 초기화
+
+stopped 세션과 voter, participation, tally, event를 보존하는 것이 일반 원칙이다.
+다만 선거 구성 또는 운영 데이터 전체를 폐기하고 준비부터 다시 해야 하는 비상 상황에는
+admin 전용 비상 초기화를 명시적 예외로 허용한다.
+
+- parent `Election` 상태와 관계없이 admin만 실행할 수 있으며 teacher에게 위임하지 않는다.
+- 선거 상세의 선거 단위 위험 작업에서 선거 이름을 확인 입력한 뒤 실행한다.
+- transaction 안에서 해당 선거의 모든 `ElectionSession`을 `destroy!`하고 parent
+  `Election`을 `draft`로 되돌린다.
+- voter, participation, progress, event, tally는 `ElectionSession` association의
+  dependent destroy 정책에 따라 함께 삭제한다.
+- `Election`, `School`, `ElectionContest`, `ElectionCandidate`, `User`,
+  `ParticipantGroup`, `ParticipantSlot`은 삭제하지 않는다.
+- 실행 actor, 선거, 삭제한 세션 수를 운영 로그에 남긴다.
 
 ## Teacher 목록 숨김
 

@@ -3,7 +3,9 @@
 
   <p><%= link_to "선거 목록으로 돌아가기", admin_elections_path, class: "text-sm font-medium text-stone-600 underline" %></p>
 
-  <%= render "admin/elections/summary", election: @election %>
+  <%= render "admin/elections/summary",
+             election: @election,
+             show_settings_link: policy(@election).edit? %>
 
   <%= render "admin/elections/status_report",
              election: @election,
@@ -74,4 +76,5 @@
              election_sessions: @election_sessions,
              election_session: @election_session,
              participant_groups: @participant_groups %>
+
 </div>

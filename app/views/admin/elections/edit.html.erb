@@ -1,0 +1,46 @@
+<div class="space-y-6">
+  <div class="space-y-1">
+    <p><%= link_to "선거 상세로 돌아가기", admin_election_path(@election), class: "text-sm font-medium text-stone-600 underline" %></p>
+    <h1 class="text-3xl font-semibold">선거 정보 수정</h1>
+  </div>
+
+  <%= render "form",
+             election: @election,
+             schools: @schools,
+             error_heading: "선거 정보를 수정할 수 없습니다.",
+             submit_label: "선거 정보 저장",
+             cancel_path: admin_election_path(@election) %>
+
+  <section class="space-y-3 rounded-md border border-stone-200 bg-white p-4">
+    <h2 class="text-xl font-semibold">선거 삭제</h2>
+    <% if policy(@election).destroy? %>
+      <%= button_to "전교임원선거 삭제",
+                    admin_election_path(@election),
+                    method: :delete,
+                    data: { turbo_confirm: "전교임원선거를 삭제할까요? 관련 선거 구성과 학급 세션 데이터가 함께 삭제됩니다." },
+                    class: "rounded-md border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700" %>
+    <% else %>
+      <button type="button"
+              disabled
+              class="cursor-not-allowed rounded-md border border-stone-200 bg-stone-100 px-4 py-2 text-sm font-medium text-stone-400">
+        전교임원선거 삭제
+      </button>
+    <% end %>
+  </section>
+
+  <% if policy(@election).emergency_reset? %>
+    <section class="space-y-3 rounded-md border border-rose-200 bg-rose-50 p-4">
+      <h2 class="text-xl font-semibold text-rose-900">위험 작업</h2>
+      <p class="text-sm text-rose-800">관리자 권한으로 학급 세션 <%= @election_session_count %>개와 투표 진행 데이터를 삭제하고 선거를 준비 상태로 되돌립니다.</p>
+      <%= form_with url: emergency_reset_admin_election_path(@election), method: :post, class: "space-y-3" do |form| %>
+        <div class="space-y-1">
+          <%= form.label :confirmation_title, "확인을 위해 선거 이름을 입력하세요.", class: "text-sm font-medium text-rose-900" %>
+          <%= form.text_field :confirmation_title, class: "w-full rounded-md border border-rose-300 bg-white px-3 py-2" %>
+        </div>
+        <%= form.submit "선거 초기화",
+                        data: { turbo_confirm: "학급 세션과 투표 진행 데이터를 삭제하고 선거를 준비 상태로 되돌릴까요?" },
+                        class: "rounded-md bg-rose-700 px-4 py-2 text-sm font-medium text-white" %>
+      <% end %>
+    </section>
+  <% end %>
+</div>

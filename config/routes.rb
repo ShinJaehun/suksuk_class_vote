@@ -46,13 +46,15 @@ Rails.application.routes.draw do
       get :edit_students, on: :member
       patch :update_students, on: :member
     end
-    resources :elections, only: %i[index show new create destroy] do
+    resources :elections, only: %i[index show new create edit update destroy] do
       get :results, on: :member
       post :start, on: :member
       post :stop, on: :member
       post :close, on: :member
+      post :emergency_reset, on: :member
       resources :election_sessions, path: "sessions", only: %i[create destroy] do
         post :bulk_create, on: :collection
+        delete :destroy_grade, on: :collection
         post :revote, on: :member
       end
       resources :election_contests, path: "contests", only: [] do

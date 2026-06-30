@@ -4,7 +4,7 @@ module Admin
     before_action :set_election_session, only: %i[destroy revote]
 
     def create
-      authorize @election, :show?
+      authorize @election, :manage_sessions?
       unless @election.draft?
         redirect_to admin_election_path(@election), alert: "선거 시작 후에는 학급 세션을 배정할 수 없습니다."
         return
@@ -27,7 +27,7 @@ module Admin
     end
 
     def bulk_create
-      authorize @election, :show?
+      authorize @election, :manage_sessions?
       unless @election.draft?
         redirect_to admin_election_path(@election), alert: "선거 시작 후에는 학급 세션을 배정할 수 없습니다."
         return
@@ -58,22 +58,54 @@ module Admin
     end
 
     def destroy
-      authorize @election, :show?
+      authorize @election, :manage_sessions?
       unless destroyable_session?
         respond_to_assignment_failure("삭제할 수 없는 학급 세션입니다.")
         return
       end
 
-      @election_session.destroy
+      @election_session.destroy!
       @election_session = nil
 
       respond_to_assignment_success("학급 세션 배정을 해제했습니다.")
+    rescue ActiveRecord::RecordNotDestroyed => e
+      respond_to_assignment_failure(e.record.errors.full_messages.to_sentence.presence || "학급 세션을 등록 해제할 수 없습니다.")
+    end
+
+    def destroy_grade
+      authorize @election, :manage_sessions?
+      unless destroyable_sessions?
+        respond_to_assignment_failure("삭제할 수 없는 학급 세션입니다.")
+        return
+      end
+
+      grade = Integer(params[:grade], exception: false)
+      if grade.blank? || grade <= 0
+        respond_to_assignment_failure("유효한 학년을 선택하세요.")
+        return
+      end
+
+      sessions = @election.election_sessions
+        .joins(:participant_group)
+        .where(participant_groups: { grade: grade })
+
+      deleted_count = 0
+      ElectionSession.transaction do
+        sessions.find_each do |session|
+          session.destroy!
+          deleted_count += 1
+        end
+      end
+
+      respond_to_assignment_success("#{grade}학년 학급 세션 #{deleted_count}개를 등록 해제했습니다.")
+    rescue ActiveRecord::RecordNotDestroyed => e
+      respond_to_assignment_failure(e.record.errors.full_messages.to_sentence.presence || "학년 학급 세션을 등록 해제할 수 없습니다.")
     end
 
     def revote
       authorize @election_session, :revote?
 
-      result = Elections::RevoteSession.new(
+      result = ::Elections::RevoteSession.new(
         election_session: @election_session,
         actor: current_user
       ).call
@@ -107,7 +139,7 @@ module Admin
         .where(school: @election.school)
         .where.not(id: assigned_participant_group_ids)
         .order(:grade, :class_label, "users.name", "users.email", :name)
-      @election_status_report = Elections::StatusReport.new(election: @election).to_h
+      @election_status_report = ::Elections::StatusReport.new(election: @election).to_h
     end
 
     def respond_to_assignment_success(message)
@@ -164,8 +196,12 @@ module Admin
         .where.not(id: assigned_participant_group_ids)
     end
 
+    def destroyable_sessions?
+      @election.draft? && @election.election_sessions.where.not(status: :draft).none?
+    end
+
     def destroyable_session?
-      @election.draft? && @election_session.draft? && @election.election_sessions.where.not(status: :draft).none?
+      destroyable_sessions? && @election_session.draft?
     end
 
     def election_session_params

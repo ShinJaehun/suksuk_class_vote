@@ -17,6 +17,32 @@ module Admin
       prepare_show
     end
 
+    def edit
+      @election = policy_scope(Election).find(params[:id])
+      authorize @election
+      @schools = School.order(:name)
+      @election_session_count = @election.election_sessions.count
+    end
+
+    def update
+      @election = policy_scope(Election).find(params[:id])
+      authorize @election
+      @schools = School.order(:name)
+      @election_session_count = @election.election_sessions.count
+
+      @election.assign_attributes(election_update_params)
+      @election.errors.add(:school, "must exist") if @election.school.blank?
+      if @election.will_save_change_to_school_id? && @election.election_sessions.exists?
+        @election.errors.add(:base, "학급 세션을 먼저 등록해제한 뒤 학교를 변경하세요.")
+      end
+
+      if @election.errors.empty? && @election.save
+        redirect_to admin_election_path(@election), notice: "선거 정보를 수정했습니다."
+      else
+        render :edit, status: :unprocessable_entity
+      end
+    end
+
     def results
       @election = policy_scope(Election).find(params[:id])
       authorize @election, :show?
@@ -31,7 +57,7 @@ module Admin
     def start
       @election = policy_scope(Election).find(params[:id])
       authorize @election, :show?
-      start_report = Elections::StartReport.new(election: @election).to_h
+      start_report = ::Elections::StartReport.new(election: @election).to_h
 
       if start_report[:startable]
         @election.update!(status: :in_progress)
@@ -45,7 +71,7 @@ module Admin
       @election = policy_scope(Election).find(params[:id])
       authorize @election, :show?
 
-      result = Elections::StopElection.new(election: @election).call
+      result = ::Elections::StopElection.new(election: @election).call
 
       if result.success?
         redirect_to admin_election_path(@election), notice: "전교임원선거를 중단했습니다."
@@ -58,7 +84,7 @@ module Admin
       @election = policy_scope(Election).find(params[:id])
       authorize @election, :show?
 
-      result = Elections::CloseElection.new(election: @election, actor: current_user).call
+      result = ::Elections::CloseElection.new(election: @election, actor: current_user).call
 
       if result.success?
         redirect_to admin_election_path(@election), notice: "선거를 종료했습니다."
@@ -67,11 +93,29 @@ module Admin
       end
     end
 
+    def emergency_reset
+      @election = policy_scope(Election).find(params[:id])
+      authorize @election, :emergency_reset?
+
+      unless params[:confirmation_title] == @election.title
+        redirect_to admin_election_path(@election), alert: "선거 이름이 일치하지 않아 선거 초기화를 실행하지 않았습니다."
+        return
+      end
+
+      deleted_session_count = Admin::Elections::EmergencyResetService.new(
+        election: @election,
+        actor: current_user
+      ).call
+      redirect_to admin_election_path(@election), notice: "선거 초기화를 완료했습니다. 학급 세션 #{deleted_session_count}개를 삭제했습니다."
+    rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotDestroyed => e
+      redirect_to admin_election_path(@election), alert: e.record.errors.full_messages.to_sentence.presence || "선거 초기화를 완료할 수 없습니다."
+    end
+
     def destroy
       @election = policy_scope(Election).find(params[:id])
-      authorize @election, :show?
+      authorize @election, :destroy?
 
-      unless @election.draft? || @election.stopped?
+      unless @election.draft?
         redirect_to admin_election_path(@election), alert: destroy_failure_message(@election)
         return
       end
@@ -130,6 +174,10 @@ module Admin
       params.require(:election).permit(:title, :kind, :school_id)
     end
 
+    def election_update_params
+      params.require(:election).permit(:title, :school_id)
+    end
+
     def prepare_show
       @election_contests = @election.election_contests.includes(election_candidates: { photo_attachment: :blob }).order(:position)
       @election_sessions = @election.election_sessions.includes(:teacher, participant_group: :participant_slots).order(:created_at)
@@ -142,7 +190,7 @@ module Admin
         .where(school: @election.school)
         .where.not(id: assigned_participant_group_ids)
         .order(:grade, :class_label, "users.name", "users.email", :name)
-      @election_status_report = Elections::StatusReport.new(election: @election).to_h
+      @election_status_report = ::Elections::StatusReport.new(election: @election).to_h
     end
 
     def prepare_results
@@ -164,6 +212,7 @@ module Admin
     def destroy_failure_message(election)
       return "진행 중인 전교임원선거는 바로 삭제할 수 없습니다. 먼저 중단하세요." if election.in_progress?
       return "종료된 전교임원선거는 결과 보존 정책에 따라 삭제할 수 없습니다." if election.closed?
+      return "중단된 전교임원선거는 삭제할 수 없습니다. 선거 초기화를 사용하세요." if election.stopped?
 
       "전교임원선거를 삭제할 수 없습니다."
     end

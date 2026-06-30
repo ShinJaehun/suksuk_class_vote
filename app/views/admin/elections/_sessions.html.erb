@@ -44,7 +44,7 @@
               <label class="flex items-center gap-2 font-medium">
                 <%= check_box_tag "grade_#{grade}",
                                   "1",
-                                  true,
+                                  false,
                                   data: {
                                     election_session_picker_target: "gradeCheckbox",
                                     action: "election-session-picker#toggleGrade",
@@ -60,7 +60,7 @@
                   <label class="flex gap-3 rounded-md border border-indigo-100 bg-indigo-50/30 p-3">
                     <%= check_box_tag "participant_group_ids[]",
                                       participant_group.id,
-                                      true,
+                                      false,
                                       data: {
                                         election_session_picker_target: "classCheckbox",
                                         action: "election-session-picker#toggleClass",
@@ -105,23 +105,35 @@
   <% end %>
 
   <% if current_sessions.any? %>
-    <% session_deletion_allowed = election.draft? && current_sessions.none? { |election_session| !election_session.draft? } %>
+    <% session_deletion_allowed = election.draft? && current_sessions.all?(&:draft?) %>
     <div class="space-y-2">
       <h3 class="font-semibold">이미 배정된 학급 세션</h3>
-      <% current_sessions.each do |session| %>
-        <% voter_count = session.participant_group.participant_slots.size %>
-        <% display_status = { "draft" => "시작 전", "in_progress" => "진행 중", "closed" => "종료됨", "stopped" => "중단됨" }.fetch(session.status, session.status) %>
-        <% status_class =
-          if session.draft?
-            "border-amber-200 bg-amber-50 text-amber-700"
-          elsif session.in_progress?
-            "border-emerald-200 bg-emerald-50 text-emerald-700"
-          elsif session.closed?
-            "border-stone-300 bg-stone-100 text-stone-700"
-          else
-            "border-rose-200 bg-rose-50 text-rose-700"
-          end %>
-        <div class="flex flex-col gap-3 rounded-md border border-stone-200 bg-stone-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+      <% current_sessions.group_by { |session| session.participant_group.grade }.sort_by { |grade, _sessions| grade.to_i }.each do |grade, grade_sessions| %>
+        <section class="space-y-2 rounded-md border border-stone-200 p-3">
+          <div class="flex items-center justify-between gap-3">
+            <h4 class="font-medium"><%= grade %>학년</h4>
+            <% if session_deletion_allowed %>
+              <%= button_to "#{grade}학년 등록해제",
+                            destroy_grade_admin_election_election_sessions_path(election, grade: grade),
+                            method: :delete,
+                            data: { turbo_confirm: "#{grade}학년 학급 세션 #{grade_sessions.size}개를 등록 해제할까요?" },
+                            class: "text-sm font-medium text-rose-700 underline" %>
+            <% end %>
+          </div>
+          <% grade_sessions.each do |session| %>
+            <% voter_count = session.participant_group.participant_slots.size %>
+            <% display_status = { "draft" => "시작 전", "in_progress" => "진행 중", "closed" => "종료됨", "stopped" => "중단됨" }.fetch(session.status, session.status) %>
+            <% status_class =
+              if session.draft?
+                "border-amber-200 bg-amber-50 text-amber-700"
+              elsif session.in_progress?
+                "border-emerald-200 bg-emerald-50 text-emerald-700"
+              elsif session.closed?
+                "border-stone-300 bg-stone-100 text-stone-700"
+              else
+                "border-rose-200 bg-rose-50 text-rose-700"
+              end %>
+            <div class="flex flex-col gap-3 rounded-md border border-stone-200 bg-stone-50 p-3 sm:flex-row sm:items-center sm:justify-between">
           <div class="space-y-1">
             <div class="flex flex-wrap items-center gap-2">
               <h3 class="font-medium"><%= session.participant_group.display_name %></h3>
@@ -150,8 +162,10 @@
                             class: "text-sm font-medium text-rose-700 underline" %>
             <% end %>
           </div>
-        </div>
-        <% end %>
+            </div>
+          <% end %>
+        </section>
+      <% end %>
     </div>
   <% elsif stopped_history_sessions.empty? %>
     <p class="rounded-md border border-dashed border-stone-300 bg-stone-50 p-3 text-sm text-stone-600">아직 배정된 학급 세션이 없습니다.</p>

@@ -219,7 +219,7 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include(assigned_group.display_name)
       expect(response.body).not_to include(other_school_group.display_name)
       expect(response.body).not_to include(personal_group.name)
-      expect(response.body).to include("checked=\"checked\"")
+      expect(response.body).not_to include("checked=\"checked\"")
     end
 
     it "shows stopped history separately while counting only the replacement session" do
@@ -357,14 +357,14 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("사진 없음")
     end
 
-    it "shows results guidance before the election closes" do
+    it "does not link to results before the election closes" do
       sign_in create(:user, :admin)
       election = create(:election)
 
       get admin_election_path(election)
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("선거 종료 후 결과를 확인할 수 있습니다.")
+      expect(response.body).not_to include("선거 종료 후 결과를 확인할 수 있습니다.")
       expect(response.body).not_to include(results_admin_election_path(election))
       expect(response.body).not_to include("전체 집계")
       expect(response.body).not_to include("학급별 집계 검산")
@@ -484,7 +484,7 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).not_to include(start_admin_election_path(election))
     end
 
-    it "shows stop and delete controls by election status" do
+    it "shows operation controls on show and delete controls on edit" do
       sign_in create(:user, :admin)
       draft_election = create(:election, status: :draft)
       in_progress_election = create(:election, status: :in_progress)
@@ -492,19 +492,30 @@ RSpec.describe "Admin elections", type: :request do
       closed_election = create(:election, status: :closed)
 
       get admin_election_path(draft_election)
-      expect(response.body).to include("전교임원선거 삭제")
+      expect(response.body).to include("선거 설정")
+      expect(response.body).not_to include("전교임원선거 삭제")
       expect(response.body).not_to include("전교임원선거 중단")
 
+      get edit_admin_election_path(draft_election)
+      expect(response.body).to include("전교임원선거 삭제")
+
       get admin_election_path(in_progress_election)
+      expect(response.body).to include("선거 설정")
       expect(response.body).to include("전교임원선거 중단")
       expect(response.body).not_to include("전교임원선거 삭제")
 
+      get edit_admin_election_path(in_progress_election)
+      expect(response.body).to include("전교임원선거 삭제")
+      expect(response.body).to include("disabled")
+
       get admin_election_path(stopped_election)
       expect(response.body).to include("중단됨")
-      expect(response.body).to include("전교임원선거 삭제")
+      expect(response.body).to include("선거 설정")
+      expect(response.body).not_to include("전교임원선거 삭제")
       expect(response.body).not_to include("전교임원선거 중단")
 
       get admin_election_path(closed_election)
+      expect(response.body).to include("선거 설정")
       expect(response.body).not_to include("전교임원선거 중단")
       expect(response.body).not_to include("전교임원선거 삭제")
     end
@@ -718,15 +729,17 @@ RSpec.describe "Admin elections", type: :request do
       expect(flash[:notice]).to eq("전교임원선거를 삭제했습니다.")
     end
 
-    it "deletes a stopped election for admins" do
+    it "does not delete a stopped election directly" do
       sign_in create(:user, :admin)
       election = create(:election, status: :stopped)
 
       expect do
         delete admin_election_path(election)
-      end.to change(Election, :count).by(-1)
+      end.not_to change(Election, :count)
 
-      expect(response).to redirect_to(admin_elections_path)
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("중단된 전교임원선거는 삭제할 수 없습니다. 선거 초기화를 사용하세요.")
+      expect(election.reload).to be_stopped
     end
 
     it "does not delete an in progress election directly" do
