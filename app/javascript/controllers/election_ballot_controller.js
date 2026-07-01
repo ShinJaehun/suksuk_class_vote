@@ -5,11 +5,12 @@ export default class extends Controller {
 
   connect() {
     this.transitioning = false
+    this.submitting = false
     this.contestTargets.forEach((contest) => this.syncContestSelection(contest))
   }
 
   choose(event) {
-    if (this.transitioning) return
+    if (this.transitioning || this.submitting) return
 
     const choice = document.getElementById(event.params.choiceId)
     if (!choice) return
@@ -25,7 +26,7 @@ export default class extends Controller {
   }
 
   submitContest() {
-    if (this.transitioning) return
+    if (this.transitioning || this.submitting) return
 
     const currentIndex = this.contestTargets.findIndex((contest) => !contest.hidden)
     const currentContest = this.contestTargets[currentIndex]
@@ -52,6 +53,23 @@ export default class extends Controller {
 
       this.element.requestSubmit(this.submitTarget)
     }, 320)
+  }
+
+  submit(event) {
+    if (this.submitting) {
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      return
+    }
+
+    this.submitting = true
+    this.element.setAttribute("aria-busy", "true")
+
+    queueMicrotask(() => {
+      this.element.querySelectorAll("button, input[type='submit']").forEach((button) => {
+        button.disabled = true
+      })
+    })
   }
 
   syncContestSelection(contest) {

@@ -35,7 +35,10 @@
     <% else %>
       <%= form_with url: submit_ballot_elections_session_path(election_session, return_to: "ballot"),
                     scope: :ballot,
-                    data: { controller: "election-ballot" } do |form| %>
+                    data: {
+                      controller: "election-ballot",
+                      action: "submit->election-ballot#submit"
+                    } do |form| %>
         <section class="bg-stone-50">
           <% contests.each_with_index do |contest, index| %>
             <% candidates = contest.election_candidates.order(:number) %>
@@ -79,7 +82,7 @@
                                          class: "sr-only",
                                          data: { election_ballot_target: "choice" } %>
                     <button type="button"
-                            class="rounded-md border border-stone-200 bg-white <%= card_padding_class %> text-left shadow-sm transition duration-150 ease-out hover:-translate-y-0.5 hover:border-emerald-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            class="rounded-md border border-stone-200 bg-white <%= card_padding_class %> text-left shadow-sm transition duration-150 ease-out hover:-translate-y-0.5 hover:border-emerald-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                             data-action="election-ballot#choose"
                             data-election-ballot-target="card"
                             data-election-ballot-choice-id-param="<%= choice_id %>">
@@ -124,7 +127,7 @@
                                            class: "sr-only",
                                            data: { election_ballot_target: "choice" } %>
                       <button type="button"
-                              class="rounded-md border-2 border-amber-300 bg-amber-50 px-6 py-3 text-base font-semibold text-amber-900 shadow-sm transition duration-150 ease-out hover:border-amber-500 hover:bg-amber-100 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+                              class="rounded-md border-2 border-amber-300 bg-amber-50 px-6 py-3 text-base font-semibold text-amber-900 shadow-sm transition duration-150 ease-out hover:border-amber-500 hover:bg-amber-100 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
                               data-action="election-ballot#choose"
                               data-election-ballot-target="card"
                               data-election-ballot-choice-id-param="<%= abstain_id %>">
@@ -136,7 +139,7 @@
                   <% end %>
 
                   <button type="button"
-                          class="rounded-md bg-emerald-600 px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          class="rounded-md bg-emerald-600 px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                           data-action="election-ballot#submitContest">
                     <%= index == contests.size - 1 ? "최종제출" : "제출" %>
                   </button>
