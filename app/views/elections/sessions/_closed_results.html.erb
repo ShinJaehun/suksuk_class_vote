@@ -64,18 +64,23 @@
       column-gap: 4px !important;
       display: grid !important;
       font-size: 10px !important;
-      grid-template-columns: 2.4rem max-content max-content !important;
-      justify-content: start !important;
+      grid-template-columns: 2.4rem minmax(0, 1fr) max-content !important;
       line-height: 1.15 !important;
       padding: 3px 4px !important;
     }
 
-    .election-session-result-candidate span,
-    .election-session-result-candidate strong {
+    .election-session-result-candidate span:first-child,
+    .election-session-result-candidate span:last-child {
       white-space: nowrap !important;
     }
 
-    .election-session-result-candidate strong {
+    .election-session-result-candidate span:nth-child(2) {
+      min-width: 0 !important;
+      overflow-wrap: anywhere !important;
+      white-space: normal !important;
+    }
+
+    .election-session-result-candidate span:last-child {
       text-align: right !important;
     }
 
@@ -126,10 +131,10 @@
 
         <div class="election-session-result-candidates grid gap-1 md:grid-cols-2">
           <% candidate_rows.each do |candidate, votes_count| %>
-            <div class="election-session-result-candidate flex items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-2 text-sm">
+            <div class="election-session-result-candidate grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-start gap-2 rounded-md border border-stone-200 bg-white px-3 py-2 text-sm">
               <span class="w-14 shrink-0 whitespace-nowrap font-medium text-stone-500">기호 <%= candidate.number %></span>
-              <span class="min-w-0 flex-1 font-medium text-stone-900"><%= candidate.name %></span>
-              <span class="w-12 shrink-0 text-right font-semibold tabular-nums text-stone-900"><%= votes_count %>표</span>
+              <span class="min-w-0 break-words font-medium leading-tight text-stone-900"><%= candidate.name %></span>
+              <span class="w-12 shrink-0 whitespace-nowrap text-right font-semibold tabular-nums text-stone-900"><%= votes_count %>표</span>
             </div>
           <% end %>
         </div>

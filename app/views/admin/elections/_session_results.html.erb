@@ -31,10 +31,10 @@
                   <h4 class="font-medium"><%= contest_result[:contest].title %></h4>
                   <div class="grid gap-1 md:grid-cols-2">
                     <% contest_result[:candidate_results].each do |candidate_result| %>
-                      <div class="flex items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-2 text-sm">
+                      <div class="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-start gap-2 rounded-md border border-stone-200 bg-white px-3 py-2 text-sm">
                         <span class="w-14 shrink-0 whitespace-nowrap font-medium text-stone-500">기호 <%= candidate_result[:candidate].number %></span>
-                        <span class="min-w-0 flex-1 font-medium text-stone-900"><%= candidate_result[:candidate].name %></span>
-                        <span class="w-12 shrink-0 text-right font-semibold tabular-nums text-stone-900"><%= candidate_result[:votes_count] %>표</span>
+                        <span class="min-w-0 break-words font-medium leading-tight text-stone-900"><%= candidate_result[:candidate].name %></span>
+                        <span class="w-12 shrink-0 whitespace-nowrap text-right font-semibold tabular-nums text-stone-900"><%= candidate_result[:votes_count] %>표</span>
                       </div>
                     <% end %>
                   </div>
