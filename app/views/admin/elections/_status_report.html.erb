@@ -5,11 +5,11 @@
     if election.draft?
       election_status_report[:startable] ? "시작 가능" : "확인 필요"
     elsif election.in_progress?
-      election_status_report[:status_label]
+      { "진행 중" => "진행" }.fetch(election_status_report[:status_label], election_status_report[:status_label])
     elsif election.closed?
-      "종료됨"
+      "종료"
     elsif election.stopped?
-      "중단됨"
+      "중단"
     else
       election_status_report[:status_label]
     end %>
@@ -64,7 +64,7 @@
                     close_admin_election_path(election),
                     method: :post,
                     data: { turbo_confirm: "모든 학급 투표 결과를 확정하고 선거를 종료할까요?" },
-                    class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+                    class: "rounded-md bg-amber-600 px-5 py-3 text-base font-semibold text-white shadow-sm hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500" %>
     <% elsif election.in_progress? %>
       <%= button_to "전교임원선거 중단",
                     stop_admin_election_path(election),

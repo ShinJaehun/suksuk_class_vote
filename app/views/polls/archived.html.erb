@@ -1,7 +1,7 @@
 <div class="space-y-6">
   <div class="flex items-center justify-between gap-4">
     <div class="space-y-1">
-      <p><%= link_to "투표 목록으로 돌아가기", polls_path, class: "text-sm font-medium text-stone-600 underline" %></p>
+      <p><%= link_to "내 투표 목록으로 돌아가기", polls_path, class: "text-sm font-medium text-stone-600 underline" %></p>
       <h1 class="text-2xl font-semibold">보관된 투표</h1>
     </div>
   </div>
@@ -19,9 +19,9 @@
               </div>
               <p class="text-sm text-stone-600">
                 <%= poll.participant_group_display_name || "-" %>
-                · 투표자 <%= @poll_voter_counts.fetch(poll.id, 0) %>명
+                : 투표자 <%= @poll_voter_counts.fetch(poll.id, 0) %>명
                 <% if poll.poll_progress&.started_at.present? %>
-                  · 시작 <%= kst_datetime(poll.poll_progress.started_at) %>
+                  / 시작 <%= kst_datetime(poll.poll_progress.started_at) %>
                 <% end %>
                 <% if poll.poll_progress&.closed_at.present? %>
                   · 종료 <%= kst_datetime(poll.poll_progress.closed_at) %>
@@ -43,7 +43,7 @@
               <div class="flex flex-wrap items-center gap-2">
                 <h2 class="font-medium"><%= election_session.election.title %></h2>
                 <%= election_kind_badge(election_session.election) %>
-                <span class="rounded-md border border-stone-300 bg-stone-100 px-2 py-1 text-sm font-medium text-stone-700">종료됨</span>
+                <span class="rounded-md border border-stone-300 bg-stone-100 px-2 py-1 text-sm font-medium text-stone-700">종료</span>
               </div>
               <p class="text-sm text-stone-600">
                 <%= election_session.participant_group&.name || "-" %>
@@ -57,7 +57,7 @@
               </p>
             </div>
 
-            <%= link_to "결과 보기",
+            <%= link_to "상세",
                         elections_session_path(election_session),
                         class: "text-sm font-medium text-indigo-700 underline" %>
           </div>

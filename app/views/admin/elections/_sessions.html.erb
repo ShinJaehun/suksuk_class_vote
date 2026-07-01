@@ -122,7 +122,7 @@
           </div>
           <% grade_sessions.each do |session| %>
             <% voter_count = session.participant_group.participant_slots.size %>
-            <% display_status = { "draft" => "시작 전", "in_progress" => "진행 중", "closed" => "종료됨", "stopped" => "중단됨" }.fetch(session.status, session.status) %>
+            <% display_status = { "draft" => "준비", "in_progress" => "진행", "closed" => "종료", "stopped" => "중단" }.fetch(session.status, session.status) %>
             <% status_class =
               if session.draft?
                 "border-amber-200 bg-amber-50 text-amber-700"
@@ -140,10 +140,10 @@
               <span class="rounded-md border px-2 py-1 text-xs font-medium <%= status_class %>"><%= display_status %></span>
             </div>
             <p class="text-sm text-stone-600">
-              담당 교사: <%= session.teacher.name.presence || session.teacher.email %>
+              담당 교사 : <%= session.teacher.name.presence || session.teacher.email %>
               · 투표자 <%= voter_count %>명
               <% if session.started_at.present? %>
-                · 투표시작 <%= kst_datetime(session.started_at) %>
+                / 투표시작 <%= kst_datetime(session.started_at) %>
               <% end %>
               <% if session.closed_at.present? %>
                 · 투표종료 <%= kst_datetime(session.closed_at) %>
@@ -180,13 +180,13 @@
           <div class="space-y-1">
             <div class="flex flex-wrap items-center gap-2">
               <h3 class="font-medium"><%= session.participant_group.display_name %></h3>
-              <span class="rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-medium text-rose-700">중단됨</span>
+              <span class="rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-medium text-rose-700">중단</span>
             </div>
             <p class="text-sm text-stone-600">
-              담당 교사: <%= session.teacher.name.presence || session.teacher.email %>
+              담당 교사 : <%= session.teacher.name.presence || session.teacher.email %>
               · 투표자 <%= voter_count %>명
               <% if session.started_at.present? %>
-                · 투표시작 <%= kst_datetime(session.started_at) %>
+                / 투표시작 <%= kst_datetime(session.started_at) %>
               <% end %>
               <% if session.closed_at.present? %>
                 · 투표종료 <%= kst_datetime(session.closed_at) %>

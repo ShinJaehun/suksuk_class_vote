@@ -5,7 +5,7 @@
     <% elsif @safe_return_to.present? %>
       <p><%= link_to "전교임원선거 투표자 목록으로 돌아가기", @safe_return_to, class: "text-sm font-medium text-stone-600 underline" %></p>
     <% else %>
-      <p><%= link_to "투표자 목록으로 돌아가기", participant_groups_path, class: "text-sm font-medium text-stone-600 underline" %></p>
+      <p><%= link_to "내 투표자 목록으로 돌아가기", participant_groups_path, class: "text-sm font-medium text-stone-600 underline" %></p>
     <% end %>
 
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -4,7 +4,7 @@
   <% sessions = election.stopped? ? persisted_sessions : persisted_sessions.reject(&:stopped?) %>
   <% closed_session_count = sessions.count(&:closed?) %>
   <% contest_candidate_summaries = contests.map { |contest| "#{contest.title} #{contest.election_candidates.size}명" } %>
-  <% status_label = { "draft" => "준비 중", "in_progress" => "진행 중", "closed" => "종료됨", "stopped" => "중단됨" }.fetch(election.status, election.status) %>
+  <% status_label = { "draft" => "준비", "in_progress" => "진행", "closed" => "종료", "stopped" => "중단" }.fetch(election.status, election.status) %>
   <% status_class =
     if election.draft?
       "border-amber-200 bg-amber-50 text-amber-700"

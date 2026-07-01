@@ -1,5 +1,5 @@
 <div class="flex items-center justify-between gap-4">
-  <h1 class="text-2xl font-semibold">투표</h1>
+  <h1 class="text-2xl font-semibold">내 투표</h1>
 
   <div class="flex items-center gap-3">
     <%= link_to "보관된 투표",
@@ -45,7 +45,7 @@
     <% end %>
 
     <% @assigned_election_sessions.each do |election_session| %>
-      <% display_status = { "draft" => "준비", "in_progress" => "진행", "closed" => "종료됨", "stopped" => "중단됨" }.fetch(election_session.status, election_session.status) %>
+      <% display_status = { "draft" => "준비", "in_progress" => "진행", "closed" => "종료", "stopped" => "중단" }.fetch(election_session.status, election_session.status) %>
       <% status_class =
         if election_session.draft?
           "border-amber-200 bg-amber-50 text-amber-700"

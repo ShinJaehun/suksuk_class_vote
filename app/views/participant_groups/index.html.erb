@@ -21,15 +21,20 @@
                 <span class="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-sm font-medium text-indigo-700">전교임원선거</span>
               <% end %>
             </div>
-            <p class="text-sm text-stone-600">
-              <% if participant_group.school_election? %>
-                <%= participant_group.school&.name || "학교 정보 없음" %> ·
-              <% end %>
-              투표자 <%= participant_group.participant_slots.size %>명
-            </p>
+            <% if participant_group.school_election? %>
+              <% owner = participant_group.user %>
+              <% owner_label = owner&.name.presence || owner&.email.presence || "담당 교사 정보 없음" %>
+              <p class="text-sm text-stone-600">
+                담당 교사 : <%= owner_label %> / 투표자 <%= participant_group.participant_slots.size %>명
+              </p>
+            <% else %>
+              <p class="text-sm text-stone-600">
+                투표자 <%= participant_group.participant_slots.size %>명
+              </p>
+            <% end %>
           </div>
 
-          <%= link_to participant_group.school_election? ? "학생 명단" : "상세",
+          <%= link_to "상세",
                       participant_group_path(participant_group),
                       class: participant_group.school_election? ? "text-sm font-medium text-indigo-700 underline" : "text-sm font-medium text-stone-700 underline" %>
         </div>
