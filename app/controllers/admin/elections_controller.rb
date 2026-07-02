@@ -194,7 +194,9 @@ module Admin
     end
 
     def prepare_results
-      @election_contests = @election.election_contests.includes(:election_candidates).order(:position)
+      @election_contests = @election.election_contests
+        .includes(election_candidates: { photo_attachment: :blob })
+        .order(:position)
       @election_sessions = @election.election_sessions
         .closed
         .includes(:election_progress, :teacher, participant_group: :participant_slots)

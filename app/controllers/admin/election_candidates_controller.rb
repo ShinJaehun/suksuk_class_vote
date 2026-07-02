@@ -20,10 +20,16 @@ module Admin
       authorize @election, :show?
       return unless ensure_draft_election!
 
-      @election_candidate = @election_contest.election_candidates.build(election_candidate_params)
+      candidate_params = election_candidate_params
+      photo_uploaded = candidate_params[:photo].present?
+      @election_candidate = @election_contest.election_candidates.build(candidate_params)
 
       if @election_candidate.save
-        redirect_to admin_election_path(@election), notice: "후보를 등록했습니다."
+        if photo_uploaded && !process_photo_variants(@election_candidate)
+          redirect_to admin_election_path(@election), alert: "후보는 등록했지만 사진 변환에 실패했습니다. 사진을 다시 확인해 주세요."
+        else
+          redirect_to admin_election_path(@election), notice: "후보를 등록했습니다."
+        end
       else
         render :new, status: :unprocessable_content
       end
@@ -33,11 +39,17 @@ module Admin
       authorize @election, :show?
       return unless ensure_draft_election!
 
-      remove_photo = remove_photo_requested? && election_candidate_params[:photo].blank?
+      candidate_params = election_candidate_params
+      photo_uploaded = candidate_params[:photo].present?
+      remove_photo = remove_photo_requested? && !photo_uploaded
 
-      if @election_candidate.update(election_candidate_params)
+      if @election_candidate.update(candidate_params)
         @election_candidate.photo.purge if remove_photo && @election_candidate.photo.attached?
-        redirect_to admin_election_path(@election), notice: "후보를 수정했습니다."
+        if photo_uploaded && !process_photo_variants(@election_candidate)
+          redirect_to admin_election_path(@election), alert: "후보는 수정했지만 사진 변환에 실패했습니다. 사진을 다시 확인해 주세요."
+        else
+          redirect_to admin_election_path(@election), notice: "후보를 수정했습니다."
+        end
       else
         render :edit, status: :unprocessable_content
       end
@@ -72,6 +84,18 @@ module Admin
 
     def remove_photo_requested?
       ActiveModel::Type::Boolean.new.cast(params.dig(:election_candidate, :remove_photo))
+    end
+
+    def process_photo_variants(candidate)
+      candidate.photo.variant(:ballot).processed
+      candidate.photo.variant(:thumbnail).processed
+      true
+    rescue StandardError => error
+      Rails.logger.error(
+        "ElectionCandidate photo variant processing failed " \
+        "candidate_id=#{candidate.id} error=#{error.class}: #{error.message}"
+      )
+      false
     end
 
     def ensure_draft_election!

@@ -71,12 +71,6 @@
                 <div class="mt-1 grid <%= grid_class %> <%= grid_gap_class %>">
                   <% candidates.each do |candidate| %>
                     <% choice_id = "ballot_contest_#{contest.id}_candidate_#{candidate.id}" %>
-                    <% unless candidate.photo.attached? %>
-                      <% avatar_index = ((contest.id.to_i * 7) + (candidate.id.to_i * 11) + candidate.number.to_i) % 30 %>
-                      <% avatar_prefix = avatar_index.even? ? "boy" : "girl" %>
-                      <% avatar_number = ((avatar_index / 2) % 15) + 1 %>
-                      <% avatar_path = "avatars/#{avatar_prefix}#{avatar_number.to_s.rjust(2, "0")}.png" %>
-                    <% end %>
                     <%= radio_button_tag "ballot[contest_choices][#{contest.id}]",
                                          "candidate:#{candidate.id}",
                                          false,
@@ -89,17 +83,10 @@
                             data-election-ballot-target="card"
                             data-election-ballot-choice-id-param="<%= choice_id %>">
                       <span class="candidate-photo-placeholder relative block <%= placeholder_class %> overflow-hidden rounded-md bg-stone-100">
-                        <% if candidate.photo.attached? %>
-                          <%= image_tag rails_blob_path(candidate.photo, only_path: true),
-                                        alt: "#{candidate.name} 후보 사진",
-                                        class: "h-full w-full object-cover",
-                                        loading: "lazy" %>
-                        <% else %>
-                          <%= image_tag avatar_path,
-                                        alt: "",
-                                        class: "h-full w-full object-contain",
-                                        loading: "lazy" %>
-                        <% end %>
+                        <%= image_tag election_candidate_photo_source(candidate, variant: :ballot),
+                                      alt: candidate.photo.attached? ? "#{candidate.name} 후보 사진" : "",
+                                      class: candidate.photo.attached? ? "h-full w-full object-cover" : "h-full w-full object-contain",
+                                      loading: "eager" %>
                         <%= image_tag "election_vote_stamp.svg",
                                       alt: "",
                                       class: "pointer-events-none absolute bottom-1 right-1 h-[32%] w-[32%] origin-center scale-75 opacity-0 drop-shadow-md transition duration-200 ease-out",

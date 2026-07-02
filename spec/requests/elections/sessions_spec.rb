@@ -618,10 +618,10 @@ RSpec.describe "Election sessions", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("#{candidate.name} 후보 사진")
-      expect(response.body).to include("src=\"/rails/active_storage/")
-      expect(response.body).not_to include("src=\"http://localhost:3000/rails/active_storage/")
+      expect(response.body).to include("/rails/active_storage/representations/redirect/")
       expect(response.body).to include(candidate.name)
       expect(response.body).to include("사진 없음")
+      expect(response.body).to include("/assets/avatars/")
       expect(response.body).to include("candidate-photo-placeholder")
     end
 

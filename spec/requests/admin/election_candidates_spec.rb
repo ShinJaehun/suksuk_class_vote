@@ -37,7 +37,7 @@ RSpec.describe "Admin election candidates", type: :request do
       expect(response.body).to include("소속/학반")
       expect(response.body).to include("후보 사진")
       expect(response.body).to include("JPG, PNG, WebP")
-      expect(response.body).to include("최대 5MB")
+      expect(response.body).to include("최대 15MB")
       expect(response.body).to include("선거 상세로 돌아가기")
       expect(response.body).to include("후보 등록")
     end
@@ -230,8 +230,7 @@ RSpec.describe "Admin election candidates", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("김후보 후보 사진")
-      expect(response.body).to include("src=\"/rails/active_storage/")
-      expect(response.body).not_to include("src=\"http://localhost:3000/rails/active_storage/")
+      expect(response.body).to include("/rails/active_storage/representations/redirect/")
       expect(response.body).to include("현재 사진 삭제")
     end
 

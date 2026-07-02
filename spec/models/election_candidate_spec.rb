@@ -87,7 +87,7 @@ RSpec.describe ElectionCandidate, type: :model do
       expect(candidate.errors[:photo]).to be_present
     end
 
-    it "does not allow a photo larger than 5MB" do
+    it "does not allow a photo larger than 15MB" do
       candidate = build(:election_candidate)
       candidate.photo.attach(
         io: StringIO.new("a" * (ElectionCandidate::MAX_PHOTO_SIZE + 1)),
@@ -96,7 +96,7 @@ RSpec.describe ElectionCandidate, type: :model do
       )
 
       expect(candidate).not_to be_valid
-      expect(candidate.errors[:photo]).to be_present
+      expect(candidate.errors[:photo]).to include("must be 15MB or less")
     end
   end
 end

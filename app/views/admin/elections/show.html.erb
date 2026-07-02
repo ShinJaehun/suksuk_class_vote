@@ -34,11 +34,9 @@
             <ul class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               <% candidates.each do |candidate| %>
                 <li class="flex items-center gap-3 rounded-md border border-stone-200 bg-white p-3">
-                  <% if candidate.photo.attached? %>
-                    <%= image_tag rails_blob_path(candidate.photo, only_path: true),
-                                  alt: "#{candidate.name} 후보 사진",
-                                  class: "h-12 w-12 rounded-md object-cover" %>
-                  <% end %>
+                  <%= image_tag election_candidate_photo_source(candidate, variant: :thumbnail),
+                                alt: candidate.photo.attached? ? "#{candidate.name} 후보 사진" : "",
+                                class: candidate.photo.attached? ? "h-12 w-12 rounded-md object-cover" : "h-12 w-12 rounded-md object-contain" %>
                   <div class="min-w-0 flex-1">
                     <p class="font-medium">기호 <%= candidate.number %>번 <%= candidate.name %></p>
                     <% if candidate.affiliation_label.present? %>

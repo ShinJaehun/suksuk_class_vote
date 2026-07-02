@@ -1,9 +1,16 @@
 class ElectionCandidate < ApplicationRecord
   ALLOWED_PHOTO_CONTENT_TYPES = %w[image/png image/jpeg image/webp].freeze
-  MAX_PHOTO_SIZE = 5.megabytes
+  MAX_PHOTO_SIZE = 15.megabytes
 
   belongs_to :election_contest
-  has_one_attached :photo
+  has_one_attached :photo do |attachable|
+    attachable.variant :ballot,
+                       resize_to_limit: [ 900, 900 ],
+                       saver: { quality: 92, strip: true }
+    attachable.variant :thumbnail,
+                       resize_to_limit: [ 400, 400 ],
+                       saver: { quality: 88, strip: true }
+  end
 
   has_many :election_candidate_tallies, dependent: :destroy
 
@@ -29,6 +36,6 @@ class ElectionCandidate < ApplicationRecord
     return unless photo.attached?
     return if photo.blob.byte_size <= MAX_PHOTO_SIZE
 
-    errors.add(:photo, "must be 5MB or less")
+    errors.add(:photo, "must be 15MB or less")
   end
 end

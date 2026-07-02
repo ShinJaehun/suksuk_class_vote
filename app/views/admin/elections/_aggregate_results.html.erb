@@ -46,11 +46,9 @@
           <% percentage = contest_total_votes.positive? ? ((votes_count.to_f / contest_total_votes) * 100).round : 0 %>
           <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
             <div class="flex items-center gap-3">
-              <% if candidate.photo.attached? %>
-                <%= image_tag rails_blob_path(candidate.photo, only_path: true),
-                              alt: "#{candidate.name} 후보 사진",
-                              class: "h-12 w-12 shrink-0 rounded-md object-cover" %>
-              <% end %>
+              <%= image_tag election_candidate_photo_source(candidate, variant: :thumbnail),
+                            alt: candidate.photo.attached? ? "#{candidate.name} 후보 사진" : "",
+                            class: candidate.photo.attached? ? "h-12 w-12 shrink-0 rounded-md object-cover" : "h-12 w-12 shrink-0 rounded-md object-contain" %>
               <div class="min-w-0 flex-1">
                 <div class="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
                   <p class="min-w-0 break-words font-medium leading-tight">기호 <%= candidate.number %>번 <%= candidate.name %></p>

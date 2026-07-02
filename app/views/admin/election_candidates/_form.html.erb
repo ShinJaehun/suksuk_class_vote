@@ -36,7 +36,7 @@
        data-controller="candidate-photo-preview">
     <div>
       <%= form.label :photo, "후보 사진", class: "block text-sm font-medium text-stone-700" %>
-      <p class="mt-1 text-sm text-stone-600">JPG, PNG, WebP 파일을 업로드할 수 있습니다. 최대 5MB</p>
+      <p class="mt-1 text-sm text-stone-600">JPG, PNG, WebP 파일을 업로드할 수 있습니다. 최대 15MB</p>
       <p class="mt-1 text-xs text-stone-500">저장 실패 시 사진 파일은 다시 선택해야 할 수 있습니다.</p>
     </div>
 
@@ -44,7 +44,7 @@
          data-candidate-photo-preview-target="preview"
          <%= "hidden" unless persisted_photo %>>
       <% if persisted_photo %>
-        <%= image_tag rails_blob_path(@election_candidate.photo.blob, only_path: true),
+        <%= image_tag election_candidate_photo_source(@election_candidate, variant: :thumbnail),
                       alt: "#{@election_candidate.name.presence || '후보'} 후보 사진",
                       class: "h-28 w-28 rounded-md object-cover",
                       data: { candidate_photo_preview_target: "previewImage" } %>
