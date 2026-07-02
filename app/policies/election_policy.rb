@@ -35,6 +35,10 @@ class ElectionPolicy < ApplicationPolicy
     admin?
   end
 
+  def purge_candidate_photos?
+    admin? && record.closed?
+  end
+
   class Scope < ApplicationPolicy::Scope
     def resolve
       return scope.all if user&.admin?

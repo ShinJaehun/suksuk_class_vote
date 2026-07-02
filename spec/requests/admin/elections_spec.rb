@@ -568,6 +568,65 @@ RSpec.describe "Admin elections", type: :request do
     end
   end
 
+  describe "GET /admin/elections/:id/edit candidate photo purge controls" do
+    it "shows the candidate photo purge button inside the existing danger section for a closed election with photos" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :closed)
+      contest = create(:election_contest, election: election)
+      candidate = create(:election_candidate, election_contest: contest)
+      attach_candidate_photo(candidate)
+
+      get edit_admin_election_path(election)
+
+      danger_section = Nokogiri::HTML(response.body)
+        .xpath("//section[.//h2[normalize-space()='위험 작업']]")
+        .first
+      expect(danger_section).to be_present
+      expect(danger_section.text).to include("후보 사진 삭제")
+      expect(danger_section.to_html).to include(candidate_photos_admin_election_path(election))
+      expect(danger_section.to_html).to include("후보 사진 파일을 모두 삭제할까요?")
+    end
+
+    it "does not add candidate photo purge controls to the election show page" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :closed)
+      contest = create(:election_contest, election: election)
+      candidate = create(:election_candidate, election_contest: contest)
+      attach_candidate_photo(candidate)
+
+      get admin_election_path(election)
+
+      expect(response.body).not_to include("후보 사진 삭제")
+      expect(response.body).not_to include(candidate_photos_admin_election_path(election))
+    end
+
+    it "does not show the candidate photo purge button when the closed election has no photos" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :closed)
+      contest = create(:election_contest, election: election)
+      create(:election_candidate, election_contest: contest)
+
+      get edit_admin_election_path(election)
+
+      expect(response.body).not_to include(candidate_photos_admin_election_path(election))
+    end
+
+    it "does not show the candidate photo purge button before the election is closed" do
+      sign_in create(:user, :admin)
+
+      %i[draft in_progress stopped].each do |status|
+        election = create(:election, status: status)
+        contest = create(:election_contest, election: election)
+        candidate = create(:election_candidate, election_contest: contest)
+        attach_candidate_photo(candidate)
+
+        get edit_admin_election_path(election)
+
+        expect(response.body).not_to include(candidate_photos_admin_election_path(election))
+      end
+    end
+  end
+
   describe "POST /admin/elections/:id/start" do
     it "starts a draft election for admins" do
       sign_in create(:user, :admin)
@@ -703,6 +762,96 @@ RSpec.describe "Admin elections", type: :request do
       expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("관리자만 접근할 수 있습니다.")
       expect(election.reload).to be_in_progress
+    end
+  end
+
+  describe "DELETE /admin/elections/:id/candidate_photos" do
+    it "purges only candidate photos from a closed election and preserves election data" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :closed)
+      contest = create(:election_contest, election: election, title: "회장")
+      candidate = create(:election_candidate, election_contest: contest, number: 1, name: "사진 후보")
+      attach_candidate_photo(candidate)
+      session = create_admin_election_session(election: election, status: :closed, group_name: "6학년 1반")
+      voter = create(:election_voter,
+                     election_session: session,
+                     teacher: session.teacher,
+                     participant_group: session.participant_group)
+      participation = create(:election_participation, election_voter: voter, status: :completed)
+      progress = create(:election_progress, election_session: session, current_election_voter: voter)
+      candidate_tally = create(:election_candidate_tally,
+                               election_session: session,
+                               election_contest: contest,
+                               election_candidate: candidate,
+                               votes_count: 7)
+      contest_tally = create(:election_contest_tally,
+                             election_session: session,
+                             election_contest: contest,
+                             abstentions_count: 2)
+      event = create(:election_event, election_session: session, election_voter: voter)
+
+      delete candidate_photos_admin_election_path(election)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:notice]).to eq("후보 사진 1개를 삭제했습니다.")
+      expect(candidate.reload).to be_persisted
+      expect(candidate.photo).not_to be_attached
+      expect(election.reload).to be_closed
+      expect(session.reload).to be_closed
+      expect(participation.reload).to be_completed
+      expect(progress.reload.current_election_voter).to eq(voter)
+      expect(candidate_tally.reload.votes_count).to eq(7)
+      expect(contest_tally.reload.abstentions_count).to eq(2)
+      expect(event.reload).to be_persisted
+
+      get admin_election_path(election)
+      expect(response.body).to include("/assets/avatars/")
+      expect(response.body).not_to include("/rails/active_storage/representations/")
+
+      get results_admin_election_path(election)
+      expect(response.body).to include("/assets/avatars/")
+      expect(response.body).not_to include("/rails/active_storage/representations/")
+    end
+
+    it "reports when the closed election has no candidate photos" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :closed)
+
+      delete candidate_photos_admin_election_path(election)
+
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(flash[:alert]).to eq("삭제할 후보 사진이 없습니다.")
+    end
+
+    %i[draft in_progress stopped].each do |status|
+      it "does not purge candidate photos from a #{status} election" do
+        sign_in create(:user, :admin)
+        election = create(:election, status: status)
+        contest = create(:election_contest, election: election)
+        candidate = create(:election_candidate, election_contest: contest)
+        attach_candidate_photo(candidate)
+
+        delete candidate_photos_admin_election_path(election)
+
+        expect(response).to redirect_to(admin_election_path(election))
+        expect(flash[:alert]).to eq("종료된 선거의 후보 사진만 삭제할 수 있습니다.")
+        expect(candidate.reload.photo).to be_attached
+        expect(election.reload.status).to eq(status.to_s)
+      end
+    end
+
+    it "does not allow teachers to purge candidate photos" do
+      sign_in create(:user)
+      election = create(:election, status: :closed)
+      contest = create(:election_contest, election: election)
+      candidate = create(:election_candidate, election_contest: contest)
+      attach_candidate_photo(candidate)
+
+      delete candidate_photos_admin_election_path(election)
+
+      expect(response).to redirect_to(polls_path)
+      expect(flash[:alert]).to eq("관리자만 접근할 수 있습니다.")
+      expect(candidate.reload.photo).to be_attached
     end
   end
 
@@ -1096,5 +1245,13 @@ RSpec.describe "Admin elections", type: :request do
                    participant_group: election_session.participant_group)
 
     create(:election_participation, election_voter: voter, status: status)
+  end
+
+  def attach_candidate_photo(candidate)
+    candidate.photo.attach(
+      io: StringIO.new("image"),
+      filename: "candidate.jpg",
+      content_type: "image/jpeg"
+    )
   end
 end

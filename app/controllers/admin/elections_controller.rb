@@ -22,6 +22,7 @@ module Admin
       authorize @election
       @schools = School.order(:name)
       @election_session_count = @election.election_sessions.count
+      @candidate_photo_count = @election.election_candidates.joins(:photo_attachment).count
     end
 
     def update
@@ -29,6 +30,7 @@ module Admin
       authorize @election
       @schools = School.order(:name)
       @election_session_count = @election.election_sessions.count
+      @candidate_photo_count = @election.election_candidates.joins(:photo_attachment).count
 
       @election.assign_attributes(election_update_params)
       @election.errors.add(:school, "must exist") if @election.school.blank?
@@ -109,6 +111,30 @@ module Admin
       redirect_to admin_election_path(@election), notice: "선거 초기화를 완료했습니다. 학급 세션 #{deleted_session_count}개를 삭제했습니다."
     rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotDestroyed => e
       redirect_to admin_election_path(@election), alert: e.record.errors.full_messages.to_sentence.presence || "선거 초기화를 완료할 수 없습니다."
+    end
+
+    def purge_candidate_photos
+      @election = policy_scope(Election).find(params[:id])
+      authorize @election, :show?
+
+      unless @election.closed?
+        redirect_to admin_election_path(@election), alert: "종료된 선거의 후보 사진만 삭제할 수 있습니다."
+        return
+      end
+
+      authorize @election, :purge_candidate_photos?
+
+      candidates_with_photos = @election.election_candidates
+        .includes(photo_attachment: :blob)
+        .select { |candidate| candidate.photo.attached? }
+
+      if candidates_with_photos.empty?
+        redirect_to admin_election_path(@election), alert: "삭제할 후보 사진이 없습니다."
+        return
+      end
+
+      candidates_with_photos.each { |candidate| candidate.photo.purge }
+      redirect_to admin_election_path(@election), notice: "후보 사진 #{candidates_with_photos.size}개를 삭제했습니다."
     end
 
     def destroy
