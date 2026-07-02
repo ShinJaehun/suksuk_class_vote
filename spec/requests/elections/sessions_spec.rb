@@ -13,6 +13,28 @@ RSpec.describe "Election sessions", type: :request do
       expect(response).to redirect_to(new_user_session_path)
     end
 
+    it "redirects a teacher when the election session no longer exists" do
+      sign_in create(:user)
+
+      get elections_session_path(999_999_999)
+
+      expect(response).to redirect_to(polls_path)
+      expect(flash[:alert]).to eq("선거 세션이 종료되었거나 초기화되었습니다. 내 투표 목록에서 다시 확인해 주세요.")
+    end
+
+    it "moves the top-level page to polls when a missing session is requested in a Turbo Frame" do
+      sign_in create(:user)
+
+      get elections_session_path(999_999_999), headers: { "Turbo-Frame" => "teacher_progress_frame" }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include('<turbo-frame id="teacher_progress_frame">')
+      expect(response.body).to include("window.Turbo.visit")
+      expect(response.body).to include('action: "replace"')
+      expect(response.body).to include(polls_path)
+      expect(flash[:alert]).to eq("선거 세션이 종료되었거나 초기화되었습니다. 내 투표 목록에서 다시 확인해 주세요.")
+    end
+
     it "allows the session teacher to view the session" do
       election_session = started_session
       sign_in election_session.teacher
@@ -559,6 +581,28 @@ RSpec.describe "Election sessions", type: :request do
   end
 
   describe "GET /elections/sessions/:id/ballot" do
+    it "redirects a teacher when the election session no longer exists" do
+      sign_in create(:user)
+
+      get ballot_elections_session_path(999_999_999)
+
+      expect(response).to redirect_to(polls_path)
+      expect(flash[:alert]).to eq("선거 세션이 종료되었거나 초기화되었습니다. 내 투표 목록에서 다시 확인해 주세요.")
+    end
+
+    it "moves the top-level page to polls when a missing ballot is requested in a Turbo Frame" do
+      sign_in create(:user)
+
+      get ballot_elections_session_path(999_999_999), headers: { "Turbo-Frame" => "ballot_frame" }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include('<turbo-frame id="ballot_frame">')
+      expect(response.body).to include("window.Turbo.visit")
+      expect(response.body).to include('action: "replace"')
+      expect(response.body).to include(polls_path)
+      expect(flash[:alert]).to eq("선거 세션이 종료되었거나 초기화되었습니다. 내 투표 목록에서 다시 확인해 주세요.")
+    end
+
     it "shows stopped guidance without ballot controls for stopped sessions" do
       election = create(:election, status: :in_progress)
       election_session = create(:election_session, election: election, status: :stopped)

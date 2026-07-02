@@ -1,5 +1,7 @@
 module Elections
   class SessionsController < ApplicationController
+    MISSING_SESSION_MESSAGE = "선거 세션이 종료되었거나 초기화되었습니다. 내 투표 목록에서 다시 확인해 주세요.".freeze
+
     before_action :authenticate_user!
     before_action :set_election_session
 
@@ -129,6 +131,22 @@ module Elections
 
     def set_election_session
       @election_session = ElectionSession.find(params[:id])
+    rescue ActiveRecord::RecordNotFound
+      handle_missing_election_session
+    end
+
+    def handle_missing_election_session
+      if turbo_frame_request?
+        flash[:alert] = MISSING_SESSION_MESSAGE
+        render partial: "elections/sessions/missing_session",
+               locals: {
+                 frame_id: turbo_frame_request_id,
+                 redirect_path: polls_path,
+                 message: MISSING_SESSION_MESSAGE
+               }
+      else
+        redirect_to polls_path, alert: MISSING_SESSION_MESSAGE
+      end
     end
 
     def prepare_session_view

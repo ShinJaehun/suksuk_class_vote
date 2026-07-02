@@ -580,31 +580,44 @@ RSpec.describe "Admin elections", type: :request do
 
       get admin_election_path(draft_election)
       expect(response.body).to include("선거 설정")
+      expect(response.body).to include(edit_admin_election_path(draft_election))
       expect(response.body).not_to include("전교임원선거 삭제")
       expect(response.body).not_to include("전교임원선거 중단")
 
       get edit_admin_election_path(draft_election)
-      expect(response.body).to include("전교임원선거 삭제")
+      expect(election_delete_button(response.body)["disabled"]).to be_nil
+      expect(response.body).not_to include("선거가 시작된 뒤에는 기록 보존을 위해 삭제할 수 없습니다.")
 
       get admin_election_path(in_progress_election)
       expect(response.body).to include("선거 설정")
+      expect(response.body).to include(edit_admin_election_path(in_progress_election))
       expect(response.body).to include("전교임원선거 중단")
       expect(response.body).not_to include("전교임원선거 삭제")
 
       get edit_admin_election_path(in_progress_election)
-      expect(response.body).to include("전교임원선거 삭제")
-      expect(response.body).to include("disabled")
+      expect(election_delete_button(response.body)["disabled"]).not_to be_nil
+      expect(response.body).to include("선거가 시작된 뒤에는 기록 보존을 위해 삭제할 수 없습니다.")
 
       get admin_election_path(stopped_election)
       expect(response.body).to include(">중단<")
       expect(response.body).to include("선거 설정")
+      expect(response.body).to include(edit_admin_election_path(stopped_election))
       expect(response.body).not_to include("전교임원선거 삭제")
       expect(response.body).not_to include("전교임원선거 중단")
 
+      get edit_admin_election_path(stopped_election)
+      expect(election_delete_button(response.body)["disabled"]).not_to be_nil
+      expect(response.body).to include("선거가 시작된 뒤에는 기록 보존을 위해 삭제할 수 없습니다.")
+
       get admin_election_path(closed_election)
       expect(response.body).to include("선거 설정")
+      expect(response.body).to include(edit_admin_election_path(closed_election))
       expect(response.body).not_to include("전교임원선거 중단")
       expect(response.body).not_to include("전교임원선거 삭제")
+
+      get edit_admin_election_path(closed_election)
+      expect(election_delete_button(response.body)["disabled"]).not_to be_nil
+      expect(response.body).to include("선거가 시작된 뒤에는 기록 보존을 위해 삭제할 수 없습니다.")
     end
 
     it "does not show admin stop or delete controls to teachers" do
@@ -1389,5 +1402,9 @@ RSpec.describe "Admin elections", type: :request do
       .first
       .text
       .squish
+  end
+
+  def election_delete_button(html)
+    Nokogiri::HTML(html).xpath("//button[normalize-space()='전교임원선거 삭제']").first
   end
 end

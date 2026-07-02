@@ -73,6 +73,7 @@ RSpec.describe Elections::StartSession do
       expect(broadcasts.any? { |broadcast| broadcast.include?(ActionView::RecordIdentifier.dom_id(election_session.election, :admin_status_report)) }).to be(true)
       expect(broadcasts.any? { |broadcast| broadcast.include?(ActionView::RecordIdentifier.dom_id(election_session.election, :admin_sessions)) }).to be(true)
       expect(broadcasts.join).to include("진행 중")
+      expect(broadcasts.join).to include("선거 설정")
     end
 
     it "creates tallies for every contest and candidate" do

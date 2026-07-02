@@ -26,7 +26,7 @@
     </div>
 
     <div class="flex flex-wrap gap-2">
-      <% if local_assigns.fetch(:show_settings_link, false) %>
+      <% if local_assigns.fetch(:show_settings_link, true) %>
         <%= link_to "선거 설정",
                     edit_admin_election_path(election),
                     class: "inline-flex rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700" %>

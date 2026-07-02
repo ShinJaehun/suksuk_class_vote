@@ -24,7 +24,7 @@ class ElectionPolicy < ApplicationPolicy
   end
 
   def destroy?
-    admin?
+    admin? && record.draft?
   end
 
   def manage_sessions?

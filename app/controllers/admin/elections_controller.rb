@@ -139,12 +139,14 @@ module Admin
 
     def destroy
       @election = policy_scope(Election).find(params[:id])
-      authorize @election, :destroy?
+      authorize @election, :show?
 
       unless @election.draft?
         redirect_to admin_election_path(@election), alert: destroy_failure_message(@election)
         return
       end
+
+      authorize @election, :destroy?
 
       @election.destroy!
       redirect_to admin_elections_path, notice: "전교임원선거를 삭제했습니다."
