@@ -31,6 +31,20 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).not_to include("· 생성")
     end
 
+    it "shows the single-contest school council badge" do
+      sign_in create(:user, :admin)
+      create(
+        :election,
+        kind: :school_council_single_contest,
+        single_contest_title: "회장 선거 재투표",
+        title: "회장 재투표"
+      )
+
+      get admin_elections_path
+
+      expect(response.body).to include("전교임원선거(단일)")
+    end
+
     it "shows timestamps from each election according to its status" do
       sign_in create(:user, :admin)
       draft_election = create(
@@ -115,7 +129,12 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).not_to include("전교임원선거를 만든 뒤 후보/선거구/학급 세션을 구성합니다.")
       expect(response.body).to include("선거 이름")
       expect(response.body).to include("대상 학교")
-      expect(response.body).not_to include("선거 종류")
+      expect(response.body).to include("선거 종류")
+      expect(response.body).to include("전교임원선거(단일)")
+      expect(response.body).to include("투표 항목")
+      expect(response.body).to include("전교임원선거(단일)에서 사용할 투표 항목입니다.")
+      expect(response.body).to include('data-controller="election-kind-fields"')
+      expect(response.body).to match(/data-election-kind-fields-target="singleContestFields"[^>]*hidden/)
     end
 
     it "does not allow teachers to open the election creation form" do
@@ -166,6 +185,68 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("선거를 만들 수 없습니다.")
       expect(response.body).to include("대상 학교")
       expect(ElectionContest.count).to eq(0)
+    end
+
+    it "creates one admin-named contest for a single-contest school council election" do
+      admin = create(:user, :admin)
+      school = create(:school)
+      sign_in admin
+
+      post admin_elections_path, params: {
+        election: {
+          title: "회장 재투표",
+          kind: "school_council_single_contest",
+          school_id: school.id,
+          single_contest_title: "회장 선거 재투표"
+        }
+      }
+
+      election = Election.find_by!(title: "회장 재투표")
+      expect(election).to be_school_council_single_contest
+      expect(election.election_contests.pluck(:position, :title)).to eq([ [ 1, "회장 선거 재투표" ] ])
+      expect(response).to redirect_to(admin_election_path(election))
+    end
+
+    it "does not create a single-contest school council election without a contest title" do
+      sign_in create(:user, :admin)
+
+      expect do
+        post admin_elections_path, params: {
+          election: {
+            title: "항목 없는 재투표",
+            kind: "school_council_single_contest",
+            school_id: create(:school).id,
+            single_contest_title: ""
+          }
+        }
+      end.not_to change(Election, :count)
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include("투표 항목")
+      expect(ElectionContest.count).to eq(0)
+    end
+
+    it "preserves the single-contest fields after another validation error" do
+      sign_in create(:user, :admin)
+
+      post admin_elections_path, params: {
+        election: {
+          title: "",
+          kind: "school_council_single_contest",
+          school_id: create(:school).id,
+          single_contest_title: "회장 선거 재투표"
+        }
+      }
+
+      document = Nokogiri::HTML(response.body)
+      kind_option = document.at_css("select[name='election[kind]'] option[selected]")
+      contest_fields = document.at_css("[data-election-kind-fields-target='singleContestFields']")
+      contest_input = document.at_css("input[name='election[single_contest_title]']")
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(kind_option["value"]).to eq("school_council_single_contest")
+      expect(contest_fields["hidden"]).to be_nil
+      expect(contest_input["value"]).to eq("회장 선거 재투표")
     end
 
     it "shows validation errors without creating default contests" do
@@ -220,6 +301,24 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("회장")
       expect(response.body).to include("6학년 부회장")
       expect(response.body).to include("5학년 부회장")
+    end
+
+    it "shows a single-contest election with the existing candidate registration flow" do
+      sign_in create(:user, :admin)
+      election = create(
+        :election,
+        kind: :school_council_single_contest,
+        single_contest_title: "5학년 부회장 선거 재투표",
+        title: "5학년 부회장 재투표"
+      )
+      contest = create(:election_contest, election: election, position: 1, title: "5학년 부회장 선거 재투표")
+
+      get admin_election_path(election)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("전교임원선거(단일)")
+      expect(response.body).to include(contest.title)
+      expect(response.body).to include(new_admin_election_election_contest_election_candidate_path(election, contest))
     end
 
     it "subscribes to admin overview updates and renders replace targets" do
@@ -752,6 +851,23 @@ RSpec.describe "Admin elections", type: :request do
       expect(election.reload.started_at).to eq(existing_started_at)
     end
 
+    it "starts a single-contest school council election when its contest is ready" do
+      sign_in create(:user, :admin)
+      election = create(
+        :election,
+        kind: :school_council_single_contest,
+        single_contest_title: "회장 선거 재투표"
+      )
+      contest = create(:election_contest, election: election, title: "회장 선거 재투표")
+      create(:election_candidate, election_contest: contest)
+      create_admin_election_session(election: election, status: :draft, group_name: "6학년 1반")
+
+      post start_admin_election_path(election)
+
+      expect(election.reload).to be_in_progress
+      expect(response).to redirect_to(admin_election_path(election))
+    end
+
     it "does not start an election without sessions" do
       sign_in create(:user, :admin)
       election = create(:election)
@@ -1100,6 +1216,29 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).not_to include("진행 중")
       expect(response.body).not_to include("준비 중")
       expect(response.body).not_to include("중단")
+    end
+
+    it "renders aggregate results for a single-contest school council election" do
+      sign_in create(:user, :admin)
+      election = create(
+        :election,
+        kind: :school_council_single_contest,
+        single_contest_title: "6학년 부회장 선거 재투표",
+        status: :closed
+      )
+      contest = create(:election_contest, election: election, title: "6학년 부회장 선거 재투표")
+      candidate = create(:election_candidate, election_contest: contest, name: "재투표 후보")
+      session = create_admin_election_session(election: election, status: :closed, group_name: "6학년 1반")
+      create(:election_candidate_tally, election_session: session, election_contest: contest, election_candidate: candidate, votes_count: 3)
+      create(:election_contest_tally, election_session: session, election_contest: contest)
+
+      get results_admin_election_path(election)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("전교임원선거(단일)")
+      expect(response.body).to include(contest.title)
+      expect(response.body).to include("재투표 후보")
+      expect(response.body).to include("3표")
     end
 
     it "sums candidate tallies from closed sessions in aggregate results" do

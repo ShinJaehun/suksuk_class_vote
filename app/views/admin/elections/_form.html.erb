@@ -12,9 +12,34 @@
 <% end %>
 
 <section class="rounded-md border border-stone-200 bg-white p-4">
-  <%= form_with model: [:admin, election], class: "space-y-4" do |form| %>
+  <%= form_with model: [:admin, election],
+                class: "space-y-4",
+                data: { controller: ("election-kind-fields" if election.new_record?) } do |form| %>
     <% if election.new_record? %>
-      <%= form.hidden_field :kind, value: "school_council" %>
+      <div class="space-y-1">
+        <%= form.label :kind, "선거 종류", class: "text-sm font-medium text-stone-700" %>
+        <%= form.select :kind,
+                        [
+                          [ "전교임원선거", "school_council" ],
+                          [ "전교임원선거(단일)", "school_council_single_contest" ]
+                        ],
+                        {},
+                        data: {
+                          election_kind_fields_target: "kind",
+                          action: "change->election-kind-fields#toggle"
+                        },
+                        class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+      </div>
+
+      <div class="space-y-1"
+           data-election-kind-fields-target="singleContestFields"
+           <%= "hidden" unless election.school_council_single_contest? %>>
+        <%= form.label :single_contest_title, "투표 항목", class: "text-sm font-medium text-stone-700" %>
+        <%= form.text_field :single_contest_title,
+                            placeholder: "예: 회장 선거 재투표",
+                            class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+        <p class="text-sm text-stone-600">전교임원선거(단일)에서 사용할 투표 항목입니다.</p>
+      </div>
     <% end %>
 
     <div class="space-y-1">

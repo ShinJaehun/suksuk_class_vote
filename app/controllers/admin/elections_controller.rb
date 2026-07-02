@@ -177,7 +177,11 @@ module Admin
     def create_election
       Election.transaction do
         @election.save!
-        create_default_contests! if @election.school_council?
+        if @election.school_council?
+          create_default_contests!
+        elsif @election.school_council_single_contest?
+          create_single_contest!
+        end
       end
       true
     rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique
@@ -198,8 +202,20 @@ module Admin
       end
     end
 
+    def create_single_contest!
+      @election.election_contests.create!(
+        position: 1,
+        title: @election.single_contest_title,
+        vote_method: :single_choice,
+        min_selections: 1,
+        max_selections: 1,
+        seats_count: 1,
+        allow_abstain: true
+      )
+    end
+
     def election_params
-      params.require(:election).permit(:title, :kind, :school_id)
+      params.require(:election).permit(:title, :kind, :school_id, :single_contest_title)
     end
 
     def election_update_params

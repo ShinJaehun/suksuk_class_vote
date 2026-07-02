@@ -1,6 +1,7 @@
 module ElectionsHelper
   ELECTION_KIND_LABELS = {
-    "school_council" => "전교임원선거"
+    "school_council" => "전교임원선거",
+    "school_council_single_contest" => "전교임원선거(단일)"
   }.freeze
 
   def election_kind_label(election)

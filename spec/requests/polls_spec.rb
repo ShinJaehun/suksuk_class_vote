@@ -74,6 +74,26 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include("ElectionSession")
     end
 
+    it "shows single-contest school council sessions with their election badge" do
+      teacher = create(:user)
+      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher)
+      election = create(
+        :election,
+        kind: :school_council_single_contest,
+        single_contest_title: "회장 선거 재투표",
+        status: :in_progress,
+        title: "회장 선거 재투표"
+      )
+      create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
+      sign_in teacher
+
+      get polls_path
+
+      expect(response.body).to include(election.title)
+      expect(response.body).to include("전교임원선거(단일)")
+      expect(response.body).not_to include("학급선거")
+    end
+
     it "shows in-progress and stopped election sessions while hiding closed sessions" do
       teacher = create(:user)
       participant_group = create(:participant_group, :school_election, user: teacher, name: "5학년 2반")

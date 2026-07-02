@@ -53,15 +53,29 @@ RSpec.describe Election, type: :model do
       expect(election).to be_school_council
     end
 
-    it "supports school council, class officer, and custom kinds" do
+    it "supports school council, single-contest school council, class officer, and custom kinds" do
       election = build(:election, kind: :class_officer)
 
       expect(election).to be_class_officer
       expect(described_class.kinds).to include(
         "school_council" => 0,
+        "school_council_single_contest" => 1,
         "class_officer" => 10,
         "custom" => 20
       )
+    end
+
+    it "requires a contest title when creating a single-contest school council election" do
+      election = build(:election, kind: :school_council_single_contest, single_contest_title: "")
+
+      expect(election).not_to be_valid
+      expect(election.errors[:single_contest_title]).to be_present
+    end
+
+    it "does not require a single contest title for a regular school council election" do
+      election = build(:election, kind: :school_council, single_contest_title: "")
+
+      expect(election).to be_valid
     end
   end
 
