@@ -41,6 +41,7 @@
     else
       election_status_report[:message]
     end %>
+  <% timestamp_labels = election_status_timestamp_labels(election) %>
 
   <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
     <div class="space-y-1">
@@ -49,6 +50,9 @@
         <span class="rounded-md border px-2 py-1 text-sm font-medium <%= badge_class %>"><%= badge_label %></span>
       </div>
       <p class="text-sm text-stone-600"><%= guidance %></p>
+      <% if timestamp_labels.any? %>
+        <p class="text-sm text-stone-600"><%= timestamp_labels.join(" · ") %></p>
+      <% end %>
       <% if election_status_report[:detail].present? %>
         <p class="text-sm font-medium text-stone-800"><%= election_status_report[:detail] %></p>
       <% end %>

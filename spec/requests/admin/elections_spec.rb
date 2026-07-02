@@ -31,6 +31,64 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).not_to include("· 생성")
     end
 
+    it "shows timestamps from each election according to its status" do
+      sign_in create(:user, :admin)
+      draft_election = create(
+        :election,
+        title: "준비 선거",
+        school: create(:school, name: "준비초"),
+        status: :draft,
+        created_at: kst_time(9, 0),
+        started_at: kst_time(9, 5)
+      )
+      in_progress_election = create(
+        :election,
+        title: "진행 선거",
+        school: create(:school, name: "진행초"),
+        status: :in_progress,
+        created_at: kst_time(10, 0),
+        started_at: kst_time(10, 10)
+      )
+      closed_election = create(
+        :election,
+        title: "종료 선거",
+        school: create(:school, name: "종료초"),
+        status: :closed,
+        created_at: kst_time(11, 0),
+        started_at: kst_time(11, 10),
+        closed_at: kst_time(11, 45)
+      )
+      stopped_election = create(
+        :election,
+        title: "중단 선거",
+        school: create(:school, name: "중단초"),
+        status: :stopped,
+        created_at: kst_time(12, 0),
+        started_at: kst_time(12, 10),
+        stopped_at: kst_time(12, 20)
+      )
+
+      get admin_elections_path
+
+      draft_card = election_list_card_text(response.body, draft_election)
+      expect(draft_card).to include("준비초")
+      expect(draft_card).not_to include("생성")
+      expect(draft_card).not_to include("2026-07-02 09:00")
+      expect(draft_card).not_to include("2026-07-02 09:05")
+
+      in_progress_card = election_list_card_text(response.body, in_progress_election)
+      expect(in_progress_card).to include("진행초 / 시작 2026-07-02 10:10")
+      expect(in_progress_card).not_to include("생성")
+
+      closed_card = election_list_card_text(response.body, closed_election)
+      expect(closed_card).to include("종료초 / 시작 2026-07-02 11:10 · 종료 2026-07-02 11:45")
+      expect(closed_card).not_to include("생성")
+
+      stopped_card = election_list_card_text(response.body, stopped_election)
+      expect(stopped_card).to include("중단초 / 시작 2026-07-02 12:10 · 중단 2026-07-02 12:20")
+      expect(stopped_card).not_to include("생성")
+    end
+
     it "shows stopped elections as stopped without list stop or delete controls" do
       sign_in create(:user, :admin)
       election = create(:election, title: "중단된 전교임원선거", status: :stopped)
@@ -174,6 +232,35 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include(ActionView::RecordIdentifier.dom_id(election, :admin_summary))
       expect(response.body).to include(ActionView::RecordIdentifier.dom_id(election, :admin_status_report))
       expect(response.body).to include(ActionView::RecordIdentifier.dom_id(election, :admin_sessions))
+    end
+
+    it "shows election timestamps in status reporting without using session timestamps" do
+      sign_in create(:user, :admin)
+      election = create(
+        :election,
+        status: :closed,
+        created_at: kst_time(9, 0),
+        started_at: kst_time(9, 10),
+        closed_at: kst_time(10, 0)
+      )
+      session = create_admin_election_session(election: election, status: :closed, group_name: "6학년 1반")
+      session.update!(started_at: kst_time(9, 30), closed_at: kst_time(9, 50))
+
+      get admin_election_path(election)
+
+      document = Nokogiri::HTML(response.body)
+      summary = document.at_css(
+        "##{ActionView::RecordIdentifier.dom_id(election, :admin_summary)}"
+      ).text.squish
+      status_report = document.at_css(
+        "##{ActionView::RecordIdentifier.dom_id(election, :admin_status_report)}"
+      ).text.squish
+
+      expect(summary).not_to include("2026-07-02 09:10")
+      expect(summary).not_to include("2026-07-02 10:00")
+      expect(status_report).to include("시작 2026-07-02 09:10 · 종료 2026-07-02 10:00")
+      expect(status_report).not_to include("2026-07-02 09:30")
+      expect(status_report).not_to include("2026-07-02 09:50")
     end
 
     it "shows the session assignment form and assigned sessions to admins" do
@@ -637,7 +724,19 @@ RSpec.describe "Admin elections", type: :request do
       expect(response).to redirect_to(admin_election_path(election))
       expect(flash[:notice]).to eq("선거를 시작했습니다.")
       expect(election.reload).to be_in_progress
+      expect(election.started_at).to be_present
       expect(election.election_sessions.sole).to be_draft
+    end
+
+    it "does not overwrite an existing election start time" do
+      sign_in create(:user, :admin)
+      election = startable_election
+      existing_started_at = kst_time(8, 30)
+      election.update_column(:started_at, existing_started_at)
+
+      post start_admin_election_path(election)
+
+      expect(election.reload.started_at).to eq(existing_started_at)
     end
 
     it "does not start an election without sessions" do
@@ -707,6 +806,7 @@ RSpec.describe "Admin elections", type: :request do
       expect(response).to redirect_to(admin_election_path(election))
       expect(flash[:notice]).to eq("선거를 종료했습니다.")
       expect(election.reload).to be_closed
+      expect(election.closed_at).to be_present
     end
 
     it "does not close while a non-stopped session is unfinished" do
@@ -736,6 +836,7 @@ RSpec.describe "Admin elections", type: :request do
       expect(response).to redirect_to(admin_election_path(election))
       expect(flash[:notice]).to eq("전교임원선거를 중단했습니다.")
       expect(election.reload).to be_stopped
+      expect(election.stopped_at).to be_present
       expect(draft_session.reload).to be_stopped
       expect(in_progress_session.reload).to be_stopped
       expect(stopped_session.reload).to be_stopped
@@ -762,6 +863,29 @@ RSpec.describe "Admin elections", type: :request do
       expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("관리자만 접근할 수 있습니다.")
       expect(election.reload).to be_in_progress
+    end
+  end
+
+  describe "POST /admin/elections/:id/emergency_reset" do
+    it "clears election status timestamps when returning the election to draft" do
+      sign_in create(:user, :admin)
+      election = create(
+        :election,
+        status: :stopped,
+        started_at: kst_time(9, 0),
+        closed_at: kst_time(10, 0),
+        stopped_at: kst_time(10, 10)
+      )
+      create_admin_election_session(election: election, status: :stopped, group_name: "6학년 1반")
+
+      post emergency_reset_admin_election_path(election), params: { confirmation_title: election.title }
+
+      election.reload
+      expect(response).to redirect_to(admin_election_path(election))
+      expect(election).to be_draft
+      expect(election.started_at).to be_nil
+      expect(election.closed_at).to be_nil
+      expect(election.stopped_at).to be_nil
     end
   end
 
@@ -1253,5 +1377,17 @@ RSpec.describe "Admin elections", type: :request do
       filename: "candidate.jpg",
       content_type: "image/jpeg"
     )
+  end
+
+  def kst_time(hour, minute)
+    Time.find_zone!("Asia/Seoul").local(2026, 7, 2, hour, minute)
+  end
+
+  def election_list_card_text(html, election)
+    Nokogiri::HTML(html)
+      .xpath("//li[.//h2[contains(normalize-space(.), '#{election.title}')]]")
+      .first
+      .text
+      .squish
   end
 end

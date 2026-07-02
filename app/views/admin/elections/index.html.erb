@@ -24,15 +24,23 @@
             "border-stone-300 bg-stone-100 text-stone-700"
           end %>
         <% action_label = election.draft? ? "관리/시작 준비" : (election.in_progress? ? "운영 현황/결과 확인" : "결과 보기") %>
+        <% timestamp_labels = election_status_timestamp_labels(election) %>
 
         <li class="rounded-md border border-stone-200 bg-white p-4">
           <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div class="flex flex-wrap items-center gap-2">
-              <h2 class="text-lg font-semibold"><%= link_to election.title, admin_election_path(election), class: "hover:underline" %></h2>
-              <%= election_kind_badge(election) %>
-              <span class="rounded-md border px-2 py-1 text-xs font-medium <%= status_class %>"><%= status_label %></span>
-              <% if election.school.present? %>
-                <span class="text-sm text-stone-600"><%= election.school.name %></span>
+            <div class="space-y-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <h2 class="text-lg font-semibold"><%= link_to election.title, admin_election_path(election), class: "hover:underline" %></h2>
+                <%= election_kind_badge(election) %>
+                <span class="rounded-md border px-2 py-1 text-xs font-medium <%= status_class %>"><%= status_label %></span>
+              </div>
+              <% if election.school.present? || timestamp_labels.any? %>
+                <p class="text-sm text-stone-600">
+                  <% if election.school.present? %>
+                    <%= election.school.name %><%= " / " if timestamp_labels.any? %>
+                  <% end %>
+                  <%= timestamp_labels.join(" · ") %>
+                </p>
               <% end %>
             </div>
 

@@ -15,7 +15,12 @@ module Admin
           election.lock!
           deleted_session_count = election.election_sessions.count
           election.election_sessions.find_each(&:destroy!)
-          election.update!(status: :draft)
+          election.update!(
+            status: :draft,
+            started_at: nil,
+            closed_at: nil,
+            stopped_at: nil
+          )
         end
 
         Rails.logger.warn(

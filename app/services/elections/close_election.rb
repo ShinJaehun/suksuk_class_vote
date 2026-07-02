@@ -22,7 +22,7 @@ module Elections
           validate_closable
           raise ActiveRecord::Rollback if errors.any?
 
-          election.update!(status: :closed)
+          election.update!(status: :closed, closed_at: election.closed_at || Time.current)
         end
       end
 

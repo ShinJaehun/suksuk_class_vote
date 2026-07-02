@@ -62,7 +62,7 @@ module Admin
       start_report = ::Elections::StartReport.new(election: @election).to_h
 
       if start_report[:startable]
-        @election.update!(status: :in_progress)
+        @election.update!(status: :in_progress, started_at: @election.started_at || Time.current)
         redirect_to admin_election_path(@election), notice: "선거를 시작했습니다."
       else
         redirect_to admin_election_path(@election), alert: start_failure_message(start_report)
