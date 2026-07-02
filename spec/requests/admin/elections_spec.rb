@@ -39,7 +39,7 @@ RSpec.describe "Admin elections", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include(election.title)
-      expect(response.body).to include("중단됨")
+      expect(response.body).to include(">중단<")
       expect(response.body).not_to include("stopped")
       expect(response.body).not_to include("전교임원선거 중단")
       expect(response.body).not_to include("전교임원선거 삭제")
@@ -265,7 +265,7 @@ RSpec.describe "Admin elections", type: :request do
       completed_count = document.xpath("//p[normalize-space()='완료 세션']/following-sibling::p").first
 
       expect(response.body).to include("중단된 학급 세션 이력")
-      expect(response.body).to include("중단됨")
+      expect(response.body).to include(">중단<")
       expect(response.body).to include(elections_session_path(stopped_session))
       expect(response.body).to include(elections_session_path(second_stopped_session))
       expect(response.body).to include(elections_session_path(replacement))
@@ -295,7 +295,7 @@ RSpec.describe "Admin elections", type: :request do
 
       expect(response.body).to include(first_session.participant_group.display_name)
       expect(response.body).to include(second_session.participant_group.display_name)
-      expect(response.body).to include("중단됨")
+      expect(response.body).to include(">중단<")
       expect(response.body).not_to include("아직 배정된 학급 세션이 없습니다.")
       expect(session_count.text.squish).to eq("2")
       expect(completed_count.text.squish).to eq("0/2")
@@ -439,7 +439,7 @@ RSpec.describe "Admin elections", type: :request do
       get admin_election_path(election)
 
       expect(response.body).to include("상태점검")
-      expect(response.body).to include("진행 중")
+      expect(response.body).to include(">진행<")
       expect(response.body).to include("투표가 진행 중입니다.")
       expect(response.body).not_to include("Election이 draft 상태여야 합니다.")
       expect(response.body).not_to include(start_admin_election_path(election))
@@ -479,7 +479,7 @@ RSpec.describe "Admin elections", type: :request do
       get admin_election_path(election)
 
       expect(response.body).to include("상태점검")
-      expect(response.body).to include("종료됨")
+      expect(response.body).to include(">종료<")
       expect(response.body).to include("투표가 종료되었습니다.")
       expect(response.body).not_to include(start_admin_election_path(election))
     end
@@ -509,7 +509,7 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("disabled")
 
       get admin_election_path(stopped_election)
-      expect(response.body).to include("중단됨")
+      expect(response.body).to include(">중단<")
       expect(response.body).to include("선거 설정")
       expect(response.body).not_to include("전교임원선거 삭제")
       expect(response.body).not_to include("전교임원선거 중단")
@@ -542,7 +542,7 @@ RSpec.describe "Admin elections", type: :request do
       get polls_path
 
       expect(response.body).to include("중단된 전교임원선거")
-      expect(response.body).to include("중단됨")
+      expect(response.body).to include(">중단<")
       expect(response.body).to include(elections_session_path(stopped_session))
       expect(response.body).not_to include("투표 시작")
       expect(response.body).not_to include("투표 화면 열기")
@@ -804,7 +804,7 @@ RSpec.describe "Admin elections", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("선거 상세로 돌아가기")
-      expect(response.body).to include("종료됨")
+      expect(response.body).to include(">종료<")
       expect(response.body).not_to include("닫힌 학급 투표만 결과에 집계됩니다.")
       expect(response.body).to include("전체 진행 현황")
       expect(response.body).to include("완료 학급")
