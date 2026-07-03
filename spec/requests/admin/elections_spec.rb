@@ -91,15 +91,15 @@ RSpec.describe "Admin elections", type: :request do
       expect(draft_card).not_to include("2026-07-02 09:05")
 
       in_progress_card = election_list_card_text(response.body, in_progress_election)
-      expect(in_progress_card).to include("진행초 / 시작 2026-07-02 10:10")
+      expect(in_progress_card).to include("진행초 / 선거시작 2026-07-02 10:10")
       expect(in_progress_card).not_to include("생성")
 
       closed_card = election_list_card_text(response.body, closed_election)
-      expect(closed_card).to include("종료초 / 시작 2026-07-02 11:10 · 종료 2026-07-02 11:45")
+      expect(closed_card).to include("종료초 / 선거시작 2026-07-02 11:10 · 선거종료 2026-07-02 11:45")
       expect(closed_card).not_to include("생성")
 
       stopped_card = election_list_card_text(response.body, stopped_election)
-      expect(stopped_card).to include("중단초 / 시작 2026-07-02 12:10 · 중단 2026-07-02 12:20")
+      expect(stopped_card).to include("중단초 / 선거시작 2026-07-02 12:10 · 선거중단 2026-07-02 12:20")
       expect(stopped_card).not_to include("생성")
     end
 
@@ -357,9 +357,28 @@ RSpec.describe "Admin elections", type: :request do
 
       expect(summary).not_to include("2026-07-02 09:10")
       expect(summary).not_to include("2026-07-02 10:00")
-      expect(status_report).to include("시작 2026-07-02 09:10 · 종료 2026-07-02 10:00")
+      expect(status_report).to include("선거시작 2026-07-02 09:10 · 선거종료 2026-07-02 10:00")
       expect(status_report).not_to include("2026-07-02 09:30")
       expect(status_report).not_to include("2026-07-02 09:50")
+      expect(response.body).to include("투표 항목")
+    end
+
+    it "shows the election stopped timestamp in status reporting" do
+      sign_in create(:user, :admin)
+      election = create(
+        :election,
+        status: :stopped,
+        started_at: kst_time(9, 10),
+        stopped_at: kst_time(9, 40)
+      )
+
+      get admin_election_path(election)
+
+      document = Nokogiri::HTML(response.body)
+      status_report = document.at_css(
+        "##{ActionView::RecordIdentifier.dom_id(election, :admin_status_report)}"
+      ).text.squish
+      expect(status_report).to include("선거시작 2026-07-02 09:10 · 선거중단 2026-07-02 09:40")
     end
 
     it "shows the session assignment form and assigned sessions to admins" do

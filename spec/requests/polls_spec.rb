@@ -68,8 +68,11 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("준비")
       expect(response.body).not_to include("담당 교사:")
       expect(response.body).not_to include("시작 전")
+      expect(response.body).to include("#{election_session.election.school.name} · #{participant_group.name}(투표자 1명)")
       expect(response.body).to include(participant_group.name)
       expect(response.body).to include("투표자 1명")
+      expect(response.body).not_to include("담당 교사")
+      expect(response.body).not_to include("담당 학급")
       expect(response.body).not_to include("다른 반 선거")
       expect(response.body).not_to include("ElectionSession")
     end
@@ -190,7 +193,7 @@ RSpec.describe "Polls", type: :request do
 
     it "shows voter counts from participant slots for draft polls and snapshots for started polls" do
       teacher = create(:user)
-      draft_group = create(:participant_group, user: teacher)
+      draft_group = create(:participant_group, user: teacher, name: "테스트3")
       create(:participant_slot, participant_group: draft_group, number: 1)
       create(:participant_slot, participant_group: draft_group, number: 2)
       create(:participant_slot, participant_group: draft_group, number: 3)
@@ -212,6 +215,10 @@ RSpec.describe "Polls", type: :request do
 
       get polls_path
 
+      visible_text = Nokogiri::HTML(response.body).text.squish
+      expect(visible_text).to include("테스트3(투표자 3명)")
+      expect(visible_text).not_to include("담당 교사")
+      expect(visible_text).not_to include("담당 학급")
       expect(response.body).to match(/#{draft_poll.title}.*투표자 3명/m)
       expect(response.body).to match(/#{in_progress_poll.title}.*투표자 2명/m)
       expect(response.body).to match(/#{stopped_poll.title}.*투표자 1명/m)
@@ -265,13 +272,34 @@ RSpec.describe "Polls", type: :request do
 
     it "shows voter counts from snapshots for archived polls" do
       teacher = create(:user)
-      archived_poll = create(:poll, user: teacher, title: "보관된 종료 투표", status: :closed, archived_at: Time.current)
+      participant_group = create(:participant_group, user: teacher, name: "테스트3")
+      archived_poll = create(
+        :poll,
+        user: teacher,
+        participant_group: participant_group,
+        title: "보관된 종료 투표",
+        status: :closed,
+        archived_at: Time.current
+      )
+      create(
+        :poll_progress,
+        poll: archived_poll,
+        status: :closed,
+        started_at: Time.utc(2026, 6, 19, 6, 43),
+        closed_at: Time.utc(2026, 6, 19, 6, 48)
+      )
       create(:poll_participant, poll: archived_poll, teacher: teacher, participant_group: archived_poll.participant_group, number: 1)
       create(:poll_participant, poll: archived_poll, teacher: teacher, participant_group: archived_poll.participant_group, number: 2)
       sign_in teacher
 
       get archived_polls_path
 
+      visible_text = Nokogiri::HTML(response.body).text.squish
+      expect(visible_text).to include(
+        "테스트3(투표자 2명) / 투표시작 2026-06-19 15:43 · 투표종료 2026-06-19 15:48"
+      )
+      expect(visible_text).not_to include("담당 교사")
+      expect(visible_text).not_to include("담당 학급")
       expect(response.body).to match(/#{archived_poll.title}.*투표자 2명/m)
     end
 
@@ -281,6 +309,7 @@ RSpec.describe "Polls", type: :request do
       closed_session = create(
         :election_session,
         status: :closed,
+        started_at: Time.zone.local(2026, 5, 1, 10, 0),
         closed_at: Time.zone.local(2026, 5, 1, 10, 30),
         election: create(:election, title: "종료된 임원 선거"),
         teacher: teacher,
@@ -302,12 +331,16 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include(closed_session.election.title)
       expect(response.body).to include(participant_group.name)
       expect(response.body).to include("전교임원선거")
+      expect(response.body).to include("#{closed_session.election.school.name} · #{participant_group.name}(투표자 1명)")
       expect(response.body).to include("border-indigo-100 bg-indigo-50/30")
       expect(response.body).to include(">종료<")
       expect(response.body).to include("투표자 1명")
-      expect(response.body).to include("종료 2026-05-01 19:30")
-      expect(response.body).not_to include("시작 -")
-      expect(response.body).not_to include("종료 -")
+      expect(response.body).to include("투표시작 2026-05-01 19:00")
+      expect(response.body).to include("투표종료 2026-05-01 19:30")
+      expect(response.body).not_to include("투표시작 -")
+      expect(response.body).not_to include("투표종료 -")
+      expect(response.body).not_to include("담당 학급")
+      expect(response.body).not_to include("담당 교사")
       expect(response.body).to include(">상세<")
       expect(response.body).to include(elections_session_path(closed_session))
       expect(response.body).not_to include("중단된 임원 선거")

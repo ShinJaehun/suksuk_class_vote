@@ -17,6 +17,7 @@ RSpec.describe "Admin election rosters", type: :request do
 
       get admin_election_rosters_path, params: { school_id: school.id }
 
+      visible_text = Nokogiri::HTML(response.body).text.squish
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("전교임원선거 투표자 목록")
       expect(response.body).to include(school.name)
@@ -24,9 +25,9 @@ RSpec.describe "Admin election rosters", type: :request do
       expect(response.body).to include("학년 단위 추가")
       expect(response.body).to include("4학년")
       expect(response.body).to include("4-1")
-      expect(response.body).to include("담당 교사")
-      expect(response.body).to include("김담임")
-      expect(response.body).to include("투표자 1명")
+      expect(visible_text).to include("#{school.name} · 담당 교사 : 4-1 · 투표자 1명")
+      expect(visible_text).not_to include("김담임")
+      expect(visible_text).not_to include("담당 학급")
       expect(response.body).to include(
         participant_group_path(
           selected_group,
@@ -39,6 +40,35 @@ RSpec.describe "Admin election rosters", type: :request do
       expect(response.body).not_to include(new_participant_group_bulk_participant_slots_path(selected_group))
       expect(response.body).not_to include(other_school_group.name)
       expect(response.body).not_to include("개인 명단")
+    end
+
+    it "shows the assigned single-contest election badge" do
+      admin = create(:user, :admin)
+      teacher = create(:user, name: "4-10")
+      school = create(:school, name: "아라초")
+      participant_group = create(
+        :participant_group,
+        :school_election,
+        user: teacher,
+        school: school,
+        grade: 4,
+        class_label: "10"
+      )
+      election = create(
+        :election,
+        kind: :school_council_single_contest,
+        single_contest_title: "회장 재투표",
+        school: school
+      )
+      create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
+      sign_in admin
+
+      get admin_election_rosters_path, params: { school_id: school.id }
+
+      visible_text = Nokogiri::HTML(response.body).text.squish
+      expect(response.body).to include("전교임원선거(단일)")
+      expect(visible_text).to include("아라초 · 담당 교사 : 4-10 · 투표자 0명")
+      expect(visible_text).not_to include("담당 학급")
     end
 
     it "shows an empty school state" do

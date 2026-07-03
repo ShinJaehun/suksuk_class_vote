@@ -36,20 +36,32 @@ RSpec.describe "Voter groups", type: :request do
     end
 
     it "separates the teacher's personal and school election participant groups" do
-      teacher = create(:user)
+      teacher = create(:user, name: "4-11")
+      school = create(:school, name: "아라초")
       create(:participant_group, user: teacher, name: "내 개인 명단")
       create(:participant_group, name: "다른 교사 개인 명단")
-      school_election_group = create(:participant_group, :school_election, user: teacher, grade: 6, class_label: "1")
+      school_election_group = create(
+        :participant_group,
+        :school_election,
+        user: teacher,
+        school: school,
+        grade: 4,
+        class_label: "11"
+      )
+      create_list(:participant_slot, 5, participant_group: school_election_group)
       sign_in teacher
 
       get participant_groups_path
 
+      visible_text = Nokogiri::HTML(response.body).text.squish
       expect(response.body).to include("내 투표자 목록")
       expect(response.body).not_to include("일반 투표자 명단")
       expect(response.body).to include("내 개인 명단")
       expect(response.body).not_to include("다른 교사 개인 명단")
       expect(response.body).not_to include("담당 전교임원선거 투표자 명단")
       expect(response.body).to include("전교임원선거")
+      expect(visible_text).to include("아라초 · 담당 교사 : 4-11 · 투표자 5명")
+      expect(visible_text).not_to include("담당 학급")
       expect(response.body).to include("border-indigo-100 bg-indigo-50/30")
       expect(response.body).to include(participant_group_path(school_election_group))
     end
@@ -234,27 +246,29 @@ RSpec.describe "Voter groups", type: :request do
     end
 
     it "allows teachers to manage students in their school election participant group without container controls" do
-      teacher = create(:user)
+      teacher = create(:user, name: "김담임")
       school = create(:school, name: "아라초")
-      participant_group = create(:participant_group, :school_election, user: teacher, school: school, grade: 4, class_label: "1")
-      participant_slot = create(:participant_slot, participant_group: participant_group)
+      participant_group = create(:participant_group, :school_election, user: teacher, school: school, grade: 4, class_label: "11")
+      participant_slots = create_list(:participant_slot, 5, participant_group: participant_group)
       sign_in teacher
 
       get participant_group_path(participant_group)
 
+      visible_text = Nokogiri::HTML(response.body).text.squish
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("전교임원선거")
       expect(response.body).to include("아라초")
-      expect(response.body).to include("4학년 1반")
-      expect(response.body).not_to include("· 4-1")
-      expect(response.body).to include("담당 교사: #{teacher.name}")
+      expect(response.body).to include("4학년 11반")
+      expect(visible_text).to include("아라초 · 담당 교사 : 4-11 · 투표자 5명")
+      expect(visible_text).not_to include("김담임")
+      expect(visible_text).not_to include("담당 학급")
       expect(response.body).not_to include(edit_participant_group_path(participant_group))
       expect(response.body).not_to include("정보 수정")
       expect(response.body).not_to include("투표자 명단 삭제")
       expect(response.body).to include(new_participant_group_participant_slot_path(participant_group))
       expect(response.body).to include(new_participant_group_bulk_participant_slots_path(participant_group))
       expect(response.body).to include(edit_participant_group_roster_path(participant_group))
-      expect(response.body).not_to include(participant_group_participant_slot_path(participant_group, participant_slot))
+      expect(response.body).not_to include(participant_group_participant_slot_path(participant_group, participant_slots.first))
     end
   end
 

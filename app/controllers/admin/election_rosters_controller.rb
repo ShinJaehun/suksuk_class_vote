@@ -16,10 +16,14 @@ module Admin
       else
         ParticipantGroup.none
       end
-      @assigned_participant_group_ids = ElectionSession.roster_locking
+      assigned_sessions = ElectionSession.roster_locking
         .where(participant_group_id: @participant_groups.select(:id))
-        .distinct
-        .pluck(:participant_group_id)
+        .includes(:election)
+        .to_a
+      @assigned_participant_group_ids = assigned_sessions.map(&:participant_group_id).uniq
+      @assigned_elections_by_participant_group_id = assigned_sessions
+        .group_by(&:participant_group_id)
+        .transform_values { |sessions| sessions.map(&:election).uniq(&:id) }
     end
 
     def new

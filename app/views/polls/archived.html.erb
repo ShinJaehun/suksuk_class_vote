@@ -18,13 +18,12 @@
                 <%= poll_status_badge(poll) %>
               </div>
               <p class="text-sm text-stone-600">
-                <%= poll.participant_group_display_name || "-" %>
-                : 투표자 <%= @poll_voter_counts.fetch(poll.id, 0) %>명
+                <%= poll.participant_group_display_name || "-" %>(투표자 <%= @poll_voter_counts.fetch(poll.id, 0) %>명)
                 <% if poll.poll_progress&.started_at.present? %>
-                  / 시작 <%= kst_datetime(poll.poll_progress.started_at) %>
+                  / 투표시작 <%= kst_datetime(poll.poll_progress.started_at) %>
                 <% end %>
                 <% if poll.poll_progress&.closed_at.present? %>
-                  · 종료 <%= kst_datetime(poll.poll_progress.closed_at) %>
+                  · 투표종료 <%= kst_datetime(poll.poll_progress.closed_at) %>
                 <% end %>
               </p>
             </div>
@@ -46,13 +45,15 @@
                 <span class="rounded-md border border-stone-300 bg-stone-100 px-2 py-1 text-sm font-medium text-stone-700">종료</span>
               </div>
               <p class="text-sm text-stone-600">
-                <%= election_session.participant_group&.name || "-" %>
-                : 투표자 <%= @election_session_voter_counts.fetch(election_session.id, 0) %>명
+                <%= election_session_roster_label(
+                      election_session,
+                      voter_count: @election_session_voter_counts.fetch(election_session.id, 0)
+                    ) %>
                 <% if election_session.started_at.present? %>
-                  / 시작 <%= kst_datetime(election_session.started_at) %>
+                  / 투표시작 <%= kst_datetime(election_session.started_at) %>
                 <% end %>
                 <% if election_session.closed_at.present? %>
-                  · 종료 <%= kst_datetime(election_session.closed_at) %>
+                  · 투표종료 <%= kst_datetime(election_session.closed_at) %>
                 <% end %>
               </p>
             </div>

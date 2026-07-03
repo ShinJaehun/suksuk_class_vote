@@ -20,8 +20,10 @@
         </div>
         <p class="text-sm text-stone-600">
           <% if @participant_group.school_election? %>
-            <%= @participant_group.school&.name || "학교 정보 없음" %>
-            · 담당 교사: <%= owner_label %>
+            <%= school_election_participant_group_context_label(
+                  @participant_group,
+                  voter_count: @participant_group.participant_slots.size
+                ) %>
           <% else %>
             담당 교사: <%= owner_label %>
           <% end %>

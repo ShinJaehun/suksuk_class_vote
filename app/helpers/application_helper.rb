@@ -7,10 +7,35 @@ module ApplicationHelper
 
   def election_status_timestamp_labels(election)
     labels = []
-    labels << "시작 #{kst_datetime(election.started_at)}" if !election.draft? && election.started_at.present?
-    labels << "종료 #{kst_datetime(election.closed_at)}" if election.closed? && election.closed_at.present?
-    labels << "중단 #{kst_datetime(election.stopped_at)}" if election.stopped? && election.stopped_at.present?
+    labels << "선거시작 #{kst_datetime(election.started_at)}" if !election.draft? && election.started_at.present?
+    labels << "선거종료 #{kst_datetime(election.closed_at)}" if election.closed? && election.closed_at.present?
+    labels << "선거중단 #{kst_datetime(election.stopped_at)}" if election.stopped? && election.stopped_at.present?
     labels
+  end
+
+  def school_election_participant_group_context_label(participant_group, voter_count:)
+    [
+      participant_group&.school&.name,
+      ("담당 교사 : #{participant_group.school_election_short_label}" if participant_group.present?),
+      "투표자 #{voter_count}명"
+    ].compact_blank.join(" · ")
+  end
+
+  def election_session_roster_label(election_session, voter_count:)
+    participant_group = election_session.participant_group
+    [
+      election_session.election.school&.name || participant_group&.school&.name,
+      "#{participant_group&.name.presence || "-"}(투표자 #{voter_count}명)"
+    ].compact_blank.join(" · ")
+  end
+
+  def election_session_teacher_context_label(election_session, voter_count:)
+    participant_group = election_session.participant_group
+    [
+      election_session.election.school&.name || participant_group&.school&.name,
+      ("담당 교사 : #{participant_group.school_election_short_label}" if participant_group.present?),
+      "#{participant_group&.name.presence || "-"}(투표자 #{voter_count}명)"
+    ].compact_blank.join(" · ")
   end
 
   def election_candidate_photo_source(candidate, variant:)

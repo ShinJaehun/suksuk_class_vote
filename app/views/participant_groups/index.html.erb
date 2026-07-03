@@ -22,10 +22,11 @@
               <% end %>
             </div>
             <% if participant_group.school_election? %>
-              <% owner = participant_group.user %>
-              <% owner_label = owner&.name.presence || owner&.email.presence || "담당 교사 정보 없음" %>
               <p class="text-sm text-stone-600">
-                담당 교사 : <%= owner_label %> / 투표자 <%= participant_group.participant_slots.size %>명
+                <%= school_election_participant_group_context_label(
+                      participant_group,
+                      voter_count: participant_group.participant_slots.size
+                    ) %>
               </p>
             <% else %>
               <p class="text-sm text-stone-600">

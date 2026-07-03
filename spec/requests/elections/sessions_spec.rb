@@ -108,6 +108,10 @@ RSpec.describe "Election sessions", type: :request do
 
     it "shows start controls for draft sessions without ballot inputs" do
       election_session = draft_session
+      participant_group = election_session.participant_group
+      3.upto(5) do |number|
+        create(:participant_slot, participant_group: participant_group, number: number, name: "학생#{number}")
+      end
       sign_in election_session.teacher
 
       get elections_session_path(election_session)
@@ -123,6 +127,12 @@ RSpec.describe "Election sessions", type: :request do
       expect(response.body).not_to include('data-controller="election-session-progress"')
       expect(visible_text).to include("투표자 명단")
       expect(visible_text).to include("학생1")
+      expect(visible_text).to include(
+        "#{election_session.election.school.name} · 담당 교사 : #{participant_group.school_election_short_label} · #{participant_group.name}(투표자 5명)"
+      )
+      expect(visible_text).not_to include("담당 학급")
+      expect(visible_text).to include("투표 항목")
+      expect(visible_text).not_to include("선거 항목")
       expect(visible_text).not_to include("이 학급 투표를 시작할 수 있습니다. 아래 선거 항목을 확인한 뒤 투표를 시작하세요.")
       expect(visible_text).not_to include("선거명, 학급명, 후보 구성을 확인한 뒤 시작하세요.")
       expect(visible_text).not_to include("투표자 명단 수정")

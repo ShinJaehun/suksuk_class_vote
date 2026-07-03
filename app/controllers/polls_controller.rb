@@ -331,7 +331,7 @@ class PollsController < ApplicationController
       .where(teacher: current_user, status: %i[draft in_progress stopped])
       .where(elections: { status: %i[in_progress stopped closed] })
       .where(hidden_from_teacher_at: nil)
-      .includes(:election, :participant_group)
+      .includes(:participant_group, election: :school)
       .order(created_at: :desc)
   end
 
@@ -340,7 +340,7 @@ class PollsController < ApplicationController
 
     ElectionSession
       .where(teacher: current_user, status: :closed)
-      .includes(:election, :participant_group)
+      .includes(:participant_group, election: :school)
       .order(closed_at: :desc, updated_at: :desc)
   end
 
