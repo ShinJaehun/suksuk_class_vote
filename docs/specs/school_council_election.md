@@ -66,6 +66,18 @@ Teacher는 본인에게 배정된 학급 세션만 운영한다.
 7. stopped 세션이 더 이상 교사 목록에 필요하지 않으면 상세에서 `투표 삭제`를 눌러
    본인의 `/polls` 목록에서만 숨긴다.
 
+일반 teacher는 parent 전교임원선거의 삭제, 비상 초기화, 전체 중단, 학급 재투표를
+실행할 수 없다.
+
+### 전교임원선거 담당 교사
+
+`school_election_manager`는 teacher 중 일부에게 부여할 예정인 미래 권한이며 아직
+구현하지 않았다.
+
+- 선거 중단과 학급 재투표 권한을 부여할 예정이다.
+- 선거 삭제와 비상 초기화 권한은 부여하지 않는다.
+- admin 역할을 대체하지 않는다.
+
 ## 상태 전이
 
 ### Parent Election
@@ -155,7 +167,8 @@ stopped 세션과 voter, participation, tally, event를 보존하는 것이 일�
 다만 선거 구성 또는 운영 데이터 전체를 폐기하고 준비부터 다시 해야 하는 비상 상황에는
 admin 전용 비상 초기화를 명시적 예외로 허용한다.
 
-- parent `Election` 상태와 관계없이 admin만 실행할 수 있으며 teacher에게 위임하지 않는다.
+- parent `Election` 상태와 관계없이 admin만 실행할 수 있으며 일반 teacher나 향후
+  `school_election_manager`에게 위임하지 않는다.
 - 선거 상세의 선거 단위 위험 작업에서 선거 이름을 확인 입력한 뒤 실행한다.
 - transaction 안에서 해당 선거의 모든 `ElectionSession`을 `destroy!`하고 parent
   `Election`을 `draft`로 되돌린다.
@@ -164,6 +177,14 @@ admin 전용 비상 초기화를 명시적 예외로 허용한다.
 - `Election`, `School`, `ElectionContest`, `ElectionCandidate`, `User`,
   `ParticipantGroup`, `ParticipantSlot`은 삭제하지 않는다.
 - 실행 actor, 선거, 삭제한 세션 수를 운영 로그에 남긴다.
+
+## 선거 삭제
+
+- admin만 실행할 수 있으며 parent `Election`이 `draft`일 때만 허용한다.
+- `in_progress`, `closed`, `stopped` 선거는 삭제할 수 없다.
+- `stopped` 선거도 운영 이력이므로 직접 삭제하지 않는다.
+- 특수 상황에서 stopped 선거를 삭제해야 한다면 admin이 비상 초기화로 `draft`로
+  되돌린 뒤 삭제하는 흐름만 허용한다.
 
 ## Teacher 목록 숨김
 

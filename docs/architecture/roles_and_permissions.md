@@ -95,6 +95,25 @@
 * admin 기능에 접근할 수 없다.
 * 전교임원선거 자체를 중단, 삭제 또는 종료할 수 없다.
 * 전교임원선거 학급 재투표를 실행할 수 없다.
+* 전교임원선거 비상 초기화를 실행할 수 없다.
+
+---
+
+### 전교임원선거 담당 교사 (미래 권한)
+
+`school_election_manager`는 teacher 중 일부에게 부여할 예정인 전교임원선거 관리
+권한이며 현재 구현되어 있지 않다.
+
+예정 범위:
+
+* 전교임원선거 중단
+* 특정 학급 재투표
+
+제한:
+
+* 전교임원선거 삭제 불가
+* 비상 초기화 불가
+* admin 역할을 대체하지 않음
 
 ---
 
@@ -241,10 +260,13 @@ Admin `Election`은 여러 학급 `ElectionSession`을 묶는 관리자 운영 �
 | 상세 조회 | 가능 | 불가 | 불가 | `admin/elections#show` |
 | 결과 집계 조회 | closed 선거에서 가능 | 불가 | 불가 | `/admin/elections/:id/results`, closed session만 표시/집계 |
 | 선거 생성 | 가능 | 불가 | 불가 | 학교와 선거명을 기준으로 생성 |
+| 선거 수정 | draft에서 가능 | 불가 | 불가 | 시작 뒤 구성 변경 차단 |
 | 선거 시작 | 가능 | 불가 | 불가 | draft, 세션/항목/후보 구성 조건 충족 시 parent `Election`만 `in_progress`로 전환 |
 | 선거 중단 | in_progress에서 가능 | 불가 | 불가 | 운영 사고 시 parent와 미종료 학급 세션 중단 |
 | 선거 종료 | 모든 현재 세션 종료 후 가능 | 불가 | 불가 | parent 자동 종료 없이 admin이 명시적으로 확정 |
 | 특정 학급 재투표 | in_progress parent에서 가능 | 불가 | 불가 | 기존 세션은 stopped 이력, replacement는 draft |
+| 선거 삭제 | draft에서 가능 | 불가 | 불가 | in_progress/closed/stopped는 운영 이력 보존을 위해 삭제 불가 |
+| 비상 초기화 | 가능 | 불가 | 불가 | admin 전용 비상 복구 기능 |
 | 학급 세션 배정 | draft에서 가능 | 불가 | 불가 | 시작 후 생성 차단 |
 | 학급 세션 삭제 | 제한적으로 가능 | 불가 | 불가 | parent draft, 대상 session draft, 같은 election 안에 non-draft session 없음 |
 | 후보자/사진 등록·수정·삭제 | draft에서 가능 | 불가 | 불가 | 시작 후 변경 차단 |
@@ -267,6 +289,14 @@ Admin 전체 집계는 `closed` `ElectionSession`만 합산한다.
 결과 페이지의 학급별 목록도 `closed` 세션만 표시한다.
 draft/in_progress/stopped 세션은 결과 합산과 결과 검산 목록에서 제외한다.
 stopped 세션은 Admin 선거 상세의 중단 이력에서 확인한다.
+
+Admin은 draft 전교임원선거만 삭제할 수 있다. `in_progress`, `closed`, `stopped`
+선거는 삭제할 수 없으며, stopped 선거도 운영 이력으로 보존한다. 특수 상황에서
+삭제가 필요하면 admin이 비상 초기화로 draft로 되돌린 뒤 삭제한다.
+
+비상 초기화는 admin 전용 권한이다. 향후 `school_election_manager`를 도입하더라도
+선거 삭제와 비상 초기화 권한은 부여하지 않는다. 해당 미래 권한에는 선거 중단과
+학급 재투표만 부여할 예정이며 admin 역할을 대체하지 않는다.
 
 관리자 선거 UI 정책:
 
