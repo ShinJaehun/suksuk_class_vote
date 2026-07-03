@@ -16,8 +16,8 @@
         <%= poll_status_badge(@poll) %>
       </div>
       <% owner = @poll.user %>
-      <% owner_label = owner&.name.presence || owner&.email.presence || "담당 교사 정보 없음" %>
-      <p class="text-sm text-stone-600"><%= owner_label %></p>
+      <% owner_label = owner&.name.presence || "미지정" %>
+      <p class="text-sm text-stone-600">담당 교사: <%= owner_label %></p>
     </div>
 
     <div class="flex flex-wrap gap-2">

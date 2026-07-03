@@ -24,7 +24,7 @@ module ApplicationHelper
   def school_election_participant_group_context_label(participant_group, voter_count:)
     [
       participant_group&.school&.name,
-      ("담당 교사 : #{participant_group.school_election_short_label}" if participant_group.present?),
+      teacher_assignment_label(participant_group&.user&.name),
       "투표자 #{voter_count}명"
     ].compact_blank.join(" · ")
   end
@@ -41,9 +41,13 @@ module ApplicationHelper
     participant_group = election_session.participant_group
     [
       election_session.election.school&.name || participant_group&.school&.name,
-      ("담당 교사 : #{participant_group.school_election_short_label}" if participant_group.present?),
+      teacher_assignment_label(election_session.teacher&.name),
       "#{participant_group&.name.presence || "-"}(투표자 #{voter_count}명)"
     ].compact_blank.join(" · ")
+  end
+
+  def teacher_assignment_label(teacher_name)
+    teacher_name.present? ? "담당 교사 : #{teacher_name}" : "담당 교사 미지정"
   end
 
   def election_candidate_photo_source(candidate, variant:)

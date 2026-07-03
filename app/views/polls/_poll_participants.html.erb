@@ -11,8 +11,7 @@
       <% end %>
     </div>
     <p class="text-sm text-stone-600">
-      <%= poll.participant_group_display_name || "선택된 투표자 명단이 없습니다." %>
-      · 투표자 <%= participant_rows&.size.to_i %>명
+      <%= poll.participant_group_display_name || "선택된 투표자 명단이 없습니다." %>(투표자 <%= participant_rows&.size.to_i %>명)
     </p>
   </div>
 

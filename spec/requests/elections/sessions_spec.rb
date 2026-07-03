@@ -128,7 +128,7 @@ RSpec.describe "Election sessions", type: :request do
       expect(visible_text).to include("투표자 명단")
       expect(visible_text).to include("학생1")
       expect(visible_text).to include(
-        "#{election_session.election.school.name} · 담당 교사 : #{participant_group.school_election_short_label} · #{participant_group.name}(투표자 5명)"
+        "#{election_session.election.school.name} · 담당 교사 : #{election_session.teacher.name} · #{participant_group.name}(투표자 5명)"
       )
       expect(visible_text).not_to include("담당 학급")
       expect(visible_text).to include("투표 항목")

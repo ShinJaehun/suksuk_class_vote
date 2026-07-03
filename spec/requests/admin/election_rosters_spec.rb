@@ -25,8 +25,7 @@ RSpec.describe "Admin election rosters", type: :request do
       expect(response.body).to include("학년 단위 추가")
       expect(response.body).to include("4학년")
       expect(response.body).to include("4-1")
-      expect(visible_text).to include("#{school.name} · 담당 교사 : 4-1 · 투표자 1명")
-      expect(visible_text).not_to include("김담임")
+      expect(visible_text).to include("#{school.name} · 담당 교사 : 김담임 · 투표자 1명")
       expect(visible_text).not_to include("담당 학급")
       expect(response.body).to include(
         participant_group_path(
@@ -44,7 +43,7 @@ RSpec.describe "Admin election rosters", type: :request do
 
     it "shows the assigned single-contest election badge" do
       admin = create(:user, :admin)
-      teacher = create(:user, name: "4-10")
+      teacher = create(:user, name: "홍길동")
       school = create(:school, name: "아라초")
       participant_group = create(
         :participant_group,
@@ -67,7 +66,7 @@ RSpec.describe "Admin election rosters", type: :request do
 
       visible_text = Nokogiri::HTML(response.body).text.squish
       expect(response.body).to include("전교임원선거(단일)")
-      expect(visible_text).to include("아라초 · 담당 교사 : 4-10 · 투표자 0명")
+      expect(visible_text).to include("아라초 · 담당 교사 : 홍길동 · 투표자 0명")
       expect(visible_text).not_to include("담당 학급")
     end
 

@@ -468,7 +468,7 @@ RSpec.describe "Polls", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("관리자 확인 선거")
-      expect(response.body).to include("4-11")
+      expect(response.body).to include("담당 교사: 4-11")
       expect(response.body).not_to include("4-11 &lt;teacher411@example.com&gt;")
     end
 
@@ -503,8 +503,7 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include("제출</dt>")
       expect(response.body).not_to include("아직 생성된 투표자 명단이 없습니다.")
       expect(response.body).not_to include("투표 진행 상황")
-      expect(response.body).to include("투표자")
-      expect(response.body).to include("1명")
+      expect(response.body).to include("#{poll.participant_group_display_name}(투표자 1명)")
       expect(response.body).to include("투표자 명단 수정")
       expect(response.body).to include(participant_group_path(poll.participant_group, return_to_poll_id: poll.id))
       expect(response.body).to include("후보자")

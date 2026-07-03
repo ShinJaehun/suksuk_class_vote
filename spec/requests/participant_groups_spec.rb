@@ -36,7 +36,7 @@ RSpec.describe "Voter groups", type: :request do
     end
 
     it "separates the teacher's personal and school election participant groups" do
-      teacher = create(:user, name: "4-11")
+      teacher = create(:user, name: "박담임")
       school = create(:school, name: "아라초")
       create(:participant_group, user: teacher, name: "내 개인 명단")
       create(:participant_group, name: "다른 교사 개인 명단")
@@ -60,7 +60,7 @@ RSpec.describe "Voter groups", type: :request do
       expect(response.body).not_to include("다른 교사 개인 명단")
       expect(response.body).not_to include("담당 전교임원선거 투표자 명단")
       expect(response.body).to include("전교임원선거")
-      expect(visible_text).to include("아라초 · 담당 교사 : 4-11 · 투표자 5명")
+      expect(visible_text).to include("아라초 · 담당 교사 : 박담임 · 투표자 5명")
       expect(visible_text).not_to include("담당 학급")
       expect(response.body).to include("border-indigo-100 bg-indigo-50/30")
       expect(response.body).to include(participant_group_path(school_election_group))
@@ -259,8 +259,7 @@ RSpec.describe "Voter groups", type: :request do
       expect(response.body).to include("전교임원선거")
       expect(response.body).to include("아라초")
       expect(response.body).to include("4학년 11반")
-      expect(visible_text).to include("아라초 · 담당 교사 : 4-11 · 투표자 5명")
-      expect(visible_text).not_to include("김담임")
+      expect(visible_text).to include("아라초 · 담당 교사 : 김담임 · 투표자 5명")
       expect(visible_text).not_to include("담당 학급")
       expect(response.body).not_to include(edit_participant_group_path(participant_group))
       expect(response.body).not_to include("정보 수정")

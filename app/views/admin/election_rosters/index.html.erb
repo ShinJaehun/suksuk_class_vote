@@ -57,7 +57,7 @@
                     <% end %>
                   </div>
                   <p class="text-sm text-stone-600">
-                    <%= participant_group.school&.name || @school.name %> · 담당 교사 : <%= participant_group.school_election_short_label %>
+                    <%= participant_group.school&.name || @school.name %> · <%= teacher_assignment_label(participant_group.user&.name) %>
                     · 투표자 <%= participant_group.participant_slots.size %>명
                   </p>
                 </div>
