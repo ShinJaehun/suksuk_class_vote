@@ -142,11 +142,9 @@
             <p class="text-sm text-stone-600">
               담당 교사 : <%= session.teacher.name.presence || session.teacher.email %>
               · 투표자 <%= voter_count %>명
-              <% if session.started_at.present? %>
-                / 투표시작 <%= kst_datetime(session.started_at) %>
-              <% end %>
-              <% if session.closed_at.present? %>
-                · 투표종료 <%= kst_datetime(session.closed_at) %>
+              <% session_time_labels = election_session_status_time_labels(session) %>
+              <% if session_time_labels.any? %>
+                / <%= session_time_labels.join(" · ") %>
               <% end %>
             </p>
           </div>
@@ -185,11 +183,9 @@
             <p class="text-sm text-stone-600">
               담당 교사 : <%= session.teacher.name.presence || session.teacher.email %>
               · 투표자 <%= voter_count %>명
-              <% if session.started_at.present? %>
-                / 투표시작 <%= kst_datetime(session.started_at) %>
-              <% end %>
-              <% if session.closed_at.present? %>
-                · 투표종료 <%= kst_datetime(session.closed_at) %>
+              <% session_time_labels = election_session_status_time_labels(session) %>
+              <% if session_time_labels.any? %>
+                / <%= session_time_labels.join(" · ") %>
               <% end %>
             </p>
           </div>

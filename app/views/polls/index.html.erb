@@ -70,11 +70,9 @@
                     election_session,
                     voter_count: @election_session_voter_counts.fetch(election_session.id, 0)
                   ) %>
-              <% if election_session.started_at.present? %>
-                / 투표시작 <%= kst_datetime(election_session.started_at) %>
-              <% end %>
-              <% if election_session.closed_at.present? %>
-                · 투표종료 <%= kst_datetime(election_session.closed_at) %>
+              <% session_time_labels = election_session_status_time_labels(election_session) %>
+              <% if session_time_labels.any? %>
+                / <%= session_time_labels.join(" · ") %>
               <% end %>
             </p>
           </div>

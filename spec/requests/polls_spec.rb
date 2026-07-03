@@ -119,6 +119,7 @@ RSpec.describe "Polls", type: :request do
       stopped_session = create(
         :election_session,
         status: :stopped,
+        stopped_at: Time.utc(2026, 7, 3, 5, 47),
         election: create(:election, title: "중단된 선거", status: :in_progress),
         teacher: teacher,
         participant_group: participant_group
@@ -133,6 +134,8 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include("종료된 선거")
       expect(response.body).to include("중단된 선거")
       expect(response.body).to include(">중단<")
+      expect(response.body).to include("투표중단 2026-07-03 14:47")
+      expect(response.body).not_to include("선거중단 2026-07-03 14:47")
       expect(response.body).to include("전교임원선거")
       expect(response.body).to include(elections_session_path(stopped_session))
       expect(response.body).not_to include("투표 삭제")

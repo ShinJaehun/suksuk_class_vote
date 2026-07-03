@@ -34,14 +34,13 @@
       <dt class="font-medium text-stone-500">투표자 수</dt>
       <dd class="mt-1 text-stone-900"><%= participant_slots.size %>명</dd>
     </div>
-    <div>
-      <dt class="font-medium text-stone-500">투표시작</dt>
-      <dd class="mt-1 text-stone-900"><%= kst_datetime(election_session.started_at) %></dd>
-    </div>
-    <div>
-      <dt class="font-medium text-stone-500">투표종료</dt>
-      <dd class="mt-1 text-stone-900"><%= kst_datetime(election_session.closed_at) %></dd>
-    </div>
+    <% session_time_labels = election_session_status_time_labels(election_session) %>
+    <% if session_time_labels.any? %>
+      <div class="sm:col-span-2">
+        <dt class="font-medium text-stone-500">진행 시간</dt>
+        <dd class="mt-1 text-stone-900"><%= session_time_labels.join(" · ") %></dd>
+      </div>
+    <% end %>
   </dl>
 </section>
 

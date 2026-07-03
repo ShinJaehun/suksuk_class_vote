@@ -17,6 +17,7 @@ module Elections
       validate_revoteable
       return failure if errors.any?
 
+      now = Time.current
       ElectionSession.transaction do
         election_session.election.with_lock do
           election_session.with_lock do
@@ -24,7 +25,7 @@ module Elections
             validate_revoteable
             raise ActiveRecord::Rollback if errors.any?
 
-            election_session.update!(status: :stopped)
+            election_session.update!(status: :stopped, stopped_at: now)
             record_stopped_event!
             @new_election_session = ElectionSession.create!(
               election: election_session.election,

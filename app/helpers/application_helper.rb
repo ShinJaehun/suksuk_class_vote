@@ -13,6 +13,14 @@ module ApplicationHelper
     labels
   end
 
+  def election_session_status_time_labels(election_session)
+    labels = []
+    labels << "투표시작 #{kst_datetime(election_session.started_at)}" if election_session.started_at.present?
+    labels << "투표종료 #{kst_datetime(election_session.closed_at)}" if election_session.closed? && election_session.closed_at.present?
+    labels << "투표중단 #{kst_datetime(election_session.stopped_at)}" if election_session.stopped? && election_session.stopped_at.present?
+    labels
+  end
+
   def school_election_participant_group_context_label(participant_group, voter_count:)
     [
       participant_group&.school&.name,

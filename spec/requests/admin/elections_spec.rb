@@ -446,6 +446,7 @@ RSpec.describe "Admin elections", type: :request do
         teacher: teacher,
         participant_group: participant_group,
         status: :stopped,
+        stopped_at: kst_time(9, 30),
         hidden_from_teacher_at: 1.day.ago
       )
       second_stopped_session = create(
@@ -453,7 +454,8 @@ RSpec.describe "Admin elections", type: :request do
         election: election,
         teacher: teacher,
         participant_group: participant_group,
-        status: :stopped
+        status: :stopped,
+        stopped_at: kst_time(9, 40)
       )
       replacement = create(
         :election_session,
@@ -474,6 +476,8 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include(elections_session_path(stopped_session))
       expect(response.body).to include(elections_session_path(second_stopped_session))
       expect(response.body).to include(elections_session_path(replacement))
+      expect(response.body).to include("투표중단 2026-07-02 09:30")
+      expect(response.body).to include("투표중단 2026-07-02 09:40")
       expect(session_count.text.squish).to eq("1")
       expect(completed_count.text.squish).to eq("1/1")
     end
@@ -491,6 +495,8 @@ RSpec.describe "Admin elections", type: :request do
         status: :stopped,
         group_name: "6학년 2반"
       )
+      first_session.update!(stopped_at: kst_time(10, 20))
+      second_session.update!(stopped_at: kst_time(10, 30))
 
       get admin_election_path(election)
 
@@ -501,6 +507,9 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include(first_session.participant_group.display_name)
       expect(response.body).to include(second_session.participant_group.display_name)
       expect(response.body).to include(">중단<")
+      expect(response.body).to include("투표중단 2026-07-02 10:20")
+      expect(response.body).to include("투표중단 2026-07-02 10:30")
+      expect(response.body).not_to include("선거중단 2026-07-02 10:20")
       expect(response.body).not_to include("아직 배정된 학급 세션이 없습니다.")
       expect(session_count.text.squish).to eq("2")
       expect(completed_count.text.squish).to eq("0/2")
@@ -1118,9 +1127,12 @@ RSpec.describe "Admin elections", type: :request do
       expect(election.reload).to be_stopped
       expect(election.stopped_at).to be_present
       expect(draft_session.reload).to be_stopped
+      expect(draft_session.stopped_at).to eq(election.stopped_at)
       expect(in_progress_session.reload).to be_stopped
+      expect(in_progress_session.stopped_at).to eq(election.stopped_at)
       expect(stopped_session.reload).to be_stopped
       expect(closed_session.reload).to be_closed
+      expect(closed_session.stopped_at).to be_nil
     end
 
     it "does not stop elections that are not in progress" do

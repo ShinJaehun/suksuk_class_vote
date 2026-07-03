@@ -135,11 +135,14 @@ draft -> in_progress -> closed
 
 전체 선거 중단과 학급 재투표는 서로 다른 동작이다.
 
-- 전체 중단은 parent `Election`을 `stopped`로 만들고 미종료 학급 세션을 중단한다.
+- 전체 중단은 하나의 시각을 기준으로 parent `Election`과 미종료 학급 세션을
+  `stopped`로 만들고 각각의 `stopped_at`을 기록한다. 이미 종료된 세션은 상태와
+  `closed_at`을 보존하며 `stopped_at`을 기록하지 않는다.
 - 재투표는 admin만 실행할 수 있으며 parent `Election`이 `in_progress`여야 한다.
 - 재투표 대상은 `in_progress` 또는 `closed` 학급 세션이다.
 - 기존 세션, voter, participation, tally, event는 삭제하지 않는다.
-- 기존 세션은 `stopped`, replacement 세션은 `draft`가 된다.
+- 기존 세션은 재투표 요청 시각을 `stopped_at`으로 기록한 `stopped`,
+  replacement 세션은 `stopped_at`이 없는 `draft`가 된다.
 - 담당 교사는 replacement 세션에서 다시 학급 투표를 시작한다.
 - 재투표는 parent `Election` 상태를 변경하지 않는다.
 

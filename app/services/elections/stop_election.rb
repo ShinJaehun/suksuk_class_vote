@@ -16,8 +16,17 @@ module Elections
       return failure if errors.any?
 
       Election.transaction do
-        election.update!(status: :stopped, stopped_at: election.stopped_at || Time.current)
-        election.election_sessions.where.not(status: :closed).update_all(status: ElectionSession.statuses[:stopped])
+        now = Time.current
+        election.update!(status: :stopped, stopped_at: election.stopped_at || now)
+        election.election_sessions
+          .where.not(status: :closed)
+          .update_all(
+            [
+              "status = ?, stopped_at = COALESCE(stopped_at, ?)",
+              ElectionSession.statuses[:stopped],
+              now
+            ]
+          )
       end
 
       success

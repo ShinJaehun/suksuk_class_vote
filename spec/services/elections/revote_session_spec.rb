@@ -1,22 +1,30 @@
 require "rails_helper"
 
 RSpec.describe Elections::RevoteSession do
+  include ActiveSupport::Testing::TimeHelpers
+
   describe "#call" do
     it "stops an in-progress session and creates a replacement draft session" do
       old_session = create(:election_session, status: :in_progress)
       old_session.election.update!(status: :in_progress)
       admin = create(:user, :admin)
+      now = Time.zone.local(2026, 7, 3, 14, 47)
 
-      result = described_class.new(election_session: old_session, actor: admin).call
+      result = nil
+      travel_to(now) do
+        result = described_class.new(election_session: old_session, actor: admin).call
+      end
 
       expect(result).to be_success
       expect(old_session.reload).to be_stopped
+      expect(old_session.stopped_at).to eq(now)
       expect(result.election_session).to have_attributes(
         election: old_session.election,
         participant_group: old_session.participant_group,
         teacher: old_session.teacher,
         operation_mode: old_session.operation_mode,
-        status: "draft"
+        status: "draft",
+        stopped_at: nil
       )
       expect(old_session.election_events.where(event_type: :session_stopped).sole).to have_attributes(actor: admin)
     end

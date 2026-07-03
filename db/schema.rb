@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_02_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_03_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -141,6 +141,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_02_000000) do
     t.bigint "participant_group_id", null: false
     t.datetime "started_at"
     t.integer "status", default: 0, null: false
+    t.datetime "stopped_at"
     t.bigint "teacher_id", null: false
     t.datetime "updated_at", null: false
     t.index ["election_id", "participant_group_id"], name: "index_election_sessions_on_active_group_assignment", unique: true, where: "(status = ANY (ARRAY[0, 10]))"

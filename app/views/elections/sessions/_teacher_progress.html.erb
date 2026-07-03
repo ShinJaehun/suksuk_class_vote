@@ -42,6 +42,10 @@
         <span class="rounded-md border px-2 py-1 text-sm font-medium <%= status_class %>"><%= display_status %></span>
       </div>
       <p class="text-sm text-stone-600"><%= election_session_teacher_context_label(election_session, voter_count: total_voter_count) %></p>
+      <% session_time_labels = election_session_status_time_labels(election_session) %>
+      <% if session_time_labels.any? %>
+        <p class="text-sm text-stone-600"><%= session_time_labels.join(" · ") %></p>
+      <% end %>
     </div>
 
     <% if can_open_ballot_screen %>

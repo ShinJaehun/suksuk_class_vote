@@ -489,7 +489,12 @@ RSpec.describe "Election sessions", type: :request do
 
     it "shows stopped guidance instead of closed session results" do
       election = create(:election, status: :in_progress)
-      election_session = create(:election_session, election: election, status: :stopped)
+      election_session = create(
+        :election_session,
+        election: election,
+        status: :stopped,
+        stopped_at: Time.utc(2026, 7, 3, 5, 47)
+      )
 
       sign_in election_session.teacher
 
@@ -497,6 +502,8 @@ RSpec.describe "Election sessions", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("중단된 세션")
+      expect(response.body).to include("투표중단 2026-07-03 14:47")
+      expect(response.body).not_to include("선거중단 2026-07-03 14:47")
       expect(response.body).to include("투표 삭제")
       expect(response.body).to include("중단된 투표를 내 투표 목록에서 삭제할까요? 관리자 화면의 중단 이력은 유지됩니다.")
       expect(response.body).to include("전체 투표자")
