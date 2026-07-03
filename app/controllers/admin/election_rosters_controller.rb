@@ -277,6 +277,5 @@ module Admin
       label_for_display = label.match?(/\A\d+\z/) ? "#{label}반" : label
       "#{@grade.to_i}학년 #{label_for_display}"
     end
-
   end
 end
