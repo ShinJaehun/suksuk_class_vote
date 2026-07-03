@@ -12,6 +12,32 @@
              cancel_path: admin_election_path(@election) %>
 
   <section class="space-y-3 rounded-md border border-stone-200 bg-white p-4">
+    <h2 class="text-xl font-semibold">관리 편의</h2>
+    <p class="text-sm text-stone-600">테스트용 후보자를 후보자가 없는 투표 항목에 15명씩 자동 생성합니다. 실제 선거 후보자 등록에는 사용하지 마세요.</p>
+    <% if policy(@election).create_mock_candidates? && @has_empty_candidate_contest %>
+      <%= button_to "모의 후보자 생성",
+                    mock_candidates_admin_election_path(@election),
+                    method: :post,
+                    data: { turbo_confirm: "테스트용 후보자를 자동 생성합니다. 계속할까요?" },
+                    class: "rounded-md border border-stone-300 bg-stone-50 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100" %>
+    <% elsif @election.draft? %>
+      <button type="button"
+              disabled
+              class="cursor-not-allowed rounded-md border border-stone-200 bg-stone-100 px-4 py-2 text-sm font-medium text-stone-400">
+        모의 후보자 생성
+      </button>
+      <p class="text-sm text-stone-600">이미 후보자가 등록되어 있습니다. 추가 후보자는 각 투표 항목의 후보 등록 버튼으로 등록하세요.</p>
+    <% else %>
+      <button type="button"
+              disabled
+              class="cursor-not-allowed rounded-md border border-stone-200 bg-stone-100 px-4 py-2 text-sm font-medium text-stone-400">
+        모의 후보자 생성
+      </button>
+      <p class="text-sm text-stone-600">선거가 시작된 뒤에는 모의 후보자를 생성할 수 없습니다.</p>
+    <% end %>
+  </section>
+
+  <section class="space-y-3 rounded-md border border-stone-200 bg-white p-4">
     <h2 class="text-xl font-semibold">선거 삭제</h2>
     <% if policy(@election).destroy? %>
       <%= button_to "전교임원선거 삭제",

@@ -826,6 +826,138 @@ RSpec.describe "Admin elections", type: :request do
     end
   end
 
+  describe "mock candidate controls" do
+    it "shows the enabled mock candidate button when every contest is empty" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :draft)
+      3.times { create(:election_contest, election: election) }
+
+      get edit_admin_election_path(election)
+
+      expect(response.body).to include("모의 후보자 생성")
+      expect(response.body).to include(mock_candidates_admin_election_path(election))
+      expect(response.body).to include("테스트용 후보자를 자동 생성합니다. 계속할까요?")
+    end
+
+    it "shows a disabled control and candidate registration guidance when every contest has candidates" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :draft)
+      3.times do
+        contest = create(:election_contest, election: election)
+        create(:election_candidate, election_contest: contest)
+      end
+
+      get edit_admin_election_path(election)
+
+      page = Nokogiri::HTML(response.body)
+      button = page.xpath("//button[normalize-space()='모의 후보자 생성']").first
+      expect(button["disabled"]).to be_present
+      expect(response.body).to include("이미 후보자가 등록되어 있습니다. 추가 후보자는 각 투표 항목의 후보 등록 버튼으로 등록하세요.")
+      expect(response.body).not_to include(mock_candidates_admin_election_path(election))
+    end
+
+    it "shows the enabled mock candidate button when any contest is empty" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :draft)
+      occupied_contest = create(:election_contest, election: election)
+      create(:election_candidate, election_contest: occupied_contest)
+      create(:election_contest, election: election)
+
+      get edit_admin_election_path(election)
+
+      expect(response.body).to include(mock_candidates_admin_election_path(election))
+      expect(response.body).not_to include("이미 후보자가 등록되어 있습니다.")
+    end
+
+    it "shows a disabled control and guidance for non-draft elections" do
+      sign_in create(:user, :admin)
+
+      %i[in_progress closed stopped].each do |status|
+        election = create(:election, status: status)
+
+        get edit_admin_election_path(election)
+
+        page = Nokogiri::HTML(response.body)
+        button = page.xpath("//button[normalize-space()='모의 후보자 생성']").first
+        expect(button["disabled"]).to be_present
+        expect(response.body).to include("선거가 시작된 뒤에는 모의 후보자를 생성할 수 없습니다.")
+        expect(response.body).not_to include(mock_candidates_admin_election_path(election))
+      end
+    end
+  end
+
+  describe "POST /admin/elections/:id/mock_candidates" do
+    it "creates mock candidates for a draft election" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :draft)
+      3.times { create(:election_contest, election: election) }
+
+      expect {
+        post mock_candidates_admin_election_path(election)
+      }.to change(ElectionCandidate, :count).by(45)
+
+      expect(response).to redirect_to(edit_admin_election_path(election))
+      expect(flash[:notice]).to eq("모의 후보자 45명을 생성했습니다.")
+    end
+
+    it "does not create candidates when every contest already has candidates" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :draft)
+      contest = create(:election_contest, election: election)
+      create(:election_candidate, election_contest: contest)
+
+      expect {
+        post mock_candidates_admin_election_path(election)
+      }.not_to change(ElectionCandidate, :count)
+
+      expect(flash[:alert]).to eq("이미 후보자가 등록되어 있어 생성하지 않았습니다.")
+    end
+
+    it "creates candidates only in empty contests" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :draft)
+      occupied_contest = create(:election_contest, election: election)
+      empty_contest = create(:election_contest, election: election)
+      existing_candidate = create(:election_candidate, election_contest: occupied_contest)
+
+      expect {
+        post mock_candidates_admin_election_path(election)
+      }.to change(ElectionCandidate, :count).by(15)
+
+      expect(occupied_contest.election_candidates.reload).to contain_exactly(existing_candidate)
+      expect(empty_contest.election_candidates.count).to eq(15)
+      expect(flash[:notice]).to eq("모의 후보자 15명을 생성했습니다.")
+    end
+
+    it "blocks direct requests for non-draft elections" do
+      sign_in create(:user, :admin)
+
+      %i[in_progress closed stopped].each do |status|
+        election = create(:election, status: status)
+        create(:election_contest, election: election)
+
+        expect {
+          post mock_candidates_admin_election_path(election)
+        }.not_to change(ElectionCandidate, :count)
+        expect(response).to redirect_to(edit_admin_election_path(election))
+        expect(flash[:alert]).to eq("선거가 시작된 뒤에는 모의 후보자를 생성할 수 없습니다.")
+      end
+    end
+
+    it "blocks non-admin users" do
+      sign_in create(:user)
+      election = create(:election, status: :draft)
+      create(:election_contest, election: election)
+
+      expect {
+        post mock_candidates_admin_election_path(election)
+      }.not_to change(ElectionCandidate, :count)
+
+      expect(response).to redirect_to(polls_path)
+      expect(flash[:alert]).to eq("관리자만 접근할 수 있습니다.")
+    end
+  end
+
   describe "POST /admin/elections/:id/start" do
     it "starts a draft election for admins" do
       sign_in create(:user, :admin)

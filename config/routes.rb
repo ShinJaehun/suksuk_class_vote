@@ -52,6 +52,7 @@ Rails.application.routes.draw do
       post :stop, on: :member
       post :close, on: :member
       post :emergency_reset, on: :member
+      post :mock_candidates, on: :member, action: :create_mock_candidates
       delete :candidate_photos, on: :member, action: :purge_candidate_photos
       resources :election_sessions, path: "sessions", only: %i[create destroy] do
         post :bulk_create, on: :collection

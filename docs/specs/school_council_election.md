@@ -93,6 +93,17 @@ draft -> in_progress -> closed
 - 학급 세션 등록 화면은 학급을 기본 선택하지 않으며 admin이 필요한 학급만 선택한다.
 - 구성 변경 제한은 화면 표시뿐 아니라 policy와 controller에서도 검증한다.
 
+### Admin 모의 후보자 생성
+
+- admin은 선거 정보 수정 화면에서 `draft` 선거에만 모의 후보자를 생성할 수 있다.
+- 후보자가 없는 각 contest에는 사진 없이 한국식 가짜 이름의 후보자 15명을 번호
+  1번부터 순서대로 생성한다.
+- 후보자가 한 명이라도 등록된 contest는 전체를 건너뛰며 기존 후보 등록 흐름과
+  데이터를 변경하지 않는다.
+- 정규 전교임원선거는 세 contest에 총 45명, 단일 항목 전교임원선거는 한 contest에
+  15명을 생성한다.
+- `in_progress`, `closed`, `stopped` 선거는 화면과 서버 양쪽에서 생성을 차단한다.
+
 ### ElectionSession
 
 ```text

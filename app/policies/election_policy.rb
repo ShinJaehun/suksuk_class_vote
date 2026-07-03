@@ -35,6 +35,10 @@ class ElectionPolicy < ApplicationPolicy
     admin?
   end
 
+  def create_mock_candidates?
+    admin? && record.draft?
+  end
+
   def purge_candidate_photos?
     admin? && record.closed?
   end

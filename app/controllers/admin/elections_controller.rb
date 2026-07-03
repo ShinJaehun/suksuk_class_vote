@@ -23,6 +23,10 @@ module Admin
       @schools = School.order(:name)
       @election_session_count = @election.election_sessions.count
       @candidate_photo_count = @election.election_candidates.joins(:photo_attachment).count
+      @has_empty_candidate_contest = @election.election_contests
+        .left_outer_joins(:election_candidates)
+        .where(election_candidates: { id: nil })
+        .exists?
     end
 
     def update
@@ -31,6 +35,10 @@ module Admin
       @schools = School.order(:name)
       @election_session_count = @election.election_sessions.count
       @candidate_photo_count = @election.election_candidates.joins(:photo_attachment).count
+      @has_empty_candidate_contest = @election.election_contests
+        .left_outer_joins(:election_candidates)
+        .where(election_candidates: { id: nil })
+        .exists?
 
       @election.assign_attributes(election_update_params)
       @election.errors.add(:school, "must exist") if @election.school.blank?
@@ -111,6 +119,27 @@ module Admin
       redirect_to admin_election_path(@election), notice: "선거 초기화를 완료했습니다. 학급 세션 #{deleted_session_count}개를 삭제했습니다."
     rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotDestroyed => e
       redirect_to admin_election_path(@election), alert: e.record.errors.full_messages.to_sentence.presence || "선거 초기화를 완료할 수 없습니다."
+    end
+
+    def create_mock_candidates
+      @election = policy_scope(Election).find(params[:id])
+
+      unless @election.draft?
+        authorize @election, :show?
+        redirect_to edit_admin_election_path(@election), alert: "선거가 시작된 뒤에는 모의 후보자를 생성할 수 없습니다."
+        return
+      end
+
+      authorize @election, :create_mock_candidates?
+      created_count = Admin::Elections::CreateMockCandidates.new(election: @election).call
+
+      if created_count.positive?
+        redirect_to edit_admin_election_path(@election), notice: "모의 후보자 #{created_count}명을 생성했습니다."
+      else
+        redirect_to edit_admin_election_path(@election), alert: "이미 후보자가 등록되어 있어 생성하지 않았습니다."
+      end
+    rescue Admin::Elections::CreateMockCandidates::ElectionNotDraftError
+      redirect_to edit_admin_election_path(@election), alert: "선거가 시작된 뒤에는 모의 후보자를 생성할 수 없습니다."
     end
 
     def purge_candidate_photos
