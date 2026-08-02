@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_02_050000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_02_060000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -353,6 +353,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_02_050000) do
     t.index ["name"], name: "index_schools_on_name", unique: true
   end
 
+  create_table "students", force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.bigint "classroom_id", null: false
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.integer "number", null: false
+    t.datetime "updated_at", null: false
+    t.index ["classroom_id", "number"], name: "index_students_on_classroom_id_and_number", unique: true
+    t.index ["classroom_id"], name: "index_students_on_classroom_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email", default: "", null: false
@@ -413,4 +424,5 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_02_050000) do
   add_foreign_key "polls", "users"
   add_foreign_key "school_memberships", "schools"
   add_foreign_key "school_memberships", "users"
+  add_foreign_key "students", "classrooms"
 end

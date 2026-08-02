@@ -306,6 +306,30 @@ RSpec.describe Classroom, type: :model do
   end
 
   describe "dependent behavior" do
+    it "finds its students" do
+      classroom = create(:classroom)
+      first_student = create(:student, classroom: classroom)
+      second_student = create(:student, classroom: classroom)
+
+      expect(classroom.students).to contain_exactly(first_student, second_student)
+    end
+
+    it "does not destroy a classroom with students" do
+      classroom = create(:classroom)
+      student = create(:student, classroom: classroom)
+
+      expect(classroom.destroy).to be(false)
+      expect(classroom.errors[:base]).to be_present
+      expect(Student.exists?(student.id)).to be(true)
+    end
+
+    it "destroys an empty classroom" do
+      classroom = create(:classroom)
+
+      expect(classroom.destroy).to eq(classroom)
+      expect(classroom).to be_destroyed
+    end
+
     it "keeps the classroom and clears teacher_id when the teacher is destroyed" do
       classroom = create(:classroom, :with_teacher)
 

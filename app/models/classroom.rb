@@ -4,6 +4,9 @@ class Classroom < ApplicationRecord
              class_name: "User",
              optional: true,
              inverse_of: :classrooms
+  has_many :students,
+           dependent: :restrict_with_error,
+           inverse_of: :classroom
 
   validates :school, presence: true
   validates :name, presence: true
