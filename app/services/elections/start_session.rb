@@ -55,7 +55,7 @@ module Elections
       errors << "처리 사용자를 찾을 수 없습니다." if actor.blank?
       errors << "준비 중인 선거 세션만 시작할 수 있습니다." unless election_session.draft?
       errors << "아직 지원하지 않는 운영 방식입니다." unless election_session.supervised?
-      errors << "투표 대상 학생이 없습니다." if participant_slots.empty?
+      errors << "투표 대상 학생이 없습니다." if roster_entries.empty?
       errors << "선거 항목이 없습니다." if contests.empty?
       errors << "후보자가 부족한 항목이 있습니다." if contests.any? { |contest| candidates_not_ready?(contest) }
       errors << "이미 생성된 진행 데이터가 있습니다." if generated_data_exists?
@@ -64,6 +64,14 @@ module Elections
 
     def participant_slots
       @participant_slots ||= election_session&.participant_group&.participant_slots&.order(:number)&.to_a || []
+    end
+
+    def roster_entries
+      @roster_entries ||= if election_session&.classroom
+        election_session.classroom.students.where(active: true).order(:number).to_a
+      else
+        participant_slots
+      end
     end
 
     def contests
@@ -88,14 +96,19 @@ module Elections
     end
 
     def create_voters!
-      participant_slots.map do |participant_slot|
-        election_session.election_voters.create!(
-          source_participant_slot: participant_slot,
-          number: participant_slot.number,
-          name: participant_slot.name,
-          position: participant_slot.number
-        )
+      roster_entries.map do |entry|
+        election_session.election_voters.create!(voter_attributes(entry))
       end
+    end
+
+    def voter_attributes(entry)
+      attributes = {
+        number: entry.number,
+        name: entry.name,
+        position: entry.number
+      }
+      attributes[:source_participant_slot] = entry if election_session.participant_group
+      attributes
     end
 
     def create_participations!(voters)

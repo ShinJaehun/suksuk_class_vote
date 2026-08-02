@@ -59,6 +59,44 @@ RSpec.describe Elections::StartSession do
       expect(event.metadata.keys).not_to include("candidate_id", "candidate_ids", "choices", "ballot_choices")
     end
 
+    it "creates voter snapshots from active classroom students in number order" do
+      election_session = create_startable_classroom_session
+      classroom = election_session.classroom
+      third_student = create(:student, classroom: classroom, number: 3, name: "박지후")
+      first_student = create(:student, classroom: classroom, number: 1, name: "김민준")
+      second_student = create(:student, classroom: classroom, number: 2, name: "이서연")
+
+      result = described_class.new(election_session: election_session, actor: election_session.teacher).call
+
+      expect(result).to be_success
+      voters = election_session.election_voters.order(:position)
+      expect(voters.pluck(:number, :name, :position)).to eq([
+        [ first_student.number, first_student.name, first_student.number ],
+        [ second_student.number, second_student.name, second_student.number ],
+        [ third_student.number, third_student.name, third_student.number ]
+      ])
+      expect(voters.pluck(:source_participant_slot_id)).to all(be_nil)
+      expect(ElectionParticipation.where(election_voter: voters).pluck(:status)).to eq(%w[pending pending pending])
+      expect(election_session.election_progress.current_election_voter).to eq(voters.first)
+    end
+
+    it "excludes inactive classroom students from voter snapshots" do
+      election_session = create_startable_classroom_session
+      classroom = election_session.classroom
+      active_student = create(:student, classroom: classroom, number: 2, name: "이서연")
+      create(:student, classroom: classroom, number: 1, name: "김민준", active: false)
+
+      result = described_class.new(election_session: election_session, actor: election_session.teacher).call
+
+      expect(result).to be_success
+      expect(election_session.election_voters.sole).to have_attributes(
+        number: active_student.number,
+        name: active_student.name,
+        position: active_student.number,
+        source_participant_slot_id: nil
+      )
+    end
+
     it "broadcasts the admin election overview after starting" do
       election = create(:election, status: :in_progress)
       contest = create(:election_contest, election: election)
@@ -222,6 +260,20 @@ RSpec.describe Elections::StartSession do
       expect(result.error_message).to include("투표 대상 학생이 없습니다.")
     end
 
+    it "fails when a classroom has no active students" do
+      election_session = create_startable_classroom_session
+      create(:student, classroom: election_session.classroom, active: false)
+
+      result = described_class.new(election_session: election_session, actor: election_session.teacher).call
+
+      expect(result).not_to be_success
+      expect(result.error_message).to include("투표 대상 학생이 없습니다.")
+      expect(election_session.reload).to be_draft
+      expect(election_session.started_at).to be_nil
+      expect(election_session.election_voters).to be_empty
+      expect(election_session.election_participations).to be_empty
+    end
+
     it "fails when election voters already exist" do
       election_session = create_ready_session
       create(:election_voter, election_session: election_session, teacher: election_session.teacher, participant_group: election_session.participant_group)
@@ -288,6 +340,19 @@ RSpec.describe Elections::StartSession do
     participant_group = create(:participant_group, :school_election, user: teacher)
     create(:participant_slot, participant_group: participant_group) if with_participant_slot
     create(:election_session, election: election, teacher: teacher, participant_group: participant_group, status: status, operation_mode: operation_mode)
+  end
+
+  def create_startable_classroom_session
+    election = create(:election)
+    contest = create(:election_contest, election: election)
+    create(:election_candidate, election_contest: contest)
+    create(
+      :election_session,
+      election: election,
+      teacher: create(:user),
+      participant_group: nil,
+      classroom: create(:classroom)
+    )
   end
 
   def admin_overview_broadcasts_for(election)

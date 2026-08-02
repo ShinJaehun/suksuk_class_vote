@@ -39,7 +39,10 @@ module Elections
     end
 
     def broadcast_sessions
-      sessions = election.election_sessions.includes(:teacher, :participant_group).order(:created_at)
+      sessions = election.election_sessions
+        .where.not(participant_group_id: nil)
+        .includes(:teacher, :participant_group)
+        .order(:created_at)
 
       Turbo::StreamsChannel.broadcast_replace_to(
         election,
