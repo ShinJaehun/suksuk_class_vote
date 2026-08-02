@@ -46,5 +46,11 @@ RSpec.describe User, type: :model do
       expect(user.school_membership).to eq(membership)
       expect(user.school).to eq(membership.school)
     end
+
+    it "finds its classroom" do
+      classroom = create(:classroom, :with_teacher)
+
+      expect(classroom.teacher.classroom).to eq(classroom)
+    end
   end
 end

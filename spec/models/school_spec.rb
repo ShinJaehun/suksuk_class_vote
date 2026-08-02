@@ -19,6 +19,13 @@ RSpec.describe School, type: :model do
   end
 
   describe "associations" do
+    it "finds classrooms" do
+      school = create(:school)
+      classroom = create(:classroom, school: school)
+
+      expect(school.classrooms).to contain_exactly(classroom)
+    end
+
     it "finds memberships and users" do
       school = create(:school)
       membership = create(:school_membership, school: school)
@@ -30,6 +37,14 @@ RSpec.describe School, type: :model do
     it "does not destroy schools with participant groups" do
       school = create(:school)
       create(:participant_group, :school_election, school: school)
+
+      expect(school.destroy).to be(false)
+      expect(school.errors[:base]).to be_present
+    end
+
+    it "does not destroy schools with classrooms" do
+      school = create(:school)
+      create(:classroom, school: school)
 
       expect(school.destroy).to be(false)
       expect(school.errors[:base]).to be_present
