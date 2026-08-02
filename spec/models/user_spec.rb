@@ -37,4 +37,14 @@ RSpec.describe User, type: :model do
       expect(user.errors[:name]).to be_present
     end
   end
+
+  describe "school associations" do
+    it "finds memberships and schools" do
+      user = create(:user)
+      membership = create(:school_membership, user: user)
+
+      expect(user.school_memberships).to contain_exactly(membership)
+      expect(user.schools).to contain_exactly(membership.school)
+    end
+  end
 end

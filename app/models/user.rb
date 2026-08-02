@@ -6,6 +6,8 @@ class User < ApplicationRecord
 
   enum :role, { teacher: 0, admin: 10 }
 
+  has_many :school_memberships, dependent: :destroy
+  has_many :schools, through: :school_memberships
   has_many :participant_groups, dependent: :destroy
   has_many :polls, dependent: :destroy
   has_many :poll_events, foreign_key: :actor_id, dependent: :nullify, inverse_of: :actor

@@ -19,6 +19,14 @@ RSpec.describe School, type: :model do
   end
 
   describe "associations" do
+    it "finds memberships and users" do
+      school = create(:school)
+      membership = create(:school_membership, school: school)
+
+      expect(school.school_memberships).to contain_exactly(membership)
+      expect(school.users).to contain_exactly(membership.user)
+    end
+
     it "does not destroy schools with participant groups" do
       school = create(:school)
       create(:participant_group, :school_election, school: school)

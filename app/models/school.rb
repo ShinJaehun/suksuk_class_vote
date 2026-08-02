@@ -1,4 +1,6 @@
 class School < ApplicationRecord
+  has_many :school_memberships, dependent: :destroy
+  has_many :users, through: :school_memberships
   has_many :participant_groups, dependent: :restrict_with_error
   has_many :elections, dependent: :restrict_with_error
 
