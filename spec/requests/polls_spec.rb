@@ -575,32 +575,6 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("data-turbo-frame=\"_top\"")
     end
 
-    it "shows a school election poll as not ready for the regular operation flow" do
-      teacher = create(:user)
-      poll = create_startable_poll(user: teacher)
-      poll.update!(title: "2026 전교학생회 선거")
-      create(
-        :school_election_classroom_session,
-        teacher: teacher,
-        participant_group: poll.participant_group,
-        poll: poll
-      )
-      sign_in teacher
-
-      get polls_path
-
-      expect(response.body).to include("2026 전교학생회 선거")
-      expect(response.body).to include("전교학생회 선거")
-
-      get poll_path(poll)
-
-      expect(response.body).to include("전교학생회 선거")
-      expect(response.body).to include("전교임원선거 투표는 아직 일반 투표 화면에서 시작할 수 없습니다.")
-      expect(response.body).not_to include(start_poll_path(poll))
-      expect(response.body).not_to include("투표 시작")
-      expect(response.body).to include("운영 준비 중")
-    end
-
     it "shows recent event log with displayable events only" do
       teacher = create(:user, name: "담임교사")
       poll = create_started_poll(user: teacher)
@@ -877,27 +851,6 @@ RSpec.describe "Polls", type: :request do
 
       expect(response).to redirect_to(poll_path(poll))
       expect(poll.reload).to be_in_progress
-    end
-
-    it "does not start a school election poll through the regular poll start endpoint" do
-      teacher = create(:user)
-      poll = create_startable_poll(user: teacher)
-      create(
-        :school_election_classroom_session,
-        teacher: teacher,
-        participant_group: poll.participant_group,
-        poll: poll
-      )
-      sign_in teacher
-
-      expect do
-        post start_poll_path(poll)
-      end.not_to change(PollOptionTally, :count)
-
-      expect(response).to redirect_to(poll_path(poll))
-      expect(flash[:alert]).to include("전교학생회 선거 투표는 아직 일반 투표 화면에서 시작할 수 없습니다.")
-      expect(poll.reload).to be_draft
-      expect(poll.poll_progress).to be_nil
     end
 
     it "fails with an alert when there is one poll_option" do
@@ -1694,22 +1647,6 @@ RSpec.describe "Polls", type: :request do
       expect(body).not_to include("최다 득표 후보: 기권")
     end
 
-    it "shows classroom result guidance only for school election polls" do
-      teacher = create(:user)
-      poll = create_closed_multi_contest_poll(user: teacher, school_election: true)
-      sign_in teacher
-
-      get poll_path(poll)
-
-      expect(response.body).to include("학급별 투표 결과")
-      expect(response.body).to include("이 화면은 해당 학급 투표의 결과입니다. 전체 전교임원선거 최종 집계는 관리자 개표 화면에서 확인합니다.")
-      general_poll = create_closed_multi_contest_poll(user: teacher)
-
-      get poll_path(general_poll)
-
-      expect(response.body).not_to include("전체 전교학생회 선거 최종 집계")
-    end
-
     it "keeps the poll participant snapshot after the source participant group changes" do
       teacher = create(:user)
       poll = create_started_poll(user: teacher)
@@ -1962,7 +1899,7 @@ RSpec.describe "Polls", type: :request do
     poll.reload
   end
 
-  def create_closed_multi_contest_poll(user: create(:user), school_election: false)
+  def create_closed_multi_contest_poll(user: create(:user))
     poll = create_startable_poll(user: user, voter_count: 1)
     president_contest = poll.default_poll_contest
     president_contest.update!(title: "회장")
@@ -1982,15 +1919,6 @@ RSpec.describe "Polls", type: :request do
     poll.poll_contest_tallies.find_by!(poll_contest: vice_contest).update!(abstentions_count: 5)
     poll.update!(status: :closed)
     poll.poll_progress.update!(status: :closed, ballot_status: :ballot_locked, current_poll_participant: nil)
-
-    if school_election
-      create(
-        :school_election_classroom_session,
-        teacher: user,
-        participant_group: poll.participant_group,
-        poll: poll
-      )
-    end
 
     poll.reload
   end

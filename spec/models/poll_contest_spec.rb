@@ -40,18 +40,4 @@ RSpec.describe PollContest, type: :model do
     end
   end
 
-  describe "school election source" do
-    it "is optional" do
-      poll_contest = build(:poll_contest, school_election_contest: nil)
-
-      expect(poll_contest).to be_valid
-    end
-
-    it "can reference a school election contest" do
-      school_election_contest = create(:school_election_contest)
-      poll_contest = create(:poll_contest, school_election_contest: school_election_contest)
-
-      expect(poll_contest.school_election_contest).to eq(school_election_contest)
-    end
-  end
 end

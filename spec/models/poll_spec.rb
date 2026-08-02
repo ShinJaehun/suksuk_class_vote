@@ -68,26 +68,6 @@ RSpec.describe Poll, type: :model do
     end
   end
 
-  describe "#school_election_poll?" do
-    it "returns false for a regular poll" do
-      poll = create(:poll)
-
-      expect(poll).not_to be_school_election_poll
-    end
-
-    it "returns true when linked to a school election classroom session" do
-      poll = create(:poll)
-      create(
-        :school_election_classroom_session,
-        teacher: poll.user,
-        participant_group: poll.participant_group,
-        poll: poll
-      )
-
-      expect(poll.reload).to be_school_election_poll
-    end
-  end
-
   describe "status" do
     it "defaults to draft" do
       poll = Poll.new

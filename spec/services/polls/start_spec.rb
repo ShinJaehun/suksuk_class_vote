@@ -78,28 +78,6 @@ RSpec.describe Polls::Start do
       expect(poll.poll_progress).to be_nil
     end
 
-    it "fails when the poll is linked to a school election classroom session" do
-      poll = create_startable_poll
-      create(
-        :school_election_classroom_session,
-        teacher: poll.user,
-        participant_group: poll.participant_group,
-        poll: poll
-      )
-      poll_option_tally_count = PollOptionTally.count
-      poll_contest_tally_count = PollContestTally.count
-
-      result = described_class.new(poll).call
-
-      expect(result).not_to be_success
-      expect(result.error_message).to include("전교학생회 선거 투표는 아직 일반 투표 화면에서 시작할 수 없습니다.")
-      expect(PollOptionTally.count).to eq(poll_option_tally_count)
-      expect(PollContestTally.count).to eq(poll_contest_tally_count)
-      expect(poll.reload).to be_draft
-      expect(poll.poll_participants).to be_empty
-      expect(poll.poll_progress).to be_nil
-    end
-
     it "fails when there are no poll_options" do
       poll = create(:poll)
 

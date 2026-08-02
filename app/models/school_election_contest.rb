@@ -1,7 +1,6 @@
 class SchoolElectionContest < ApplicationRecord
   belongs_to :school_election
   has_many :school_election_candidates, dependent: :destroy
-  has_many :poll_contests, dependent: :nullify
 
   validates :school_election, presence: true
   validates :title, presence: true

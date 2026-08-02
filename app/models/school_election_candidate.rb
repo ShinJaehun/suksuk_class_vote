@@ -1,6 +1,5 @@
 class SchoolElectionCandidate < ApplicationRecord
   belongs_to :school_election_contest
-  has_many :poll_options, dependent: :nullify
 
   validates :school_election_contest, presence: true
   validates :number, presence: true,

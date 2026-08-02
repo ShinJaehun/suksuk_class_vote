@@ -17,7 +17,7 @@
       <% end %>
 
       <p class="text-sm text-stone-600">
-        <%= poll.school_election_poll? ? "전교임원선거 투표는 아직 일반 투표 화면에서 시작할 수 없습니다." : (poll.startable_by_configuration? ? "투표를 시작할 수 있습니다." : "투표를 시작할 수 없습니다.") %>
+        <%= poll.startable_by_configuration? ? "투표를 시작할 수 있습니다." : "투표를 시작할 수 없습니다." %>
       </p>
 
       <% unless readiness_ok %>
@@ -58,7 +58,7 @@
 
     <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
       <dt class="text-stone-500">시작 가능 여부</dt>
-      <dd class="mt-1 font-semibold"><%= poll.school_election_poll? ? "운영 준비 중" : (poll.startable_by_configuration? ? "시작 가능" : "시작 불가") %></dd>
+      <dd class="mt-1 font-semibold"><%= poll.startable_by_configuration? ? "시작 가능" : "시작 불가" %></dd>
     </div>
   </dl>
 </section>
