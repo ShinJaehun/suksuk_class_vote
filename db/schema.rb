@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_03_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_02_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -226,12 +226,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_03_000000) do
     t.datetime "created_at", null: false
     t.bigint "poll_id", null: false
     t.integer "position", null: false
-    t.bigint "school_election_contest_id"
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.index ["poll_id", "position"], name: "index_poll_contests_on_poll_id_and_position", unique: true
     t.index ["poll_id"], name: "index_poll_contests_on_poll_id"
-    t.index ["school_election_contest_id"], name: "index_poll_contests_on_school_election_contest_id"
   end
 
   create_table "poll_events", force: :cascade do |t|
@@ -267,12 +265,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_03_000000) do
     t.integer "number", null: false
     t.bigint "poll_contest_id", null: false
     t.bigint "poll_id", null: false
-    t.bigint "school_election_candidate_id"
     t.datetime "updated_at", null: false
     t.index ["poll_contest_id", "number"], name: "index_poll_options_on_poll_contest_id_and_number", unique: true
     t.index ["poll_contest_id"], name: "index_poll_options_on_poll_contest_id"
     t.index ["poll_id"], name: "index_poll_options_on_poll_id"
-    t.index ["school_election_candidate_id"], name: "index_poll_options_on_school_election_candidate_id"
   end
 
   create_table "poll_participants", force: :cascade do |t|
@@ -325,51 +321,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_03_000000) do
     t.index ["user_id"], name: "index_polls_on_user_id"
   end
 
-  create_table "school_election_candidates", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "grade_class_label", null: false
-    t.string "name", null: false
-    t.integer "number", null: false
-    t.bigint "school_election_contest_id", null: false
-    t.datetime "updated_at", null: false
-    t.index ["school_election_contest_id", "number"], name: "idx_on_school_election_contest_id_number_f0c4e1e975", unique: true
-    t.index ["school_election_contest_id"], name: "index_school_election_candidates_on_school_election_contest_id"
-  end
-
-  create_table "school_election_classroom_sessions", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.bigint "participant_group_id", null: false
-    t.bigint "poll_id"
-    t.bigint "school_election_id", null: false
-    t.bigint "teacher_id", null: false
-    t.datetime "updated_at", null: false
-    t.index ["participant_group_id"], name: "idx_on_participant_group_id_e3234fdf3f"
-    t.index ["poll_id"], name: "index_school_election_classroom_sessions_on_poll_id", unique: true
-    t.index ["school_election_id", "participant_group_id"], name: "idx_school_election_sessions_on_election_and_group", unique: true
-    t.index ["school_election_id"], name: "index_school_election_classroom_sessions_on_school_election_id"
-    t.index ["teacher_id"], name: "index_school_election_classroom_sessions_on_teacher_id"
-  end
-
-  create_table "school_election_contests", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.integer "position", null: false
-    t.bigint "school_election_id", null: false
-    t.string "title", null: false
-    t.datetime "updated_at", null: false
-    t.index ["school_election_id", "position"], name: "idx_on_school_election_id_position_55289be15a", unique: true
-    t.index ["school_election_id"], name: "index_school_election_contests_on_school_election_id"
-  end
-
-  create_table "school_elections", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.integer "status", default: 0, null: false
-    t.string "title", null: false
-    t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
-    t.index ["status"], name: "index_school_elections_on_status"
-    t.index ["user_id"], name: "index_school_elections_on_user_id"
-  end
-
   create_table "schools", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "name", null: false
@@ -419,7 +370,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_03_000000) do
   add_foreign_key "poll_contest_tallies", "poll_contests"
   add_foreign_key "poll_contest_tallies", "polls"
   add_foreign_key "poll_contests", "polls"
-  add_foreign_key "poll_contests", "school_election_contests"
   add_foreign_key "poll_events", "poll_participants"
   add_foreign_key "poll_events", "polls"
   add_foreign_key "poll_events", "users", column: "actor_id"
@@ -427,7 +377,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_03_000000) do
   add_foreign_key "poll_option_tallies", "polls"
   add_foreign_key "poll_options", "poll_contests"
   add_foreign_key "poll_options", "polls"
-  add_foreign_key "poll_options", "school_election_candidates"
   add_foreign_key "poll_participants", "participant_slots", column: "source_participant_slot_id", on_delete: :nullify
   add_foreign_key "poll_participants", "polls"
   add_foreign_key "poll_participations", "poll_participants"
@@ -435,11 +384,4 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_03_000000) do
   add_foreign_key "poll_progresses", "polls"
   add_foreign_key "polls", "participant_groups", on_delete: :nullify
   add_foreign_key "polls", "users"
-  add_foreign_key "school_election_candidates", "school_election_contests"
-  add_foreign_key "school_election_classroom_sessions", "participant_groups"
-  add_foreign_key "school_election_classroom_sessions", "polls"
-  add_foreign_key "school_election_classroom_sessions", "school_elections"
-  add_foreign_key "school_election_classroom_sessions", "users", column: "teacher_id"
-  add_foreign_key "school_election_contests", "school_elections"
-  add_foreign_key "school_elections", "users"
 end
