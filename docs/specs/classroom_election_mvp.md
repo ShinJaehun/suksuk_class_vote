@@ -577,5 +577,5 @@ Admin `Election`은 여러 학급 `ElectionSession`을 묶는 전교임원선거
 중복 정의하지 않는다. 현재 canonical spec은
 `docs/specs/school_council_election.md`다.
 
-기존 Poll-backed `school_election` 흐름은 현재 배포 전에 제거하지 않는다.
-실제 선거 종료, 결과 검산, 데이터 백업 뒤 별도 리팩터링 후보로 남긴다.
+Poll 기반 legacy `SchoolElection` 흐름은 제거되었다. 일반 학급 `Poll`과 현재
+`Election` 계열 전교임원선거 흐름은 분리해 유지한다.

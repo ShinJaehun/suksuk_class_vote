@@ -42,7 +42,7 @@
 엔진을 기준으로 설계한다.
 
 현재 운영 기준은 `Election` 엔진이다. 기존 `SchoolElection` + `Poll` 재사용 기반
-구현은 실제 선거와 데이터 보존이 끝난 뒤 정리할 legacy 후보로 남긴다.
+구현은 데이터 보존 뒤 제거되었다.
 
 ---
 
@@ -425,7 +425,6 @@ contest별 무결성 확인에서는 후보별 득표 합계, 기권 수, partic
 
 - `yes_no` 찬반투표 제출 처리
 - `pin_login` voting mode
-- 실제 선거 후 기존 Poll-backed `SchoolElection` 흐름 정리
 - 개별 선택 기록 모델
 
 개별 선택 기록 모델은 현재 계획에서도 만들지 않는다. 비밀투표 원칙상 voter와
@@ -736,38 +735,12 @@ nested hash/array 안에 있어도 실패 처리한다.
 
 ---
 
-## 기존 구현의 유지, 대체, 정리 후보
+## 기존 구현 정리 상태
 
-현재 `SchoolElection` + `Poll` 기반 구현은 legacy 호환 코드다. 실제 선거 전에는
-삭제하지 않는다. 선거 종료, 결과 검산, 데이터 백업이 끝난 뒤 별도 리팩터링에서
-사용 여부와 데이터 영향을 확인하고 정리한다.
-
-### 유지 또는 일반화
-
-- `SchoolElection` -> `Election`
-- `SchoolElectionContest` -> `ElectionContest`
-- `SchoolElectionCandidate` -> `ElectionCandidate`
-- `SchoolElectionClassroomSession` -> `ElectionSession`
-- contest/candidate admin 관리 개념
-- session 배정 개념
-- 다중 contest decision count 개념
-- 전체 집계와 results 학급 목록은 closed session만 대상으로 한다는 정책
-
-### 대체
-
-- `SchoolElections::CreateClassroomPoll`
-- Poll source link 기반 집계
-- Poll-backed classroom session 생성
-- `Polls::SubmitBallot`의 선거 제출 구현 위치
-
-### 삭제 또는 정리 후보
-
-- 전교학생회 용도로 추가된 Poll source link
-- 전교학생회 Poll start guard
-- Poll 기반 `SchoolElections::ResultSummary`
-- `PollsController`와 Poll view에 전교학생회 분기를 더 추가하는 방향
-
-위 항목은 지금 삭제하지 않는다. 실제 선거 종료와 백업 이후 별도 승인으로 정리한다.
+Poll 기반 legacy `SchoolElection` 모델, 관리자 runtime, 전용 service와 Poll 연결은
+제거되었다. 현재 전교임원선거는 `Election`, `ElectionContest`,
+`ElectionCandidate`, `ElectionSession`과 관련 voter, participation, tally, event
+구조만 사용한다. 일반 수업 활동용 `Poll`은 별도 기능으로 유지한다.
 
 ---
 
@@ -777,7 +750,6 @@ nested hash/array 안에 있어도 실패 처리한다.
 
 - `yes_no` tally schema 보강
 - `pin_login` operation mode
-- 기존 Poll-backed school election flow cleanup
 - broader system/request/browser smoke
 - 운영 결과에 따른 감사·개표 승인 정책 검토
 
@@ -788,7 +760,6 @@ nested hash/array 안에 있어도 실패 처리한다.
 ## 현재 전환 단계에서 명시하는 금지사항
 
 - 지금 당장 Poll을 삭제하지 않는다.
-- 지금 당장 SchoolElection 관련 코드를 삭제하지 않는다.
 - stopped 세션과 그 voter, participation, tally, event를 삭제하지 않는다.
 - `yes_no` 제출을 현재 tally 구조에 억지로 끼워 넣지 않는다.
 - 개별 선택 기록 모델을 만들지 않는다.

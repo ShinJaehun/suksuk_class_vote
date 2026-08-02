@@ -34,8 +34,8 @@
 - tally: 후보별 득표와 항목별 기권의 count-only 집계
 - `ElectionEvent`: 선택 내용이 아닌 운영 이벤트 기록
 
-기존 Poll-backed `school_election` 기능은 이 문서의 기준 대상이 아니다.
-실제 선거가 끝난 뒤 별도 리팩터링에서 정리할 legacy 후보로만 다룬다.
+기존 Poll 기반 legacy `SchoolElection` 기능은 제거되었다. 현재 전교임원선거는
+위 `Election` 계열 구조만 사용하며 일반 학급 활동용 `Poll`과 분리한다.
 
 ## 역할별 화면 흐름
 

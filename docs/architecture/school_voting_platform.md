@@ -35,7 +35,7 @@ export/import 절차로 옮긴다.
 
 현재 시스템에는 교사가 소유한 `ParticipantGroup`/`ParticipantSlot` 기반 학급
 `Poll`, admin이 parent `Election` 아래 학급별 `ElectionSession`을 배정하는
-전교임원선거, 이전 Poll 기반 legacy `SchoolElection`이 공존한다.
+전교임원선거가 있다. 이전 Poll 기반 legacy `SchoolElection` 구조는 제거되었다.
 
 현재 `Poll`은 활동 정의, 명단, 진행 상태, 집계와 진행 포인터를 한 흐름에서 맡고
 `Poll.kind = election`으로 선거도 표현한다. 교사 접근 경계는 학교·학급보다 사용자
@@ -528,6 +528,10 @@ read_only: true
 7. Poll 정의와 PollSession을 분리한다.
 8. 역사 선거를 import한다.
 9. Election과 Poll 전환 완료 후 `ParticipantGroup`을 제거한다.
+
+현재 4단계까지 완료되었다. legacy 관리자 runtime, `SchoolElections::*` service,
+Poll 연결, legacy 모델과 DB table을 제거했으며 구조 제거 migration은
+`20260802000000_remove_legacy_school_election_structure.rb`이다.
 
 `ParticipantGroup`은 현재 Poll 원본 명단과 진행 흐름에 연결되어 있고 export 시 학생
 명단의 출처가 될 수 있다. 이를 일찍 삭제하면 Poll 운영과 export 검증이 깨지고 새

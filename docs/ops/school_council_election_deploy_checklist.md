@@ -1,5 +1,9 @@
 # 전교임원선거 배포 체크리스트
 
+> 역사 문서: 이 문서는 legacy Poll 기반 전교임원선거 운영 당시의 기록이며 현재
+> 운영 절차로 그대로 사용할 수 없다. 현재 구조와 운영 기준은
+> `docs/architecture/school_voting_platform.md`를 참고한다.
+
 ## 목적
 
 이 문서는 전교임원선거를 production에 배포하고 실제 선거를 운영하기 전에 확인할

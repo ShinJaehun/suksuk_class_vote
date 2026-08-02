@@ -189,8 +189,8 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 배정하는 구조다. Admin은 전체 구성, 중단, 재투표, 최종 종료와 결과 집계를 담당하고,
 teacher는 본인 학급 세션의 시작과 진행만 담당한다.
 
-Legacy Poll-backed `school_election` 구현은 현재 배포 전에 제거하지 않는다.
-실제 선거와 데이터 백업이 끝난 뒤 별도 리팩터링 대상으로 검토한다.
+Poll 기반 legacy `SchoolElection` 구조는 제거되었다. 현재 전교임원선거는
+`Election`과 학급별 `ElectionSession`을 사용하며, 일반 학급 활동은 `Poll`이 담당한다.
 
 ---
 
