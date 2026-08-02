@@ -35,8 +35,8 @@ School                           ParticipantGroup
 └── Classroom                    └── ParticipantSlot
 ```
 
-`Classroom`은 학교, 학년도, 학년, 반과 선택적 담임을 표현한다. 아직 `Student`가 없고
-Poll·Election runtime도 `Classroom`을 참조하지 않는다.
+`Classroom`은 학교, 학년도, 학년, 반과 선택적 담임을 표현하고 `Student`는 해당
+학년도의 학생 명단을 가진다. Poll·Election runtime은 아직 `Classroom`을 참조하지 않는다.
 
 `ParticipantGroup`은 `User`가 소유하며 일반 교사 명단과 학교 선거 명단을 구분한다.
 `ParticipantSlot`은 그룹 안에서 유일한 번호와 이름을 가진다. 현재 의존성은 다음과
@@ -215,6 +215,9 @@ class_number
 - Classroom의 Student에서 ElectionVoter snapshot 생성
 - 기존 ElectionSession과 snapshot 기록 보존
 - ParticipantGroup 기반 새 Election 명단 생성 중단
+
+ElectionSession과 voter snapshot의 구체적인 호환 구조 및 전환 순서는
+`docs/architecture/election_classroom_cutover_plan.md`를 따른다.
 
 ### 5단계 — Poll 명단 전환
 
