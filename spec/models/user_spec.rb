@@ -39,12 +39,12 @@ RSpec.describe User, type: :model do
   end
 
   describe "school associations" do
-    it "finds memberships and schools" do
+    it "finds its membership and school" do
       user = create(:user)
       membership = create(:school_membership, user: user)
 
-      expect(user.school_memberships).to contain_exactly(membership)
-      expect(user.schools).to contain_exactly(membership.school)
+      expect(user.school_membership).to eq(membership)
+      expect(user.school).to eq(membership.school)
     end
   end
 end

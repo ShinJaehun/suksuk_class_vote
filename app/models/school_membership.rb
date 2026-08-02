@@ -7,5 +7,15 @@ class SchoolMembership < ApplicationRecord
   validates :school, presence: true
   validates :user, presence: true
   validates :role, presence: true
-  validates :user_id, uniqueness: { scope: :school_id }
+  validates :user_id, uniqueness: true
+
+  validate :user_must_be_teacher
+
+  private
+
+  def user_must_be_teacher
+    return if user.blank? || user.teacher?
+
+    errors.add(:user, "must be a teacher")
+  end
 end
