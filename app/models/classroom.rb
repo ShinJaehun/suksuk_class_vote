@@ -6,7 +6,15 @@ class Classroom < ApplicationRecord
              inverse_of: :classroom
 
   validates :school, presence: true
-  validates :name, presence: true, uniqueness: { scope: :school_id }
+  validates :name, presence: true
+  validates :school_year,
+            :grade,
+            :class_number,
+            presence: true,
+            numericality: { only_integer: true, greater_than: 0 }
+  validates :class_number,
+            uniqueness: { scope: %i[school_id school_year grade] }
+  validates :active, inclusion: { in: [true, false] }
   validates :teacher_id, uniqueness: true, allow_nil: true
 
   validate :teacher_must_be_teacher

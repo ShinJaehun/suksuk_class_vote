@@ -7,6 +7,10 @@ RSpec.describe Classroom, type: :model do
 
       expect(classroom).to be_valid
       expect(classroom.teacher).to be_nil
+      expect(classroom.school_year).to eq(2026)
+      expect(classroom.grade).to eq(4)
+      expect(classroom.class_number).to be_positive
+      expect(classroom).to be_active
     end
 
     it "creates a valid classroom with a teacher" do
@@ -32,17 +36,109 @@ RSpec.describe Classroom, type: :model do
       expect(classroom.errors[:name]).to be_present
     end
 
-    it "does not allow duplicate names in the same school" do
-      classroom = create(:classroom)
-      duplicate = build(:classroom, school: classroom.school, name: classroom.name)
+    it "requires a school year" do
+      classroom = build(:classroom, school_year: nil)
 
-      expect(duplicate).not_to be_valid
-      expect(duplicate.errors[:name]).to be_present
+      expect(classroom).not_to be_valid
+      expect(classroom.errors[:school_year]).to be_present
     end
 
-    it "allows the same name in another school" do
+    it "requires a grade" do
+      classroom = build(:classroom, grade: nil)
+
+      expect(classroom).not_to be_valid
+      expect(classroom.errors[:grade]).to be_present
+    end
+
+    it "requires a class number" do
+      classroom = build(:classroom, class_number: nil)
+
+      expect(classroom).not_to be_valid
+      expect(classroom.errors[:class_number]).to be_present
+    end
+
+    it "requires school year, grade, and class number to be positive integers" do
+      classroom = build(:classroom, school_year: 0, grade: 1.5, class_number: -1)
+
+      expect(classroom).not_to be_valid
+      expect(classroom.errors[:school_year]).to be_present
+      expect(classroom.errors[:grade]).to be_present
+      expect(classroom.errors[:class_number]).to be_present
+    end
+
+    it "allows an inactive classroom" do
+      classroom = build(:classroom, active: false)
+
+      expect(classroom).to be_valid
+    end
+
+    it "does not allow active to be nil" do
+      classroom = build(:classroom, active: nil)
+
+      expect(classroom).not_to be_valid
+      expect(classroom.errors[:active]).to be_present
+    end
+
+    it "does not allow duplicate school, school year, grade, and class number" do
       classroom = create(:classroom)
-      another_classroom = build(:classroom, name: classroom.name)
+      duplicate = build(:classroom,
+                        school: classroom.school,
+                        school_year: classroom.school_year,
+                        grade: classroom.grade,
+                        class_number: classroom.class_number)
+
+      expect(duplicate).not_to be_valid
+      expect(duplicate.errors[:class_number]).to be_present
+    end
+
+    it "allows the same grade and class number in another school" do
+      classroom = create(:classroom)
+      another_classroom = build(:classroom,
+                                school_year: classroom.school_year,
+                                grade: classroom.grade,
+                                class_number: classroom.class_number)
+
+      expect(another_classroom).to be_valid
+    end
+
+    it "allows the same grade and class number in another school year" do
+      classroom = create(:classroom)
+      another_classroom = build(:classroom,
+                                school: classroom.school,
+                                school_year: classroom.school_year + 1,
+                                grade: classroom.grade,
+                                class_number: classroom.class_number)
+
+      expect(another_classroom).to be_valid
+    end
+
+    it "allows another grade in the same school year" do
+      classroom = create(:classroom)
+      another_classroom = build(:classroom,
+                                school: classroom.school,
+                                school_year: classroom.school_year,
+                                grade: classroom.grade + 1,
+                                class_number: classroom.class_number)
+
+      expect(another_classroom).to be_valid
+    end
+
+    it "allows another class number in the same grade" do
+      classroom = create(:classroom)
+      another_classroom = build(:classroom,
+                                school: classroom.school,
+                                school_year: classroom.school_year,
+                                grade: classroom.grade)
+
+      expect(another_classroom).to be_valid
+    end
+
+    it "allows the same name in another school year" do
+      classroom = create(:classroom)
+      another_classroom = build(:classroom,
+                                school: classroom.school,
+                                school_year: classroom.school_year + 1,
+                                name: classroom.name)
 
       expect(another_classroom).to be_valid
     end
