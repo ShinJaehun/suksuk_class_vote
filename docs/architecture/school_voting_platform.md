@@ -126,8 +126,8 @@ Student
 
 `Student`는 독립 모델이며 `User`가 아니다. 학생 번호는 학급 안에서 유일해야 한다.
 향후 PIN 로그인도 User나 Devise에 연결하지 않고 `Student` 자체 인증으로 추가한다.
-학년도 종료, 진급, 반 이동, 전입·전출과 Student 상태 변경은
-`docs/architecture/student_lifecycle_policy.md`를 따른다.
+Classroom과 Student는 학년도별로 새로 생성하고 학년도 종료 시 Classroom만
+비활성화한다. 상세 운영 정책은 `docs/architecture/student_lifecycle_policy.md`를 따른다.
 
 ParticipantGroup·ParticipantSlot에서 Classroom·Student로의 데이터 전환과 단계별
 제거 정책은 `docs/architecture/classroom_participant_group_transition.md`를 따른다.

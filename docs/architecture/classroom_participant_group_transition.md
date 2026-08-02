@@ -82,13 +82,13 @@ School
 `Student`는 Classroom에 속한 학년도별 학생 명단 레코드로 구현되었다.
 
 - 반드시 하나의 Classroom에 속한다.
-- 학생 명단의 장기적인 원본이다.
+- 해당 학년도 학생 명단의 원본이다.
 - 교사용 로그인 계정인 `User`와 분리한다.
 - 학생에게 `SchoolMembership`을 만들지 않는다.
-- 학급 이동과 학년도 진급 정책은
-  `docs/architecture/student_lifecycle_policy.md`를 따른다.
+- 새 학년도에는 새 Classroom과 Student 명단을 만든다.
+- 이전 학년도 Student를 복사·이동·연결하지 않는다.
 
-학년도 간 동일인 연결 방식은 이 문서에서 확정하지 않는다.
+상세 운영 정책은 `docs/architecture/student_lifecycle_policy.md`를 따른다.
 
 ## 4. ParticipantGroup의 과도기 위치
 
@@ -175,8 +175,8 @@ class_number
 
 - 각 ParticipantSlot에서 Student 생성 후보를 만든다.
 - 이름만으로 동일 학생을 병합하지 않는다.
-- 출석번호와 이름이 같아도 다른 학년도나 Classroom이면 자동 병합하지 않는다.
-- 학년도 간 동일인 추적이 필요하면 안정 식별자 설계를 먼저 확정한다.
+- 출석번호와 이름이 같아도 다른 학년도나 Classroom이면 병합하지 않는다.
+- 학년도 간 동일 학생 연결이나 진급 처리는 하지 않는다.
 
 ## 8. 2026년 실제 운영 데이터
 
@@ -249,8 +249,6 @@ Election을 먼저 전환한다. 두 콘텐츠의 새 생성 경로와 역사 �
 
 다음은 해당 구현 단계에서 별도로 확정한다.
 
-- 학생의 학년도 간 동일인 식별 방법
-- 졸업, 전학과 학급 이동 모델
 - guardian 또는 보호자 정보
 - 학생 로그인 방법
 - ParticipantGroup 제거 migration timestamp
