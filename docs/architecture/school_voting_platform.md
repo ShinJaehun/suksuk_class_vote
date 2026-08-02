@@ -105,10 +105,10 @@ Classroom
 ```
 
 학급에는 활성 상태인 teacher를 담임으로 0명 또는 1명 배정하며, `User.role = admin`인
-global admin은 담임으로 배정하지 않는다. 교사도 담당 학급을 최대 한 개만 가지므로
-이미 다른 학급을 담당하는 교사는 새 학급에 배정할 수 없다. 이를 DB에서도 보장하도록
-`classrooms.teacher_id`에 `NULL`을 제외한 unique index를 둔다. 담임교사의 현재
-학교 membership과 학급의 학교는 같아야 한다.
+global admin은 담임으로 배정하지 않는다. 교사는 활성 학급을 최대 한 개만 담당하며
+과거 inactive 학급에는 담임 기록을 보존할 수 있다. 이를 DB에서도 보장하도록 활성
+학급의 `classrooms.teacher_id`에 partial unique index를 둔다. 담임교사의 현재 학교
+membership과 학급의 학교는 같아야 한다.
 
 학교·학년도·학년·반 조합은 중복될 수 없다. 생성된 학급의 학교는 변경할 수 없다.
 가능한 항목은 validation뿐 아니라 DB unique index 또는 constraint로도 보장한다.
@@ -126,6 +126,8 @@ Student
 
 `Student`는 독립 모델이며 `User`가 아니다. 학생 번호는 학급 안에서 유일해야 한다.
 향후 PIN 로그인도 User나 Devise에 연결하지 않고 `Student` 자체 인증으로 추가한다.
+학년도 종료, 진급, 반 이동, 전입·전출과 Student 상태 변경은
+`docs/architecture/student_lifecycle_policy.md`를 따른다.
 
 ParticipantGroup·ParticipantSlot에서 Classroom·Student로의 데이터 전환과 단계별
 제거 정책은 `docs/architecture/classroom_participant_group_transition.md`를 따른다.
@@ -136,8 +138,8 @@ ParticipantGroup·ParticipantSlot에서 Classroom·Student로의 데이터 전�
 - SchoolMembership은 teacher만 가질 수 있으며 교사별 현재 유효한 membership은
   최대 하나다.
 - manager와 학급 담임은 활성 teacher만 가능하고 global admin은 담임이 될 수 없다.
-- 학급의 담임은 최대 한 명이고 교사의 담당 학급도 최대 하나다. 다른 학급을 담당하는
-  교사는 중복 배정할 수 없다.
+- 학급의 담임은 최대 한 명이고 교사의 활성 담당 학급도 최대 하나다. inactive 학급의
+  담임 기록은 보존하되 활성 학급에는 중복 배정할 수 없다.
 - 담임의 현재 학교 membership과 학급의 학교는 같아야 한다.
 - 학교·학년도·학년·반 조합은 유일하며 생성된 학급의 학교는 바꿀 수 없다.
 - 학생 번호는 학급 안에서만 유일하다.
