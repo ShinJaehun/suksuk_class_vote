@@ -98,6 +98,45 @@ RSpec.describe Student, type: :model do
     end
   end
 
+  describe "classroom immutability" do
+    it "does not allow changing to another classroom and keeps the stored classroom" do
+      student = create(:student)
+      original_classroom = student.classroom
+      another_classroom = create(:classroom)
+
+      expect(student.update(classroom: another_classroom)).to be(false)
+      expect(student.errors[:classroom]).to be_present
+      expect(student.reload.classroom).to eq(original_classroom)
+    end
+
+    it "allows assigning the same classroom again" do
+      student = create(:student)
+
+      student.classroom = student.classroom
+
+      expect(student.save).to be(true)
+    end
+
+    it "allows changing the name" do
+      student = create(:student)
+
+      expect(student.update(name: "수정된 이름")).to be(true)
+    end
+
+    it "allows changing the number within the same classroom" do
+      student = create(:student)
+
+      expect(student.update(number: student.number + 100)).to be(true)
+    end
+
+    it "allows deactivation and reactivation" do
+      student = create(:student)
+
+      expect(student.update(active: false)).to be(true)
+      expect(student.update(active: true)).to be(true)
+    end
+  end
+
   describe "classroom status" do
     it "allows an active student in an inactive classroom" do
       student = build(:student, classroom: build(:classroom, active: false), active: true)
