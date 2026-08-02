@@ -25,11 +25,30 @@ RSpec.describe ElectionSession, type: :model do
       expect(session.errors[:teacher]).to be_present
     end
 
-    it "requires a participant group" do
-      session = build(:election_session, participant_group: nil)
+    it "allows a participant group as the only roster source" do
+      session = build(:election_session)
+
+      expect(session).to be_valid
+    end
+
+    it "allows a classroom as the only roster source" do
+      session = build(:election_session, participant_group: nil, classroom: build(:classroom))
+
+      expect(session).to be_valid
+    end
+
+    it "does not allow both roster sources" do
+      session = build(:election_session, classroom: build(:classroom))
 
       expect(session).not_to be_valid
-      expect(session.errors[:participant_group]).to be_present
+      expect(session.errors[:base]).to be_present
+    end
+
+    it "does not allow a session without a roster source" do
+      session = build(:election_session, participant_group: nil, classroom: nil)
+
+      expect(session).not_to be_valid
+      expect(session.errors[:base]).to be_present
     end
 
     it "requires a status" do
@@ -94,6 +113,66 @@ RSpec.describe ElectionSession, type: :model do
         election: election,
         teacher: teacher,
         participant_group: participant_group,
+        status: :draft
+      )
+
+      expect(active_session).to be_valid
+    end
+
+    it "does not allow the same classroom twice in the same election" do
+      election = create(:election)
+      classroom = create(:classroom)
+      create(:election_session, election: election, participant_group: nil, classroom: classroom)
+      session = build(:election_session, election: election, participant_group: nil, classroom: classroom)
+
+      expect(session).not_to be_valid
+      expect(session.errors[:classroom_id]).to be_present
+    end
+
+    it "allows the same classroom in different elections" do
+      classroom = create(:classroom)
+      create(:election_session, participant_group: nil, classroom: classroom)
+      session = build(:election_session, participant_group: nil, classroom: classroom)
+
+      expect(session).to be_valid
+    end
+
+    it "allows historical stopped and closed sessions for the same election and classroom" do
+      election = create(:election)
+      classroom = create(:classroom)
+      create(
+        :election_session,
+        election: election,
+        participant_group: nil,
+        classroom: classroom,
+        status: :stopped
+      )
+      closed_session = build(
+        :election_session,
+        election: election,
+        participant_group: nil,
+        classroom: classroom,
+        status: :closed
+      )
+
+      expect(closed_session).to be_valid
+    end
+
+    it "allows one active classroom session beside historical sessions" do
+      election = create(:election)
+      classroom = create(:classroom)
+      create(
+        :election_session,
+        election: election,
+        participant_group: nil,
+        classroom: classroom,
+        status: :stopped
+      )
+      active_session = build(
+        :election_session,
+        election: election,
+        participant_group: nil,
+        classroom: classroom,
         status: :draft
       )
 

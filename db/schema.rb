@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_02_060000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_03_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -148,23 +148,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_02_060000) do
   end
 
   create_table "election_sessions", force: :cascade do |t|
+    t.bigint "classroom_id"
     t.datetime "closed_at"
     t.datetime "created_at", null: false
     t.bigint "election_id", null: false
     t.datetime "hidden_from_teacher_at"
     t.integer "operation_mode", default: 0, null: false
-    t.bigint "participant_group_id", null: false
+    t.bigint "participant_group_id"
     t.datetime "started_at"
     t.integer "status", default: 0, null: false
     t.datetime "stopped_at"
     t.bigint "teacher_id", null: false
     t.datetime "updated_at", null: false
+    t.index ["classroom_id"], name: "index_election_sessions_on_classroom_id"
+    t.index ["election_id", "classroom_id"], name: "idx_election_sessions_active_classroom", unique: true, where: "(status = ANY (ARRAY[0, 10]))"
     t.index ["election_id", "participant_group_id"], name: "index_election_sessions_on_active_group_assignment", unique: true, where: "(status = ANY (ARRAY[0, 10]))"
     t.index ["election_id"], name: "index_election_sessions_on_election_id"
     t.index ["operation_mode"], name: "index_election_sessions_on_operation_mode"
     t.index ["participant_group_id"], name: "index_election_sessions_on_participant_group_id"
     t.index ["status"], name: "index_election_sessions_on_status"
     t.index ["teacher_id"], name: "index_election_sessions_on_teacher_id"
+    t.check_constraint "participant_group_id IS NOT NULL AND classroom_id IS NULL OR participant_group_id IS NULL AND classroom_id IS NOT NULL", name: "chk_election_sessions_one_source"
   end
 
   create_table "election_voters", force: :cascade do |t|
@@ -395,6 +399,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_02_060000) do
   add_foreign_key "election_participations", "election_voters"
   add_foreign_key "election_progresses", "election_sessions"
   add_foreign_key "election_progresses", "election_voters", column: "current_election_voter_id", on_delete: :nullify
+  add_foreign_key "election_sessions", "classrooms"
   add_foreign_key "election_sessions", "elections"
   add_foreign_key "election_sessions", "participant_groups"
   add_foreign_key "election_sessions", "users", column: "teacher_id"

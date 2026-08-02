@@ -3,7 +3,8 @@ class ElectionSession < ApplicationRecord
 
   belongs_to :election
   belongs_to :teacher, class_name: "User"
-  belongs_to :participant_group
+  belongs_to :participant_group, optional: true
+  belongs_to :classroom, optional: true
   has_one :election_progress, dependent: :destroy
   has_many :election_voters, dependent: :destroy
   has_many :election_participations, through: :election_voters
@@ -18,7 +19,6 @@ class ElectionSession < ApplicationRecord
 
   validates :election, presence: true
   validates :teacher, presence: true
-  validates :participant_group, presence: true
   validates :status, presence: true
   validates :operation_mode, presence: true
   validates :participant_group_id,
@@ -26,7 +26,14 @@ class ElectionSession < ApplicationRecord
               scope: :election_id,
               conditions: -> { where(status: ElectionSession.statuses.values_at("draft", "in_progress")) }
             },
-            if: :active_status?
+            if: :active_participant_group_source?
+  validates :classroom_id,
+            uniqueness: {
+              scope: :election_id,
+              conditions: -> { where(status: ElectionSession.statuses.values_at("draft", "in_progress")) }
+            },
+            if: :active_classroom_source?
+  validate :must_have_exactly_one_roster_source
   validate :teacher_can_operate_session
   validate :participant_group_must_be_school_election, on: :create
 
@@ -38,6 +45,20 @@ class ElectionSession < ApplicationRecord
 
   def active_status?
     status&.to_sym.in?(ACTIVE_STATUSES)
+  end
+
+  def active_participant_group_source?
+    active_status? && participant_group.present?
+  end
+
+  def active_classroom_source?
+    active_status? && classroom.present?
+  end
+
+  def must_have_exactly_one_roster_source
+    return if participant_group.present? ^ classroom.present?
+
+    errors.add(:base, "must have exactly one roster source")
   end
 
   def teacher_can_operate_session
