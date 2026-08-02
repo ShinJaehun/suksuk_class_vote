@@ -8,10 +8,14 @@ class User < ApplicationRecord
 
   has_one :school_membership, dependent: :destroy
   has_one :school, through: :school_membership
-  has_one :classroom,
-          foreign_key: :teacher_id,
-          dependent: :nullify,
-          inverse_of: :teacher
+  has_many :classrooms,
+           foreign_key: :teacher_id,
+           dependent: :nullify,
+           inverse_of: :teacher
+  has_one :active_classroom,
+          -> { where(active: true) },
+          class_name: "Classroom",
+          foreign_key: :teacher_id
   has_many :participant_groups, dependent: :destroy
   has_many :polls, dependent: :destroy
   has_many :poll_events, foreign_key: :actor_id, dependent: :nullify, inverse_of: :actor

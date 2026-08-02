@@ -47,10 +47,28 @@ RSpec.describe User, type: :model do
       expect(user.school).to eq(membership.school)
     end
 
-    it "finds its classroom" do
-      classroom = create(:classroom, :with_teacher)
+    it "finds its classroom history and active classroom" do
+      membership = create(:school_membership)
+      historical_classroom = create(
+        :classroom,
+        school: membership.school,
+        teacher: membership.user,
+        school_year: 2026,
+        active: false
+      )
+      active_classroom = create(
+        :classroom,
+        school: membership.school,
+        teacher: membership.user,
+        school_year: 2027,
+        active: true
+      )
 
-      expect(classroom.teacher.classroom).to eq(classroom)
+      expect(membership.user.classrooms).to contain_exactly(
+        historical_classroom,
+        active_classroom
+      )
+      expect(membership.user.active_classroom).to eq(active_classroom)
     end
   end
 end

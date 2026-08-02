@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_02_040000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_02_050000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -54,7 +54,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_02_040000) do
     t.datetime "updated_at", null: false
     t.index ["school_id", "school_year", "grade", "class_number"], name: "idx_classrooms_on_school_year_grade_number", unique: true
     t.index ["school_id"], name: "index_classrooms_on_school_id"
-    t.index ["teacher_id"], name: "index_classrooms_on_teacher_id", unique: true
+    t.index ["teacher_id"], name: "idx_classrooms_on_active_teacher", unique: true, where: "((active = true) AND (teacher_id IS NOT NULL))"
   end
 
   create_table "election_candidate_tallies", force: :cascade do |t|

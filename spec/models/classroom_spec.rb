@@ -143,9 +143,16 @@ RSpec.describe Classroom, type: :model do
       expect(another_classroom).to be_valid
     end
 
-    it "allows multiple classrooms without teachers" do
+    it "allows multiple active classrooms without teachers" do
       create(:classroom)
       classroom = build(:classroom)
+
+      expect(classroom).to be_valid
+    end
+
+    it "allows multiple inactive classrooms without teachers" do
+      create(:classroom, active: false)
+      classroom = build(:classroom, active: false)
 
       expect(classroom).to be_valid
     end
@@ -179,12 +186,79 @@ RSpec.describe Classroom, type: :model do
       expect(classroom.errors[:teacher]).to be_present
     end
 
-    it "does not allow one teacher to lead two classrooms" do
+    it "does not allow one teacher to lead two active classrooms" do
       classroom = create(:classroom, :with_teacher)
       another_classroom = build(:classroom, school: classroom.school, teacher: classroom.teacher)
 
       expect(another_classroom).not_to be_valid
       expect(another_classroom.errors[:teacher_id]).to be_present
+    end
+
+    it "allows one teacher to remain on multiple inactive classrooms" do
+      membership = create(:school_membership)
+      create(:classroom,
+             school: membership.school,
+             teacher: membership.user,
+             active: false,
+             school_year: 2026)
+      classroom = build(:classroom,
+                        school: membership.school,
+                        teacher: membership.user,
+                        active: false,
+                        school_year: 2027)
+
+      expect(classroom).to be_valid
+    end
+
+    it "allows one teacher on an inactive and an active classroom" do
+      membership = create(:school_membership)
+      create(:classroom,
+             school: membership.school,
+             teacher: membership.user,
+             active: false,
+             school_year: 2026)
+      classroom = build(:classroom,
+                        school: membership.school,
+                        teacher: membership.user,
+                        active: true,
+                        school_year: 2027)
+
+      expect(classroom).to be_valid
+    end
+
+    it "allows a new active assignment after the previous classroom becomes inactive" do
+      classroom = create(:classroom, :with_teacher, school_year: 2026)
+
+      classroom.update!(active: false)
+      next_classroom = build(:classroom,
+                             school: classroom.school,
+                             teacher: classroom.teacher,
+                             school_year: 2027)
+
+      expect(next_classroom).to be_valid
+    end
+
+    it "does not reactivate a classroom when its teacher has another active classroom" do
+      membership = create(:school_membership)
+      previous_classroom = create(:classroom,
+                                  school: membership.school,
+                                  teacher: membership.user,
+                                  active: false,
+                                  school_year: 2026)
+      create(:classroom,
+             school: membership.school,
+             teacher: membership.user,
+             active: true,
+             school_year: 2027)
+
+      expect(previous_classroom.update(active: true)).to be(false)
+      expect(previous_classroom.errors[:teacher_id]).to be_present
+    end
+
+    it "reactivates a classroom when its teacher has no other active classroom" do
+      classroom = create(:classroom, :with_teacher, active: false)
+
+      expect(classroom.update(active: true)).to be(true)
     end
 
     it "allows different teachers to lead different classrooms" do

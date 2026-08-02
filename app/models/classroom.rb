@@ -3,7 +3,7 @@ class Classroom < ApplicationRecord
   belongs_to :teacher,
              class_name: "User",
              optional: true,
-             inverse_of: :classroom
+             inverse_of: :classrooms
 
   validates :school, presence: true
   validates :name, presence: true
@@ -15,7 +15,10 @@ class Classroom < ApplicationRecord
   validates :class_number,
             uniqueness: { scope: %i[school_id school_year grade] }
   validates :active, inclusion: { in: [true, false] }
-  validates :teacher_id, uniqueness: true, allow_nil: true
+  validates :teacher_id,
+            uniqueness: { conditions: -> { where(active: true) } },
+            allow_nil: true,
+            if: :active?
 
   validate :teacher_must_be_teacher
   validate :teacher_must_belong_to_school
