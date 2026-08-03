@@ -30,8 +30,39 @@
     <% current_participant = @poll_session.poll_progress&.current_poll_participant %>
     <% if current_participant.present? %>
       <p class="mt-2 text-xl font-medium"><%= current_participant.number %>번 <%= current_participant.name %></p>
+      <p class="mt-1 text-sm text-stone-600">
+        참여 상태: <%= poll_participation_status_label(current_participant.poll_participation) %>
+      </p>
+      <% if @poll_session.in_progress? && @poll_session.archived_at.blank? && policy(@poll_session).operate? %>
+        <div class="mt-4 space-y-3">
+          <p class="text-sm text-stone-600">투표 제출 기능은 다음 단계에서 연결합니다.</p>
+          <%= button_to "미참여 처리",
+                        mark_current_participant_absent_poll_poll_session_path(
+                          @poll_session.poll,
+                          @poll_session
+                        ),
+                        method: :patch,
+                        data: { turbo_confirm: "현재 학생을 미참여 처리할까요?" },
+                        class: "rounded-md border border-rose-300 px-4 py-2 text-sm font-medium text-rose-700" %>
+        </div>
+      <% end %>
     <% else %>
       <p class="mt-2 text-stone-600">현재 학생이 지정되지 않았습니다.</p>
+      <% if @poll_session.in_progress? && @poll_session.archived_at.blank? %>
+        <% if @pending_participants.any? %>
+          <% if policy(@poll_session).operate? %>
+            <%= button_to @processed_count.zero? ? "첫 학생 시작" : "다음 학생 시작",
+                          start_next_participant_poll_poll_session_path(
+                            @poll_session.poll,
+                            @poll_session
+                          ),
+                          method: :patch,
+                          class: "mt-4 rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+          <% end %>
+        <% else %>
+          <p class="mt-2 font-medium text-emerald-700">모든 학생의 처리가 끝났습니다.</p>
+        <% end %>
+      <% end %>
     <% end %>
   </section>
 
@@ -41,7 +72,12 @@
       <ul class="mt-3 divide-y divide-stone-200">
         <% @participants.each do |participant| %>
           <li class="flex items-center justify-between gap-3 py-3">
-            <p><span class="font-medium"><%= participant.number %>번 <%= participant.name %></span><% if participant == current_participant %> <span class="ml-2 rounded bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700">현재</span><% end %></p>
+            <p>
+              <span class="font-medium"><%= participant.number %>번 <%= participant.name %></span>
+              <% if participant == current_participant %>
+                <span class="ml-2 rounded bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700">현재</span>
+              <% end %>
+            </p>
             <span class="text-sm text-stone-600"><%= poll_participation_status_label(participant.poll_participation) %></span>
           </li>
         <% end %>

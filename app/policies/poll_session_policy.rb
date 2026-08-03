@@ -13,4 +13,10 @@ class PollSessionPolicy < ApplicationPolicy
 
     membership.manager? || record.classroom.teacher == user
   end
+
+  def operate?
+    return false if user.blank?
+
+    user.admin? || record.operator == user
+  end
 end

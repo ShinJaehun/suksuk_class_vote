@@ -16,6 +16,7 @@ RSpec.describe PollSessionPolicy do
 
     expect(described_class.new(create(:user, :admin), poll_session)).to be_start
     expect(described_class.new(create(:user, :admin), poll_session)).to be_show
+    expect(described_class.new(create(:user, :admin), poll_session)).to be_operate
   end
 
   it "allows a same-school manager" do
@@ -32,6 +33,16 @@ RSpec.describe PollSessionPolicy do
 
     expect(described_class.new(teacher, poll_session)).to be_start
     expect(described_class.new(teacher, poll_session)).to be_show
+    expect(described_class.new(teacher, poll_session)).to be_operate
+  end
+
+  it "allows only the recorded operator or a global admin to operate" do
+    poll_session, classroom_teacher = create_poll_session
+    manager = create(:user)
+    create(:school_membership, :manager, school: poll_session.classroom.school, user: manager)
+
+    expect(described_class.new(classroom_teacher, poll_session)).to be_operate
+    expect(described_class.new(manager, poll_session)).not_to be_operate
   end
 
   it "rejects another teacher, another-school manager, and membershipless teacher" do
@@ -47,5 +58,8 @@ RSpec.describe PollSessionPolicy do
     expect(described_class.new(other_teacher, poll_session)).not_to be_show
     expect(described_class.new(other_manager, poll_session)).not_to be_show
     expect(described_class.new(create(:user), poll_session)).not_to be_show
+    expect(described_class.new(other_teacher, poll_session)).not_to be_operate
+    expect(described_class.new(other_manager, poll_session)).not_to be_operate
+    expect(described_class.new(create(:user), poll_session)).not_to be_operate
   end
 end

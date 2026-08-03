@@ -16,6 +16,8 @@ Rails.application.routes.draw do
     post :archive, on: :member
     resources :poll_sessions, only: :show do
       post :start, on: :member
+      patch :start_next_participant, on: :member
+      patch :mark_current_participant_absent, on: :member
     end
     resources :poll_options, path: "options", only: %i[new create edit update destroy]
   end

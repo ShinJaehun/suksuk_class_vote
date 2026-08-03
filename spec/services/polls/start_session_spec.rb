@@ -86,7 +86,7 @@ RSpec.describe Polls::StartSession do
       expect(progress).to have_attributes(
         poll: poll_session.poll,
         poll_session: poll_session,
-        current_poll_participant: poll_session.poll_participants.order(:number).first,
+        current_poll_participant: nil,
         status: "active",
         ballot_status: "ballot_locked",
         closed_at: nil

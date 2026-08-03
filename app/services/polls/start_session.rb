@@ -107,8 +107,7 @@ module Polls
     def start_locked_session
       started_at = Time.current
       create_participant_snapshot
-      first_participant = poll_session.poll_participants.order(:number).first
-      create_progress(first_participant, started_at)
+      create_progress(started_at)
       create_option_tallies
       create_contest_tallies
       create_start_event(started_at)
@@ -134,11 +133,11 @@ module Polls
       end
     end
 
-    def create_progress(first_participant, started_at)
+    def create_progress(started_at)
       PollProgress.create!(
         poll: poll,
         poll_session: poll_session,
-        current_poll_participant: first_participant,
+        current_poll_participant: nil,
         status: :active,
         ballot_status: :ballot_locked,
         started_at: started_at,

@@ -195,16 +195,17 @@ foundation rollback은 PollSession row가 있으면 기록 삭제 대신 명시�
   기록한 뒤 session만 in_progress로 전환한다. Poll 정의 status는 변경하지 않는다.
 - `PollSessionsController#start`는 parent Poll과 PollSession ID를 함께 조회하고 policy 확인 후
   service만 호출한다. 목록은 모든 session 상태를 표시하고 권한 있는 draft에만 POST 시작 버튼을 둔다.
-- 시작 뒤 목록에서 in_progress를 표시하지만 진행·투표·중단·종료·결과 runtime은 후속 단계다.
+- 시작 뒤 목록에서 in_progress를 표시하며 학생별 ballot 제출·중단·종료·결과 runtime은 후속 단계다.
 - 진행 중 session은 nested GET 운영 현황에서 PollParticipant snapshot, PollProgress의 현재 학생과
-  ballot 상태, participation 기반 처리·대기 수만 읽기 전용으로 표시한다. 학생별 선택과 tally는
-  노출하지 않으며 상태 변경 action은 아직 제공하지 않는다.
+  ballot 상태, participation 기반 처리·대기 수를 표시한다. 다음 pending snapshot 참가자는
+  number/id 순서로 현재 학생에 지정하고, 현재 학생의 미참여 처리는 absent participation을 만든 뒤
+  current pointer를 비운다. 두 전환은 transaction과 PollProgress row lock으로 중복 진행을 막는다.
+  학생별 선택과 tally는 노출하지 않는다.
 - role 기반 Classroom 목록·생성·설정과 Student active/inactive/all 명단, 단일 등록·수정·비활성화·
   복구 및 textarea 기반 원자적 bulk 등록 화면을 제공한다. 일반 teacher는 자신의 Classroom만
   관리하며 ParticipantGroup 자료를 변환하거나 변경하지 않는다.
-- 다음 단계는 실제 브라우저에서 Classroom 생성→Student 등록→Poll 생성·시작→운영 현황을 확인한 뒤
-  PollSession ballot open/lock, 투표 제출, absent/abstained, 다음 participant, 중단·종료·결과 순으로
-  runtime을 전환하는 것이다.
+- 다음 단계는 PollSession ballot 열기, 선택지 또는 후보 제출, 기권 제출, 완료 후 다음 participant
+  진행, session 종료와 결과 집계 순으로 runtime을 전환하는 것이다.
 - global admin과 같은 학교 manager는 기존 미소속 teacher를 SchoolMembership으로 추가할 수 있다.
   manager 지정·해제는 global admin만 수행하며 담당 Classroom이 있는 membership은 삭제하지 않는다.
   교사 계정 생성·초대와 학교 간 자동 전근, Classroom 일괄 배정은 범위 밖이다.

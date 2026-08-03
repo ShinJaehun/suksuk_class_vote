@@ -1,0 +1,94 @@
+require "rails_helper"
+
+RSpec.describe Polls::MarkCurrentSessionParticipantAbsent do
+  def create_execution
+    school = create(:school)
+    operator = create(:user)
+    create(:school_membership, school: school, user: operator)
+    operator.reload
+    classroom = create(:classroom, school: school, teacher: operator)
+    poll = create(:poll, user: operator, school: school, participant_group: nil)
+    poll_session = create(
+      :poll_session,
+      poll: poll,
+      classroom: classroom,
+      operator: operator,
+      status: :in_progress,
+      started_at: Time.current
+    )
+    current = create(
+      :poll_participant,
+      poll: poll,
+      poll_session: poll_session,
+      source_participant_slot: nil,
+      number: 1,
+      name: "김일"
+    )
+    other = create(
+      :poll_participant,
+      poll: poll,
+      poll_session: poll_session,
+      source_participant_slot: nil,
+      number: 2,
+      name: "김이"
+    )
+    progress = create(
+      :poll_progress,
+      poll: poll,
+      poll_session: poll_session,
+      current_poll_participant: current,
+      ballot_status: :ballot_open
+    )
+
+    [poll_session, progress, current, other, operator]
+  end
+
+  it "marks only the current participant absent and clears the pointer" do
+    poll_session, progress, current, other, operator = create_execution
+
+    result = described_class.new(actor: operator, poll_session: poll_session).call
+
+    expect(result).to be_success
+    expect(current.reload.poll_participation).to be_absent
+    expect(other.reload.poll_participation).to be_nil
+    expect(progress.reload).to have_attributes(
+      current_poll_participant: nil,
+      ballot_status: "ballot_locked"
+    )
+    expect(poll_session.poll_events.last).to have_attributes(
+      actor: operator,
+      poll_participant: current,
+      event_type: "participant_marked_absent"
+    )
+  end
+
+  it "is safe when there is no current participant" do
+    poll_session, progress, current, other, operator = create_execution
+    progress.update!(current_poll_participant: nil)
+
+    result = described_class.new(actor: operator, poll_session: poll_session).call
+
+    expect(result).not_to be_success
+    expect(current.reload.poll_participation).to be_nil
+    expect(other.reload.poll_participation).to be_nil
+    expect(progress.reload.current_poll_participant).to be_nil
+  end
+
+  it "rejects non-running sessions and unauthorized actors" do
+    poll_session, progress, current, other, operator = create_execution
+    other_teacher = create(:user)
+
+    unauthorized_result = described_class.new(
+      actor: other_teacher,
+      poll_session: poll_session
+    ).call
+    poll_session.update!(status: :closed)
+    closed_result = described_class.new(actor: operator, poll_session: poll_session).call
+
+    expect(unauthorized_result).not_to be_success
+    expect(closed_result).not_to be_success
+    expect(current.reload.poll_participation).to be_nil
+    expect(other.reload.poll_participation).to be_nil
+    expect(progress.reload.current_poll_participant).to eq(current)
+  end
+end
