@@ -29,10 +29,10 @@ module Elections
             record_stopped_event!
             @new_election_session = ElectionSession.create!(
               election: election_session.election,
-              participant_group: election_session.participant_group,
               teacher: election_session.teacher,
               operation_mode: election_session.operation_mode,
-              status: :draft
+              status: :draft,
+              **replacement_source_attributes
             )
           end
         end
@@ -70,11 +70,27 @@ module Elections
       ElectionSession
         .where(
           election_id: election_session.election_id,
-          participant_group_id: election_session.participant_group_id,
           status: ElectionSession.statuses.values_at("draft", "in_progress")
         )
+        .where(replacement_source_ids)
         .where.not(id: election_session.id)
         .exists?
+    end
+
+    def replacement_source_attributes
+      if election_session.classroom
+        { classroom: election_session.classroom, participant_group: nil }
+      else
+        { participant_group: election_session.participant_group, classroom: nil }
+      end
+    end
+
+    def replacement_source_ids
+      if election_session.classroom_id
+        { classroom_id: election_session.classroom_id, participant_group_id: nil }
+      else
+        { participant_group_id: election_session.participant_group_id, classroom_id: nil }
+      end
     end
 
     def record_stopped_event!

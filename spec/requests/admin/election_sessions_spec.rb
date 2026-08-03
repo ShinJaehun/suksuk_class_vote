@@ -470,6 +470,35 @@ RSpec.describe "Admin election sessions", type: :request do
       )
     end
 
+    it "lets an admin replace a Classroom session with the same Classroom source" do
+      classroom = create(:classroom)
+      old_session = create(
+        :election_session,
+        participant_group: nil,
+        classroom: classroom,
+        status: :in_progress
+      )
+      old_session.election.update!(status: :in_progress)
+      sign_in create(:user, :admin)
+
+      expect do
+        post revote_admin_election_election_session_path(old_session.election, old_session)
+      end.to change(ElectionSession, :count).by(1)
+
+      replacement = old_session.election.election_sessions.where.not(id: old_session.id).sole
+      expect(response).to redirect_to(elections_session_path(replacement))
+      expect(flash[:notice]).to eq("투표를 다시 시작합니다.")
+      expect(old_session.reload).to be_stopped
+      expect(replacement).to have_attributes(
+        election: old_session.election,
+        classroom: classroom,
+        participant_group: nil,
+        teacher: old_session.teacher,
+        operation_mode: old_session.operation_mode,
+        status: "draft"
+      )
+    end
+
     it "broadcasts stopped guidance to the old ballot screen" do
       old_session = create_election_session
       old_session.election.update!(status: :in_progress)

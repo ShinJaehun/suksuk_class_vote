@@ -21,12 +21,70 @@ RSpec.describe Elections::RevoteSession do
       expect(result.election_session).to have_attributes(
         election: old_session.election,
         participant_group: old_session.participant_group,
+        classroom: nil,
         teacher: old_session.teacher,
         operation_mode: old_session.operation_mode,
         status: "draft",
         stopped_at: nil
       )
       expect(old_session.election_events.where(event_type: :session_stopped).sole).to have_attributes(actor: admin)
+    end
+
+    it "creates a Classroom replacement without copying voter or result data" do
+      classroom = create(:classroom)
+      old_session = create(
+        :election_session,
+        participant_group: nil,
+        classroom: classroom,
+        status: :in_progress,
+        operation_mode: :supervised
+      )
+      old_session.election.update!(status: :in_progress)
+      voter = create(
+        :election_voter,
+        election_session: old_session,
+        number: 1,
+        name: "김민준",
+        position: 1,
+        source_participant_slot: nil
+      )
+      participation = create(:election_participation, election_voter: voter)
+      progress = create(:election_progress, election_session: old_session, current_election_voter: voter)
+      candidate_tally = create(
+        :election_candidate_tally,
+        election: old_session.election,
+        election_session: old_session
+      )
+      contest_tally = create(
+        :election_contest_tally,
+        election: old_session.election,
+        election_session: old_session
+      )
+      existing_event = create(:election_event, election_session: old_session)
+
+      result = described_class.new(election_session: old_session, actor: create(:user, :admin)).call
+
+      expect(result).to be_success
+      expect(old_session.reload).to be_stopped
+      expect(result.election_session).to have_attributes(
+        election: old_session.election,
+        classroom: classroom,
+        participant_group: nil,
+        teacher: old_session.teacher,
+        operation_mode: old_session.operation_mode,
+        status: "draft"
+      )
+      expect(ElectionVoter.exists?(voter.id)).to be(true)
+      expect(ElectionParticipation.exists?(participation.id)).to be(true)
+      expect(ElectionProgress.exists?(progress.id)).to be(true)
+      expect(ElectionCandidateTally.exists?(candidate_tally.id)).to be(true)
+      expect(ElectionContestTally.exists?(contest_tally.id)).to be(true)
+      expect(ElectionEvent.exists?(existing_event.id)).to be(true)
+      expect(result.election_session.election_voters).to be_empty
+      expect(result.election_session.election_participations).to be_empty
+      expect(result.election_session.election_progress).to be_nil
+      expect(result.election_session.election_candidate_tallies).to be_empty
+      expect(result.election_session.election_contest_tallies).to be_empty
     end
 
     it "allows a closed session to be replaced while the parent election is in progress" do
@@ -104,6 +162,34 @@ RSpec.describe Elections::RevoteSession do
         election: old_session.election,
         teacher: old_session.teacher,
         participant_group: old_session.participant_group,
+        status: :draft
+      )
+      old_session.update_column(:status, ElectionSession.statuses[:closed])
+
+      expect do
+        result = described_class.new(election_session: old_session, actor: create(:user, :admin)).call
+        expect(result).not_to be_success
+      end.not_to change(ElectionSession, :count)
+
+      expect(active_session.reload).to be_draft
+      expect(old_session.reload).to be_closed
+    end
+
+    it "does not create a duplicate Classroom replacement" do
+      classroom = create(:classroom)
+      old_session = create(
+        :election_session,
+        participant_group: nil,
+        classroom: classroom,
+        status: :stopped
+      )
+      old_session.election.update!(status: :in_progress)
+      active_session = create(
+        :election_session,
+        election: old_session.election,
+        teacher: old_session.teacher,
+        participant_group: nil,
+        classroom: classroom,
         status: :draft
       )
       old_session.update_column(:status, ElectionSession.statuses[:closed])
