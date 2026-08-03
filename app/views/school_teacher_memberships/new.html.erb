@@ -1,12 +1,42 @@
-<div><h1 class="text-2xl font-semibold">선생님 학교 소속 추가</h1><p class="mt-1 text-stone-600"><%= @school.name %></p><%= link_to "선생님 목록으로 돌아가기", school_teacher_memberships_path(@school), class: "text-sm font-medium underline" %></div>
+<div>
+  <h1 class="text-2xl font-semibold">선생님 학교 소속 추가</h1>
+  <p class="mt-1 text-stone-600"><%= @school.name %></p>
+  <%= link_to "선생님 목록으로 돌아가기",
+              school_teacher_memberships_path(@school),
+              class: "text-sm font-medium underline" %>
+</div>
 
 <% if @candidates.any? %>
   <%= form_with model: [@school, @membership], url: school_teacher_memberships_path(@school), class: "space-y-5 rounded-md border border-stone-200 bg-white p-6" do |form| %>
-    <% if @membership.errors.any? %><div class="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><ul class="list-disc pl-5"><% @membership.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul></div><% end %>
-    <div><%= form.label :user_id, "미소속 선생님", class: "block text-sm font-medium" %><% options = @candidates.map { |user| ["#{user.name} · #{user.email}", user.id] } %><%= form.select :user_id, options_for_select(options, @membership.user_id), { prompt: "선생님 선택" }, class: "mt-1 w-full rounded-md border-stone-300" %></div>
-    <div class="rounded-md bg-stone-100 p-4 text-sm text-stone-600"><p>이미 다른 학교에 소속된 선생님은 표시되지 않습니다.</p><p>새 사용자 계정은 이 화면에서 만들지 않습니다.</p></div>
+    <% if @membership.errors.any? %>
+      <div class="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+        <ul class="list-disc pl-5">
+          <% @membership.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <div>
+      <%= form.label :user_id, "미소속 선생님", class: "block text-sm font-medium" %>
+      <% options = @candidates.map { |user| ["#{user.name} · #{user.email}", user.id] } %>
+      <%= form.select :user_id,
+                      options_for_select(options, @membership.user_id),
+                      { prompt: "선생님 선택" },
+                      class: "mt-1 w-full rounded-md border-stone-300" %>
+    </div>
+
+    <div class="rounded-md bg-stone-100 p-4 text-sm text-stone-600">
+      <p>이미 다른 학교에 소속된 선생님은 표시되지 않습니다.</p>
+      <p>새 사용자 계정은 이 화면에서 만들지 않습니다.</p>
+    </div>
+
     <%= form.submit "학교에 추가", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
   <% end %>
 <% else %>
-  <div class="rounded-md border border-dashed border-stone-300 bg-white p-8 text-center"><p class="font-medium">학교에 추가할 수 있는 미소속 선생님이 없습니다.</p><p class="mt-1 text-sm text-stone-600">새 사용자 계정은 이 화면에서 만들지 않습니다.</p></div>
+  <div class="rounded-md border border-dashed border-stone-300 bg-white p-8 text-center">
+    <p class="font-medium">학교에 추가할 수 있는 미소속 선생님이 없습니다.</p>
+    <p class="mt-1 text-sm text-stone-600">새 사용자 계정은 이 화면에서 만들지 않습니다.</p>
+  </div>
 <% end %>

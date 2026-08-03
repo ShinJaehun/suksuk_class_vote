@@ -33,21 +33,37 @@
               <span>쑥쑥교실투표</span>
             <% end %>
             <% if user_signed_in? %>
-              <%= link_to "내 투표", polls_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
-              <%= link_to "내 투표자 목록", participant_groups_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
+              <%= link_to "내 투표",
+                          polls_path,
+                          class: "text-sm text-stone-600 hover:text-stone-900" %>
+              <%= link_to "내 투표자 목록",
+                          participant_groups_path,
+                          class: "text-sm text-stone-600 hover:text-stone-900" %>
               <span class="mx-1 hidden h-5 border-l border-stone-300 sm:inline-block"></span>
               <% if current_user.admin? || current_user.school_membership&.manager? %>
-                <%= link_to "학교", schools_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
+                <%= link_to "학교",
+                            schools_path,
+                            class: "text-sm text-stone-600 hover:text-stone-900" %>
               <% end %>
-              <%= link_to "교실", classrooms_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
+              <%= link_to "교실",
+                          classrooms_path,
+                          class: "text-sm text-stone-600 hover:text-stone-900" %>
               <% if current_user.admin? %>
-                <%= link_to "선생님", admin_teachers_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
+                <%= link_to "선생님",
+                            admin_teachers_path,
+                            class: "text-sm text-stone-600 hover:text-stone-900" %>
               <% elsif current_user.school_membership&.manager? %>
-                <%= link_to "선생님", school_teacher_memberships_path(current_user.school_membership.school), class: "text-sm text-stone-600 hover:text-stone-900" %>
+                <%= link_to "선생님",
+                            school_teacher_memberships_path(current_user.school_membership.school),
+                            class: "text-sm text-stone-600 hover:text-stone-900" %>
               <% end %>
               <% if current_user.admin? %>
-                <%= link_to "전교임원선거", admin_elections_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
-                <%= link_to "전교임원선거 투표자", admin_election_rosters_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
+                <%= link_to "전교임원선거",
+                            admin_elections_path,
+                            class: "text-sm text-stone-600 hover:text-stone-900" %>
+                <%= link_to "전교임원선거 투표자",
+                            admin_election_rosters_path,
+                            class: "text-sm text-stone-600 hover:text-stone-900" %>
               <% end %>
             <% end %>
           </div>
@@ -71,11 +87,15 @@
       <% if notice.present? || alert.present? %>
         <div class="<%= content_for?(:ballot_screen_layout) ? "mx-auto mb-3 max-w-5xl space-y-2" : "space-y-2" %>">
           <% if notice.present? %>
-            <p class="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"><%= notice %></p>
+            <p class="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+              <%= notice %>
+            </p>
           <% end %>
 
           <% if alert.present? %>
-            <p class="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800"><%= alert %></p>
+            <p class="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">
+              <%= alert %>
+            </p>
           <% end %>
         </div>
       <% end %>

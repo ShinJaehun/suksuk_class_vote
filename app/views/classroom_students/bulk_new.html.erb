@@ -1,17 +1,48 @@
-<div><h1 class="text-2xl font-semibold">여러 학생 추가</h1><p class="mt-1 text-stone-600"><%= @classroom.school_year %>학년도 <%= @classroom.grade %>학년 <%= @classroom.formatted_class_label %></p><%= link_to "학생 관리로 돌아가기", classroom_students_path(@classroom), class: "text-sm underline" %></div>
+<div>
+  <h1 class="text-2xl font-semibold">여러 학생 추가</h1>
+  <p class="mt-1 text-stone-600"><%= @classroom.school_year %>학년도 <%= @classroom.grade %>학년 <%= @classroom.formatted_class_label %></p>
+  <%= link_to "학생 관리로 돌아가기",
+              classroom_students_path(@classroom),
+              class: "text-sm underline" %>
+</div>
 
 <%= form_with url: bulk_create_classroom_students_path(@classroom), method: :post, class: "space-y-5 rounded-md border border-stone-200 bg-white p-6" do |form| %>
-  <% if @bulk_errors.any? %><div class="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><ul class="list-disc pl-5"><% @bulk_errors.each do |message| %><li><%= message %></li><% end %></ul></div><% end %>
-  <div><h2 class="font-semibold">학생 명단</h2><p class="mt-1 text-sm text-stone-600">번호와 이름을 행별로 입력하세요. 완전히 빈 행은 무시됩니다.</p></div>
+  <% if @bulk_errors.any? %>
+    <div class="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+      <ul class="list-disc pl-5">
+        <% @bulk_errors.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <h2 class="font-semibold">학생 명단</h2>
+    <p class="mt-1 text-sm text-stone-600">번호와 이름을 행별로 입력하세요. 완전히 빈 행은 무시됩니다.</p>
+  </div>
+
   <div class="space-y-2">
-    <div class="grid grid-cols-[6rem_1fr] gap-3 text-sm font-medium text-stone-600"><span>번호</span><span>이름</span></div>
+    <div class="grid grid-cols-[6rem_1fr] gap-3 text-sm font-medium text-stone-600">
+      <span>번호</span>
+      <span>이름</span>
+    </div>
     <% @student_rows.each_with_index do |row, index| %>
       <div class="grid grid-cols-[6rem_1fr] gap-3">
-        <%= number_field_tag "students[rows][#{index}][number]", row["number"], min: 1, class: "w-full rounded-md border-stone-300", aria: { label: "#{index + 1}번째 학생 번호" } %>
-        <%= text_field_tag "students[rows][#{index}][name]", row["name"], class: "w-full rounded-md border-stone-300", aria: { label: "#{index + 1}번째 학생 이름" } %>
-        <%= hidden_field_tag "students[rows][#{index}][default_number]", row["default_number"] %>
+        <%= number_field_tag "students[rows][#{index}][number]",
+                             row["number"],
+                             min: 1,
+                             class: "w-full rounded-md border-stone-300",
+                             aria: { label: "#{index + 1}번째 학생 번호" } %>
+        <%= text_field_tag "students[rows][#{index}][name]",
+                           row["name"],
+                           class: "w-full rounded-md border-stone-300",
+                           aria: { label: "#{index + 1}번째 학생 이름" } %>
+        <%= hidden_field_tag "students[rows][#{index}][default_number]",
+                             row["default_number"] %>
       </div>
     <% end %>
   </div>
+
   <%= form.submit "여러 학생 등록", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
 <% end %>

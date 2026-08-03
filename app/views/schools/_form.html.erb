@@ -1,9 +1,19 @@
 <%= form_with model: school, class: "space-y-5 rounded-md border border-stone-200 bg-white p-6" do |form| %>
   <% if school.errors.any? %>
     <div class="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-      <ul class="list-disc pl-5"><% school.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul>
+      <ul class="list-disc pl-5">
+        <% school.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
     </div>
   <% end %>
-  <div><%= form.label :name, "학교 이름", class: "block text-sm font-medium" %><%= form.text_field :name, class: "mt-1 w-full rounded-md border-stone-300" %></div>
-  <%= form.submit school.new_record? ? "학교 생성" : "학교 정보 저장", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+
+  <div>
+    <%= form.label :name, "학교 이름", class: "block text-sm font-medium" %>
+    <%= form.text_field :name, class: "mt-1 w-full rounded-md border-stone-300" %>
+  </div>
+
+  <%= form.submit school.new_record? ? "학교 생성" : "학교 정보 저장",
+                  class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
 <% end %>

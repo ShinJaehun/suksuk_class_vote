@@ -21,7 +21,18 @@
               <p class="text-sm text-stone-600">소속 학교 <%= teacher.school&.name || "미소속" %> · 학교 역할 <%= teacher.school_membership&.manager? ? "대표 선생님" : (teacher.school_membership.present? ? "일반 선생님" : "-") %></p>
               <p class="text-sm text-stone-600">담당 교실 <%= teacher.classrooms.any? ? teacher.classrooms.map { |classroom| "#{classroom.school_year}학년도 #{classroom.grade}학년 #{classroom.formatted_class_label}" }.join(", ") : "없음" %></p>
             </div>
-            <div class="text-right"><p class="text-sm text-stone-500">생성일 <%= teacher.created_at.to_date %></p><% teacher.classrooms.each do |classroom| %><%= link_to "교실 설정", edit_classroom_path(classroom), class: "ml-2 text-sm font-medium underline" %><% end %><%= link_to "학교 소속 설정", (teacher.school.present? ? school_teacher_memberships_path(teacher.school) : schools_path), class: "ml-2 text-sm font-medium underline" %></div>
+
+            <div class="text-right">
+              <p class="text-sm text-stone-500">생성일 <%= teacher.created_at.to_date %></p>
+              <% teacher.classrooms.each do |classroom| %>
+                <%= link_to "교실 설정",
+                            edit_classroom_path(classroom),
+                            class: "ml-2 text-sm font-medium underline" %>
+              <% end %>
+              <%= link_to "학교 소속 설정",
+                          (teacher.school.present? ? school_teacher_memberships_path(teacher.school) : schools_path),
+                          class: "ml-2 text-sm font-medium underline" %>
+            </div>
           </div>
         </li>
       <% end %>

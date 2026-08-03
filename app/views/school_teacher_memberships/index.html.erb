@@ -1,6 +1,19 @@
 <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-  <div><h1 class="text-2xl font-semibold">선생님 관리</h1><p class="mt-1 text-stone-600"><%= @school.name %> · <%= @memberships.size %>명</p></div>
-  <div class="flex gap-3 text-sm font-medium"><%= link_to "교실 목록으로 돌아가기", classrooms_path(school_id: @school.id), class: "underline" %><% if policy(@school.school_memberships.build).create? %><%= link_to "선생님 소속 추가", new_school_teacher_membership_path(@school), class: "rounded-md bg-stone-900 px-4 py-2 text-white" %><% end %></div>
+  <div>
+    <h1 class="text-2xl font-semibold">선생님 관리</h1>
+    <p class="mt-1 text-stone-600"><%= @school.name %> · <%= @memberships.size %>명</p>
+  </div>
+
+  <div class="flex gap-3 text-sm font-medium">
+    <%= link_to "교실 목록으로 돌아가기",
+                classrooms_path(school_id: @school.id),
+                class: "underline" %>
+    <% if policy(@school.school_memberships.build).create? %>
+      <%= link_to "선생님 소속 추가",
+                  new_school_teacher_membership_path(@school),
+                  class: "rounded-md bg-stone-900 px-4 py-2 text-white" %>
+    <% end %>
+  </div>
 </div>
 
 <% if @memberships.any? %>
@@ -9,16 +22,51 @@
       <% classrooms = membership.user.classrooms.select { |classroom| classroom.school_id == @school.id }.sort_by { |classroom| [classroom.school_year, classroom.grade, classroom.class_label] } %>
       <li class="rounded-md border border-stone-200 bg-white p-5">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div class="space-y-2"><div><p class="font-semibold"><%= membership.user.name %></p><p class="text-sm text-stone-500"><%= membership.user.email %></p></div><span class="inline-flex rounded px-2 py-1 text-xs font-medium <%= membership.manager? ? "bg-indigo-100 text-indigo-700" : "bg-stone-100 text-stone-700" %>"><%= membership.manager? ? "대표 선생님" : "일반 선생님" %></span>
-            <div><p class="text-sm font-medium text-stone-600">담당 교실</p><% if classrooms.any? %><ul class="mt-1 space-y-1"><% classrooms.each do |classroom| %><li class="text-sm"><%= classroom.school_year %>학년도 <%= classroom.grade %>학년 <%= classroom.formatted_class_label %> · <%= link_to "교실 설정", edit_classroom_path(classroom), class: "font-medium underline" %></li><% end %></ul><% else %><p class="mt-1 text-sm text-stone-500">담당 교실 없음</p><% end %></div>
+          <div class="space-y-2">
+            <div>
+              <p class="font-semibold"><%= membership.user.name %></p>
+              <p class="text-sm text-stone-500"><%= membership.user.email %></p>
+            </div>
+
+            <span class="inline-flex rounded px-2 py-1 text-xs font-medium <%= membership.manager? ? "bg-indigo-100 text-indigo-700" : "bg-stone-100 text-stone-700" %>">
+              <%= membership.manager? ? "대표 선생님" : "일반 선생님" %>
+            </span>
+
+            <div>
+              <p class="text-sm font-medium text-stone-600">담당 교실</p>
+              <% if classrooms.any? %>
+                <ul class="mt-1 space-y-1">
+                  <% classrooms.each do |classroom| %>
+                    <li class="text-sm">
+                      <%= classroom.school_year %>학년도 <%= classroom.grade %>학년 <%= classroom.formatted_class_label %> ·
+                      <%= link_to "교실 설정", edit_classroom_path(classroom), class: "font-medium underline" %>
+                    </li>
+                  <% end %>
+                </ul>
+              <% else %>
+                <p class="mt-1 text-sm text-stone-500">담당 교실 없음</p>
+              <% end %>
+            </div>
           </div>
+
           <div class="flex flex-wrap gap-3 text-sm font-medium">
-            <% if classrooms.empty? && policy(membership).destroy? %><%= button_to "학교 소속 해제", school_teacher_membership_path(@school, membership), method: :delete, data: { turbo_confirm: "이 선생님의 학교 소속을 해제할까요? 사용자 계정은 삭제되지 않습니다." }, class: "text-rose-700 underline" %><% elsif classrooms.any? %><span class="text-stone-500">담당 교실을 먼저 해제해 주세요.</span><% end %>
+            <% if classrooms.empty? && policy(membership).destroy? %>
+              <%= button_to "학교 소속 해제",
+                            school_teacher_membership_path(@school, membership),
+                            method: :delete,
+                            data: { turbo_confirm: "이 선생님의 학교 소속을 해제할까요? 사용자 계정은 삭제되지 않습니다." },
+                            class: "text-rose-700 underline" %>
+            <% elsif classrooms.any? %>
+              <span class="text-stone-500">담당 교실을 먼저 해제해 주세요.</span>
+            <% end %>
           </div>
         </div>
       </li>
     <% end %>
   </ul>
 <% else %>
-  <div class="rounded-md border border-dashed border-stone-300 bg-white p-8 text-center"><p class="font-medium">학교에 소속된 선생님이 없습니다.</p><p class="mt-1 text-sm text-stone-600">기존 선생님 계정을 이 학교에 추가해 주세요.</p></div>
+  <div class="rounded-md border border-dashed border-stone-300 bg-white p-8 text-center">
+    <p class="font-medium">학교에 소속된 선생님이 없습니다.</p>
+    <p class="mt-1 text-sm text-stone-600">기존 선생님 계정을 이 학교에 추가해 주세요.</p>
+  </div>
 <% end %>

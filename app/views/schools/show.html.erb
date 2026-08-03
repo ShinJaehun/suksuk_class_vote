@@ -1,21 +1,116 @@
 <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-  <div><p class="text-sm font-medium text-stone-500">학교 기본 정보</p><h1 class="text-2xl font-semibold"><%= @school.name %></h1></div>
-  <div class="flex gap-3 text-sm font-medium"><%= link_to "학교 목록", schools_path, class: "underline" %><% if policy(@school).edit? %><%= link_to "학교 정보 수정", edit_school_path(@school), class: "underline" %><% end %></div>
+  <div>
+    <p class="text-sm font-medium text-stone-500">학교 기본 정보</p>
+    <h1 class="text-2xl font-semibold"><%= @school.name %></h1>
+  </div>
+  <div class="flex gap-3 text-sm font-medium">
+    <%= link_to "학교 목록", schools_path, class: "underline" %>
+    <% if policy(@school).edit? %>
+      <%= link_to "학교 정보 수정", edit_school_path(@school), class: "underline" %>
+    <% end %>
+  </div>
 </div>
 
 <section class="rounded-md border border-stone-200 bg-white p-5">
-  <div class="flex items-center justify-between"><h2 class="text-lg font-semibold">대표 선생님</h2><span class="text-sm text-stone-500">global admin만 역할을 변경할 수 있습니다.</span></div>
+  <div class="flex items-center justify-between">
+    <h2 class="text-lg font-semibold">대표 선생님</h2>
+    <span class="text-sm text-stone-500">global admin만 역할을 변경할 수 있습니다.</span>
+  </div>
   <% managers = @memberships.select(&:manager?) %>
-  <% if managers.any? %><ul class="mt-3 space-y-2"><% managers.each do |membership| %><li class="flex items-center justify-between"><span><%= membership.user.name %> · <%= membership.user.email %></span><% if current_user.admin? %><%= button_to "일반 선생님으로 변경", demote_school_teacher_membership_path(@school, membership), method: :patch, class: "text-sm font-medium underline" %><% end %></li><% end %></ul><% else %><p class="mt-3 text-sm text-stone-600">대표 선생님이 없습니다.</p><% end %>
-  <% if current_user.admin? %><ul class="mt-4 space-y-2 border-t border-stone-200 pt-4"><% @memberships.select(&:member?).each do |membership| %><li class="flex items-center justify-between"><span class="text-sm"><%= membership.user.name %></span><%= button_to "대표 선생님 지정", promote_school_teacher_membership_path(@school, membership), method: :patch, class: "text-sm font-medium underline" %></li><% end %></ul><% end %>
+  <% if managers.any? %>
+    <ul class="mt-3 space-y-2">
+      <% managers.each do |membership| %>
+        <li class="flex items-center justify-between">
+          <span><%= membership.user.name %> · <%= membership.user.email %></span>
+          <% if current_user.admin? %>
+            <%= button_to "일반 선생님으로 변경",
+                          demote_school_teacher_membership_path(@school, membership),
+                          method: :patch,
+                          class: "text-sm font-medium underline" %>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p class="mt-3 text-sm text-stone-600">대표 선생님이 없습니다.</p>
+  <% end %>
+  <% if current_user.admin? %>
+    <ul class="mt-4 space-y-2 border-t border-stone-200 pt-4">
+      <% @memberships.select(&:member?).each do |membership| %>
+        <li class="flex items-center justify-between">
+          <span class="text-sm"><%= membership.user.name %></span>
+          <%= button_to "대표 선생님 지정",
+                        promote_school_teacher_membership_path(@school, membership),
+                        method: :patch,
+                        class: "text-sm font-medium underline" %>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
 </section>
 
 <section class="rounded-md border border-stone-200 bg-white p-5">
-  <div class="flex flex-wrap items-center justify-between gap-3"><div><h2 class="text-lg font-semibold">교실</h2><p class="text-sm text-stone-500"><%= @classrooms.size %>개</p></div><div class="flex gap-3 text-sm font-medium"><%= link_to "교실 전체 보기", classrooms_path(school_id: @school.id), class: "underline" %><% if policy(Classroom.new(school: @school)).create? %><%= link_to "새 교실 만들기", new_classroom_path(school_id: @school.id), class: "underline" %><% end %></div></div>
-  <% if @classrooms.any? %><ul class="mt-4 divide-y divide-stone-200"><% @classrooms.each do |classroom| %><li class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"><div><p class="font-medium"><%= classroom.school_year %>학년도 <%= classroom.grade %>학년 <%= classroom.formatted_class_label %></p><p class="text-sm text-stone-600">담임 <%= classroom.teacher&.name || "미지정" %> · 학생 <%= @active_student_counts.fetch(classroom.id, 0) %>/<%= @student_counts.fetch(classroom.id, 0) %>명 · <%= classroom.active? ? "활성" : "비활성" %></p></div><div class="flex gap-3 text-sm font-medium"><%= link_to "교실 설정", edit_classroom_path(classroom), class: "underline" %><%= link_to "학생 관리", classroom_students_path(classroom), class: "underline" %></div></li><% end %></ul><% else %><p class="mt-3 text-sm text-stone-600">등록된 교실이 없습니다.</p><% end %>
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h2 class="text-lg font-semibold">교실</h2>
+      <p class="text-sm text-stone-500"><%= @classrooms.size %>개</p>
+    </div>
+    <div class="flex gap-3 text-sm font-medium">
+      <%= link_to "교실 전체 보기", classrooms_path(school_id: @school.id), class: "underline" %>
+      <% if policy(Classroom.new(school: @school)).create? %>
+        <%= link_to "새 교실 만들기", new_classroom_path(school_id: @school.id), class: "underline" %>
+      <% end %>
+    </div>
+  </div>
+  <% if @classrooms.any? %>
+    <ul class="mt-4 divide-y divide-stone-200">
+      <% @classrooms.each do |classroom| %>
+        <li class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p class="font-medium"><%= classroom.school_year %>학년도 <%= classroom.grade %>학년 <%= classroom.formatted_class_label %></p>
+            <p class="text-sm text-stone-600">담임 <%= classroom.teacher&.name || "미지정" %> · 학생 <%= @active_student_counts.fetch(classroom.id, 0) %>/<%= @student_counts.fetch(classroom.id, 0) %>명 · <%= classroom.active? ? "활성" : "비활성" %></p>
+          </div>
+          <div class="flex gap-3 text-sm font-medium">
+            <%= link_to "교실 설정", edit_classroom_path(classroom), class: "underline" %>
+            <%= link_to "학생 관리", classroom_students_path(classroom), class: "underline" %>
+          </div>
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p class="mt-3 text-sm text-stone-600">등록된 교실이 없습니다.</p>
+  <% end %>
 </section>
 
 <section class="rounded-md border border-stone-200 bg-white p-5">
-  <div class="flex flex-wrap items-center justify-between gap-3"><div><h2 class="text-lg font-semibold">선생님</h2><p class="text-sm text-stone-500"><%= @memberships.size %>명</p></div><div class="flex gap-3 text-sm font-medium"><%= link_to "선생님 전체 보기", school_teacher_memberships_path(@school), class: "underline" %><% if current_user.admin? %><%= link_to "선생님 추가", new_admin_teacher_path(school_id: @school.id), class: "underline" %><% else %><%= link_to "선생님 추가", new_school_teacher_membership_path(@school), class: "underline" %><% end %></div></div>
-  <% if @memberships.any? %><ul class="mt-4 divide-y divide-stone-200"><% @memberships.each do |membership| %><% classrooms = membership.user.classrooms.select { |classroom| classroom.school_id == @school.id } %><li class="py-3"><p class="font-medium"><%= membership.user.name %> <span class="text-sm font-normal text-stone-500">· <%= membership.manager? ? "대표 선생님" : "일반 선생님" %></span></p><p class="text-sm text-stone-600"><%= membership.user.email %> · <%= classrooms.any? ? classrooms.map { |classroom| "#{classroom.grade}학년 #{classroom.formatted_class_label}" }.join(", ") : "담당 교실 없음" %></p></li><% end %></ul><% else %><p class="mt-3 text-sm text-stone-600">소속 선생님이 없습니다.</p><% end %>
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h2 class="text-lg font-semibold">선생님</h2>
+      <p class="text-sm text-stone-500"><%= @memberships.size %>명</p>
+    </div>
+    <div class="flex gap-3 text-sm font-medium">
+      <%= link_to "선생님 전체 보기", school_teacher_memberships_path(@school), class: "underline" %>
+      <% if current_user.admin? %>
+        <%= link_to "선생님 추가", new_admin_teacher_path(school_id: @school.id), class: "underline" %>
+      <% else %>
+        <%= link_to "선생님 추가", new_school_teacher_membership_path(@school), class: "underline" %>
+      <% end %>
+    </div>
+  </div>
+  <% if @memberships.any? %>
+    <ul class="mt-4 divide-y divide-stone-200">
+      <% @memberships.each do |membership| %>
+        <% classrooms = membership.user.classrooms.select { |classroom| classroom.school_id == @school.id } %>
+        <li class="py-3">
+          <p class="font-medium">
+            <%= membership.user.name %>
+            <span class="text-sm font-normal text-stone-500">· <%= membership.manager? ? "대표 선생님" : "일반 선생님" %></span>
+          </p>
+          <p class="text-sm text-stone-600"><%= membership.user.email %> · <%= classrooms.any? ? classrooms.map { |classroom| "#{classroom.grade}학년 #{classroom.formatted_class_label}" }.join(", ") : "담당 교실 없음" %></p>
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p class="mt-3 text-sm text-stone-600">소속 선생님이 없습니다.</p>
+  <% end %>
 </section>

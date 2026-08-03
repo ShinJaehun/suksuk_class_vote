@@ -1,2 +1,6 @@
-<div><h1 class="text-2xl font-semibold">학교 생성</h1><%= link_to "학교 목록으로 돌아가기", schools_path, class: "text-sm underline" %></div>
+<div>
+  <h1 class="text-2xl font-semibold">학교 생성</h1>
+  <%= link_to "학교 목록으로 돌아가기", schools_path, class: "text-sm underline" %>
+</div>
+
 <%= render "form", school: @school %>
