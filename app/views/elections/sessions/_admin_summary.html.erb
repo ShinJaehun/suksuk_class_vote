@@ -12,7 +12,7 @@
     else
       "border-rose-200 bg-rose-50 text-rose-700"
     end %>
-  <% participant_slots = election_session.participant_group.participant_slots.order(:number) %>
+  <% roster_entries = election_session_roster_entries(election_session) %>
 
   <h2 class="text-xl font-semibold">세션 상태</h2>
   <dl class="grid gap-3 text-sm sm:grid-cols-2">
@@ -24,7 +24,7 @@
     </div>
     <div>
       <dt class="font-medium text-stone-500">명단</dt>
-      <dd class="mt-1 text-stone-900"><%= election_session.participant_group&.name || "명단 없음" %></dd>
+      <dd class="mt-1 text-stone-900"><%= election_session_source_name(election_session) || "명단 없음" %></dd>
     </div>
     <div>
       <dt class="font-medium text-stone-500">담당 교사</dt>
@@ -32,7 +32,7 @@
     </div>
     <div>
       <dt class="font-medium text-stone-500">투표자 수</dt>
-      <dd class="mt-1 text-stone-900"><%= participant_slots.size %>명</dd>
+      <dd class="mt-1 text-stone-900"><%= roster_entries.size %>명</dd>
     </div>
     <% session_time_labels = election_session_status_time_labels(election_session) %>
     <% if session_time_labels.any? %>
@@ -61,7 +61,7 @@
 
 <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
   <h2 class="text-xl font-semibold">투표 대상 학생</h2>
-  <% if participant_slots.any? %>
+  <% if roster_entries.any? %>
     <div class="overflow-x-auto">
       <table class="min-w-full divide-y divide-stone-200 text-sm">
         <thead>
@@ -71,7 +71,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-stone-100">
-          <% participant_slots.each do |participant_slot| %>
+          <% roster_entries.each do |participant_slot| %>
             <tr>
               <td class="py-2 pr-4"><%= participant_slot.number %></td>
               <td class="py-2 pr-4"><%= participant_slot.name %></td>

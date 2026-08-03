@@ -83,11 +83,7 @@
 
         <aside class="space-y-3 rounded-md border border-stone-200 bg-stone-50 p-4 lg:sticky lg:top-4 lg:self-start">
           <% assigned_voter_count = current_sessions.sum do |session|
-            if session.draft?
-              session.classroom ? session.classroom.students.count(&:active?) : session.participant_group.participant_slots.size
-            else
-              session.election_voters.size
-            end
+            election_session_voter_count(session)
           end %>
           <h3 class="font-semibold">배정 현황</h3>
           <dl class="grid grid-cols-2 gap-3 text-sm">
@@ -114,7 +110,7 @@
     <% session_deletion_allowed = election.draft? && current_sessions.all?(&:draft?) %>
     <div class="space-y-2">
       <h3 class="font-semibold">이미 배정된 학급 세션</h3>
-      <% current_sessions.group_by { |session| (session.classroom || session.participant_group).grade }.sort_by { |grade, _sessions| grade.to_i }.each do |grade, grade_sessions| %>
+      <% current_sessions.group_by { |session| election_session_grade(session) }.sort_by { |grade, _sessions| grade.to_i }.each do |grade, grade_sessions| %>
         <section class="space-y-2 rounded-md border border-stone-200 p-3">
           <div class="flex items-center justify-between gap-3">
             <h4 class="font-medium"><%= grade %>학년</h4>
@@ -127,13 +123,8 @@
             <% end %>
           </div>
           <% grade_sessions.each do |session| %>
-            <% source = session.classroom || session.participant_group %>
-            <% source_name = session.classroom ? "#{source.school_year}학년도 #{source.grade}학년 #{source.formatted_class_label}" : source.display_name %>
-            <% voter_count = if session.draft?
-              session.classroom ? source.students.count(&:active?) : source.participant_slots.size
-            else
-              session.election_voters.size
-            end %>
+            <% source_name = election_session_source_name(session) %>
+            <% voter_count = election_session_voter_count(session) %>
             <% display_status = { "draft" => "준비", "in_progress" => "진행", "closed" => "종료", "stopped" => "중단" }.fetch(session.status, session.status) %>
             <% status_class =
               if session.draft?
@@ -185,9 +176,8 @@
     <div class="space-y-2">
       <h3 class="font-semibold">중단된 학급 세션 이력</h3>
       <% stopped_history_sessions.each do |session| %>
-        <% source = session.classroom || session.participant_group %>
-        <% source_name = session.classroom ? "#{source.school_year}학년도 #{source.grade}학년 #{source.formatted_class_label}" : source.display_name %>
-        <% voter_count = session.election_voters.size %>
+        <% source_name = election_session_source_name(session) %>
+        <% voter_count = election_session_voter_count(session) %>
         <div class="flex flex-col gap-3 rounded-md border border-rose-100 bg-rose-50/40 p-3 sm:flex-row sm:items-center sm:justify-between">
           <div class="space-y-1">
             <div class="flex flex-wrap items-center gap-2">

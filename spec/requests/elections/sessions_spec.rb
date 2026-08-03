@@ -140,6 +140,51 @@ RSpec.describe "Election sessions", type: :request do
       expect(visible_text).not_to include("draft")
     end
 
+    it "shows a Classroom draft roster with active students and a numeric class label" do
+      election_session = classroom_draft_session(class_label: "1")
+      create(:student, classroom: election_session.classroom, number: 2, name: "활성학생")
+      create(:student, classroom: election_session.classroom, number: 3, name: "비활성학생", active: false)
+      sign_in election_session.teacher
+
+      get elections_session_path(election_session)
+      visible_text = page_text
+
+      expect(response).to have_http_status(:ok)
+      expect(visible_text).to include("#{election_session.classroom.school_year}학년도 4학년 1반")
+      expect(visible_text).to include(election_session.teacher.name)
+      expect(visible_text).to include("투표자 2명")
+      expect(visible_text).to include("활성학생")
+      expect(visible_text).not_to include("비활성학생")
+    end
+
+    it "shows a Classroom character label without adding a class suffix" do
+      election_session = classroom_draft_session(class_label: "생활교육실")
+      sign_in election_session.teacher
+
+      get elections_session_path(election_session)
+
+      expect(response).to have_http_status(:ok)
+      expect(page_text).to include("#{election_session.classroom.school_year}학년도 4학년 생활교육실")
+      expect(page_text).not_to include("생활교육실반")
+    end
+
+    it "uses the voter snapshot after a Classroom session starts" do
+      election_session = classroom_draft_session(class_label: "생활교육실")
+      create(:student, classroom: election_session.classroom, number: 2, name: "시작당시학생")
+      Elections::StartSession.new(election_session: election_session, actor: election_session.teacher).call
+      election_session.classroom.students.find_by!(number: 2).update!(active: false)
+      create(:student, classroom: election_session.classroom, number: 3, name: "시작후학생")
+      sign_in election_session.teacher
+
+      get elections_session_path(election_session.reload)
+      visible_text = page_text
+
+      expect(response).to have_http_status(:ok)
+      expect(visible_text).to include("투표자 2명")
+      expect(visible_text).to include("시작당시학생")
+      expect(visible_text).not_to include("시작후학생")
+    end
+
     it "shows only major election events in the teacher progress log" do
       election_session = opened_session
       current_voter = election_session.election_progress.current_election_voter
@@ -1098,6 +1143,22 @@ RSpec.describe "Election sessions", type: :request do
     create(:election_candidate, election_contest: contest, number: 1, name: "후보1")
 
     create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
+  end
+
+  def classroom_draft_session(class_label:)
+    classroom = create(:classroom, :with_teacher, class_label: class_label)
+    create(:student, classroom: classroom, number: 1, name: "첫학생")
+    election = create(:election, school: classroom.school, title: "학급 임원 선거", status: :in_progress)
+    contest = create(:election_contest, election: election)
+    create(:election_candidate, election_contest: contest, number: 1, name: "후보1")
+
+    create(
+      :election_session,
+      election: election,
+      teacher: classroom.teacher,
+      participant_group: nil,
+      classroom: classroom
+    )
   end
 
   def opened_session

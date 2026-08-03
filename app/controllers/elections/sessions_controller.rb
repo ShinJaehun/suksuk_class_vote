@@ -162,9 +162,7 @@ module Elections
     end
 
     def election_session_voter_count
-      return @election_session.participant_group.participant_slots.count if @election_session.draft?
-
-      @election_session.election_voters.count
+      helpers.election_session_voter_count(@election_session)
     end
 
     def run_operation(service_class, notice:, broadcast: false, broadcast_ballot: false)

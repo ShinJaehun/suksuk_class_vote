@@ -30,20 +30,40 @@ module ApplicationHelper
   end
 
   def election_session_roster_label(election_session, voter_count:)
-    participant_group = election_session.participant_group
     [
-      election_session.election.school&.name || participant_group&.school&.name,
-      "#{participant_group&.name.presence || "-"}(투표자 #{voter_count}명)"
+      election_session.election.school&.name || election_session.participant_group&.school&.name,
+      "#{election_session_source_name(election_session) || "-"}(투표자 #{voter_count}명)"
     ].compact_blank.join(" · ")
   end
 
   def election_session_teacher_context_label(election_session, voter_count:)
-    participant_group = election_session.participant_group
     [
-      election_session.election.school&.name || participant_group&.school&.name,
+      election_session.election.school&.name || election_session.participant_group&.school&.name,
       teacher_assignment_label(election_session.teacher&.name),
-      "#{participant_group&.name.presence || "-"}(투표자 #{voter_count}명)"
+      "#{election_session_source_name(election_session) || "-"}(투표자 #{voter_count}명)"
     ].compact_blank.join(" · ")
+  end
+
+  def election_session_source_name(election_session)
+    classroom = election_session.classroom
+    return election_session.participant_group&.display_name unless classroom
+
+    "#{classroom.school_year}학년도 #{classroom.grade}학년 #{classroom.formatted_class_label}"
+  end
+
+  def election_session_grade(election_session)
+    (election_session.classroom || election_session.participant_group)&.grade
+  end
+
+  def election_session_roster_entries(election_session)
+    return election_session.election_voters.order(:position) unless election_session.draft?
+    return election_session.classroom.students.where(active: true).order(:number) if election_session.classroom
+
+    election_session.participant_group.participant_slots.order(:number)
+  end
+
+  def election_session_voter_count(election_session)
+    election_session_roster_entries(election_session).size
   end
 
   def teacher_assignment_label(teacher_name)

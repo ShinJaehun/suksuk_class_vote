@@ -5,7 +5,6 @@
 <% absent_count = voters.count { |voter| voter.election_participation&.absent? } %>
 <% closed_at = election_session.closed_at || election_session.election_progress&.closed_at %>
 <% vote_date = closed_at&.in_time_zone("Asia/Seoul")&.strftime("%-m/%-d") || "-" %>
-<% participant_group = election_session.participant_group %>
 
 <style>
   @media print {
@@ -99,7 +98,7 @@
     <div class="flex flex-wrap items-center gap-2">
       <h1 class="text-2xl font-semibold text-stone-900"><%= election_session.election.title %> 투표 결과</h1>
     </div>
-    <p class="text-lg font-semibold text-stone-700"><%= participant_group.grade %>학년 <%= participant_group.class_label_for_display %> <%= vote_date %> 시행</p>
+    <p class="text-lg font-semibold text-stone-700"><%= election_session_source_name(election_session) %> <%= vote_date %> 시행</p>
   </header>
 
   <dl class="grid gap-2 text-sm sm:grid-cols-3">

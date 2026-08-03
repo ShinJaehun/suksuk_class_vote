@@ -497,6 +497,52 @@ RSpec.describe "Admin elections", type: :request do
       expect(completed_count.text.squish).to eq("1/1")
     end
 
+    it "keeps stopped Classroom snapshot counts separate from its draft replacement roster" do
+      sign_in create(:user, :admin)
+      election = create(:election, status: :in_progress)
+      classroom = create_eligible_classroom(
+        election: election,
+        teacher: create(:user, name: "생활교육실담임"),
+        class_label: "생활교육실"
+      )
+      stopped_session = create(
+        :election_session,
+        election: election,
+        teacher: classroom.teacher,
+        participant_group: nil,
+        classroom: classroom,
+        status: :stopped
+      )
+      2.times do |index|
+        create(
+          :election_voter,
+          election_session: stopped_session,
+          source_participant_slot: nil,
+          number: index + 1,
+          name: "기존학생#{index + 1}",
+          position: index + 1
+        )
+      end
+      replacement = create(
+        :election_session,
+        election: election,
+        teacher: classroom.teacher,
+        participant_group: nil,
+        classroom: classroom,
+        status: :draft
+      )
+
+      get admin_election_path(election)
+
+      classroom_name = "#{classroom.school_year}학년도 #{classroom.grade}학년 생활교육실"
+      expect(response).to have_http_status(:ok)
+      expect(response.body.scan(classroom_name).size).to be >= 2
+      expect(response.body).to include("투표자 2명")
+      expect(response.body).to include("투표자 1명")
+      expect(response.body).to include(elections_session_path(stopped_session))
+      expect(response.body).to include(elections_session_path(replacement))
+    end
+
     it "shows stopped sessions and counts them when the parent election is stopped" do
       sign_in create(:user, :admin)
       election = create(:election, status: :stopped)

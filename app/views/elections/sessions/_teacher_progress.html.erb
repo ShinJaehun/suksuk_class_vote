@@ -23,9 +23,8 @@
       "border-stone-200 bg-stone-50 text-stone-700"
     end %>
   <% participation = current_voter&.election_participation %>
-  <% participant_slots = election_session.participant_group.participant_slots.order(:number) %>
-  <% roster_count = participant_slots.count %>
-  <% total_voter_count = election_session.draft? ? roster_count : election_session.election_voters.count %>
+  <% roster_entries = election_session_roster_entries(election_session) %>
+  <% total_voter_count = roster_entries.size %>
   <% candidate_count = election_session.election.election_candidates.count %>
   <% completed_count = election_session.election_voters.includes(:election_participation).count { |voter| voter.election_participation&.completed? || voter.election_participation&.abstained? } %>
   <% absent_count = election_session.election_voters.includes(:election_participation).count { |voter| voter.election_participation&.absent? } %>
@@ -92,7 +91,7 @@
       <dl class="grid gap-2 text-sm sm:grid-cols-3">
         <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
           <dt class="text-stone-500">투표자</dt>
-          <dd class="mt-1 font-semibold"><%= roster_count %>명</dd>
+          <dd class="mt-1 font-semibold"><%= total_voter_count %>명</dd>
         </div>
         <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
           <dt class="text-stone-500">후보자</dt>
@@ -261,5 +260,5 @@
   </section>
 
   <%= render "elections/sessions/event_log", election_session: election_session %>
-  <%= render "elections/sessions/voter_roster", election_session: election_session, participant_slots: participant_slots %>  
+  <%= render "elections/sessions/voter_roster", election_session: election_session, roster_entries: roster_entries %>
 <% end %>

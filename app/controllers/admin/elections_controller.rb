@@ -277,7 +277,7 @@ module Admin
         .order(:position)
       @election_sessions = @election.election_sessions
         .closed
-        .includes(:election_progress, :teacher, participant_group: :participant_slots)
+        .includes(:election_progress, :teacher, :classroom, participant_group: :participant_slots)
         .order(:created_at)
       prepare_aggregate_results
     end

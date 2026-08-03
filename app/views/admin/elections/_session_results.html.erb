@@ -11,7 +11,7 @@
         <article class="space-y-3 rounded-md border border-stone-200 bg-stone-50 p-4">
           <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 class="font-medium"><%= session.participant_group.name %></h3>
+              <h3 class="font-medium"><%= election_session_source_name(session) %></h3>
               <p class="text-sm text-stone-600">담당 교사: <%= session.teacher.name.presence || session.teacher.email %></p>
             </div>
             <span class="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-sm font-medium text-emerald-700">집계 포함</span>
