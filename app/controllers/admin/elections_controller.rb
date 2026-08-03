@@ -253,16 +253,23 @@ module Admin
 
     def prepare_show
       @election_contests = @election.election_contests.includes(election_candidates: { photo_attachment: :blob }).order(:position)
-      @election_sessions = @election.election_sessions.includes(:teacher, participant_group: :participant_slots).order(:created_at)
+      @election_sessions = @election.election_sessions
+        .includes(:teacher, :election_voters, participant_group: :participant_slots, classroom: :students)
+        .order(:created_at)
       @election_session = @election.election_sessions.build(operation_mode: :supervised)
-      assigned_participant_group_ids = @election_sessions.map(&:participant_group_id)
-      @participant_groups = ParticipantGroup
-        .joins(:user)
-        .includes(:user, :participant_slots)
-        .school_election
-        .where(school: @election.school)
-        .where.not(id: assigned_participant_group_ids)
-        .order(:grade, :class_label, "users.name", "users.email", :name)
+      assigned_classroom_ids = @election.election_sessions
+        .where(status: %i[draft in_progress])
+        .where.not(classroom_id: nil)
+        .select(:classroom_id)
+      @participant_groups = Classroom
+        .where(school: @election.school, active: true)
+        .where.not(teacher_id: nil)
+        .joins(:students)
+        .where(students: { active: true })
+        .where.not(id: assigned_classroom_ids)
+        .includes(:teacher, :students)
+        .distinct
+        .order(:school_year, :grade, :class_number)
       @election_status_report = ::Elections::StatusReport.new(election: @election).to_h
     end
 

@@ -40,8 +40,7 @@ module Elections
 
     def broadcast_sessions
       sessions = election.election_sessions
-        .where.not(participant_group_id: nil)
-        .includes(:teacher, :participant_group)
+        .includes(:teacher, :election_voters, participant_group: :participant_slots, classroom: :students)
         .order(:created_at)
 
       Turbo::StreamsChannel.broadcast_replace_to(
@@ -53,19 +52,24 @@ module Elections
           election: election,
           election_sessions: sessions,
           election_session: election.election_sessions.build(operation_mode: :supervised),
-          participant_groups: available_participant_groups(sessions)
+          participant_groups: available_classrooms(sessions)
         }
       )
     end
 
-    def available_participant_groups(sessions)
-      assigned_participant_group_ids = sessions.map(&:participant_group_id)
-      ParticipantGroup
-        .joins(:user)
-        .includes(:user)
-        .school_election
-        .where.not(id: assigned_participant_group_ids)
-        .order(:grade, :class_label, "users.name", "users.email", :name)
+    def available_classrooms(sessions)
+      assigned_classroom_ids = sessions
+        .select { |session| session.draft? || session.in_progress? }
+        .filter_map(&:classroom_id)
+      Classroom
+        .where(school: election.school, active: true)
+        .where.not(teacher_id: nil)
+        .joins(:students)
+        .where(students: { active: true })
+        .where.not(id: assigned_classroom_ids)
+        .includes(:teacher, :students)
+        .distinct
+        .order(:school_year, :grade, :class_number)
     end
   end
 end

@@ -10,13 +10,13 @@ module Admin
         return
       end
 
-      participant_group = assignable_participant_groups.find_by(id: election_session_params[:participant_group_id])
+      classroom = assignable_classrooms.find_by(id: election_session_params[:classroom_id])
       @election_session = @election.election_sessions.build(
-        participant_group: participant_group,
-        teacher: participant_group&.user,
+        classroom: classroom,
+        teacher: classroom&.teacher,
         operation_mode: :supervised
       )
-      @election_session.errors.add(:participant_group, "must be a school election participant group") if participant_group.blank?
+      @election_session.errors.add(:classroom, "is not available for assignment") if classroom.blank?
 
       if @election_session.save
         redirect_to admin_election_path(@election), notice: "학급 세션을 배정했습니다."
@@ -33,17 +33,17 @@ module Admin
         return
       end
 
-      participant_group_ids = Array(params[:participant_group_ids]).reject(&:blank?)
-      if participant_group_ids.blank?
+      classroom_ids = Array(params[:classroom_ids]).reject(&:blank?).uniq
+      if classroom_ids.blank?
         respond_to_assignment_failure("배정할 학급을 선택하세요.")
         return
       end
 
       created_count = 0
-      assignable_participant_groups.where(id: participant_group_ids).find_each do |participant_group|
+      assignable_classrooms.where(id: classroom_ids).find_each do |classroom|
         election_session = @election.election_sessions.build(
-          participant_group: participant_group,
-          teacher: participant_group.user,
+          classroom: classroom,
+          teacher: classroom.teacher,
           operation_mode: :supervised,
           status: :draft
         )
@@ -86,12 +86,12 @@ module Admin
       end
 
       sessions = @election.election_sessions
-        .joins(:participant_group)
-        .where(participant_groups: { grade: grade })
+        .includes(:classroom, :participant_group)
+        .select { |session| (session.classroom || session.participant_group)&.grade == grade }
 
       deleted_count = 0
       ElectionSession.transaction do
-        sessions.find_each do |session|
+        sessions.each do |session|
           session.destroy!
           deleted_count += 1
         end
@@ -129,16 +129,11 @@ module Admin
 
     def prepare_show
       @election_contests = @election.election_contests.includes(:election_candidates).order(:position)
-      @election_sessions = @election.election_sessions.includes(:teacher, participant_group: :participant_slots).order(:created_at)
+      @election_sessions = @election.election_sessions
+        .includes(:teacher, :election_voters, participant_group: :participant_slots, classroom: :students)
+        .order(:created_at)
       @election_session ||= @election.election_sessions.build(operation_mode: :supervised)
-      assigned_participant_group_ids = @election_sessions.map(&:participant_group_id)
-      @participant_groups = ParticipantGroup
-        .joins(:user)
-        .includes(:user, :participant_slots)
-        .school_election
-        .where(school: @election.school)
-        .where.not(id: assigned_participant_group_ids)
-        .order(:grade, :class_label, "users.name", "users.email", :name)
+      @participant_groups = assignable_classrooms.includes(:teacher, :students)
       @election_status_report = ::Elections::StatusReport.new(election: @election).to_h
     end
 
@@ -188,12 +183,19 @@ module Admin
       ], status: status
     end
 
-    def assignable_participant_groups
-      assigned_participant_group_ids = @election.election_sessions.select(:participant_group_id)
-      ParticipantGroup
-        .school_election
-        .where(school: @election.school)
-        .where.not(id: assigned_participant_group_ids)
+    def assignable_classrooms
+      assigned_classroom_ids = @election.election_sessions
+        .where(status: %i[draft in_progress])
+        .where.not(classroom_id: nil)
+        .select(:classroom_id)
+      Classroom
+        .where(school: @election.school, active: true)
+        .where.not(teacher_id: nil)
+        .joins(:students)
+        .where(students: { active: true })
+        .where.not(id: assigned_classroom_ids)
+        .distinct
+        .order(:school_year, :grade, :class_number)
     end
 
     def destroyable_sessions?
@@ -205,7 +207,7 @@ module Admin
     end
 
     def election_session_params
-      params.require(:election_session).permit(:participant_group_id)
+      params.require(:election_session).permit(:classroom_id)
     end
   end
 end

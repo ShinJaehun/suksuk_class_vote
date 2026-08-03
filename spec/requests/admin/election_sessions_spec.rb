@@ -8,13 +8,13 @@ RSpec.describe "Admin election sessions", type: :request do
     it "creates a supervised election session for admins" do
       election = create(:election)
       teacher = create(:user)
-      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school)
+      classroom = create_assignable_classroom(election: election, teacher: teacher)
       sign_in create(:user, :admin)
 
       expect do
         post admin_election_election_sessions_path(election), params: {
           election_session: {
-            participant_group_id: participant_group.id
+            classroom_id: classroom.id
           }
         }
       end.to change(election.election_sessions, :count).by(1)
@@ -23,24 +23,25 @@ RSpec.describe "Admin election sessions", type: :request do
       session = election.election_sessions.last
       expect(session).to have_attributes(
         teacher: teacher,
-        participant_group: participant_group,
+        classroom: classroom,
+        participant_group: nil,
         operation_mode: "supervised"
       )
       expect(session).to be_draft
     end
 
-    it "ignores submitted teacher ids and uses the participant group teacher" do
+    it "ignores submitted teacher ids and uses the classroom teacher" do
       election = create(:election)
       admin = create(:user, :admin)
       teacher = create(:user)
-      participant_group = create(:participant_group, :school_election, user: teacher, school: election.school)
+      classroom = create_assignable_classroom(election: election, teacher: teacher)
       sign_in admin
 
       expect do
         post admin_election_election_sessions_path(election), params: {
           election_session: {
             teacher_id: admin.id,
-            participant_group_id: participant_group.id
+            classroom_id: classroom.id
           }
         }
       end.to change(election.election_sessions, :count).by(1)
@@ -48,17 +49,17 @@ RSpec.describe "Admin election sessions", type: :request do
       expect(election.election_sessions.last.teacher).to eq(teacher)
     end
 
-    it "shows validation errors without creating duplicate participant group assignments" do
+    it "shows validation errors without creating duplicate classroom assignments" do
       election = create(:election)
       teacher = create(:user)
-      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school)
-      create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
+      classroom = create_assignable_classroom(election: election, teacher: teacher)
+      create(:election_session, election: election, teacher: teacher, participant_group: nil, classroom: classroom)
       sign_in create(:user, :admin)
 
       expect do
         post admin_election_election_sessions_path(election), params: {
           election_session: {
-            participant_group_id: participant_group.id
+            classroom_id: classroom.id
           }
         }
       end.not_to change(election.election_sessions, :count)
@@ -66,10 +67,33 @@ RSpec.describe "Admin election sessions", type: :request do
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.body).to include("학급 세션을 배정할 수 없습니다.")
       expect(response.body).to include(teacher.name)
-      expect(response.body).to include(participant_group.name)
+      expect(response.body).to include(classroom.class_number.to_s)
     end
 
-    it "shows validation errors for teacher personal participant groups" do
+    it "allows assignment when the same classroom has only a historical session" do
+      election = create(:election)
+      teacher = create(:user)
+      classroom = create_assignable_classroom(election: election, teacher: teacher)
+      create(
+        :election_session,
+        election: election,
+        teacher: teacher,
+        participant_group: nil,
+        classroom: classroom,
+        status: :stopped
+      )
+      sign_in create(:user, :admin)
+
+      expect do
+        post admin_election_election_sessions_path(election), params: {
+          election_session: { classroom_id: classroom.id }
+        }
+      end.to change(election.election_sessions, :count).by(1)
+
+      expect(election.election_sessions.order(:created_at).last).to be_draft
+    end
+
+    it "does not create a new legacy participant group session" do
       election = create(:election)
       teacher = create(:user, name: "담당 교사")
       participant_group = create(:participant_group, :with_participant_slot, user: teacher, name: "개인 명단")
@@ -88,17 +112,38 @@ RSpec.describe "Admin election sessions", type: :request do
       expect(response.body).not_to include("개인 명단")
     end
 
+    it "rejects classrooms outside the eligible assignment scope" do
+      election = create(:election)
+      other_school_classroom = create(:classroom, :with_teacher, school: create(:school))
+      create(:student, classroom: other_school_classroom)
+      inactive_classroom = create_assignable_classroom(election: election, teacher: create(:user), active: false)
+      teacherless_classroom = create(:classroom, school: election.school)
+      create(:student, classroom: teacherless_classroom)
+      empty_classroom = create(:classroom, :with_teacher, school: election.school)
+      sign_in create(:user, :admin)
+
+      [ other_school_classroom, inactive_classroom, teacherless_classroom, empty_classroom ].each do |classroom|
+        expect do
+          post admin_election_election_sessions_path(election), params: {
+            election_session: { classroom_id: classroom.id }
+          }
+        end.not_to change(ElectionSession, :count)
+
+        expect(response).to have_http_status(:unprocessable_content)
+      end
+    end
+
     it "does not allow teachers to create election sessions" do
       election = create(:election)
       teacher = create(:user)
-      participant_group = create(:participant_group, :with_participant_slot, user: teacher)
+      classroom = create_assignable_classroom(election: election, teacher: teacher)
       sign_in teacher
 
       expect do
         post admin_election_election_sessions_path(election), params: {
           election_session: {
             teacher_id: teacher.id,
-            participant_group_id: participant_group.id
+            classroom_id: classroom.id
           }
         }
       end.not_to change(ElectionSession, :count)
@@ -109,14 +154,14 @@ RSpec.describe "Admin election sessions", type: :request do
     it "does not create election sessions after the election starts" do
       election = create(:election, status: :in_progress)
       teacher = create(:user)
-      participant_group = create(:participant_group, :with_participant_slot, user: teacher)
+      classroom = create_assignable_classroom(election: election, teacher: teacher)
       sign_in create(:user, :admin)
 
       expect do
         post admin_election_election_sessions_path(election), params: {
           election_session: {
             teacher_id: teacher.id,
-            participant_group_id: participant_group.id
+            classroom_id: classroom.id
           }
         }
       end.not_to change(ElectionSession, :count)
@@ -128,14 +173,14 @@ RSpec.describe "Admin election sessions", type: :request do
     it "does not create election sessions after the election is closed" do
       election = create(:election, status: :closed)
       teacher = create(:user)
-      participant_group = create(:participant_group, :with_participant_slot, user: teacher)
+      classroom = create_assignable_classroom(election: election, teacher: teacher)
       sign_in create(:user, :admin)
 
       expect do
         post admin_election_election_sessions_path(election), params: {
           election_session: {
             teacher_id: teacher.id,
-            participant_group_id: participant_group.id
+            classroom_id: classroom.id
           }
         }
       end.not_to change(ElectionSession, :count)
@@ -147,12 +192,12 @@ RSpec.describe "Admin election sessions", type: :request do
     it "redirects guests to sign in" do
       election = create(:election)
       teacher = create(:user)
-      participant_group = create(:participant_group, :with_participant_slot, user: teacher)
+      classroom = create_assignable_classroom(election: election, teacher: teacher)
 
       post admin_election_election_sessions_path(election), params: {
         election_session: {
           teacher_id: teacher.id,
-          participant_group_id: participant_group.id
+          classroom_id: classroom.id
         }
       }
 
@@ -161,37 +206,39 @@ RSpec.describe "Admin election sessions", type: :request do
   end
 
   describe "POST /admin/elections/:election_id/sessions/bulk_create" do
-    it "creates supervised draft sessions for selected participant groups" do
+    it "creates supervised draft sessions for selected classrooms" do
       election = create(:election)
-      teacher = create(:user)
-      first_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school, grade: 5, class_label: "1")
-      second_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school, grade: 5, class_label: "2")
-      unselected_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school, grade: 5, class_label: "3")
+      first_teacher = create(:user)
+      second_teacher = create(:user)
+      first_classroom = create_assignable_classroom(election: election, teacher: first_teacher, class_number: 1)
+      second_classroom = create_assignable_classroom(election: election, teacher: second_teacher, class_number: 2)
+      unselected_classroom = create_assignable_classroom(election: election, teacher: create(:user), class_number: 3)
       sign_in create(:user, :admin)
 
       expect do
         post bulk_create_admin_election_election_sessions_path(election), params: {
-          participant_group_ids: [ first_group.id, second_group.id ]
+          classroom_ids: [ first_classroom.id, second_classroom.id, first_classroom.id ]
         }
       end.to change(election.election_sessions, :count).by(2)
 
       expect(response).to redirect_to(admin_election_path(election))
       expect(flash[:notice]).to eq("2개 학급 세션을 배정했습니다.")
-      expect(election.election_sessions.pluck(:participant_group_id)).to contain_exactly(first_group.id, second_group.id)
-      expect(election.election_sessions.pluck(:participant_group_id)).not_to include(unselected_group.id)
-      expect(election.election_sessions.pluck(:teacher_id)).to all(eq(teacher.id))
+      expect(election.election_sessions.pluck(:classroom_id)).to contain_exactly(first_classroom.id, second_classroom.id)
+      expect(election.election_sessions.pluck(:classroom_id)).not_to include(unselected_classroom.id)
+      expect(election.election_sessions.pluck(:teacher_id)).to contain_exactly(first_teacher.id, second_teacher.id)
+      expect(election.election_sessions.pluck(:participant_group_id)).to all(be_nil)
       expect(election.election_sessions.map(&:status)).to all(eq("draft"))
     end
 
     it "replaces election overview sections for turbo stream requests" do
       election = create(:election)
       teacher = create(:user)
-      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school)
+      classroom = create_assignable_classroom(election: election, teacher: teacher)
       sign_in create(:user, :admin)
 
       expect do
         post bulk_create_admin_election_election_sessions_path(election),
-             params: { participant_group_ids: [ participant_group.id ] },
+             params: { classroom_ids: [ classroom.id ] },
              headers: turbo_stream_headers
       end.to change(election.election_sessions, :count).by(1)
 
@@ -202,33 +249,34 @@ RSpec.describe "Admin election sessions", type: :request do
       expect_turbo_replace_for(election, :admin_sessions)
     end
 
-    it "ignores participant groups from other schools" do
+    it "ignores classrooms from other schools" do
       election = create(:election)
       teacher = create(:user)
-      same_school_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school, grade: 6, class_label: "1")
-      other_school_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: create(:school), grade: 6, class_label: "1")
+      same_school_classroom = create_assignable_classroom(election: election, teacher: teacher)
+      other_school_classroom = create(:classroom, :with_teacher, school: create(:school))
+      create(:student, classroom: other_school_classroom)
       sign_in create(:user, :admin)
 
       expect do
         post bulk_create_admin_election_election_sessions_path(election), params: {
-          participant_group_ids: [ same_school_group.id, other_school_group.id ]
+          classroom_ids: [ same_school_classroom.id, other_school_classroom.id ]
         }
       end.to change(election.election_sessions, :count).by(1)
 
       expect(response).to redirect_to(admin_election_path(election))
-      expect(election.election_sessions.sole.participant_group).to eq(same_school_group)
+      expect(election.election_sessions.sole.classroom).to eq(same_school_classroom)
     end
 
     it "does not create duplicate sessions for already assigned classes" do
       election = create(:election)
       teacher = create(:user)
-      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school)
-      create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
+      classroom = create_assignable_classroom(election: election, teacher: teacher)
+      create(:election_session, election: election, teacher: teacher, participant_group: nil, classroom: classroom)
       sign_in create(:user, :admin)
 
       expect do
         post bulk_create_admin_election_election_sessions_path(election), params: {
-          participant_group_ids: [ participant_group.id ]
+          classroom_ids: [ classroom.id ]
         }
       end.not_to change(election.election_sessions, :count)
 
@@ -242,7 +290,7 @@ RSpec.describe "Admin election sessions", type: :request do
 
       expect do
         post bulk_create_admin_election_election_sessions_path(election), params: {
-          participant_group_ids: [ "" ]
+          classroom_ids: [ "" ]
         }
       end.not_to change(election.election_sessions, :count)
 
@@ -250,15 +298,29 @@ RSpec.describe "Admin election sessions", type: :request do
       expect(flash[:alert]).to eq("배정할 학급을 선택하세요.")
     end
 
-    it "does not create sessions after the election starts" do
-      election = create(:election, status: :in_progress)
-      teacher = create(:user)
-      participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school)
+    it "does not create legacy sessions from participant group ids" do
+      election = create(:election)
+      participant_group = create(:participant_group, :school_election, :with_participant_slot, school: election.school)
       sign_in create(:user, :admin)
 
       expect do
         post bulk_create_admin_election_election_sessions_path(election), params: {
           participant_group_ids: [ participant_group.id ]
+        }
+      end.not_to change(ElectionSession, :count)
+
+      expect(flash[:alert]).to eq("배정할 학급을 선택하세요.")
+    end
+
+    it "does not create sessions after the election starts" do
+      election = create(:election, status: :in_progress)
+      teacher = create(:user)
+      classroom = create_assignable_classroom(election: election, teacher: teacher)
+      sign_in create(:user, :admin)
+
+      expect do
+        post bulk_create_admin_election_election_sessions_path(election), params: {
+          classroom_ids: [ classroom.id ]
         }
       end.not_to change(ElectionSession, :count)
 
@@ -554,6 +616,22 @@ RSpec.describe "Admin election sessions", type: :request do
     teacher = create(:user)
     participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school)
     create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
+  end
+
+  def create_assignable_classroom(election:, teacher:, class_number: 1, active: true)
+    unless teacher.school == election.school
+      create(:school_membership, school: election.school, user: teacher)
+      teacher.reload
+    end
+    classroom = create(
+      :classroom,
+      school: election.school,
+      teacher: teacher,
+      class_number: class_number,
+      active: active
+    )
+    create(:student, classroom: classroom)
+    classroom
   end
 
   def turbo_stream_headers

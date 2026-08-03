@@ -26,13 +26,18 @@ RSpec.describe Elections::BroadcastAdminOverview do
       expect(broadcasts.join).to include(participant_group.display_name)
     end
 
-    it "broadcasts without rendering classroom sessions in the legacy assignment partial" do
+    it "broadcasts classroom and participant group sessions together" do
       election = create(:election)
-      classroom = create(:classroom)
+      legacy_teacher = create(:user)
+      participant_group = create(:participant_group, :school_election, user: legacy_teacher)
+      create(:participant_slot, participant_group: participant_group)
+      create(:election_session, election: election, teacher: legacy_teacher, participant_group: participant_group)
+      classroom = create(:classroom, :with_teacher, school: election.school, grade: 5, class_number: 2)
+      create(:student, classroom: classroom)
       create(
         :election_session,
         election: election,
-        teacher: create(:user),
+        teacher: classroom.teacher,
         participant_group: nil,
         classroom: classroom
       )
@@ -44,6 +49,8 @@ RSpec.describe Elections::BroadcastAdminOverview do
       expect(broadcasts.join).to include(ActionView::RecordIdentifier.dom_id(election, :admin_summary))
       expect(broadcasts.join).to include(ActionView::RecordIdentifier.dom_id(election, :admin_status_report))
       expect(broadcasts.join).to include(ActionView::RecordIdentifier.dom_id(election, :admin_sessions))
+      expect(broadcasts.join).to include(participant_group.display_name)
+      expect(broadcasts.join).to include("#{classroom.school_year}학년도 #{classroom.grade}학년 #{classroom.class_number}반")
     end
   end
 
