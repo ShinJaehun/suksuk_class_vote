@@ -470,10 +470,17 @@ PollParticipant를 통해 간접 연결하며, runtime 전환과 data backfill�
 PollParticipant snapshot으로 만들고 PollProgress, option/contest tally, `poll_started` event를
 같은 session에 연결한다. PollParticipation은 시작 시 만들지 않으며 Poll 정의 status도 변경하지
 않는다. PollSession 전용 nested POST route와 controller는 service만 호출하며 목록은 권한 있는
-draft session의 시작과 session별 상태 표시를 제공한다. 진행·투표·중단·종료·결과 runtime과
-Classroom·Student 관리 UI는 후속 단계다. 진행 중 session에는 PollParticipant snapshot과 PollProgress만
+draft session의 시작과 session별 상태 표시를 제공한다. 진행·투표·중단·종료·결과 runtime은
+후속 단계다. 진행 중 session에는 PollParticipant snapshot과 PollProgress만
 조회하는 읽기 전용 운영 현황 화면을 제공하며 학생별 선택과 tally는 노출하지 않는다. 기존
 ParticipantGroup 기반 `Polls::Start`는 그대로 유지한다.
+
+Classroom·Student 관리 UI는 role 기반 Classroom scope와 일반 페이지 CRUD를 제공한다. admin은 모든
+학교, manager는 소속 학교, 일반 teacher는 자신이 담임인 Classroom과 학생 명단만 관리한다. Student는
+단일 또는 textarea bulk 방식으로 등록하고 hard delete 대신 비활성화·복구한다. 이 자료는 신규 Poll의
+Classroom 선택과 시작 snapshot에 사용하며 ParticipantGroup·ParticipantSlot 변환은 수행하지 않는다.
+다음 단계는 이 관리 흐름을 브라우저에서 검증한 뒤 PollSession ballot 제어, 투표 제출과 참여 상태,
+다음 participant 이동, 중단·종료·결과를 순서대로 연결하는 것이다.
 
 ## 11. 상태 무결성과 운영 이벤트
 

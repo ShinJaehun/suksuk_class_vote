@@ -34,6 +34,7 @@
             <% end %>
             <% if user_signed_in? %>
               <%= link_to "내 투표", polls_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
+              <%= link_to "교실", classrooms_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
               <%= link_to "내 투표자 목록", participant_groups_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
               <% if current_user.admin? %>
                 <%= link_to "교사 관리", admin_teachers_path, class: "text-sm text-stone-600 hover:text-stone-900" %>

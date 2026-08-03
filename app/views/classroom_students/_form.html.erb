@@ -1,0 +1,7 @@
+<%= form_with model: [classroom, student], class: "space-y-5 rounded-md border border-stone-200 bg-white p-6" do |form| %>
+  <% if student.errors.any? %><div class="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><ul class="list-disc pl-5"><% student.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul></div><% end %>
+  <div><%= form.label :number, "번호", class: "block text-sm font-medium" %><%= form.number_field :number, min: 1, class: "mt-1 w-full rounded-md border-stone-300" %></div>
+  <div><%= form.label :name, "이름", class: "block text-sm font-medium" %><%= form.text_field :name, class: "mt-1 w-full rounded-md border-stone-300" %></div>
+  <%= hidden_field_tag :status, params[:status] if student.persisted? %>
+  <%= form.submit student.new_record? ? "학생 등록" : "학생 정보 저장", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+<% end %>

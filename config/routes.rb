@@ -19,6 +19,18 @@ Rails.application.routes.draw do
     end
     resources :poll_options, path: "options", only: %i[new create edit update destroy]
   end
+  resources :classrooms, only: %i[index new create edit update] do
+    resources :students, controller: "classroom_students", only: %i[index new create edit update] do
+      collection do
+        get :bulk_new
+        post :bulk_create
+      end
+      member do
+        patch :deactivate
+        patch :reactivate
+      end
+    end
+  end
   resources :participant_groups, only: %i[index show new create edit update destroy] do
     resources :participant_slots, only: %i[new create edit update destroy]
     resource :bulk_participant_slots, only: %i[new create], controller: "bulk_participant_slots"

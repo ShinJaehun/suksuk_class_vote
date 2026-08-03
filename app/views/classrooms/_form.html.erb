@@ -1,0 +1,29 @@
+<%= form_with model: classroom, class: "space-y-5 rounded-md border border-stone-200 bg-white p-6" do |form| %>
+  <% if classroom.errors.any? %><div class="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><ul class="list-disc pl-5"><% classroom.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul></div><% end %>
+
+  <div>
+    <%= form.label :school_id, "학교", class: "block text-sm font-medium" %>
+    <% if current_user.admin? && classroom.new_record? %>
+      <%= form.collection_select :school_id, @schools, :id, :name, { prompt: "학교 선택" }, class: "mt-1 w-full rounded-md border-stone-300" %>
+    <% else %><p class="mt-1 rounded-md bg-stone-100 px-3 py-2"><%= classroom.school&.name || "학교 미지정" %></p><% end %>
+  </div>
+  <div class="grid gap-4 sm:grid-cols-3">
+    <div><%= form.label :school_year, "학년도", class: "block text-sm font-medium" %><%= form.number_field :school_year, class: "mt-1 w-full rounded-md border-stone-300" %></div>
+    <div><%= form.label :grade, "학년", class: "block text-sm font-medium" %><%= form.number_field :grade, min: 1, class: "mt-1 w-full rounded-md border-stone-300" %></div>
+    <div><%= form.label :class_label, "학급", class: "block text-sm font-medium" %><%= form.text_field :class_label, placeholder: "예: 1, 13, 생활교육실, A", class: "mt-1 w-full rounded-md border-stone-300" %></div>
+  </div>
+  <div>
+    <%= form.label :teacher_id, "담임", class: "block text-sm font-medium" %>
+    <% if current_user.admin? || current_user.school_membership&.manager? %>
+      <% teacher_options = @teachers.map { |teacher| [current_user.admin? ? "#{teacher.school.name} · #{teacher.name}" : teacher.name, teacher.id] } %>
+      <%= form.select :teacher_id, options_for_select(teacher_options, classroom.teacher_id), { include_blank: "담임 미지정" }, class: "mt-1 w-full rounded-md border-stone-300" %>
+      <% if current_user.admin? %><p class="mt-1 text-xs text-stone-500">교사의 소속 학교와 선택한 학교가 같아야 합니다.</p><% end %>
+    <% else %><p class="mt-1 rounded-md bg-stone-100 px-3 py-2"><%= classroom.teacher&.name || "담임 미지정" %></p><% end %>
+  </div>
+  <div>
+    <% if current_user.admin? || current_user.school_membership&.manager? %>
+      <label class="inline-flex items-center gap-2"><%= form.check_box :active %><span class="text-sm font-medium">활성 교실</span></label>
+    <% else %><p class="text-sm font-medium">상태: <%= classroom.active? ? "활성" : "비활성" %></p><% end %>
+  </div>
+  <%= form.submit classroom.new_record? ? "교실 생성" : "설정 저장", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+<% end %>

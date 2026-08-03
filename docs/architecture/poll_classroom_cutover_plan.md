@@ -199,6 +199,12 @@ foundation rollback은 PollSession row가 있으면 기록 삭제 대신 명시�
 - 진행 중 session은 nested GET 운영 현황에서 PollParticipant snapshot, PollProgress의 현재 학생과
   ballot 상태, participation 기반 처리·대기 수만 읽기 전용으로 표시한다. 학생별 선택과 tally는
   노출하지 않으며 상태 변경 action은 아직 제공하지 않는다.
+- role 기반 Classroom 목록·생성·설정과 Student active/inactive/all 명단, 단일 등록·수정·비활성화·
+  복구 및 textarea 기반 원자적 bulk 등록 화면을 제공한다. 일반 teacher는 자신의 Classroom만
+  관리하며 ParticipantGroup 자료를 변환하거나 변경하지 않는다.
+- 다음 단계는 실제 브라우저에서 Classroom 생성→Student 등록→Poll 생성·시작→운영 현황을 확인한 뒤
+  PollSession ballot open/lock, 투표 제출, absent/abstained, 다음 participant, 중단·종료·결과 순으로
+  runtime을 전환하는 것이다.
 - legacy Poll 시작 경로는 실제 데이터 전환 완료 전까지 별도 분기로 유지한다.
 
 ### 단계 5: 운영 화면과 결과
