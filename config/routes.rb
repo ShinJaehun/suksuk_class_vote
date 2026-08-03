@@ -14,6 +14,9 @@ Rails.application.routes.draw do
     post :close, on: :member
     post :stop, on: :member
     post :archive, on: :member
+    resources :poll_sessions, only: [] do
+      post :start, on: :member
+    end
     resources :poll_options, path: "options", only: %i[new create edit update destroy]
   end
   resources :participant_groups, only: %i[index show new create edit update destroy] do

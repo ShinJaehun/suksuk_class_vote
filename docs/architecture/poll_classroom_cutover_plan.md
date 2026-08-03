@@ -9,8 +9,8 @@
 목표는 기존 Poll ID와 진행·집계 기록을 손상하지 않고 신규 경로를 전환한 뒤,
 Election과 Poll 양쪽의 의존을 모두 제거하여 `ParticipantGroup`·`ParticipantSlot` table을
 삭제할 수 있게 하는 것이다. 현재 PollSession foundation, 실행 기록의 nullable 연결, Poll 정의와
-최초 draft PollSession 생성 화면과 `Polls::StartSession` backend까지 준비됐다. 기존 Poll runtime은
-변경하지 않으며 새 시작 service도 controller/view에는 아직 연결하지 않는다.
+최초 draft PollSession 생성 화면과 `Polls::StartSession` backend, 전용 nested POST start route와
+목록 시작 UI까지 연결됐다. 기존 ParticipantGroup Poll start/runtime은 변경하지 않는다.
 
 ## 2. 현재 구조
 
@@ -193,7 +193,9 @@ foundation rollback은 PollSession row가 있으면 기록 삭제 대신 명시�
 - `source_participant_slot_id`는 null이며 Student source FK를 추가하지 않는다.
 - progress, option/contest tally, `poll_started` event를 같은 PollSession에 연결하고 공통 시작 시각을
   기록한 뒤 session만 in_progress로 전환한다. Poll 정의 status는 변경하지 않는다.
-- controller/action과 시작 UI, 진행·투표·중단·종료 runtime 연결은 후속 단계다.
+- `PollSessionsController#start`는 parent Poll과 PollSession ID를 함께 조회하고 policy 확인 후
+  service만 호출한다. 목록은 모든 session 상태를 표시하고 권한 있는 draft에만 POST 시작 버튼을 둔다.
+- 시작 뒤 목록에서 in_progress를 표시하지만 진행·투표·중단·종료·결과 runtime은 후속 단계다.
 - legacy Poll 시작 경로는 실제 데이터 전환 완료 전까지 별도 분기로 유지한다.
 
 ### 단계 5: 운영 화면과 결과

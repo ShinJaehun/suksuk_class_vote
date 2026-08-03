@@ -13,6 +13,15 @@ module PollsHelper
     "#{classroom.school.name} · #{classroom_name} · #{teacher_name} · #{student_count}명"
   end
 
+  def poll_session_status_label(poll_session)
+    {
+      "draft" => "실행 전",
+      "in_progress" => "진행 중",
+      "closed" => "종료",
+      "stopped" => "중단"
+    }.fetch(poll_session.status, poll_session.status)
+  end
+
   private
 
   def poll_activity_badge_class(poll)
