@@ -9,7 +9,8 @@
 목표는 기존 Poll ID와 진행·집계 기록을 손상하지 않고 신규 경로를 전환한 뒤,
 Election과 Poll 양쪽의 의존을 모두 제거하여 `ParticipantGroup`·`ParticipantSlot` table을
 삭제할 수 있게 하는 것이다. 현재 PollSession foundation, 실행 기록의 nullable 연결, Poll 정의와
-최초 draft PollSession을 원자적으로 만드는 service까지 추가됐으며 기존 Poll runtime은 변경하지 않는다.
+최초 draft PollSession 생성 service 및 Classroom 기반 new/create 화면까지 연결됐다. 기존 Poll
+runtime은 변경하지 않는다.
 
 ## 2. 현재 구조
 
@@ -178,8 +179,10 @@ foundation rollback은 PollSession row가 있으면 기록 삭제 대신 명시�
 - active Classroom과 active Student를 확인하고 담임 teacher, 같은 학교 manager, global admin의
   운영 권한을 검증한다. operator와 Classroom teacher의 동일성은 강제하지 않는다.
 - 학급·운영자 이름 snapshot을 caller인 service가 명시적으로 저장한다.
-- controller와 화면은 아직 legacy 생성 흐름이며, 연결 단계에서 신규 ParticipantGroup Poll 생성을
-  차단한다. 기존 Poll 조회/runtime은 계속 유지한다.
+- `GET /polls/new`는 권한별 eligible Classroom과 단일 contest/option 입력을 제공하고,
+  `POST /polls`는 service만 호출한다. 신규 ParticipantGroup Poll 생성은 차단됐다.
+- 새 School 기반 draft는 목록에서 학급·operator snapshot과 “실행 준비 중”만 표시하며 legacy
+  시작·진행·결과 action을 제공하지 않는다. 기존 ParticipantGroup Poll 조회/runtime은 유지한다.
 
 ### 단계 4: PollSession 시작
 

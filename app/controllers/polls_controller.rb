@@ -3,7 +3,7 @@ class PollsController < ApplicationController
   before_action :set_poll, only: %i[show ballot start open_current_participant_ballot submit_vote record_participation_outcome record_next_participant_absent advance_current_participant resume_current_participant close stop archive destroy]
 
   def index
-    @polls = policy_scope(Poll).active_list.includes(:participant_group, :user).order(created_at: :desc)
+    @polls = policy_scope(Poll).active_list.includes(:participant_group, :poll_sessions, :user).order(created_at: :desc)
     @poll_voter_counts = voter_counts_for(@polls)
     @assigned_election_sessions = assigned_election_sessions
     @election_session_voter_counts = election_session_voter_counts_for(@assigned_election_sessions)
@@ -216,18 +216,29 @@ class PollsController < ApplicationController
   def new
     @poll = Poll.new
     authorize Poll
-    set_selectable_participant_groups
+    prepare_new_poll_form
   end
 
   def create
-    @poll = current_user.polls.build(poll_params.except(:participant_group_id))
-    @poll.participant_group = selectable_participant_groups.find_by(id: poll_params[:participant_group_id])
-    authorize @poll
+    authorize Poll
+    classroom = Classroom.find_by(id: params[:classroom_id])
 
-    if @poll.save
-      redirect_to @poll, notice: "투표를 생성했습니다."
+    unless classroom
+      prepare_failed_poll_form(["선택한 학급을 찾을 수 없습니다."])
+      render :new, status: :unprocessable_entity
+      return
+    end
+
+    result = Polls::CreateDefinitionWithSession.new(
+      actor: current_user,
+      classroom: classroom,
+      poll_attributes: poll_params
+    ).call
+
+    if result.success?
+      redirect_to polls_path, notice: "투표와 학급 실행 초안을 만들었습니다."
     else
-      set_selectable_participant_groups
+      prepare_failed_poll_form(result.errors)
       render :new, status: :unprocessable_entity
     end
   end
@@ -294,17 +305,54 @@ class PollsController < ApplicationController
       .limit(10)
   end
 
-  def set_selectable_participant_groups
-    @selectable_participant_groups = selectable_participant_groups
+  def prepare_new_poll_form
+    @available_classrooms = available_classrooms
+    @available_classroom_student_counts = active_student_counts_for(@available_classrooms)
+    form_attributes = params[:poll].present? ? poll_params.to_h.deep_symbolize_keys : {}
+    @poll = Poll.new(form_attributes.slice(:title, :kind))
+    contest = collection_values(form_attributes[:poll_contests_attributes]).first || {}
+    @contest_title = contest[:title].presence || "기본"
+    @poll_option_rows = collection_values(contest[:poll_options_attributes])
+    @poll_option_rows = [{ number: 1, name: "" }, { number: 2, name: "" }] if @poll_option_rows.empty?
   end
 
-  def selectable_participant_groups
-    policy_scope(ParticipantGroup)
-      .teacher_personal
-      .left_joins(:participant_slots)
-      .group("participant_groups.id")
-      .having("COUNT(participant_slots.id) > 0")
-      .order(:name)
+  def prepare_failed_poll_form(messages)
+    prepare_new_poll_form
+    messages.each { |message| @poll.errors.add(:base, message) }
+  end
+
+  def available_classrooms
+    scope = Classroom
+      .joins(:school)
+      .where(active: true)
+      .where(id: Student.where(active: true).select(:classroom_id))
+      .includes(:school, :teacher)
+
+    scope = if current_user.admin?
+              scope
+            elsif current_user.teacher? && current_user.school_membership&.manager?
+              scope.where(school_id: current_user.school_membership.school_id)
+            elsif current_user.teacher? && current_user.school_membership.present?
+              scope.where(
+                school_id: current_user.school_membership.school_id,
+                teacher_id: current_user.id
+              )
+            else
+              scope.none
+            end
+
+    scope.order("schools.name ASC").merge(Classroom.in_school_order)
+  end
+
+  def active_student_counts_for(classrooms)
+    Student
+      .where(classroom_id: classrooms.map(&:id), active: true)
+      .group(:classroom_id)
+      .count
+  end
+
+  def collection_values(value)
+    value.is_a?(Hash) ? value.values : Array(value)
   end
 
   def voter_counts_for(polls)
@@ -363,6 +411,13 @@ class PollsController < ApplicationController
   end
 
   def poll_params
-    params.require(:poll).permit(:title, :kind, :participant_group_id)
+    params.require(:poll).permit(
+      :title,
+      :kind,
+      poll_contests_attributes: [
+        :title,
+        { poll_options_attributes: %i[number name] }
+      ]
+    )
   end
 end

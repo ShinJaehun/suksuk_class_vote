@@ -7,6 +7,12 @@ module PollsHelper
     content_tag(:span, poll.display_status, class: "rounded-md border px-2 py-1 text-sm font-medium #{poll_status_badge_class(poll)}")
   end
 
+  def poll_classroom_option_label(classroom, student_count:)
+    teacher_name = classroom.teacher&.name.presence || "담임 미지정"
+    classroom_name = "#{classroom.school_year}학년도 #{classroom.grade}학년 #{classroom.formatted_class_label}"
+    "#{classroom.school.name} · #{classroom_name} · #{teacher_name} · #{student_count}명"
+  end
+
   private
 
   def poll_activity_badge_class(poll)

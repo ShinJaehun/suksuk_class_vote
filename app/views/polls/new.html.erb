@@ -16,7 +16,27 @@
     </div>
   <% end %>
 
+  <% if @available_classrooms.any? %>
   <%= form_with model: @poll, class: "space-y-4 rounded-md border border-stone-200 bg-white p-4" do |form| %>
+    <div class="space-y-1">
+      <%= label_tag :classroom_id, "학급", class: "text-sm font-medium text-stone-700" %>
+      <%= select_tag :classroom_id,
+                     options_for_select(
+                       @available_classrooms.map { |classroom|
+                         [
+                           poll_classroom_option_label(
+                             classroom,
+                             student_count: @available_classroom_student_counts.fetch(classroom.id, 0)
+                           ),
+                           classroom.id
+                         ]
+                       },
+                       params[:classroom_id]
+                     ),
+                     prompt: "학급을 선택하세요",
+                     class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+    </div>
+
     <div class="space-y-1">
       <%= form.label :title, "투표 이름", class: "text-sm font-medium text-stone-700" %>
       <%= form.text_field :title, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
@@ -31,13 +51,36 @@
     </div>
 
     <div class="space-y-1">
-      <%= form.label :participant_group_id, "투표자 목록", class: "text-sm font-medium text-stone-700" %>
-      <%= form.select :participant_group_id,
-                      @selectable_participant_groups.map { |participant_group| ["#{participant_group.name} (투표자 #{participant_group.participant_slots.size}명)", participant_group.id] },
-                      { prompt: "투표자 목록을 선택하세요" },
-                      class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+      <%= label_tag "poll_poll_contests_attributes_0_title", "항목 이름", class: "text-sm font-medium text-stone-700" %>
+      <%= text_field_tag "poll[poll_contests_attributes][0][title]",
+                         @contest_title,
+                         id: "poll_poll_contests_attributes_0_title",
+                         class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
     </div>
 
-    <%= form.submit "투표 생성", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+    <fieldset class="space-y-3">
+      <legend class="text-sm font-medium text-stone-700">선택지</legend>
+      <% @poll_option_rows.each_with_index do |option, index| %>
+        <div class="grid gap-2 sm:grid-cols-[8rem_1fr]">
+          <%= number_field_tag "poll[poll_contests_attributes][0][poll_options_attributes][#{index}][number]",
+                               option[:number],
+                               min: 1,
+                               aria: { label: "선택지 번호" },
+                               class: "rounded-md border border-stone-300 px-3 py-2" %>
+          <%= text_field_tag "poll[poll_contests_attributes][0][poll_options_attributes][#{index}][name]",
+                             option[:name],
+                             aria: { label: "선택지 이름" },
+                             class: "rounded-md border border-stone-300 px-3 py-2" %>
+        </div>
+      <% end %>
+    </fieldset>
+
+    <%= form.submit "투표와 실행 초안 생성", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+  <% end %>
+  <% else %>
+    <div class="rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-800">
+      <p class="font-medium">투표를 만들 수 있는 활성 학급이 없습니다.</p>
+      <p class="mt-1 text-sm">활성 학생이 있는 담당 학급을 먼저 준비해 주세요.</p>
+    </div>
   <% end %>
 </div>

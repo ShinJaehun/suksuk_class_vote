@@ -461,8 +461,10 @@ PollParticipant를 통해 간접 연결하며, runtime 전환과 data backfill�
 
 `Polls::CreateDefinitionWithSession`은 학교 기반 Poll 정의와 최초 Classroom draft PollSession을
 같은 transaction에서 생성한다. active Classroom·Student와 actor의 담임/manager/global admin
-권한을 검증하고 학급·운영자 snapshot을 명시적으로 저장한다. controller와 화면은 아직 이
-service에 연결되지 않았으며 기존 ParticipantGroup Poll 생성·runtime도 그대로 유지한다.
+권한을 검증하고 학급·운영자 snapshot을 명시적으로 저장한다. controller와 화면은 이 service를
+사용하도록 전환됐다. 신규 ParticipantGroup Poll 생성은 차단되고 기존 legacy Poll의
+조회·runtime은 유지된다. 새 draft PollSession은 목록에서 실행 준비 중으로만 표시하며 시작·진행·
+결과 runtime은 아직 제공하지 않는다.
 
 ## 11. 상태 무결성과 운영 이벤트
 

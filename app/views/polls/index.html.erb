@@ -14,6 +14,7 @@
 <% if @polls.any? || @assigned_election_sessions.any? %>
   <ul class="space-y-3">
     <% @polls.each do |poll| %>
+      <% poll_session = poll.poll_sessions.min_by(&:created_at) unless poll.participant_group.present? %>
       <li class="rounded-md border border-stone-200 bg-white p-4">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div class="space-y-1">
@@ -23,19 +24,29 @@
               <%= poll_status_badge(poll) %>
             </div>
             <p class="text-sm text-stone-600">
-              <%= poll.participant_group_display_name || "-" %>(투표자 <%= @poll_voter_counts.fetch(poll.id, 0) %>명)
-              <% if poll.poll_progress&.started_at.present? %>
-                / 투표시작 <%= kst_datetime(poll.poll_progress.started_at) %>
-                <% if poll.poll_progress.closed_at.present? %>
-                  · 투표종료 <%= kst_datetime(poll.poll_progress.closed_at) %>
+              <% if poll.participant_group.present? %>
+                <%= poll.participant_group_display_name || "-" %>(투표자 <%= @poll_voter_counts.fetch(poll.id, 0) %>명)
+                <% if poll.poll_progress&.started_at.present? %>
+                  / 투표시작 <%= kst_datetime(poll.poll_progress.started_at) %>
+                  <% if poll.poll_progress.closed_at.present? %>
+                    · 투표종료 <%= kst_datetime(poll.poll_progress.closed_at) %>
+                  <% end %>
                 <% end %>
+              <% else %>
+                <%= poll_session&.classroom_name_snapshot || "학급 미지정" %>
+                · 운영자 <%= poll_session&.operator_name_snapshot || "미지정" %>
+                · 실행 준비 중
               <% end %>
             </p>
           </div>
 
-          <%= link_to "상세",
-                      poll_path(poll),
-                      class: "text-sm font-medium text-stone-700 underline" %>
+          <% if poll.participant_group.present? %>
+            <%= link_to "상세",
+                        poll_path(poll),
+                        class: "text-sm font-medium text-stone-700 underline" %>
+          <% else %>
+            <span class="text-sm font-medium text-amber-700">PollSession 실행 기능 준비 중</span>
+          <% end %>
         </div>
       </li>
     <% end %>
