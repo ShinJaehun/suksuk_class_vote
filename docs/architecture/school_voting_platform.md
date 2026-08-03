@@ -408,6 +408,9 @@ ElectionSession
 
 ## 10. Poll 목표 구조
 
+현재 Poll runtime을 Classroom·Student로 단계적으로 전환하는 구체적 기준은
+[`poll_classroom_cutover_plan.md`](poll_classroom_cutover_plan.md)를 따른다.
+
 ```text
 Poll
 - school_id
