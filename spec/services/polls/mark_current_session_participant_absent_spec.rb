@@ -37,13 +37,13 @@ RSpec.describe Polls::MarkCurrentSessionParticipantAbsent do
       poll: poll,
       poll_session: poll_session,
       current_poll_participant: current,
-      ballot_status: :ballot_open
+      ballot_status: :ballot_locked
     )
 
     [poll_session, progress, current, other, operator]
   end
 
-  it "marks only the current participant absent and clears the pointer" do
+  it "marks only the current participant absent and keeps the pointer" do
     poll_session, progress, current, other, operator = create_execution
 
     result = described_class.new(actor: operator, poll_session: poll_session).call
@@ -52,7 +52,7 @@ RSpec.describe Polls::MarkCurrentSessionParticipantAbsent do
     expect(current.reload.poll_participation).to be_absent
     expect(other.reload.poll_participation).to be_nil
     expect(progress.reload).to have_attributes(
-      current_poll_participant: nil,
+      current_poll_participant: current,
       ballot_status: "ballot_locked"
     )
     expect(poll_session.poll_events.last).to have_attributes(
@@ -72,6 +72,21 @@ RSpec.describe Polls::MarkCurrentSessionParticipantAbsent do
     expect(current.reload.poll_participation).to be_nil
     expect(other.reload.poll_participation).to be_nil
     expect(progress.reload.current_poll_participant).to be_nil
+  end
+
+  it "requires the ballot to be locked" do
+    poll_session, progress, current, other, operator = create_execution
+    progress.update!(ballot_status: :ballot_open)
+
+    result = described_class.new(actor: operator, poll_session: poll_session).call
+
+    expect(result).not_to be_success
+    expect(current.reload.poll_participation).to be_nil
+    expect(other.reload.poll_participation).to be_nil
+    expect(progress.reload).to have_attributes(
+      ballot_status: "ballot_open",
+      current_poll_participant: current
+    )
   end
 
   it "rejects non-running sessions and unauthorized actors" do

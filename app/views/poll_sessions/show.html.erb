@@ -1,89 +1,151 @@
-<div class="mx-auto max-w-5xl space-y-6">
-  <div>
-    <%= link_to "내 투표 목록으로 돌아가기", polls_path, class: "text-sm font-medium text-stone-700 underline" %>
-    <h1 class="mt-3 text-2xl font-semibold">투표 운영 현황</h1>
-    <p class="mt-1 text-lg font-medium"><%= @poll_session.poll.title %></p>
-    <p class="text-sm text-stone-600"><%= @poll_session.poll.activity_label %></p>
-  </div>
-
-  <section class="rounded-md border border-stone-200 bg-white p-5">
-    <dl class="grid gap-4 sm:grid-cols-2">
-      <div><dt class="text-sm text-stone-500">학급</dt><dd class="font-medium"><%= @poll_session.classroom_name_snapshot %></dd></div>
-      <div><dt class="text-sm text-stone-500">운영자</dt><dd class="font-medium"><%= @poll_session.operator_name_snapshot %></dd></div>
-      <div><dt class="text-sm text-stone-500">상태</dt><dd class="font-medium"><%= poll_session_status_label(@poll_session) %></dd></div>
-      <div>
-        <dt class="text-sm text-stone-500">시작 시각</dt>
-        <dd class="font-medium"><%= @poll_session.started_at.present? ? kst_datetime(@poll_session.started_at) : "아직 시작하지 않았습니다." %></dd>
-      </div>
-    </dl>
-  </section>
-
-  <section class="grid gap-3 sm:grid-cols-4">
-    <div class="rounded-md border border-stone-200 bg-white p-4"><p class="text-sm text-stone-500">전체 인원</p><p class="mt-1 text-2xl font-semibold"><%= @participants.size %>명</p></div>
-    <div class="rounded-md border border-stone-200 bg-white p-4"><p class="text-sm text-stone-500">처리 완료</p><p class="mt-1 text-2xl font-semibold"><%= @processed_count %>명</p></div>
-    <div class="rounded-md border border-stone-200 bg-white p-4"><p class="text-sm text-stone-500">대기</p><p class="mt-1 text-2xl font-semibold"><%= @waiting_count %>명</p></div>
-    <div class="rounded-md border border-stone-200 bg-white p-4"><p class="text-sm text-stone-500">ballot 상태</p><p class="mt-1 font-semibold"><%= poll_session_ballot_status_label(@poll_session.poll_progress) %></p></div>
-  </section>
-
-  <section class="rounded-md border border-stone-200 bg-white p-5">
-    <h2 class="font-semibold">현재 학생</h2>
-    <% current_participant = @poll_session.poll_progress&.current_poll_participant %>
-    <% if current_participant.present? %>
-      <p class="mt-2 text-xl font-medium"><%= current_participant.number %>번 <%= current_participant.name %></p>
-      <p class="mt-1 text-sm text-stone-600">
-        참여 상태: <%= poll_participation_status_label(current_participant.poll_participation) %>
-      </p>
-      <% if @poll_session.in_progress? && @poll_session.archived_at.blank? && policy(@poll_session).operate? %>
-        <div class="mt-4 space-y-3">
-          <p class="text-sm text-stone-600">투표 제출 기능은 다음 단계에서 연결합니다.</p>
-          <%= button_to "미참여 처리",
-                        mark_current_participant_absent_poll_poll_session_path(
-                          @poll_session.poll,
-                          @poll_session
-                        ),
-                        method: :patch,
-                        data: { turbo_confirm: "현재 학생을 미참여 처리할까요?" },
-                        class: "rounded-md border border-rose-300 px-4 py-2 text-sm font-medium text-rose-700" %>
+<% polling_data = if @poll_session.in_progress?
+                    {
+                      controller: "poll-session-progress",
+                      poll_session_progress_interval_value: 2500,
+                      poll_session_progress_url_value: poll_poll_session_path(
+                        @poll_session.poll,
+                        @poll_session
+                      )
+                    }
+                  else
+                    {}
+                  end %>
+<%= turbo_frame_tag dom_id(@poll_session, :teacher_progress), data: polling_data do %>
+  <div class="mx-auto max-w-5xl space-y-6">
+    <% if @poll_session.in_progress? %>
+      <%= turbo_stream_from @poll_session, :operation_screen %>
+      <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
+              data-testid="poll-session-header">
+        <div>
+          <%= link_to "내 투표 목록으로 돌아가기",
+                      polls_path,
+                      data: { turbo_frame: "_top" },
+                      class: "text-sm font-medium text-stone-700 underline" %>
+          <h1 class="mt-3 text-2xl font-semibold">투표 운영 현황</h1>
+          <p class="mt-1 text-lg font-medium"><%= @poll_session.poll.title %></p>
+          <p class="mt-2 text-sm text-stone-600">
+            <%= @poll_session.classroom_name_snapshot %>
+            · 담당 교사: <%= @poll_session.operator_name_snapshot %>
+            · <%= poll_session_status_label(@poll_session) %>
+          </p>
         </div>
-      <% end %>
-    <% else %>
-      <p class="mt-2 text-stone-600">현재 학생이 지정되지 않았습니다.</p>
-      <% if @poll_session.in_progress? && @poll_session.archived_at.blank? %>
-        <% if @pending_participants.any? %>
+
+        <% if @poll_session.archived_at.blank? &&
+              @current_participant.present? &&
+              policy(@poll_session).operate? %>
+          <div data-controller="ballot-window"
+               data-testid="poll-session-ballot-window"
+               data-ballot-window-name-value="poll_session_<%= @poll_session.id %>_ballot">
+            <%= link_to "학생 투표 화면 열기",
+                        ballot_poll_poll_session_path(@poll_session.poll, @poll_session),
+                        target: "poll_session_#{@poll_session.id}_ballot",
+                        data: {
+                          turbo: false,
+                          action: "click->ballot-window#open"
+                        },
+                        class: "inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" %>
+          </div>
+        <% end %>
+      </header>
+
+      <%= render "operation",
+                 poll_session: @poll_session,
+                 current_participant: @current_participant,
+                 current_participation: @current_participation,
+                 next_pending_participant: @next_pending_participant,
+                 pending_participants: @pending_participants,
+                 poll_events: @poll_events,
+                 can_operate: policy(@poll_session).operate? %>
+    <% elsif @poll_session.draft? %>
+      <header data-testid="poll-session-header">
+        <%= link_to "내 투표 목록으로 돌아가기",
+                    polls_path,
+                    data: { turbo_frame: "_top" },
+                    class: "text-sm font-medium text-stone-700 underline" %>
+        <h1 class="mt-3 text-2xl font-semibold">투표 운영 현황</h1>
+        <p class="mt-1 text-lg font-medium"><%= @poll_session.poll.title %></p>
+        <p class="mt-1 text-sm text-stone-600"><%= @poll_session.poll.activity_label %></p>
+        <p class="mt-2 text-sm text-stone-600">
+          <%= @poll_session.classroom_name_snapshot %>
+          · 담당 교사: <%= @poll_session.operator_name_snapshot %>
+          · <%= poll_session_status_label(@poll_session) %>
+        </p>
+      </header>
+
+      <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
+               data-testid="poll-session-readiness">
+        <h2 class="text-lg font-semibold">상태 점검</h2>
+        <% if @readiness_errors.empty? %>
+          <p class="mt-3 font-medium text-emerald-700">상태 점검: 이상 없음</p>
+          <p class="mt-1 text-stone-700">투표를 시작할 준비가 되었습니다.</p>
           <% if policy(@poll_session).operate? %>
-            <%= button_to @processed_count.zero? ? "첫 학생 시작" : "다음 학생 시작",
-                          start_next_participant_poll_poll_session_path(
-                            @poll_session.poll,
-                            @poll_session
-                          ),
-                          method: :patch,
-                          class: "mt-4 rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+            <%= button_to "투표 시작",
+                          start_poll_poll_session_path(@poll_session.poll, @poll_session),
+                          method: :post,
+                          data: {
+                            turbo_confirm: "현재 활성 학생 명단으로 투표를 시작할까요?"
+                          },
+                          class: "mt-5 rounded-md bg-stone-900 px-5 py-3 text-sm font-medium text-white" %>
           <% end %>
         <% else %>
-          <p class="mt-2 font-medium text-emerald-700">모든 학생의 처리가 끝났습니다.</p>
+          <p class="mt-3 font-medium text-rose-700">투표를 시작할 수 없습니다.</p>
+          <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-rose-700">
+            <% @readiness_errors.each do |error| %>
+              <li><%= error %></li>
+            <% end %>
+          </ul>
         <% end %>
-      <% end %>
-    <% end %>
-  </section>
+      </section>
 
-  <section class="rounded-md border border-stone-200 bg-white p-5">
-    <h2 class="font-semibold">전체 snapshot 명단</h2>
-    <% if @participants.any? %>
-      <ul class="mt-3 divide-y divide-stone-200">
-        <% @participants.each do |participant| %>
-          <li class="flex items-center justify-between gap-3 py-3">
-            <p>
-              <span class="font-medium"><%= participant.number %>번 <%= participant.name %></span>
-              <% if participant == current_participant %>
-                <span class="ml-2 rounded bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700">현재</span>
-              <% end %>
-            </p>
-            <span class="text-sm text-stone-600"><%= poll_participation_status_label(participant.poll_participation) %></span>
-          </li>
+      <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
+               data-testid="poll-session-candidates">
+        <h2 class="text-lg font-semibold">후보자</h2>
+        <div class="mt-4 space-y-5">
+          <% @poll_session.poll.poll_contests.sort_by { |contest| [contest.position, contest.id] }.each do |contest| %>
+            <div>
+              <h3 class="font-semibold"><%= contest.title %></h3>
+              <ul class="mt-2 space-y-1 text-stone-700">
+                <% contest.poll_options.sort_by { |option| [option.number, option.id] }.each do |option| %>
+                  <li><%= option.number %>번 <%= option.name %></li>
+                <% end %>
+              </ul>
+            </div>
+          <% end %>
+        </div>
+      </section>
+
+      <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
+               data-testid="poll-session-roster">
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="text-lg font-semibold">투표자 명단</h2>
+          <span class="text-sm text-stone-600">전체 <%= @active_students.size %>명</span>
+        </div>
+        <% if @active_students.any? %>
+          <ul class="mt-4 divide-y divide-stone-200">
+            <% @active_students.each do |student| %>
+              <li class="flex gap-4 py-3">
+                <span class="w-16 font-medium"><%= student.number %>번</span>
+                <span><%= student.name %></span>
+              </li>
+            <% end %>
+          </ul>
+        <% else %>
+          <p class="mt-4 text-stone-600">투표 대상 학생이 없습니다.</p>
         <% end %>
-      </ul>
+      </section>
+      <%= render "event_log", poll_events: @poll_events %>
+    <% elsif @poll_session.closed? %>
+      <%= render "poll_sessions/closed_summary" %>
     <% else %>
-      <p class="mt-3 text-stone-600">snapshot 명단이 아직 없습니다.</p>
+      <header>
+        <%= link_to "내 투표 목록으로 돌아가기",
+                    polls_path,
+                    data: { turbo_frame: "_top" },
+                    class: "text-sm font-medium text-stone-700 underline" %>
+        <h1 class="mt-3 text-2xl font-semibold">투표 운영 현황</h1>
+        <p class="mt-1 text-lg font-medium"><%= @poll_session.poll.title %></p>
+        <p class="mt-2 text-sm font-medium text-stone-600"><%= poll_session_status_label(@poll_session) %></p>
+      </header>
     <% end %>
-  </section>
-</div>
+  </div>
+<% end %>

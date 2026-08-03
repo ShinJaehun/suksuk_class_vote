@@ -89,6 +89,90 @@ RSpec.describe PollContestTally, type: :model do
       expect(poll_contest_tally.errors[:poll_contest_id]).to be_present
     end
 
+    it "allows poll-level and session tallies for the same contest to coexist" do
+      poll_contest = create(:poll_contest)
+      poll = poll_contest.poll
+      school = create(:school)
+      poll.update!(school: school, participant_group: nil)
+
+      operator = create(:user)
+      poll_session = create(
+        :poll_session,
+        poll: poll,
+        classroom: create(:classroom, school: school),
+        operator: operator
+      )
+
+      create(:poll_contest_tally, poll: poll, poll_contest: poll_contest)
+
+      session_tally = build(
+        :poll_contest_tally,
+        poll: poll,
+        poll_session: poll_session,
+        poll_contest: poll_contest
+      )
+
+      expect(session_tally).to be_valid
+    end
+
+    it "rejects duplicate contest tallies within one session" do
+      poll_contest = create(:poll_contest)
+      poll = poll_contest.poll
+      school = create(:school)
+      poll.update!(school: school, participant_group: nil)
+
+      operator = create(:user)
+      poll_session = create(
+        :poll_session,
+        poll: poll,
+        classroom: create(:classroom, school: school),
+        operator: operator
+      )
+
+      create(:poll_contest_tally, poll: poll, poll_session: poll_session, poll_contest: poll_contest)
+
+      duplicate = build(
+        :poll_contest_tally,
+        poll: poll,
+        poll_session: poll_session,
+        poll_contest: poll_contest
+      )
+
+      expect(duplicate).not_to be_valid
+    end
+
+    it "allows the same contest tally in different sessions" do
+      poll_contest = create(:poll_contest)
+      poll = poll_contest.poll
+      school = create(:school)
+      poll.update!(school: school, participant_group: nil)
+
+      operator = create(:user)
+      first_session = create(
+        :poll_session,
+        poll: poll,
+        classroom: create(:classroom, school: school),
+        operator: operator
+      )
+      second_session = create(
+        :poll_session,
+        poll: poll,
+        classroom: create(:classroom, school: school),
+        operator: operator
+      )
+
+      create(:poll_contest_tally, poll: poll, poll_session: first_session, poll_contest: poll_contest)
+
+      second_tally = build(
+        :poll_contest_tally,
+        poll: poll,
+        poll_session: second_session,
+        poll_contest: poll_contest
+      )
+
+      expect(second_tally).to be_valid
+    end
+
     it "allows tallies for different poll contests in the same poll" do
       poll = create(:poll)
       create(:poll_contest_tally, poll: poll, poll_contest: poll.default_poll_contest)

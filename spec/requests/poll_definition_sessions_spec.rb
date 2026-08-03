@@ -52,6 +52,7 @@ RSpec.describe "Poll definition sessions", type: :request do
       expect(response.body).not_to include("participant_group_id")
       expect(response.body).not_to include('name="poll[participant_group_id]"')
       expect(response.body).not_to include('id="poll_participant_group_id"')
+      expect(response.body).to include("투표 만들기")
     end
 
     it "shows all same-school eligible Classrooms to a manager" do
@@ -85,7 +86,7 @@ RSpec.describe "Poll definition sessions", type: :request do
       get new_poll_path
 
       expect(response.body).to include("투표를 만들 수 있는 활성 학급이 없습니다.")
-      expect(response.body).not_to include("투표와 실행 초안 생성")
+      expect(response.body).not_to include("투표 만들기")
     end
   end
 
@@ -115,8 +116,8 @@ RSpec.describe "Poll definition sessions", type: :request do
         status: "draft",
         classroom_name_snapshot: "2026학년도 4학년 #{classroom.formatted_class_label}"
       )
-      expect(response).to redirect_to(polls_path)
-      expect(flash[:notice]).to eq("투표와 학급 실행 초안을 만들었습니다.")
+      expect(response).to redirect_to(poll_poll_session_path(poll, poll_session))
+      expect(flash[:notice]).to eq("투표를 만들었습니다.")
     end
 
     it "allows a manager and global admin to operate another teacher's Classroom" do

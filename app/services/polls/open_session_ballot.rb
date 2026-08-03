@@ -1,5 +1,5 @@
 module Polls
-  class StartNextSessionParticipant
+  class OpenSessionBallot
     Result = Struct.new(:success?, :poll_session, :errors, keyword_init: true) do
       def error_message
         errors.join("\n")
@@ -19,18 +19,10 @@ module Polls
       ActiveRecord::Base.transaction do
         progress = poll_session.poll_progress&.lock!
         poll_session.reload
-        validate_locked_state(progress)
+        current_participant = progress&.current_poll_participant
+        validate_locked_state(progress, current_participant)
 
-        if errors.empty?
-          next_participant = pending_participants.first
-          errors << "처리할 대기 학생이 없습니다." if next_participant.blank?
-        end
-
-        progress.update!(
-          current_poll_participant: next_participant,
-          ballot_status: :ballot_locked
-        ) if errors.empty?
-
+        progress.update!(ballot_status: :ballot_open) if errors.empty?
         raise ActiveRecord::Rollback if errors.any?
       end
 
@@ -49,20 +41,20 @@ module Polls
       errors << "이 투표 실행을 운영할 권한이 없습니다." unless authorized_actor?
     end
 
-    def validate_locked_state(progress)
-      errors << "진행 중인 투표 실행에서만 학생을 시작할 수 있습니다." unless poll_session.in_progress?
-      errors << "보관된 투표 실행에서는 학생을 시작할 수 없습니다." if poll_session.archived_at.present?
+    def validate_locked_state(progress, current_participant)
+      errors << "진행 중인 투표 실행에서만 ballot을 열 수 있습니다." unless poll_session.in_progress?
+      errors << "보관된 투표 실행에서는 ballot을 열 수 없습니다." if poll_session.archived_at.present?
       errors << "진행 정보를 찾을 수 없습니다." if progress.blank?
-      errors << "활성 진행 정보에서만 학생을 시작할 수 있습니다." if progress.present? && !progress.active?
-      errors << "현재 진행 중인 학생이 있습니다." if progress&.current_poll_participant.present?
+      errors << "활성 진행 정보에서만 ballot을 열 수 있습니다." if progress.present? && !progress.active?
+      errors << "현재 학생이 없습니다." if current_participant.blank?
+      errors << "현재 학생이 이 투표 실행에 속하지 않습니다." unless current_participant_belongs_to_session?(current_participant)
+      errors << "현재 학생은 이미 처리되었습니다." if current_participant&.poll_participation.present?
+      errors << "투표 화면이 이미 열려 있습니다." if progress&.ballot_open?
       errors << "이 투표 실행을 운영할 권한이 없습니다." unless authorized_actor?
     end
 
-    def pending_participants
-      poll_session.poll_participants
-        .left_outer_joins(:poll_participation)
-        .where(poll_participations: { id: nil })
-        .order(:number, :id)
+    def current_participant_belongs_to_session?(participant)
+      participant.blank? || participant.poll_session == poll_session
     end
 
     def authorized_actor?

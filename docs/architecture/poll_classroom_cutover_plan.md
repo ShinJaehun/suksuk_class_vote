@@ -195,17 +195,21 @@ foundation rollback은 PollSession row가 있으면 기록 삭제 대신 명시�
   기록한 뒤 session만 in_progress로 전환한다. Poll 정의 status는 변경하지 않는다.
 - `PollSessionsController#start`는 parent Poll과 PollSession ID를 함께 조회하고 policy 확인 후
   service만 호출한다. 목록은 모든 session 상태를 표시하고 권한 있는 draft에만 POST 시작 버튼을 둔다.
-- 시작 뒤 목록에서 in_progress를 표시하며 학생별 ballot 제출·중단·종료·결과 runtime은 후속 단계다.
+- 시작 뒤 목록에서 in_progress를 표시하며 첫 snapshot 학생을 current로 지정하고 ballot은 잠근다.
 - 진행 중 session은 nested GET 운영 현황에서 PollParticipant snapshot, PollProgress의 현재 학생과
-  ballot 상태, participation 기반 처리·대기 수를 표시한다. 다음 pending snapshot 참가자는
-  number/id 순서로 현재 학생에 지정하고, 현재 학생의 미참여 처리는 absent participation을 만든 뒤
-  current pointer를 비운다. 두 전환은 transaction과 PollProgress row lock으로 중복 진행을 막는다.
+  ballot 상태, participation 기반 처리·대기 수를 표시한다. 현재 학생의 완료·미참여 결과와 current를
+  유지하고, 교사의 명시적 승인 때 다음 pending snapshot 참가자를 number/id 순서로 지정하면서
+  ballot을 연다. 전환은 transaction과 PollProgress row lock으로 중복 진행을 막는다.
   학생별 선택과 tally는 노출하지 않는다.
+- 현재 학생 ballot은 operator 또는 global admin만 열고 잠근다. 열린 ballot 제출은 stale current,
+  contest completeness, Poll/contest의 option 소속을 lock 이후 다시 검증한다. 선택은 개인 row 없이
+  PollSession별 option tally에 count-only로 반영하고 completed participation을 만든 뒤 ballot을 잠근다.
+  고정 이름의 학생 창은 Turbo Stream으로 현재 학생과 ballot 상태를 갱신한다.
 - role 기반 Classroom 목록·생성·설정과 Student active/inactive/all 명단, 단일 등록·수정·비활성화·
   복구 및 textarea 기반 원자적 bulk 등록 화면을 제공한다. 일반 teacher는 자신의 Classroom만
   관리하며 ParticipantGroup 자료를 변환하거나 변경하지 않는다.
-- 다음 단계는 PollSession ballot 열기, 선택지 또는 후보 제출, 기권 제출, 완료 후 다음 participant
-  진행, session 종료와 결과 집계 순으로 runtime을 전환하는 것이다.
+- 마지막 학생까지 확정된 뒤 교사가 명시적으로 session을 종료한다. 다음 단계는 기권 제출,
+  session 중단과 복구, PollSession 결과 집계 순으로 runtime을 전환하는 것이다.
 - global admin과 같은 학교 manager는 기존 미소속 teacher를 SchoolMembership으로 추가할 수 있다.
   manager 지정·해제는 global admin만 수행하며 담당 Classroom이 있는 membership은 삭제하지 않는다.
   교사 계정 생성·초대와 학교 간 자동 전근, Classroom 일괄 배정은 범위 밖이다.

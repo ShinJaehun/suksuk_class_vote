@@ -35,7 +35,7 @@ RSpec.describe "PollSession operations", type: :request do
     participant
   end
 
-  it "shows snapshot progress to the Classroom teacher without vote choices" do
+  it "prioritizes the current participant without exposing the roster or vote choices" do
     poll, poll_session, teacher = create_operations_session
     completed = add_participant(poll: poll, poll_session: poll_session, number: 1, name: "김일", participation: :completed)
     waiting = add_participant(poll: poll, poll_session: poll_session, number: 2, name: "김이")
@@ -55,9 +55,15 @@ RSpec.describe "PollSession operations", type: :request do
 
     expect(response).to have_http_status(:ok)
     expect(response.body).to include("투표 운영 현황", poll.title, poll_session.classroom_name_snapshot, poll_session.operator_name_snapshot)
-    expect(response.body).to include("진행 중", "전체 인원", "2명", "처리 완료", "1명", "대기", "투표 화면 잠김")
-    expect(response.body).to include("#{completed.number}번 #{completed.name}", "#{waiting.number}번 #{waiting.name}", "투표 완료", "현재")
-    expect(response.body).not_to include("새학생", secret_option.name)
+    expect(response.body).to include("진행 중", "현재 투표자", "#{waiting.number}번 #{waiting.name}")
+    expect(response.body).not_to include(
+      "#{completed.number}번 #{completed.name}",
+      "전체 snapshot " + "명단",
+      "전체 인원",
+      "처리 완료",
+      "새학생",
+      secret_option.name
+    )
   end
 
   it "allows a same-school manager and global admin" do
@@ -100,7 +106,39 @@ RSpec.describe "PollSession operations", type: :request do
     expect(poll_session.reload).to be_in_progress
   end
 
-  it "renders draft, closed, stopped, and missing progress safely" do
+  it "shows readiness, candidates, roster, and start action for a draft session" do
+    poll, poll_session, teacher = create_operations_session(status: :draft)
+    create(:student, classroom: poll_session.classroom, number: 1, name: "조현")
+    create(:student, classroom: poll_session.classroom, number: 2, name: "서코")
+    create(:poll_option, poll: poll, poll_contest: poll.default_poll_contest, number: 1, name: "조현")
+    create(:poll_option, poll: poll, poll_contest: poll.default_poll_contest, number: 2, name: "서코")
+    sign_in teacher
+
+    get poll_poll_session_path(poll, poll_session)
+
+    page = Nokogiri::HTML(response.body)
+
+    expect(page.at_css("[data-testid='poll-session-readiness']").text).to include(
+      "상태 점검: 이상 없음",
+      "투표를 시작할 준비가 되었습니다.",
+      "투표 시작"
+    )
+    expect(page.at_css("[data-testid='poll-session-candidates']").text).to include(
+      poll.default_poll_contest.title,
+      "1번 조현",
+      "2번 서코"
+    )
+    expect(page.at_css("[data-testid='poll-session-roster']").text).to include(
+      "전체 2명",
+      "1번",
+      "조현",
+      "2번",
+      "서코"
+    )
+    expect(response.body).not_to include("현재 투표자", "학생 투표 화면 열기", "미참여 처리")
+  end
+
+  it "renders draft, closed, and stopped sessions safely without progress" do
     { draft: "실행 전", closed: "종료", stopped: "중단" }.each do |status, label|
       poll, poll_session, teacher = create_operations_session(status: status)
       sign_in teacher
@@ -109,9 +147,7 @@ RSpec.describe "PollSession operations", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include(label)
-      expect(response.body).to include("진행 정보가 없습니다.")
-      expect(response.body).to include("snapshot 명단이 아직 없습니다.")
-      expect(response.body).to include("아직 시작하지 않았습니다.") if status == :draft
+      expect(response.body).to include("투표자 명단이 없습니다.") if status == :closed
       sign_out teacher
     end
   end

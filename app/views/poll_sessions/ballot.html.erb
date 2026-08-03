@@ -1,0 +1,20 @@
+<% content_for :hide_navigation, true %>
+
+<%= turbo_stream_from @poll_session, :ballot_screen %>
+
+<div class="mx-auto max-w-2xl space-y-6"
+     data-controller="poll-session-ballot-screen"
+     data-poll-session-ballot-screen-close-url-value="<%= close_ballot_screen_poll_poll_session_path(
+       @poll_session.poll,
+       @poll_session
+     ) %>">
+  <div class="space-y-2">
+    <h1 class="text-3xl font-semibold"><%= @poll_session.poll.title %></h1>
+    <p class="text-stone-600">학생 투표 화면</p>
+  </div>
+
+  <%= render "ballot_content",
+             poll_session: @poll_session,
+             progress: @poll_session.poll_progress,
+             current_participant: @current_participant %>
+</div>

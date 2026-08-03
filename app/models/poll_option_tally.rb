@@ -5,8 +5,20 @@ class PollOptionTally < ApplicationRecord
 
   validates :poll, presence: true
   validates :poll_option, presence: true
-  validates :poll_option_id, uniqueness: { scope: :poll_id }, if: -> { poll_session_id.nil? }
-  validates :poll_option_id, uniqueness: { scope: :poll_session_id }, if: -> { poll_session_id.present? }
+
+  validates :poll_option_id,
+            uniqueness: {
+              scope: :poll_id,
+              conditions: -> { where(poll_session_id: nil) }
+            },
+            if: -> { poll_session_id.nil? }
+  validates :poll_option_id,
+            uniqueness: {
+              scope: :poll_session_id,
+              conditions: -> { where.not(poll_session_id: nil) }
+            },
+            if: -> { poll_session_id.present? }
+
   validates :votes_count, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validate :poll_option_belongs_to_poll
   validate :poll_must_match_poll_session

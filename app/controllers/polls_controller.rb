@@ -236,7 +236,8 @@ class PollsController < ApplicationController
     ).call
 
     if result.success?
-      redirect_to polls_path, notice: "투표와 학급 실행 초안을 만들었습니다."
+      redirect_to poll_poll_session_path(result.poll, result.poll_session),
+                  notice: "투표를 만들었습니다."
     else
       prepare_failed_poll_form(result.errors)
       render :new, status: :unprocessable_entity

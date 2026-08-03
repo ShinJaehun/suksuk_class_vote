@@ -82,11 +82,12 @@ RSpec.describe Polls::StartSession do
       described_class.new(actor: actor, poll_session: poll_session).call
       poll_session.reload
       progress = poll_session.poll_progress
+      first_participant = poll_session.poll_participants.order(:number, :id).first
 
       expect(progress).to have_attributes(
         poll: poll_session.poll,
         poll_session: poll_session,
-        current_poll_participant: nil,
+        current_poll_participant: first_participant,
         status: "active",
         ballot_status: "ballot_locked",
         closed_at: nil

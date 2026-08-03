@@ -13,8 +13,27 @@ module PollSessionsHelper
 
     {
       "completed" => "투표 완료",
-      "absent" => "결석",
+      "absent" => "미참여",
       "abstained" => "기권"
     }.fetch(poll_participation.status, poll_participation.status)
+  end
+
+  def poll_session_event_target_label(event)
+    if event.poll_level_event?
+      event.actor&.name.presence || event.actor&.email
+    elsif event.poll_participant.present?
+      "#{event.poll_participant.number}번 #{event.poll_participant.name}"
+    else
+      event.actor&.name.presence || event.actor&.email
+    end
+  end
+
+  def poll_session_event_description(event)
+    {
+      "poll_started" => "투표 시작",
+      "vote_completed" => "투표 완료",
+      "participant_marked_absent" => "미참여 처리",
+      "poll_closed" => "투표 종료"
+    }.fetch(event.event_type, event.event_type)
   end
 end

@@ -35,6 +35,12 @@ module Polls
       failure
     end
 
+    def readiness_errors
+      validate_inputs
+      validate_locked_start if poll_session&.persisted?
+      errors.uniq
+    end
+
     private
 
     attr_reader :actor, :poll_session, :errors
@@ -107,7 +113,7 @@ module Polls
     def start_locked_session
       started_at = Time.current
       create_participant_snapshot
-      create_progress(started_at)
+      create_progress(started_at, first_participant)
       create_option_tallies
       create_contest_tallies
       create_start_event(started_at)
@@ -133,11 +139,15 @@ module Polls
       end
     end
 
-    def create_progress(started_at)
+    def first_participant
+      poll_session.poll_participants.order(:number, :id).first
+    end
+
+    def create_progress(started_at, current_participant)
       PollProgress.create!(
         poll: poll,
         poll_session: poll_session,
-        current_poll_participant: nil,
+        current_poll_participant: current_participant,
         status: :active,
         ballot_status: :ballot_locked,
         started_at: started_at,

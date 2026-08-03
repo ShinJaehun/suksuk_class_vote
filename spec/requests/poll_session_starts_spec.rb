@@ -29,11 +29,19 @@ RSpec.describe "PollSession starts", type: :request do
       .and change(PollProgress, :count).by(1)
       .and change(PollEvent, :count).by(1)
 
-    expect(response).to redirect_to(polls_path)
+    expect(response).to redirect_to(poll_poll_session_path(poll, poll_session))
     expect(flash[:notice]).to eq("투표 실행을 시작했습니다.")
     expect(poll_session.reload).to be_in_progress
     expect(poll_session.poll_option_tallies.count).to eq(2)
     expect(poll_session.poll_contest_tallies.count).to eq(1)
+    expect(poll_session.poll_progress).to have_attributes(
+      current_poll_participant: poll_session.poll_participants.order(:number, :id).first,
+      ballot_status: "ballot_locked"
+    )
+    expect(poll_session.poll_events.last).to have_attributes(
+      actor: teacher,
+      event_type: "poll_started"
+    )
   end
 
   it "allows a same-school manager and global admin to become the actual operator" do

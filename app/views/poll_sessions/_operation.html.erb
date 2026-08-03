@@ -1,0 +1,111 @@
+<%= turbo_frame_tag dom_id(poll_session, :operation) do %>
+  <div class="space-y-6">
+    <% if poll_session.in_progress? %>
+      <section class="rounded-xl border border-stone-200 bg-white px-6 py-10 text-center shadow-sm"
+               data-testid="poll-session-current-participant">
+        <p class="text-sm font-semibold uppercase tracking-wide text-stone-500">
+          <%= current_participation.present? ? "현재 처리 학생" : "현재 투표자" %>
+        </p>
+        <% if current_participant.present? %>
+          <p class="mt-5 break-words text-5xl font-bold tracking-tight text-stone-900 sm:text-6xl">
+            <%= current_participant.number %>번 <%= current_participant.name %>
+          </p>
+        <% else %>
+          <p class="mt-5 text-xl font-medium text-stone-600">현재 투표자가 지정되지 않았습니다.</p>
+        <% end %>
+      </section>
+
+      <% if current_participant.present? %>
+        <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
+                 data-testid="poll-session-operation-actions">
+          <% if current_participation.blank? && poll_session.poll_progress&.ballot_locked? %>
+            <% if poll_session.archived_at.blank? && can_operate %>
+              <div class="mt-5 flex flex-wrap justify-center gap-3">
+                <%= button_to "다음 투표자는 #{current_participant.number}번 #{current_participant.name} 학생입니다.",
+                              open_ballot_poll_poll_session_path(poll_session.poll, poll_session),
+                              method: :patch,
+                              class: "rounded-md bg-stone-900 px-5 py-3 text-sm font-medium text-white" %>
+                <%= button_to "미참여 처리",
+                              mark_current_participant_absent_poll_poll_session_path(
+                                poll_session.poll,
+                                poll_session
+                              ),
+                              method: :patch,
+                              data: { turbo_confirm: "현재 학생을 미참여 처리할까요?" },
+                              class: "rounded-md border border-rose-300 px-5 py-3 text-sm font-medium text-rose-700" %>
+              </div>
+            <% end %>
+          <% elsif current_participation.blank? && poll_session.poll_progress&.ballot_open? %>
+            <p class="text-center text-xl font-semibold text-emerald-700">
+              <%= current_participant.name %> 학생이 투표 중입니다.
+            </p>
+          <% else %>
+            <% outcome_message = if current_participation&.completed?
+                                   "투표를 완료했습니다."
+                                 elsif current_participation&.absent?
+                                   "미참여 처리되었습니다."
+                                 else
+                                   "기권 처리되었습니다."
+                                 end %>
+            <p class="text-center text-xl font-semibold text-emerald-700">
+              <%= current_participant.number %>번 <%= current_participant.name %> 학생이
+              <%= outcome_message %>
+            </p>
+
+            <% if next_pending_participant.present? %>
+              <% if poll_session.archived_at.blank? && can_operate %>
+                <div class="mt-5 flex flex-wrap justify-center gap-3">
+                  <%= button_to "다음 투표자는 #{next_pending_participant.number}번 #{next_pending_participant.name} 학생입니다.",
+                                advance_participant_poll_poll_session_path(
+                                  poll_session.poll,
+                                  poll_session
+                                ),
+                                method: :patch,
+                                params: {
+                                  expected_current_poll_participant_id: current_participant.id
+                                },
+                                class: "rounded-md bg-stone-900 px-5 py-3 text-sm font-medium text-white" %>
+                  <%= button_to "미참여 처리",
+                                mark_next_participant_absent_poll_poll_session_path(
+                                  poll_session.poll,
+                                  poll_session
+                                ),
+                                method: :patch,
+                                params: {
+                                  expected_current_poll_participant_id: current_participant.id
+                                },
+                                data: {
+                                  turbo_confirm: "#{next_pending_participant.number}번 #{next_pending_participant.name} 학생을 미참여 처리할까요?"
+                                },
+                                class: "rounded-md border border-rose-300 px-5 py-3 text-sm font-medium text-rose-700" %>
+                </div>
+              <% end %>
+            <% elsif pending_participants.empty? %>
+              <p class="mt-3 text-center font-medium text-emerald-700">
+                모든 학생의 투표 처리가 끝났습니다.
+              </p>
+              <% if poll_session.archived_at.blank? && can_operate %>
+                <div class="mt-5 flex justify-center">
+                  <%= button_to "투표 종료",
+                                close_poll_poll_session_path(poll_session.poll, poll_session),
+                                method: :patch,
+                                params: {
+                                  expected_current_poll_participant_id: current_participant.id
+                                },
+                                data: { turbo_confirm: "투표를 종료할까요?" },
+                                class: "rounded-md bg-stone-900 px-5 py-3 text-sm font-medium text-white" %>
+                </div>
+              <% end %>
+            <% else %>
+              <p class="mt-3 text-center font-medium text-rose-700">
+                남은 학생의 진행 상태를 확인해 주세요.
+              </p>
+            <% end %>
+          <% end %>
+        </section>
+      <% end %>
+    <% end %>
+
+    <%= render "poll_sessions/event_log", poll_events: poll_events %> 
+  </div>
+<% end %>
