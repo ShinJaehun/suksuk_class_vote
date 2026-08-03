@@ -7,6 +7,9 @@ class Classroom < ApplicationRecord
   has_many :students,
            dependent: :restrict_with_error,
            inverse_of: :classroom
+  has_many :poll_sessions,
+           dependent: :restrict_with_error,
+           inverse_of: :classroom
 
   scope :in_school_order, -> {
     order(:school_year, :grade)

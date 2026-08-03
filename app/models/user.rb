@@ -18,6 +18,11 @@ class User < ApplicationRecord
           foreign_key: :teacher_id
   has_many :participant_groups, dependent: :destroy
   has_many :polls, dependent: :destroy
+  has_many :operated_poll_sessions,
+           class_name: "PollSession",
+           foreign_key: :operator_id,
+           inverse_of: :operator,
+           dependent: :restrict_with_error
   has_many :poll_events, foreign_key: :actor_id, dependent: :nullify, inverse_of: :actor
 
   validates :name, presence: true

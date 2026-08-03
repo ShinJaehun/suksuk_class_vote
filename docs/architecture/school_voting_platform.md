@@ -448,6 +448,15 @@ Voter snapshot, count-only 집계, 진행 상태와 운영 이벤트를 가진�
 PollSession의 운영자 필드와 운영자 변경 이벤트에도 ElectionSession과 같은 snapshot
 원칙을 적용한다.
 
+`Classroom.teacher`는 평상시 담임이고 `PollSession.operator`는 해당 실행의 실제 운영자다.
+담임을 기본 운영자로 선택할 수 있지만 동일성을 강제하지 않으며 manager나 global admin도
+정책에 따라 운영할 수 있다. `operator_name_snapshot`은 당시 이름을 보존하고, 실제 운영 권한과
+학교 접근 범위는 PollSession 생성 service와 policy에서 검증한다.
+
+현재 전환 1단계에서는 legacy Poll을 위해 `Poll.school_id`를 nullable로 두고 PollSession의
+DB·모델 기반만 추가한다. 기존 Poll runtime과 ParticipantGroup 경로는 그대로 유지하며,
+PollParticipant·Progress·Tally·Event의 소유권은 후속 단계에서 PollSession으로 옮긴다.
+
 ## 11. 상태 무결성과 운영 이벤트
 
 ### 11.1 시작 시 잠금

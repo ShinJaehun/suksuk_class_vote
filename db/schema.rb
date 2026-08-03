@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_03_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_03_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -325,18 +325,40 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_03_010000) do
     t.index ["poll_id"], name: "index_poll_progresses_on_poll_id", unique: true
   end
 
+  create_table "poll_sessions", force: :cascade do |t|
+    t.datetime "archived_at"
+    t.bigint "classroom_id", null: false
+    t.string "classroom_name_snapshot", null: false
+    t.datetime "closed_at"
+    t.datetime "created_at", null: false
+    t.bigint "operator_id", null: false
+    t.string "operator_name_snapshot", null: false
+    t.bigint "poll_id", null: false
+    t.datetime "started_at"
+    t.integer "status", default: 0, null: false
+    t.datetime "stopped_at"
+    t.datetime "updated_at", null: false
+    t.index ["classroom_id"], name: "index_poll_sessions_on_classroom_id"
+    t.index ["operator_id"], name: "index_poll_sessions_on_operator_id"
+    t.index ["poll_id", "classroom_id"], name: "idx_poll_sessions_active_poll_classroom", unique: true, where: "(status = ANY (ARRAY[0, 10]))"
+    t.index ["poll_id"], name: "index_poll_sessions_on_poll_id"
+    t.check_constraint "status = ANY (ARRAY[0, 10, 20, 30])", name: "chk_poll_sessions_status"
+  end
+
   create_table "polls", force: :cascade do |t|
     t.datetime "archived_at"
     t.datetime "created_at", null: false
     t.integer "kind", default: 0, null: false
     t.bigint "participant_group_id"
     t.string "participant_group_name_snapshot"
+    t.bigint "school_id"
     t.integer "status", default: 0, null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["archived_at"], name: "index_polls_on_archived_at"
     t.index ["participant_group_id"], name: "index_polls_on_participant_group_id"
+    t.index ["school_id"], name: "index_polls_on_school_id"
     t.index ["user_id"], name: "index_polls_on_user_id"
   end
 
@@ -425,7 +447,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_03_010000) do
   add_foreign_key "poll_participations", "poll_participants"
   add_foreign_key "poll_progresses", "poll_participants", column: "current_poll_participant_id"
   add_foreign_key "poll_progresses", "polls"
+  add_foreign_key "poll_sessions", "classrooms"
+  add_foreign_key "poll_sessions", "polls"
+  add_foreign_key "poll_sessions", "users", column: "operator_id"
   add_foreign_key "polls", "participant_groups", on_delete: :nullify
+  add_foreign_key "polls", "schools"
   add_foreign_key "polls", "users"
   add_foreign_key "school_memberships", "schools"
   add_foreign_key "school_memberships", "users"

@@ -1,6 +1,8 @@
 class Poll < ApplicationRecord
   belongs_to :user
+  belongs_to :school, optional: true
   belongs_to :participant_group, optional: true
+  has_many :poll_sessions, dependent: :restrict_with_error
   has_many :poll_contests, dependent: :destroy
   has_many :poll_options, dependent: :destroy
   has_many :poll_participants, dependent: :destroy

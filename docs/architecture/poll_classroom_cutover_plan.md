@@ -8,17 +8,20 @@
 
 목표는 기존 Poll ID와 진행·집계 기록을 손상하지 않고 신규 경로를 전환한 뒤,
 Election과 Poll 양쪽의 의존을 모두 제거하여 `ParticipantGroup`·`ParticipantSlot` table을
-삭제할 수 있게 하는 것이다. 이 단계에서는 코드, DB, spec, 실제 데이터를 변경하지 않는다.
+삭제할 수 있게 하는 것이다. 현재는 PollSession DB·모델 foundation만 추가됐으며 실제 데이터와
+기존 Poll runtime은 변경하지 않는다.
 
 ## 2. 현재 구조
 
-Poll에는 별도 `PollSession`이 없다. `Poll` 하나가 투표 정의와 한 번의 학급 실행을 모두
-담당한다. 또한 개인별 선택지를 저장하는 `PollVote` 모델은 없다. 비밀투표를 위해
+PollSession foundation은 존재하지만 기존 runtime에서 `Poll` 하나가 투표 정의와 한 번의 학급
+실행을 모두 담당한다. 실행 기록 FK는 아직 PollSession으로 옮기지 않았다. 또한 개인별 선택지를
+저장하는 `PollVote` 모델은 없다. 비밀투표를 위해
 참여 상태와 선택지별 count-only tally를 분리해 저장한다.
 
 | 모델 | 현재 책임과 association | 상태·제약·삭제 |
 | --- | --- | --- |
 | `Poll` | `user`, optional `participant_group`; contests, options, participants, tallies, events, progress 소유 | `draft/in_progress/closed/stopped`; draft·stopped·미보관 closed만 삭제 가능; 삭제 시 하위 실행 기록 cascade |
+| `PollSession` | `poll`, `classroom`, 실제 `operator`, 학급·운영자 이름 snapshot | foundation만 존재; `draft/in_progress/closed/stopped`; 같은 Poll/Classroom의 active 실행 unique; runtime 미사용 |
 | `ParticipantGroup` | `user`, optional `school`, many slots/polls | Poll은 `teacher_personal` group만 생성 UI에서 선택; draft Poll이 사용 중이면 group 삭제 차단 |
 | `ParticipantSlot` | group의 번호·이름 명단 row | group 내 number unique; PollParticipant의 optional source, slot 삭제 시 FK `ON DELETE SET NULL` |
 | `PollParticipant` | Poll 시작 시 number·name snapshot, optional `source_participant_slot` | poll 내 number unique, source slot unique; participation/event/progress의 실행 기준 |
@@ -94,109 +97,99 @@ draft에서 slot을 읽는다. 이는 snapshot 생성 전이므로 정상적인 
 
 ## 5. 목표 구조
 
-현재 구조에서는 `Poll`이 실행 단위이므로 우선 다음 구조로 전환한다.
+`Poll` 정의와 학급별 실행을 분리한다.
 
 ```text
-Poll (현재 실행 단위)
-├─ Classroom              # draft 명단 원본
-├─ PollParticipant[]      # 시작 시 number/name snapshot
-├─ PollProgress           # current pointer와 시각
-├─ PollParticipation[]    # 참여 상태
-└─ count-only tallies/events
+School
+└─ Poll                    # 재사용 가능한 내용과 선택지 정의
+   └─ PollSession          # 특정 Classroom의 1회 실행
+      ├─ Classroom         # draft 명단 원본
+      ├─ operator          # 해당 실행의 실제 운영자
+      ├─ PollParticipant[] # 시작 시 number/name snapshot
+      ├─ PollProgress
+      ├─ PollParticipation[]
+      └─ count-only tallies/events
 ```
 
-- 신규 Poll은 Classroom을 명단 source로 삼는다.
-- draft에서는 `classroom.students.where(active: true).order(:number)`를 표시한다.
-- 시작 transaction에서 active Student의 number/name을 PollParticipant로 복사한다.
+- `Poll`은 학교에 속하며 실행 명단과 진행 상태를 직접 소유하지 않는다.
+- 신규 실행 단위인 `PollSession`은 Classroom과 당시 담당 교사를 참조한다.
+- draft PollSession은 `classroom.students.where(active: true).order(:number)`를 명단으로 쓴다.
+- 시작 transaction에서 active Student의 number/name을 PollParticipant snapshot으로 복사한다.
 - Classroom 기반 participant의 `source_participant_slot_id`는 null로 둔다. `source_student_id`를
   새로 만들지 않는다.
 - 시작 후 인원·순번·완료·미참여·기권·결과는 PollParticipant/Participation/Progress/tally로만
-  계산한다. Student 변경은 과거 Poll에 영향을 주지 않는다.
+  계산한다. Student 변경은 과거 PollSession에 영향을 주지 않는다.
 - 학급 표시는 `school_year`, `grade`, `formatted_class_label`을 사용하여 `1반`과
   `생활교육실`을 모두 안전하게 표시한다.
-- 교사가 만드는 Poll은 교사의 active Classroom을 사용하고, `Poll.user`는 현재처럼
-  운영자/소유자로 유지한다. Classroom teacher와 일치하는지 server에서 검증한다.
-- 현재 Poll에서 정의와 실행을 분리하는 `PollSession` 신설은 이 cutover에 포함하지
-  않는다. 복수 Classroom 실행이 필요해지면 별도 도메인 변경으로 다룬다.
+- `Classroom.teacher`는 평상시 담임이고 `PollSession.operator`는 실제 운영자다. 담임이 기본
+  운영자일 수 있지만 동일성을 강제하지 않는다.
+- `operator_name_snapshot`은 실행 당시 운영자 이름을 보존하며 User 이름이나 operator 변경으로
+  자동 갱신하지 않는다. 운영 가능 여부와 학교 접근은 생성 service/policy에서 검증한다.
 
 ## 6. source 전환 방식
 
-### 권고: Poll에 임시 dual source, 시작된 legacy Poll은 snapshot 자립
+### 권고: 새 PollSession은 Classroom 전용, 기존 Poll runtime은 단계적으로 이관
 
-`polls.classroom_id` nullable FK를 추가하고 `participant_group_id`를 임시 유지한다. 단, Poll의
-기존 lifecycle은 closed/stopped Poll에서 group이 삭제되어 source가 없는 상태를 허용한다.
-따라서 ElectionSession의 모든 row exactly-one constraint를 그대로 복제하지 않는다.
+`polls.classroom_id`를 추가하거나 Poll 자체에 ParticipantGroup/Classroom dual source를
+도입하지 않는다. 새 `PollSession`은 처음부터 Classroom만 참조한다. 기존 Poll row와
+ParticipantGroup runtime은 실행 기록을 PollSession으로 옮길 때까지 그대로 유지한다.
 
-임시 불변식은 다음과 같다. PollParticipant snapshot이 생성된 뒤에는 source 없이도
-실행·결과가 완결되므로 source를 필수로 유지할 이유가 없다.
+- `polls.school_id`는 legacy row를 위해 처음에는 nullable이다.
+- `poll_sessions`는 poll, classroom, operator와 생성 당시 학급·운영자 이름 snapshot을 가진다.
+- 같은 Poll/Classroom의 draft 또는 in_progress PollSession은 하나만 허용한다.
+- closed/stopped 실행 뒤 같은 Poll을 같은 Classroom에서 다시 실행할 수 있다.
+- PollParticipant/Progress/tally/event의 기존 `poll_id`는 foundation 단계에서 변경하지 않는다.
+- 후속 migration에서 `poll_session_id`를 nullable로 추가하고 backfill과 invariant 검증 뒤
+  소유권을 PollSession으로 옮긴다.
 
-- draft: `participant_group_id` 또는 `classroom_id` 중 정확히 하나.
-- in_progress/closed/stopped: 두 source가 동시에 있으면 금지. 시작된 기록은 source가 둘 다 없어도
-  PollParticipant·이름 snapshot으로 표시·결과가 완결되어야 한다.
-- 같은 Classroom으로 여러 Poll을 만들 수 있는 현재 행동을 유지하므로 active Classroom
-  partial unique index는 추가하지 않는다.
-- Classroom Poll의 학급 표시 snapshot을 위한 명시적 scalar column이 필요하다.
-  기존 `participant_group_name_snapshot`을 즉시 제거하지 않고, Classroom용 이름 snapshot을
-  추가하거나 역사 데이터를 보존하는 명시적 rename/backfill 방식을 1단계 migration spec에서
-  확정한다.
-
-이 방식은 신규 경로를 먼저 전환하고 legacy 조회를 유지할 수 있으며, migration rollback 시
-Classroom Poll이 존재하면 임의로 group을 추측하지 않고 `IrreversibleMigration`으로 중단할 수
-있다. PollSession을 도입하는 방법보다 변경 범위가 작고, snapshot으로 완결된 역사 Poll을
-불필요하게 Classroom에 소급 연결하지 않는다.
+이 구조는 정의 재사용과 실행 기록을 분리하고 새 runtime에 dual-source 조건을 남기지 않는다.
+foundation rollback은 PollSession row가 있으면 기록 삭제 대신 명시적으로 거부한다.
 
 ## 7. 단계별 구현 계획
 
-### 단계 1: source 기반
+### 단계 1: PollSession foundation
 
-- `polls.classroom_id` nullable FK, association, 새 Classroom 표시 snapshot column을 추가한다.
-- `Poll` validation과 DB check constraint를 위 상태별 source 불변식에 맞춘다.
-- `belongs_to :participant_group, optional: true`, `belongs_to :classroom, optional: true`를 임시 유지한다.
-- 같은 Classroom의 복수 Poll을 금지하지 않으므로 source unique index는 추가하지 않는다.
-- down은 Classroom source Poll이 있으면 source를 자동 변환/삭제하지 않고 rollback을 거부한다.
-- 이 단계의 runtime은 기존 ParticipantGroup만 계속 사용한다.
+- `polls.school_id` nullable FK를 추가하고 Poll에 optional school association을 둔다.
+- poll/classroom/operator/status, 학급·운영자 이름 snapshot과 lifecycle 시각을 가진
+  `poll_sessions`를 만든다.
+- PollSession status는 draft/in_progress/closed/stopped이고 DB 허용값 constraint를 둔다.
+- 같은 Poll/Classroom의 draft/in_progress 중복을 model validation과 partial unique index로 막는다.
+- Poll, Classroom, operator 삭제는 PollSession이 있으면 제한한다.
+- 이 단계에는 PollParticipant/Progress/tally/event association을 만들지 않으며 기존 runtime은
+  계속 Poll과 ParticipantGroup을 사용한다.
 
-### 단계 2: 새 Poll 배정
+### 단계 2: 실행 기록 FK 기반
 
-- `PollsController#new/#create`, `poll_params`, `app/views/polls/new.html.erb`를 Classroom 선택으로
-  전환하고 `participant_group_id` 직접 요청으로 신규 legacy Poll을 만들지 못하게 한다.
-- 교사는 자신이 담임인 active Classroom만 선택할 수 있고, active Student가 하나
-  이상이어야 한다. 화면 필터와 독립적으로 server relation에서 다시 검증한다.
-- Classroom의 school과 teacher의 SchoolMembership school 일치를 검증한다.
-- global admin이 다른 교사 Classroom Poll을 생성할 때 `Poll.user`를 누구로 저장할지는
-  현재 controller/policy로 확정되지 않았다. 권한을 임의로 넓히지 않고 단계 2 spec에서
-  운영자 정책을 먼저 확정한다.
+- PollParticipant, PollProgress, PollOptionTally, PollContestTally, PollEvent에 nullable
+  `poll_session_id`를 추가한다. PollParticipation은 PollParticipant를 통한 소유 관계를 유지한다.
+- legacy row의 기존 poll FK와 삭제 정책을 유지한 채 새 association을 추가한다.
+- 실행 기록별 유일성 constraint를 PollSession 기준으로 병행할 수 있게 준비한다.
+- legacy backfill 정책이 확정되기 전에는 새 PollSession runtime을 열지 않는다.
 
-### 단계 3: Poll 시작
+### 단계 3: 새 Poll 정의와 Classroom 배정
 
-- `Polls::Start`에 작은 source 분기를 두어 Classroom은 active Student, legacy는 slot을 number
-  순으로 읽는다.
-- Student number/name을 PollParticipant number/name으로 복사하고
-  `source_participant_slot_id` 은 null로 둔다.
-- snapshot, option/contest tally, progress, 학급 이름 snapshot, start event, status 변경을
-  현재처럼 하나의 transaction으로 유지한다.
-- 동시 시작을 안전하게 차단하기 위해 transaction 안에서 Poll row를 lock하고 상태와
-  기존 participant/progress를 재검증한다.
-- legacy start spec은 실제 데이터 전환 완료 전까지 유지한다.
+- Poll 생성에서 school을 명시하고 Poll 내용/선택지를 재사용 가능한 정의로 다룬다.
+- 별도 배정 action에서 같은 학교의 active Classroom, 담임, active Student를 server에서 검증한다.
+- PollSession에는 실제 operator와 학급·운영자 이름 snapshot을 명시적으로 저장한다.
+- 담임, manager, global admin의 운영 권한과 다른 학교 접근 차단은 생성 service/policy에서
+  검증하며 model은 operator와 Classroom teacher의 동일성을 강제하지 않는다.
+- 신규 ParticipantGroup Poll 생성은 차단하되 기존 Poll 조회/runtime은 유지한다.
 
-### 단계 4: 운영 화면과 목록
+### 단계 4: PollSession 시작
 
-- `Poll#readiness_voter_count`, `#participant_group_display_name`의 책임을 source-safe method로 전환한다.
-- draft Classroom Poll 인원은 active Student, 시작·중단·종료 Poll은 PollParticipant 수를 쓴다.
-- `_readiness`, `_poll_participants`, `index`, `archived`, `show`, `ballot`을 점검한다.
-  시작 후 명단·현재 순번·완료 상태는 Student로 재계산하지 않는다.
-- Classroom 표시는 `formatted_class_label`을 사용하고, legacy Poll은 group/name snapshot
-  분기를 임시 유지한다. nil group 호출을 없앤다.
-- Classroom Poll에서 ParticipantGroup 명단 수정 링크를 노출하지 않고 Classroom/Student 관리
-  흐름을 사용한다.
+- `Polls::Start`가 PollSession row를 transaction 안에서 lock하고 상태를 재검증한다.
+- Classroom의 active Student를 number 순으로 PollParticipant snapshot에 복사한다.
+- `source_participant_slot_id`는 null이며 Student source FK를 추가하지 않는다.
+- participant/progress/tally/event를 같은 PollSession에 연결하고 중복 시작을 차단한다.
+- legacy Poll 시작 경로는 실제 데이터 전환 완료 전까지 별도 분기로 유지한다.
 
-### 단계 5: 결과와 과거 기록
+### 단계 5: 운영 화면과 결과
 
-- `Polls::ResultSummary`, `IntegrityReport`, `Close` 결과 계산은 이미 PollParticipant,
-  PollParticipation, option/contest tally를 기준으로 하므로 계산 의미를 변경하지 않는다.
-- archived·closed·stopped Poll의 인원과 명단은 반드시 snapshot으로 표시한다.
-- `source_participant_slot_id` 조회가 runtime에 남지 않는지 확인하고, 이 source FK는
-  데이터 이관 검증이 끝난 후 제거한다.
+- draft 인원은 active Student, 시작 후 인원·진행은 PollParticipant/Participation/Progress를 쓴다.
+- 숫자·문자 학급명은 PollSession의 `classroom_name_snapshot`으로 안전하게 표시한다.
+- `ResultSummary`, `IntegrityReport`, `Close`는 PollSession 단위 snapshot/tally를 사용하되
+  count-only 비밀투표 계산 의미는 바꾸지 않는다.
+- archived·closed·stopped 실행은 Classroom/Student 현재 상태로 재계산하지 않는다.
 - 개인별 선택 row가 없는 count-only 비밀투표 계약을 유지하며 결과를 재계산하지 않는다.
 
 ### 단계 6: 기존 Poll 데이터 전환
@@ -205,12 +198,13 @@ Classroom Poll이 존재하면 임의로 group을 추측하지 않고 `Irreversi
 보관 여부·group 사용 현황을 조사한 후 결정해야 한다.**
 
 - 시작된 closed/stopped/in_progress Poll은 PollParticipant·Participation·Progress·tally·event와
-  group name snapshot으로 완결되므로 Classroom·Student를 역추적해 새로 만들 필요가 없을 수 있다.
+  group name snapshot으로 완결된다. PollSession backfill은 필요하지만 Classroom·Student 생성
+  필요 여부는 운영 데이터 조사 후 결정한다.
 - 보존할 draft Poll은 snapshot이 없으므로 계속 운영할 것이라면 명시적
   ParticipantGroup→Classroom, ParticipantSlot→Student mapping이 필요하다. 불필요한 draft를
   삭제할지도 운영 정책 결정이다.
 - 전환기가 필요하면 Poll ID를 명시적으로 받는 dry-run 기본 service/task로 만들고,
-  Poll·participant·participation·progress·option/contest/tally/event ID·count·status·시각을
+  Poll·PollSession·participant·participation·progress·option/contest/tally/event ID·count·status·시각을
   transaction 전후로 대조한다.
 - Student를 생성하는 경우 원본 slot number/name만 사용하고 학년도를 명시적으로
   받는다. group name 문자열을 파싱해 Classroom을 추측하지 않는다.
@@ -219,6 +213,7 @@ Classroom Poll이 존재하면 임의로 group을 추측하지 않고 `Irreversi
 
 - 신규 Poll 생성·시작·준비·목록·보관 경로의 group/slot 의존을 제거한다.
 - 보존 대상 Poll을 전환하거나 snapshot-only 역사 기록으로 완결했음을 검증한다.
+- 실행 기록의 PollSession FK를 필수로 전환한 뒤 runtime의 Poll 직접 실행 association을 제거한다.
 - `polls.participant_group_id`, `poll_participants.source_participant_slot_id` FK/index/column과 model
   association, legacy spec을 제거한다.
 - Election 실제 데이터 Classroom 전환과 runtime legacy 분기 제거가 완료되면 Election
@@ -288,19 +283,21 @@ invariant로 만들지 않는다.
 
 ### 단계별로 추가할 핵심 spec
 
-1. source 기반: 상태별 source constraint, 두 source 동시 거부, 역사 source-null 허용,
+1. foundation: Poll/Classroom school 일치, operator와 snapshot, status constraint, active 중복,
    FK 삭제/rollback 보호.
-2. 새 배정: 자기 active Classroom, 같은 학교, 담임, active Student 필수;
+2. 실행 기록 FK: participant/progress/tally/event의 nullable PollSession 연결, legacy 보존,
+   backfill invariant.
+3. 새 배정: 자기 active Classroom, 같은 학교, 담임, active Student 필수;
    inactive/다른 학교/직접 legacy parameter 거부; 권한 spec.
-3. 시작: active Student만 number 순 snapshot, inactive 제외, source slot null, 빈 명단 거부,
-   Poll row lock과 중복 시작, 전체 rollback, legacy start 회귀.
-4. 운영: 숫자/`생활교육실` 표시, draft active Student 수, 시작 후 snapshot 수,
+4. 시작: active Student만 number 순 snapshot, inactive 제외, source slot null, 빈 명단 거부,
+   PollSession row lock과 중복 시작, 전체 rollback, legacy start 회귀.
+5. 운영: 숫자/`생활교육실` 표시, draft active Student 수, 시작 후 snapshot 수,
    Student 변경 무영향, Classroom/legacy 혼합 목록, nil group 안전성.
-5. 결과: option·contest tally와 participation invariant, archived/stopped/closed snapshot 표시,
+6. 결과: option·contest tally와 participation invariant, archived/stopped/closed snapshot 표시,
    source slot 변경/삭제 회귀.
-6. 데이터 전환: dry-run 무변경, 선택 Poll 격리, ID/count/status/시각/tally/event
+7. 데이터 전환: dry-run 무변경, 선택 Poll 격리, ID/count/status/시각/tally/event
    보존, 중간 실패 rollback, already-converted/no-op. 보존 범위 결정 후에만 작성한다.
-7. legacy 제거: 전체 의존 검색, column/FK 제거 migration up/down, 신규 Classroom Poll
+8. legacy 제거: 전체 의존 검색, column/FK 제거 migration up/down, 신규 Classroom PollSession
    happy path와 보존 Poll 결과 회귀.
 
 ## 11. 제거 완료 조건
@@ -325,8 +322,9 @@ invariant로 만들지 않는다.
 
 1. **보존 Poll 범위 미확정**: repository에는 실제 운영 Poll의 개수·상태·보관
    필요성이 없다. 운영 백업 조사 전에 전체 보존·선택 보존·제거를 결정하지 않는다.
-2. **Poll에 school 경계가 없음**: 현재 Poll은 user/group만 참조하므로 Classroom 선택 시
-   school·teacher membership를 server에서 새로 검증해야 한다.
+2. **legacy Poll의 school 경계가 없음**: `polls.school_id`는 foundation에서 nullable이므로 기존
+   row는 계속 user/group만으로 존재한다. 새 PollSession 생성 전 school·teacher membership를
+   server에서 검증하고 legacy backfill은 별도로 수행해야 한다.
 3. **source-null 역사 row**: group FK가 `ON DELETE SET NULL`이고 closed/stopped는 model도 group을
    요구하지 않는다. Election식 unconditional exactly-one constraint는 기존 기록을 깨뜨린다.
 4. **시작 동시성**: `Polls::Start` 검증은 transaction 밖에서 시작하고 Poll row lock이 없다.
@@ -339,9 +337,8 @@ invariant로 만들지 않는다.
 6. **이름 snapshot column**: `participant_group_name_snapshot`은 group 삭제 후 표시를 보존한다.
    Classroom 표시 snapshot을 별도 열로 둘지, 보존 backfill 후 중립적 이름으로 rename할지
    1단계에서 확정해야 한다.
-7. **PollSession 분리**: 상위 플랫폼 문서는 Poll 정의와 Classroom별 PollSession 분리를
-   장기 목표로 제시한다. 현재는 Poll 하나가 단일 실행이므로, 이 cutover에서 동시에
-   분리하면 변경 범위와 데이터 이관 위험이 커진다.
+7. **PollSession 이관 순서**: foundation만 추가된 동안 기존 Poll runtime과 새 PollSession이
+   함께 존재한다. 실행 기록 FK backfill과 invariant 검증 전에는 새 runtime을 열지 않는다.
 8. **재투표 없음**: stopped Poll은 terminal이며 replacement/revote 관계도 없다.
    `ResumeCurrentParticipant`는 in_progress pointer 복구일 뿐이다. Poll 재투표는 이 전환의 숨은 요구로
    추가하지 않는다.
