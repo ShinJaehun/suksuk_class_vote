@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_03_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_03_030000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -235,10 +235,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_03_020000) do
     t.datetime "created_at", null: false
     t.bigint "poll_contest_id", null: false
     t.bigint "poll_id", null: false
+    t.bigint "poll_session_id"
     t.datetime "updated_at", null: false
     t.index ["poll_contest_id"], name: "index_poll_contest_tallies_on_poll_contest_id"
-    t.index ["poll_id", "poll_contest_id"], name: "index_poll_contest_tallies_on_poll_id_and_poll_contest_id", unique: true
+    t.index ["poll_id", "poll_contest_id"], name: "idx_poll_contest_tallies_legacy_poll_contest", unique: true, where: "(poll_session_id IS NULL)"
     t.index ["poll_id"], name: "index_poll_contest_tallies_on_poll_id"
+    t.index ["poll_session_id", "poll_contest_id"], name: "idx_poll_contest_tallies_session_contest", unique: true, where: "(poll_session_id IS NOT NULL)"
   end
 
   create_table "poll_contests", force: :cascade do |t|
@@ -259,23 +261,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_03_020000) do
     t.datetime "occurred_at", null: false
     t.bigint "poll_id", null: false
     t.bigint "poll_participant_id"
+    t.bigint "poll_session_id"
     t.datetime "updated_at", null: false
     t.index ["actor_id"], name: "index_poll_events_on_actor_id"
     t.index ["event_type"], name: "index_poll_events_on_event_type"
     t.index ["poll_id", "occurred_at"], name: "index_poll_events_on_poll_id_and_occurred_at"
     t.index ["poll_id"], name: "index_poll_events_on_poll_id"
     t.index ["poll_participant_id"], name: "index_poll_events_on_poll_participant_id"
+    t.index ["poll_session_id"], name: "index_poll_events_on_poll_session_id"
   end
 
   create_table "poll_option_tallies", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "poll_id", null: false
     t.bigint "poll_option_id", null: false
+    t.bigint "poll_session_id"
     t.datetime "updated_at", null: false
     t.integer "votes_count", default: 0, null: false
-    t.index ["poll_id", "poll_option_id"], name: "index_poll_option_tallies_on_poll_id_and_poll_option_id", unique: true
+    t.index ["poll_id", "poll_option_id"], name: "idx_poll_option_tallies_legacy_poll_option", unique: true, where: "(poll_session_id IS NULL)"
     t.index ["poll_id"], name: "index_poll_option_tallies_on_poll_id"
     t.index ["poll_option_id"], name: "index_poll_option_tallies_on_poll_option_id"
+    t.index ["poll_session_id", "poll_option_id"], name: "idx_poll_option_tallies_session_option", unique: true, where: "(poll_session_id IS NOT NULL)"
   end
 
   create_table "poll_options", force: :cascade do |t|
@@ -295,11 +301,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_03_020000) do
     t.string "name", null: false
     t.integer "number", null: false
     t.bigint "poll_id", null: false
+    t.bigint "poll_session_id"
     t.bigint "source_participant_slot_id"
     t.datetime "updated_at", null: false
-    t.index ["poll_id", "number"], name: "index_poll_participants_on_poll_id_and_number", unique: true
+    t.index ["poll_id", "number"], name: "idx_poll_participants_legacy_poll_number", unique: true, where: "(poll_session_id IS NULL)"
     t.index ["poll_id", "source_participant_slot_id"], name: "idx_on_poll_id_source_participant_slot_id_4913eb3601", unique: true
     t.index ["poll_id"], name: "index_poll_participants_on_poll_id"
+    t.index ["poll_session_id", "number"], name: "idx_poll_participants_session_number", unique: true, where: "(poll_session_id IS NOT NULL)"
     t.index ["source_participant_slot_id"], name: "index_poll_participants_on_source_participant_slot_id"
   end
 
@@ -318,11 +326,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_03_020000) do
     t.datetime "created_at", null: false
     t.bigint "current_poll_participant_id"
     t.bigint "poll_id", null: false
+    t.bigint "poll_session_id"
     t.datetime "started_at"
     t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
     t.index ["current_poll_participant_id"], name: "index_poll_progresses_on_current_poll_participant_id"
-    t.index ["poll_id"], name: "index_poll_progresses_on_poll_id", unique: true
+    t.index ["poll_id"], name: "idx_poll_progresses_legacy_poll", unique: true, where: "(poll_session_id IS NULL)"
+    t.index ["poll_session_id"], name: "idx_poll_progresses_session", unique: true, where: "(poll_session_id IS NOT NULL)"
   end
 
   create_table "poll_sessions", force: :cascade do |t|
@@ -433,19 +443,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_03_020000) do
   add_foreign_key "participant_groups", "users"
   add_foreign_key "participant_slots", "participant_groups"
   add_foreign_key "poll_contest_tallies", "poll_contests"
+  add_foreign_key "poll_contest_tallies", "poll_sessions"
   add_foreign_key "poll_contest_tallies", "polls"
   add_foreign_key "poll_contests", "polls"
   add_foreign_key "poll_events", "poll_participants"
+  add_foreign_key "poll_events", "poll_sessions"
   add_foreign_key "poll_events", "polls"
   add_foreign_key "poll_events", "users", column: "actor_id"
   add_foreign_key "poll_option_tallies", "poll_options"
+  add_foreign_key "poll_option_tallies", "poll_sessions"
   add_foreign_key "poll_option_tallies", "polls"
   add_foreign_key "poll_options", "poll_contests"
   add_foreign_key "poll_options", "polls"
   add_foreign_key "poll_participants", "participant_slots", column: "source_participant_slot_id", on_delete: :nullify
+  add_foreign_key "poll_participants", "poll_sessions"
   add_foreign_key "poll_participants", "polls"
   add_foreign_key "poll_participations", "poll_participants"
   add_foreign_key "poll_progresses", "poll_participants", column: "current_poll_participant_id"
+  add_foreign_key "poll_progresses", "poll_sessions"
   add_foreign_key "poll_progresses", "polls"
   add_foreign_key "poll_sessions", "classrooms"
   add_foreign_key "poll_sessions", "polls"

@@ -2,6 +2,11 @@ class PollSession < ApplicationRecord
   belongs_to :poll
   belongs_to :classroom
   belongs_to :operator, class_name: "User", inverse_of: :operated_poll_sessions
+  has_many :poll_participants, dependent: :restrict_with_error, inverse_of: :poll_session
+  has_one :poll_progress, dependent: :restrict_with_error, inverse_of: :poll_session
+  has_many :poll_option_tallies, dependent: :restrict_with_error, inverse_of: :poll_session
+  has_many :poll_contest_tallies, dependent: :restrict_with_error, inverse_of: :poll_session
+  has_many :poll_events, dependent: :restrict_with_error, inverse_of: :poll_session
 
   enum :status, { draft: 0, in_progress: 10, closed: 20, stopped: 30 }
 

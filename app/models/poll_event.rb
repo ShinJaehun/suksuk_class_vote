@@ -36,6 +36,7 @@ class PollEvent < ApplicationRecord
   ].freeze
 
   belongs_to :poll
+  belongs_to :poll_session, optional: true, inverse_of: :poll_events
   belongs_to :actor, class_name: "User", optional: true
   belongs_to :poll_participant, optional: true
 
@@ -46,6 +47,7 @@ class PollEvent < ApplicationRecord
   validates :occurred_at, presence: true
   validate :details_is_hash
   validate :details_do_not_include_poll_option_information
+  validate :poll_must_match_poll_session
 
   def display_label
     DISPLAY_LABELS.fetch(event_type, event_type)
@@ -68,6 +70,12 @@ class PollEvent < ApplicationRecord
   def set_defaults
     self.details ||= {}
     self.occurred_at ||= Time.current
+  end
+
+  def poll_must_match_poll_session
+    return if poll.blank? || poll_session.blank? || poll == poll_session.poll
+
+    errors.add(:poll_session, "must belong to poll")
   end
 
   def details_do_not_include_poll_option_information

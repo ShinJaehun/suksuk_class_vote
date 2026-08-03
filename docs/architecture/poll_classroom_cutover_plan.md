@@ -8,14 +8,14 @@
 
 목표는 기존 Poll ID와 진행·집계 기록을 손상하지 않고 신규 경로를 전환한 뒤,
 Election과 Poll 양쪽의 의존을 모두 제거하여 `ParticipantGroup`·`ParticipantSlot` table을
-삭제할 수 있게 하는 것이다. 현재는 PollSession DB·모델 foundation만 추가됐으며 실제 데이터와
-기존 Poll runtime은 변경하지 않는다.
+삭제할 수 있게 하는 것이다. 현재 PollSession foundation과 실행 기록의 nullable 연결 기반까지
+추가됐으며 실제 데이터와 기존 Poll runtime은 변경하지 않는다.
 
 ## 2. 현재 구조
 
 PollSession foundation은 존재하지만 기존 runtime에서 `Poll` 하나가 투표 정의와 한 번의 학급
-실행을 모두 담당한다. 실행 기록 FK는 아직 PollSession으로 옮기지 않았다. 또한 개인별 선택지를
-저장하는 `PollVote` 모델은 없다. 비밀투표를 위해
+실행을 모두 담당한다. 실행 기록에는 nullable `poll_session_id`가 추가됐지만 legacy runtime은
+이를 비운 채 `poll_id`로 기록한다. 또한 개인별 선택지를 저장하는 `PollVote` 모델은 없다. 비밀투표를 위해
 참여 상태와 선택지별 count-only tally를 분리해 저장한다.
 
 | 모델 | 현재 책임과 association | 상태·제약·삭제 |
@@ -24,9 +24,9 @@ PollSession foundation은 존재하지만 기존 runtime에서 `Poll` 하나가 
 | `PollSession` | `poll`, `classroom`, 실제 `operator`, 학급·운영자 이름 snapshot | foundation만 존재; `draft/in_progress/closed/stopped`; 같은 Poll/Classroom의 active 실행 unique; runtime 미사용 |
 | `ParticipantGroup` | `user`, optional `school`, many slots/polls | Poll은 `teacher_personal` group만 생성 UI에서 선택; draft Poll이 사용 중이면 group 삭제 차단 |
 | `ParticipantSlot` | group의 번호·이름 명단 row | group 내 number unique; PollParticipant의 optional source, slot 삭제 시 FK `ON DELETE SET NULL` |
-| `PollParticipant` | Poll 시작 시 number·name snapshot, optional `source_participant_slot` | poll 내 number unique, source slot unique; participation/event/progress의 실행 기준 |
+| `PollParticipant` | Poll 시작 시 number·name snapshot, optional `source_participant_slot`, optional `poll_session` | legacy poll 또는 PollSession 안에서 number unique; participation/event/progress의 실행 기준 |
 | `PollParticipation` | participant의 확정 상태 | `completed/absent/abstained`; participant당 1개, `recorded_at` 존재 |
-| `PollProgress` | current participant, 시작·종료 시각, ballot lock | `active/closed`, `ballot_locked/ballot_open`; poll당 1개 |
+| `PollProgress` | current participant, 시작·종료 시각, ballot lock, optional `poll_session` | `active/closed`, `ballot_locked/ballot_open`; legacy poll 또는 PollSession당 1개 |
 | `PollOption` / `PollContest` | 선택지와 항목 정의 | contest 내 option number unique, poll 내 contest position unique |
 | `PollOptionTally` | option별 표 수 | poll·option unique, 0 이상 |
 | `PollContestTally` | contest별 기권 수 | poll·contest unique, 0 이상 |
@@ -138,9 +138,10 @@ ParticipantGroup runtime은 실행 기록을 PollSession으로 옮길 때까지 
 - `poll_sessions`는 poll, classroom, operator와 생성 당시 학급·운영자 이름 snapshot을 가진다.
 - 같은 Poll/Classroom의 draft 또는 in_progress PollSession은 하나만 허용한다.
 - closed/stopped 실행 뒤 같은 Poll을 같은 Classroom에서 다시 실행할 수 있다.
-- PollParticipant/Progress/tally/event의 기존 `poll_id`는 foundation 단계에서 변경하지 않는다.
-- 후속 migration에서 `poll_session_id`를 nullable로 추가하고 backfill과 invariant 검증 뒤
-  소유권을 PollSession으로 옮긴다.
+- PollParticipant/Progress/tally/event에는 nullable `poll_session_id`가 있고 기존 `poll_id`도 유지한다.
+- legacy row는 `poll_session_id = NULL`, 새 실행 기록은 같은 Poll의 PollSession을 함께 참조한다.
+- legacy와 PollSession의 unique index를 분리해 같은 Poll을 여러 PollSession에서 실행할 DB 기반을
+  마련했다. PollParticipation은 PollParticipant를 통해 간접 연결한다.
 
 이 구조는 정의 재사용과 실행 기록을 분리하고 새 runtime에 dual-source 조건을 남기지 않는다.
 foundation rollback은 PollSession row가 있으면 기록 삭제 대신 명시적으로 거부한다.
@@ -163,7 +164,9 @@ foundation rollback은 PollSession row가 있으면 기록 삭제 대신 명시�
 - PollParticipant, PollProgress, PollOptionTally, PollContestTally, PollEvent에 nullable
   `poll_session_id`를 추가한다. PollParticipation은 PollParticipant를 통한 소유 관계를 유지한다.
 - legacy row의 기존 poll FK와 삭제 정책을 유지한 채 새 association을 추가한다.
-- 실행 기록별 유일성 constraint를 PollSession 기준으로 병행할 수 있게 준비한다.
+- participant number, progress, option tally, contest tally의 legacy/PollSession partial unique
+  index를 분리하고 PollEvent에는 일반 PollSession index만 둔다.
+- 연결된 실행 기록의 Poll과 PollSession.poll 일치를 model에서 검증한다.
 - legacy backfill 정책이 확정되기 전에는 새 PollSession runtime을 열지 않는다.
 
 ### 단계 3: 새 Poll 정의와 Classroom 배정
