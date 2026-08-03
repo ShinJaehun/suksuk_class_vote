@@ -9,7 +9,7 @@ RSpec.describe Classroom, type: :model do
       expect(classroom.teacher).to be_nil
       expect(classroom.school_year).to eq(2026)
       expect(classroom.grade).to eq(4)
-      expect(classroom.class_number).to be_positive
+      expect(classroom.class_label).to be_present
       expect(classroom).to be_active
     end
 
@@ -50,20 +50,39 @@ RSpec.describe Classroom, type: :model do
       expect(classroom.errors[:grade]).to be_present
     end
 
-    it "requires a class number" do
-      classroom = build(:classroom, class_number: nil)
+    it "requires a class label" do
+      classroom = build(:classroom, class_label: nil)
 
       expect(classroom).not_to be_valid
-      expect(classroom.errors[:class_number]).to be_present
+      expect(classroom.errors[:class_label]).to be_present
     end
 
-    it "requires school year, grade, and class number to be positive integers" do
-      classroom = build(:classroom, school_year: 0, grade: 1.5, class_number: -1)
+    it "requires school year and grade to be positive integers" do
+      classroom = build(:classroom, school_year: 0, grade: 1.5)
 
       expect(classroom).not_to be_valid
       expect(classroom.errors[:school_year]).to be_present
       expect(classroom.errors[:grade]).to be_present
-      expect(classroom.errors[:class_number]).to be_present
+    end
+
+    it "allows numeric and text class labels" do
+      %w[1 13 생활교육실 A A-1].each do |class_label|
+        expect(build(:classroom, class_label: class_label)).to be_valid
+      end
+    end
+
+    it "strips surrounding whitespace from class labels" do
+      classroom = build(:classroom, class_label: "  생활교육실  ")
+
+      expect(classroom).to be_valid
+      expect(classroom.class_label).to eq("생활교육실")
+    end
+
+    it "limits class labels to 30 characters" do
+      classroom = build(:classroom, class_label: "가" * 31)
+
+      expect(classroom).not_to be_valid
+      expect(classroom.errors[:class_label]).to be_present
     end
 
     it "allows an inactive classroom" do
@@ -79,35 +98,35 @@ RSpec.describe Classroom, type: :model do
       expect(classroom.errors[:active]).to be_present
     end
 
-    it "does not allow duplicate school, school year, grade, and class number" do
+    it "does not allow duplicate school, school year, grade, and class label" do
       classroom = create(:classroom)
       duplicate = build(:classroom,
                         school: classroom.school,
                         school_year: classroom.school_year,
                         grade: classroom.grade,
-                        class_number: classroom.class_number)
+                        class_label: classroom.class_label)
 
       expect(duplicate).not_to be_valid
-      expect(duplicate.errors[:class_number]).to be_present
+      expect(duplicate.errors[:class_label]).to be_present
     end
 
-    it "allows the same grade and class number in another school" do
+    it "allows the same grade and class label in another school" do
       classroom = create(:classroom)
       another_classroom = build(:classroom,
                                 school_year: classroom.school_year,
                                 grade: classroom.grade,
-                                class_number: classroom.class_number)
+                                class_label: classroom.class_label)
 
       expect(another_classroom).to be_valid
     end
 
-    it "allows the same grade and class number in another school year" do
+    it "allows the same grade and class label in another school year" do
       classroom = create(:classroom)
       another_classroom = build(:classroom,
                                 school: classroom.school,
                                 school_year: classroom.school_year + 1,
                                 grade: classroom.grade,
-                                class_number: classroom.class_number)
+                                class_label: classroom.class_label)
 
       expect(another_classroom).to be_valid
     end
@@ -118,12 +137,12 @@ RSpec.describe Classroom, type: :model do
                                 school: classroom.school,
                                 school_year: classroom.school_year,
                                 grade: classroom.grade + 1,
-                                class_number: classroom.class_number)
+                                class_label: classroom.class_label)
 
       expect(another_classroom).to be_valid
     end
 
-    it "allows another class number in the same grade" do
+    it "allows another class label in the same grade" do
       classroom = create(:classroom)
       another_classroom = build(:classroom,
                                 school: classroom.school,
@@ -269,6 +288,28 @@ RSpec.describe Classroom, type: :model do
       classroom = build(:classroom, school: school, teacher: second_membership.user)
 
       expect(classroom).to be_valid
+    end
+  end
+
+  describe "#formatted_class_label" do
+    it "adds the class suffix only to numeric labels" do
+      expect(build(:classroom, class_label: "1").formatted_class_label).to eq("1반")
+      expect(build(:classroom, class_label: "13").formatted_class_label).to eq("13반")
+      expect(build(:classroom, class_label: "생활교육실").formatted_class_label).to eq("생활교육실")
+      expect(build(:classroom, class_label: "A").formatted_class_label).to eq("A")
+    end
+  end
+
+  describe ".in_school_order" do
+    it "orders numeric labels naturally before text labels" do
+      school = create(:school)
+      %w[10 2 생활교육실 1].each do |class_label|
+        create(:classroom, school: school, class_label: class_label)
+      end
+
+      expect(described_class.where(school: school).in_school_order.pluck(:class_label)).to eq(
+        %w[1 2 10 생활교육실]
+      )
     end
   end
 

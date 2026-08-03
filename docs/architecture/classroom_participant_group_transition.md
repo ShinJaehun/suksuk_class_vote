@@ -164,7 +164,7 @@ migration이 임의로 매핑하거나 보정하지 않는다. 모호한 레코�
 school_id
 school_year
 grade
-class_number
+class_label
 ```
 
 현재 ParticipantGroup에는 학교·학년·반 관련 필드가 일부 있지만 학년도가 없고 일반

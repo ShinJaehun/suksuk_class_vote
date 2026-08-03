@@ -99,7 +99,7 @@ Classroom
 - teacher_id nullable
 - school_year
 - grade
-- class_number
+- class_label: string
 - name
 - active
 ```
@@ -110,7 +110,11 @@ global admin은 담임으로 배정하지 않는다. 교사는 활성 학급을 
 학급의 `classrooms.teacher_id`에 partial unique index를 둔다. 담임교사의 현재 학교
 membership과 학급의 학교는 같아야 한다.
 
-학교·학년도·학년·반 조합은 중복될 수 없다. 생성된 학급의 학교는 변경할 수 없다.
+`class_label`은 숫자와 문자 학급명을 모두 허용한다. 따라서 `1`, `13`뿐 아니라
+`생활교육실` 같은 특수 학급도 Classroom으로 표현한다. 숫자 label은 화면에서 `반`
+접미사를 붙이고 문자 label은 그대로 표시한다.
+
+학교·학년도·학년·반 이름 조합은 중복될 수 없다. 생성된 학급의 학교는 변경할 수 없다.
 가능한 항목은 validation뿐 아니라 DB unique index 또는 constraint로도 보장한다.
 
 학교를 잘못 지정했다면 운영 기록 보존 정책에 따라 비활성화하고 올바른 학교에 새

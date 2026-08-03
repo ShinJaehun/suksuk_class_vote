@@ -68,7 +68,7 @@
                                       },
                                       class: "mt-1 h-4 w-4 rounded border-stone-300" %>
                     <span class="space-y-1">
-                      <span class="block font-medium"><%= classroom.school_year %>학년도 <%= classroom.grade %>학년 <%= classroom.class_number %>반</span>
+                      <span class="block font-medium"><%= classroom.school_year %>학년도 <%= classroom.grade %>학년 <%= classroom.formatted_class_label %></span>
                       <span class="block text-sm text-stone-600">
                         담당 교사 <%= teacher.name.presence || teacher.email %>
                         · 투표자 <%= voter_count %>명
@@ -128,7 +128,7 @@
           </div>
           <% grade_sessions.each do |session| %>
             <% source = session.classroom || session.participant_group %>
-            <% source_name = session.classroom ? "#{source.school_year}학년도 #{source.grade}학년 #{source.class_number}반" : source.display_name %>
+            <% source_name = session.classroom ? "#{source.school_year}학년도 #{source.grade}학년 #{source.formatted_class_label}" : source.display_name %>
             <% voter_count = if session.draft?
               session.classroom ? source.students.count(&:active?) : source.participant_slots.size
             else
@@ -186,7 +186,7 @@
       <h3 class="font-semibold">중단된 학급 세션 이력</h3>
       <% stopped_history_sessions.each do |session| %>
         <% source = session.classroom || session.participant_group %>
-        <% source_name = session.classroom ? "#{source.school_year}학년도 #{source.grade}학년 #{source.class_number}반" : source.display_name %>
+        <% source_name = session.classroom ? "#{source.school_year}학년도 #{source.grade}학년 #{source.formatted_class_label}" : source.display_name %>
         <% voter_count = session.election_voters.size %>
         <div class="flex flex-col gap-3 rounded-md border border-rose-100 bg-rose-50/40 p-3 sm:flex-row sm:items-center sm:justify-between">
           <div class="space-y-1">

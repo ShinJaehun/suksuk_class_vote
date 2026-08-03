@@ -26,7 +26,7 @@
 
 `Classroom`은 특정 학교·학년도·학년·반의 1년 운영 단위다.
 
-- `school_year`, `grade`, `class_number`로 학년도별 학급을 구분한다.
+- `school_year`, `grade`, `class_label`로 학년도별 학급을 구분한다.
 - `active: true`는 현재 운영 중인 학급을 뜻한다.
 - `active: false`는 운영이 끝난 역사 학급을 뜻한다.
 - 이전 Classroom을 다음 학년도로 수정하거나 재사용하지 않는다.

@@ -264,12 +264,10 @@ module Admin
       @participant_groups = Classroom
         .where(school: @election.school, active: true)
         .where.not(teacher_id: nil)
-        .joins(:students)
-        .where(students: { active: true })
+        .where(id: Student.where(active: true).select(:classroom_id))
         .where.not(id: assigned_classroom_ids)
         .includes(:teacher, :students)
-        .distinct
-        .order(:school_year, :grade, :class_number)
+        .in_school_order
       @election_status_report = ::Elections::StatusReport.new(election: @election).to_h
     end
 

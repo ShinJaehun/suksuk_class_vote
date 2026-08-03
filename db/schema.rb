@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_03_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_03_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -44,7 +44,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_03_000000) do
 
   create_table "classrooms", force: :cascade do |t|
     t.boolean "active", default: true, null: false
-    t.integer "class_number", null: false
+    t.string "class_label", null: false
     t.datetime "created_at", null: false
     t.integer "grade", null: false
     t.string "name", null: false
@@ -52,7 +52,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_03_000000) do
     t.integer "school_year", null: false
     t.bigint "teacher_id"
     t.datetime "updated_at", null: false
-    t.index ["school_id", "school_year", "grade", "class_number"], name: "idx_classrooms_on_school_year_grade_number", unique: true
+    t.index ["school_id", "school_year", "grade", "class_label"], name: "idx_classrooms_on_school_year_grade_label", unique: true
     t.index ["school_id"], name: "index_classrooms_on_school_id"
     t.index ["teacher_id"], name: "idx_classrooms_on_active_teacher", unique: true, where: "((active = true) AND (teacher_id IS NOT NULL))"
   end

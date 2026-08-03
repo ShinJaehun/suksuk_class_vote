@@ -32,7 +32,7 @@ RSpec.describe Elections::BroadcastAdminOverview do
       participant_group = create(:participant_group, :school_election, user: legacy_teacher)
       create(:participant_slot, participant_group: participant_group)
       create(:election_session, election: election, teacher: legacy_teacher, participant_group: participant_group)
-      classroom = create(:classroom, :with_teacher, school: election.school, grade: 5, class_number: 2)
+      classroom = create(:classroom, :with_teacher, school: election.school, grade: 5, class_label: "생활교육실")
       create(:student, classroom: classroom)
       create(
         :election_session,
@@ -50,7 +50,7 @@ RSpec.describe Elections::BroadcastAdminOverview do
       expect(broadcasts.join).to include(ActionView::RecordIdentifier.dom_id(election, :admin_status_report))
       expect(broadcasts.join).to include(ActionView::RecordIdentifier.dom_id(election, :admin_sessions))
       expect(broadcasts.join).to include(participant_group.display_name)
-      expect(broadcasts.join).to include("#{classroom.school_year}학년도 #{classroom.grade}학년 #{classroom.class_number}반")
+      expect(broadcasts.join).to include("#{classroom.school_year}학년도 #{classroom.grade}학년 #{classroom.formatted_class_label}")
     end
   end
 

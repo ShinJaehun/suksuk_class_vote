@@ -173,14 +173,22 @@ Classroom마다 ParticipantGroup을 자동 생성하는 방식은 같은 명단�
 
 ## 5. 기존 기록 보존
 
-- 기존 ElectionSession의 `participant_group_id`를 유지한다.
-- 기존 ElectionSession을 새 Classroom에 소급 연결하지 않는다.
+- 최종 보존 대상은 운영 DB에서 선택한 실제 선거 한 건이며 모의·테스트 Election은
+  최종 전환 대상에서 제외한다.
+- 선택한 실제 선거의 ParticipantGroup과 ParticipantSlot만 Classroom과 Student로
+  일회성 변환한다. 실제 운영 DB 변환은 이 브랜치에서 수행하지 않는다.
+- 중단 세션과 재투표 replacement 세션은 동일 Classroom에 연결한다.
+- 검증 전 전환 기간에는 기존 ElectionSession의 `participant_group_id`를 유지한다.
+- 선택한 실제 선거의 세션만 변환 대상 Classroom에 연결하며, 그 밖의 기존 세션을
+  임의로 소급 연결하지 않는다.
 - 기존 ElectionVoter를 Student로 변환하거나 다시 만들지 않는다.
 - 완료·중단 세션의 voter, participation, tally, progress와 event를 수정하지 않는다.
 - nullable인 `ElectionVoter.source_participant_slot_id`는 기존 값 그대로 보존한다.
 - 실제 운영 결과는 저장된 ElectionVoter snapshot과 tally를 기준으로 계속 조회한다.
 - 기존 세션의 학급 표시는 ParticipantGroup을 사용하되, source가 없어도 결과 핵심값을
   snapshot과 tally로 읽도록 조회 의존을 단계적으로 줄인다.
+- 장기 dual-source 지원을 목표로 하지 않는다. 일회성 변환을 검증한 뒤 선택한 실제
+  Election의 ParticipantGroup 경로를 제거한다.
 
 ParticipantGroup table 제거는 기존 세션의 표시 정보까지 독립적으로 보존하는 방법이
 확정되고 Poll 전환도 끝난 뒤 별도 작업으로 수행한다.
@@ -218,7 +226,9 @@ ParticipantGroup table 제거는 기존 세션의 표시 정보까지 독립적�
 
 ### 4단계 — 조회·표시와 재투표 전환
 
-- Classroom 세션은 `school_year`, `grade`, `class_number`, `name`을 표시한다.
+- Classroom 세션은 `school_year`, `grade`, `class_label`, `name`을 표시한다.
+- `class_label`은 숫자와 문자를 허용해 `생활교육실` 같은 특수 학급도 표현한다. 숫자
+  label은 화면에서 `반`을 붙이고 문자 label은 그대로 표시한다.
 - legacy 세션은 기존 ParticipantGroup 표시를 유지한다.
 - draft 인원수만 source별 원본 명단에서 계산하고, 시작된 세션은 ElectionVoter 수를
   사용한다.

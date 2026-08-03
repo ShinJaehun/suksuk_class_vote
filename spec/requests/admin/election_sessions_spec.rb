@@ -67,7 +67,7 @@ RSpec.describe "Admin election sessions", type: :request do
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.body).to include("학급 세션을 배정할 수 없습니다.")
       expect(response.body).to include(teacher.name)
-      expect(response.body).to include(classroom.class_number.to_s)
+      expect(response.body).to include(classroom.formatted_class_label)
     end
 
     it "allows assignment when the same classroom has only a historical session" do
@@ -210,9 +210,9 @@ RSpec.describe "Admin election sessions", type: :request do
       election = create(:election)
       first_teacher = create(:user)
       second_teacher = create(:user)
-      first_classroom = create_assignable_classroom(election: election, teacher: first_teacher, class_number: 1)
-      second_classroom = create_assignable_classroom(election: election, teacher: second_teacher, class_number: 2)
-      unselected_classroom = create_assignable_classroom(election: election, teacher: create(:user), class_number: 3)
+      first_classroom = create_assignable_classroom(election: election, teacher: first_teacher, class_label: "1")
+      second_classroom = create_assignable_classroom(election: election, teacher: second_teacher, class_label: "2")
+      unselected_classroom = create_assignable_classroom(election: election, teacher: create(:user), class_label: "3")
       sign_in create(:user, :admin)
 
       expect do
@@ -618,7 +618,7 @@ RSpec.describe "Admin election sessions", type: :request do
     create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
   end
 
-  def create_assignable_classroom(election:, teacher:, class_number: 1, active: true)
+  def create_assignable_classroom(election:, teacher:, class_label: "1", active: true)
     unless teacher.school == election.school
       create(:school_membership, school: election.school, user: teacher)
       teacher.reload
@@ -627,7 +627,7 @@ RSpec.describe "Admin election sessions", type: :request do
       :classroom,
       school: election.school,
       teacher: teacher,
-      class_number: class_number,
+      class_label: class_label,
       active: active
     )
     create(:student, classroom: classroom)

@@ -387,8 +387,10 @@ RSpec.describe "Admin elections", type: :request do
       teacher = create(:user, name: "김담임", email: "teacher@example.com")
       participant_group = create(:participant_group, :school_election, :with_participant_slot, user: teacher, school: election.school, name: "6학년 1반", grade: 6, class_label: "1")
       create(:election_session, election: election, teacher: teacher, participant_group: participant_group)
-      classroom = create_eligible_classroom(election: election, teacher: create(:user, name: "이담임"), class_number: 2)
+      classroom = create_eligible_classroom(election: election, teacher: create(:user, name: "이담임"), class_label: "생활교육실")
       create(:election_session, election: election, teacher: classroom.teacher, participant_group: nil, classroom: classroom)
+      numeric_classroom = create_eligible_classroom(election: election, teacher: create(:user), class_label: "13")
+      create(:election_session, election: election, teacher: numeric_classroom.teacher, participant_group: nil, classroom: numeric_classroom)
 
       get admin_election_path(election)
 
@@ -397,7 +399,8 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).to include("담당 교사")
       expect(response.body).to include("김담임")
       expect(response.body).to include("6학년 1반")
-      expect(response.body).to include("#{classroom.school_year}학년도 #{classroom.grade}학년 #{classroom.class_number}반")
+      expect(response.body).to include("#{classroom.school_year}학년도 #{classroom.grade}학년 #{classroom.formatted_class_label}")
+      expect(response.body).to include("#{numeric_classroom.school_year}학년도 #{numeric_classroom.grade}학년 13반")
       expect(response.body).to include("투표자 1명")
     end
 
@@ -406,15 +409,15 @@ RSpec.describe "Admin elections", type: :request do
       school = create(:school, name: "쑥쑥초등학교")
       other_school = create(:school, name: "다른초등학교")
       election = create(:election, school: school)
-      assignable_classroom = create_eligible_classroom(election: election, teacher: create(:user, name: "김담임"), class_number: 1)
-      assigned_classroom = create_eligible_classroom(election: election, teacher: create(:user), class_number: 2)
+      assignable_classroom = create_eligible_classroom(election: election, teacher: create(:user, name: "김담임"), class_label: "생활교육실")
+      assigned_classroom = create_eligible_classroom(election: election, teacher: create(:user), class_label: "2")
       create(:election_session, election: election, teacher: assigned_classroom.teacher, participant_group: nil, classroom: assigned_classroom)
-      other_school_classroom = create(:classroom, :with_teacher, school: other_school, class_number: 3)
+      other_school_classroom = create(:classroom, :with_teacher, school: other_school, class_label: "3")
       create(:student, classroom: other_school_classroom)
-      inactive_classroom = create_eligible_classroom(election: election, teacher: create(:user), class_number: 4, active: false)
-      teacherless_classroom = create(:classroom, school: school, class_number: 5)
+      inactive_classroom = create_eligible_classroom(election: election, teacher: create(:user), class_label: "4", active: false)
+      teacherless_classroom = create(:classroom, school: school, class_label: "5")
       create(:student, classroom: teacherless_classroom)
-      empty_classroom = create(:classroom, :with_teacher, school: school, class_number: 6)
+      empty_classroom = create(:classroom, :with_teacher, school: school, class_label: "6")
 
       get admin_election_path(election)
 
@@ -429,13 +432,13 @@ RSpec.describe "Admin elections", type: :request do
       expect(response.body).not_to include("선택 요약")
       expect(response.body).not_to include("선택된 학급")
       expect(selectable_classroom_ids).to eq([ assignable_classroom.id ])
-      expect(response.body).to include("#{assignable_classroom.school_year}학년도 #{assignable_classroom.grade}학년 #{assignable_classroom.class_number}반")
+      expect(response.body).to include("#{assignable_classroom.school_year}학년도 #{assignable_classroom.grade}학년 #{assignable_classroom.formatted_class_label}")
       expect(response.body).to include("이미 배정된 학급 세션")
-      expect(response.body).to include("#{assigned_classroom.school_year}학년도 #{assigned_classroom.grade}학년 #{assigned_classroom.class_number}반")
-      expect(response.body).not_to include("#{other_school_classroom.school_year}학년도 #{other_school_classroom.grade}학년 #{other_school_classroom.class_number}반")
-      expect(response.body).not_to include("#{inactive_classroom.school_year}학년도 #{inactive_classroom.grade}학년 #{inactive_classroom.class_number}반")
-      expect(response.body).not_to include("#{teacherless_classroom.school_year}학년도 #{teacherless_classroom.grade}학년 #{teacherless_classroom.class_number}반")
-      expect(response.body).not_to include("#{empty_classroom.school_year}학년도 #{empty_classroom.grade}학년 #{empty_classroom.class_number}반")
+      expect(response.body).to include("#{assigned_classroom.school_year}학년도 #{assigned_classroom.grade}학년 #{assigned_classroom.formatted_class_label}")
+      expect(response.body).not_to include("#{other_school_classroom.school_year}학년도 #{other_school_classroom.grade}학년 #{other_school_classroom.formatted_class_label}")
+      expect(response.body).not_to include("#{inactive_classroom.school_year}학년도 #{inactive_classroom.grade}학년 #{inactive_classroom.formatted_class_label}")
+      expect(response.body).not_to include("#{teacherless_classroom.school_year}학년도 #{teacherless_classroom.grade}학년 #{teacherless_classroom.formatted_class_label}")
+      expect(response.body).not_to include("#{empty_classroom.school_year}학년도 #{empty_classroom.grade}학년 #{empty_classroom.formatted_class_label}")
       expect(response.body).not_to include("checked=\"checked\"")
     end
 
@@ -1654,7 +1657,7 @@ RSpec.describe "Admin elections", type: :request do
     create(:election_session, election: election, teacher: teacher, participant_group: participant_group, status: status)
   end
 
-  def create_eligible_classroom(election:, teacher:, class_number:, active: true)
+  def create_eligible_classroom(election:, teacher:, class_label:, active: true)
     unless teacher.school == election.school
       create(:school_membership, school: election.school, user: teacher)
       teacher.reload
@@ -1663,7 +1666,7 @@ RSpec.describe "Admin elections", type: :request do
       :classroom,
       school: election.school,
       teacher: teacher,
-      class_number: class_number,
+      class_label: class_label,
       active: active
     )
     create(:student, classroom: classroom)
