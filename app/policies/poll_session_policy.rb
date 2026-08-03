@@ -1,4 +1,8 @@
 class PollSessionPolicy < ApplicationPolicy
+  def show?
+    start?
+  end
+
   def start?
     return false if user.blank?
     return true if user.admin?

@@ -62,6 +62,10 @@
                                           turbo_confirm: "이 학급의 현재 활성 학생 명단으로 투표를 시작합니다. 시작 후 명단은 snapshot으로 고정됩니다. 계속하시겠습니까?"
                                         },
                                         class: "rounded-md bg-stone-900 px-3 py-2 font-medium text-white" %>
+                        <% elsif poll_session.in_progress? && policy(poll_session).show? %>
+                          <%= link_to "운영 현황",
+                                      poll_poll_session_path(poll, poll_session),
+                                      class: "font-medium text-stone-700 underline" %>
                         <% end %>
                       </div>
                     </li>

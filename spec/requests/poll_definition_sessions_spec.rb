@@ -250,10 +250,13 @@ RSpec.describe "Poll definition sessions", type: :request do
       expect(response.body).to include(first_session.classroom_name_snapshot)
       expect(response.body).to include("진행 중")
       expect(response.body).to include("투표 진행 중")
+      expect(response.body).to include("운영 현황")
+      expect(response.body).to include(poll_poll_session_path(poll, first_session))
       expect(response.body).to include(closed_session.classroom_name_snapshot)
       expect(response.body).to include("종료")
       expect(response.body).not_to include(start_poll_poll_session_path(poll, first_session))
       expect(response.body).not_to include(start_poll_poll_session_path(poll, closed_session))
+      expect(response.body).not_to include(poll_poll_session_path(poll, closed_session))
     end
   end
 end

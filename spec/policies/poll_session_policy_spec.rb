@@ -15,6 +15,7 @@ RSpec.describe PollSessionPolicy do
     poll_session, = create_poll_session
 
     expect(described_class.new(create(:user, :admin), poll_session)).to be_start
+    expect(described_class.new(create(:user, :admin), poll_session)).to be_show
   end
 
   it "allows a same-school manager" do
@@ -23,12 +24,14 @@ RSpec.describe PollSessionPolicy do
     create(:school_membership, :manager, school: poll_session.classroom.school, user: manager)
 
     expect(described_class.new(manager, poll_session)).to be_start
+    expect(described_class.new(manager, poll_session)).to be_show
   end
 
   it "allows the Classroom teacher" do
     poll_session, teacher = create_poll_session
 
     expect(described_class.new(teacher, poll_session)).to be_start
+    expect(described_class.new(teacher, poll_session)).to be_show
   end
 
   it "rejects another teacher, another-school manager, and membershipless teacher" do
@@ -41,5 +44,8 @@ RSpec.describe PollSessionPolicy do
     expect(described_class.new(other_teacher, poll_session)).not_to be_start
     expect(described_class.new(other_manager, poll_session)).not_to be_start
     expect(described_class.new(create(:user), poll_session)).not_to be_start
+    expect(described_class.new(other_teacher, poll_session)).not_to be_show
+    expect(described_class.new(other_manager, poll_session)).not_to be_show
+    expect(described_class.new(create(:user), poll_session)).not_to be_show
   end
 end

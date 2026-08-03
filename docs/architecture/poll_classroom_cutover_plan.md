@@ -196,6 +196,9 @@ foundation rollback은 PollSession row가 있으면 기록 삭제 대신 명시�
 - `PollSessionsController#start`는 parent Poll과 PollSession ID를 함께 조회하고 policy 확인 후
   service만 호출한다. 목록은 모든 session 상태를 표시하고 권한 있는 draft에만 POST 시작 버튼을 둔다.
 - 시작 뒤 목록에서 in_progress를 표시하지만 진행·투표·중단·종료·결과 runtime은 후속 단계다.
+- 진행 중 session은 nested GET 운영 현황에서 PollParticipant snapshot, PollProgress의 현재 학생과
+  ballot 상태, participation 기반 처리·대기 수만 읽기 전용으로 표시한다. 학생별 선택과 tally는
+  노출하지 않으며 상태 변경 action은 아직 제공하지 않는다.
 - legacy Poll 시작 경로는 실제 데이터 전환 완료 전까지 별도 분기로 유지한다.
 
 ### 단계 5: 운영 화면과 결과
