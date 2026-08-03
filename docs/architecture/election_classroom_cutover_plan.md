@@ -317,3 +317,18 @@ association이 필수가 아니다.
 - 학년도 간 동일 학생 추적과 이전 학년도 Student 복사
 - UI 전면 재설계
 - ParticipantGroup·ParticipantSlot table 즉시 제거
+
+## 10. 선택 Election 일회성 변환 절차
+
+legacy 변환기는 운영자가 명시한 Election ID 하나와 school year를 입력받는다. 제목에서
+학년도를 추측하지 않으며, 선택하지 않은 모의·테스트 Election은 대상에 포함하지 않는다.
+
+```bash
+ELECTION_ID=6 SCHOOL_YEAR=2026 bin/rails elections:convert_legacy_to_classrooms
+ELECTION_ID=6 SCHOOL_YEAR=2026 APPLY=1 bin/rails elections:convert_legacy_to_classrooms
+```
+
+기본은 DB를 변경하지 않는 dry-run이고, `APPLY=1`일 때만 적용한다. 운영 DB에 바로 실행하지
+않고 백업 복원본에서 먼저 검증한 뒤 session·voter·participation·progress·tally·event ID와
+count, 화면 결과를 대조한다. 원본 ParticipantGroup·ParticipantSlot 삭제와 모의·테스트 Election 정리는
+별도 단계이며, 이 작업에서 실제 변환은 수행하지 않는다.
