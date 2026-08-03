@@ -466,6 +466,12 @@ PollParticipant를 통해 간접 연결하며, runtime 전환과 data backfill�
 조회·runtime은 유지된다. 새 draft PollSession은 목록에서 실행 준비 중으로만 표시하며 시작·진행·
 결과 runtime은 아직 제공하지 않는다.
 
+`Polls::StartSession`은 draft PollSession을 잠근 뒤 active Student를 number 순
+PollParticipant snapshot으로 만들고 PollProgress, option/contest tally, `poll_started` event를
+같은 session에 연결한다. PollParticipation은 시작 시 만들지 않으며 Poll 정의 status도 변경하지
+않는다. 시작 controller/UI와 진행·투표·중단·종료 runtime, Classroom·Student 관리 UI는 후속
+단계다. 기존 ParticipantGroup 기반 `Polls::Start`는 그대로 유지한다.
+
 ## 11. 상태 무결성과 운영 이벤트
 
 ### 11.1 시작 시 잠금
