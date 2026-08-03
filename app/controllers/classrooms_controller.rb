@@ -73,7 +73,11 @@ class ClassroomsController < ApplicationController
   def prepare_form_options
     @schools = School.order(:name) if current_user.admin?
     @teachers = if current_user.admin?
-      User.teacher.joins(:school_membership).includes(:school).order(:name)
+      if @classroom.school_id.present?
+        @classroom.school.users.teacher.includes(:school).order(:name)
+      else
+        User.teacher.joins(:school_membership).includes(:school).order(:name)
+      end
     elsif current_user.school_membership&.manager?
       current_user.school_membership.school.users.teacher.order(:name)
     else

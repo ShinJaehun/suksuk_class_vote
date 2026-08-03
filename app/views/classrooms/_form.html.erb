@@ -14,6 +14,7 @@
   </div>
   <div>
     <%= form.label :teacher_id, "담임", class: "block text-sm font-medium" %>
+    <% if classroom.school.present? && (current_user.admin? || current_user.school_membership&.manager?) %><p class="mb-2 text-xs text-stone-500"><%= link_to "학교 교사 관리", school_teacher_memberships_path(classroom.school), class: "underline" %>에서 담임 후보를 추가할 수 있습니다.</p><% end %>
     <% if current_user.admin? || current_user.school_membership&.manager? %>
       <% teacher_options = @teachers.map { |teacher| [current_user.admin? ? "#{teacher.school.name} · #{teacher.name}" : teacher.name, teacher.id] } %>
       <%= form.select :teacher_id, options_for_select(teacher_options, classroom.teacher_id), { include_blank: "담임 미지정" }, class: "mt-1 w-full rounded-md border-stone-300" %>

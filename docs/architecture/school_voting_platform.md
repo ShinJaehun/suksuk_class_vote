@@ -482,6 +482,11 @@ Classroom 선택과 시작 snapshot에 사용하며 ParticipantGroup·Participan
 다음 단계는 이 관리 흐름을 브라우저에서 검증한 뒤 PollSession ballot 제어, 투표 제출과 참여 상태,
 다음 participant 이동, 중단·종료·결과를 순서대로 연결하는 것이다.
 
+학교 교사 관리 UI는 기존 teacher 계정만 SchoolMembership의 `member`로 소속시키며 global admin만
+`manager` 지정·해제를 수행한다. 같은 학교 manager는 미소속 teacher 추가와 일반 member의 안전한
+소속 해제만 할 수 있다. 담당 Classroom이 있으면 membership 삭제를 차단하고 Classroom 설정으로
+연결하며 User 생성·초대, 학교 간 자동 전근, 담임 일괄 배정은 제공하지 않는다.
+
 ## 11. 상태 무결성과 운영 이벤트
 
 ### 11.1 시작 시 잠금

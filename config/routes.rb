@@ -31,6 +31,17 @@ Rails.application.routes.draw do
       end
     end
   end
+  resources :schools, only: [] do
+    resources :teacher_memberships,
+              path: "teachers",
+              controller: "school_teacher_memberships",
+              only: %i[index new create destroy] do
+      member do
+        patch :promote
+        patch :demote
+      end
+    end
+  end
   resources :participant_groups, only: %i[index show new create edit update destroy] do
     resources :participant_slots, only: %i[new create edit update destroy]
     resource :bulk_participant_slots, only: %i[new create], controller: "bulk_participant_slots"
