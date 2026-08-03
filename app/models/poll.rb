@@ -67,6 +67,7 @@ class Poll < ApplicationRecord
   validates :user, presence: true
   validates :participant_group, presence: true, unless: :participant_group_optional?
   validate :participant_group_has_participant_slots, unless: :participant_group_optional?
+  validate :school_and_participant_group_cannot_coexist, on: :create
 
   def readiness_poll_option_count
     default_poll_contest&.poll_options&.count.to_i
@@ -137,7 +138,13 @@ class Poll < ApplicationRecord
   private
 
   def participant_group_optional?
-    closed? || stopped?
+    closed? || stopped? || (draft? && school.present?)
+  end
+
+  def school_and_participant_group_cannot_coexist
+    return if school.blank? || participant_group.blank?
+
+    errors.add(:base, "school and participant group cannot both be present")
   end
 
   def prepare_for_destroy

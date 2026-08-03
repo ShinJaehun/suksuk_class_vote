@@ -2,7 +2,7 @@ require "rails_helper"
 
 RSpec.describe "PollSession execution links", type: :model do
   let(:school) { create(:school) }
-  let(:poll) { create(:poll, school: school) }
+  let(:poll) { create(:poll, school: school, participant_group: nil) }
 
   def create_poll_session_for(poll)
     classroom = create(:classroom, :with_teacher, school: poll.school)
@@ -38,7 +38,7 @@ RSpec.describe "PollSession execution links", type: :model do
 
     it "rejects records linked to a PollSession for another Poll" do
       poll_session = create_poll_session_for(poll)
-      other_poll = create(:poll, school: school)
+      other_poll = create(:poll, school: school, participant_group: nil)
       poll_option = create(:poll_option, poll: other_poll)
       poll_contest = poll_option.poll_contest
 

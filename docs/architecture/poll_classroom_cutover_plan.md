@@ -8,8 +8,8 @@
 
 목표는 기존 Poll ID와 진행·집계 기록을 손상하지 않고 신규 경로를 전환한 뒤,
 Election과 Poll 양쪽의 의존을 모두 제거하여 `ParticipantGroup`·`ParticipantSlot` table을
-삭제할 수 있게 하는 것이다. 현재 PollSession foundation과 실행 기록의 nullable 연결 기반까지
-추가됐으며 실제 데이터와 기존 Poll runtime은 변경하지 않는다.
+삭제할 수 있게 하는 것이다. 현재 PollSession foundation, 실행 기록의 nullable 연결, Poll 정의와
+최초 draft PollSession을 원자적으로 만드는 service까지 추가됐으며 기존 Poll runtime은 변경하지 않는다.
 
 ## 2. 현재 구조
 
@@ -156,8 +156,8 @@ foundation rollback은 PollSession row가 있으면 기록 삭제 대신 명시�
 - PollSession status는 draft/in_progress/closed/stopped이고 DB 허용값 constraint를 둔다.
 - 같은 Poll/Classroom의 draft/in_progress 중복을 model validation과 partial unique index로 막는다.
 - Poll, Classroom, operator 삭제는 PollSession이 있으면 제한한다.
-- 이 단계에는 PollParticipant/Progress/tally/event association을 만들지 않으며 기존 runtime은
-  계속 Poll과 ParticipantGroup을 사용한다.
+- foundation 시점에는 실행 기록 association을 만들지 않았고 기존 runtime은 Poll과
+  ParticipantGroup을 계속 사용한다.
 
 ### 단계 2: 실행 기록 FK 기반
 
@@ -171,12 +171,15 @@ foundation rollback은 PollSession row가 있으면 기록 삭제 대신 명시�
 
 ### 단계 3: 새 Poll 정의와 Classroom 배정
 
-- Poll 생성에서 school을 명시하고 Poll 내용/선택지를 재사용 가능한 정의로 다룬다.
-- 별도 배정 action에서 같은 학교의 active Classroom, 담임, active Student를 server에서 검증한다.
-- PollSession에는 실제 operator와 학급·운영자 이름 snapshot을 명시적으로 저장한다.
-- 담임, manager, global admin의 운영 권한과 다른 학교 접근 차단은 생성 service/policy에서
-  검증하며 model은 operator와 Classroom teacher의 동일성을 강제하지 않는다.
-- 신규 ParticipantGroup Poll 생성은 차단하되 기존 Poll 조회/runtime은 유지한다.
+- `Polls::CreateDefinitionWithSession`은 Poll 정의·contest·option과 최초 draft PollSession을
+  하나의 transaction으로 생성한다.
+- service는 school을 Classroom에서, user/operator를 actor에서 정하고 외부 source·소유권·lifecycle
+  값을 신뢰하지 않는다.
+- active Classroom과 active Student를 확인하고 담임 teacher, 같은 학교 manager, global admin의
+  운영 권한을 검증한다. operator와 Classroom teacher의 동일성은 강제하지 않는다.
+- 학급·운영자 이름 snapshot을 caller인 service가 명시적으로 저장한다.
+- controller와 화면은 아직 legacy 생성 흐름이며, 연결 단계에서 신규 ParticipantGroup Poll 생성을
+  차단한다. 기존 Poll 조회/runtime은 계속 유지한다.
 
 ### 단계 4: PollSession 시작
 

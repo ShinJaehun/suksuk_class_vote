@@ -61,7 +61,11 @@ RSpec.describe PollSession, type: :model do
     end
 
     it "rejects a classroom in another school" do
-      poll = create(:poll, school: create(:school))
+      poll = create(
+        :poll,
+        school: create(:school),
+        participant_group: nil
+      )
       classroom = create(:classroom, :with_teacher)
 
       expect(build(:poll_session, poll: poll, classroom: classroom, operator: classroom.teacher)).to be_invalid
@@ -145,7 +149,11 @@ RSpec.describe PollSession, type: :model do
 
     it "allows active sessions for a different poll or classroom" do
       existing_session
-      other_poll = create(:poll, school: existing_session.classroom.school)
+      other_poll = create(
+        :poll,
+        school: existing_session.classroom.school,
+        participant_group: nil
+      )
       other_classroom = create(:classroom, :with_teacher, school: existing_session.poll.school)
 
       expect(build(:poll_session, poll: other_poll, classroom: existing_session.classroom,

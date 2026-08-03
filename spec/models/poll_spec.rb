@@ -55,6 +55,31 @@ RSpec.describe Poll, type: :model do
 
       expect(poll).to be_valid
     end
+
+    it "allows a school-based draft definition without a participant group" do
+      poll = build(:poll, school: create(:school), participant_group: nil, status: :draft)
+
+      expect(poll).to be_valid
+    end
+
+    it "still requires a participant group for a legacy draft poll" do
+      poll = build(:poll, school: nil, participant_group: nil, status: :draft)
+
+      expect(poll).to be_invalid
+      expect(poll.errors[:participant_group]).to be_present
+    end
+
+    it "rejects a new poll with both a school and participant group" do
+      poll = build(:poll, school: create(:school))
+
+      expect(poll).to be_invalid
+      expect(poll.errors[:base]).to be_present
+    end
+
+    it "keeps closed and stopped source-null history valid" do
+      expect(build(:poll, school: nil, participant_group: nil, status: :closed)).to be_valid
+      expect(build(:poll, school: nil, participant_group: nil, status: :stopped)).to be_valid
+    end
   end
 
   describe "poll contests" do
