@@ -20,7 +20,7 @@
           <div class="space-y-1">
             <p class="text-sm text-stone-500"><%= classroom.school.name %></p>
             <h2 class="font-semibold"><%= classroom.school_year %>학년도 <%= classroom.grade %>학년 <%= classroom.formatted_class_label %></h2>
-            <p class="text-sm text-stone-600">담임 <%= classroom.teacher&.name.presence || "미지정" %> · 활성 학생 <%= @classroom_active_student_counts.fetch(classroom.id, 0) %>명</p>
+            <p class="text-sm text-stone-600">담임 <%= classroom.teacher&.name.presence || "미지정" %> · 학생 <%= @classroom_active_student_counts.fetch(classroom.id, 0) %>/<%= @classroom_student_counts.fetch(classroom.id, 0) %>명</p>
             <span class="inline-flex rounded px-2 py-1 text-xs font-medium <%= classroom.active? ? "bg-emerald-100 text-emerald-700" : "bg-stone-200 text-stone-600" %>"><%= classroom.active? ? "활성" : "비활성" %></span>
           </div>
           <div class="flex gap-3 text-sm font-medium">

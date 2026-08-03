@@ -1,10 +1,11 @@
 <div class="space-y-6">
   <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div class="space-y-1">
-      <h1 class="text-3xl font-semibold">교사 계정 관리</h1>
+      <h1 class="text-3xl font-semibold">선생님</h1>
+      <p class="text-sm text-stone-600">계정, 학교 소속과 담당 교실을 확인합니다.</p>
     </div>
 
-    <%= link_to "교사 추가",
+    <%= link_to "선생님 추가",
                 new_admin_teacher_path,
                 class: "inline-flex justify-center rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
   </div>
@@ -17,13 +18,15 @@
             <div class="space-y-1">
               <h2 class="text-lg font-semibold"><%= teacher.name.presence || "이름 없음" %></h2>
               <p class="text-sm text-stone-600"><%= teacher.email %></p>
+              <p class="text-sm text-stone-600">소속 학교 <%= teacher.school&.name || "미소속" %> · 학교 역할 <%= teacher.school_membership&.manager? ? "대표 선생님" : (teacher.school_membership.present? ? "일반 선생님" : "-") %></p>
+              <p class="text-sm text-stone-600">담당 교실 <%= teacher.classrooms.any? ? teacher.classrooms.map { |classroom| "#{classroom.school_year}학년도 #{classroom.grade}학년 #{classroom.formatted_class_label}" }.join(", ") : "없음" %></p>
             </div>
-            <p class="text-sm text-stone-500">생성일 <%= teacher.created_at.to_date %></p>
+            <div class="text-right"><p class="text-sm text-stone-500">생성일 <%= teacher.created_at.to_date %></p><% teacher.classrooms.each do |classroom| %><%= link_to "교실 설정", edit_classroom_path(classroom), class: "ml-2 text-sm font-medium underline" %><% end %><%= link_to "학교 소속 설정", (teacher.school.present? ? school_teacher_memberships_path(teacher.school) : schools_path), class: "ml-2 text-sm font-medium underline" %></div>
           </div>
         </li>
       <% end %>
     </ul>
   <% else %>
-    <p class="rounded-md border border-stone-200 bg-white p-4 text-stone-600">아직 등록된 교사 계정이 없습니다.</p>
+    <p class="rounded-md border border-stone-200 bg-white p-4 text-stone-600">아직 등록된 선생님 계정이 없습니다.</p>
   <% end %>
 </div>

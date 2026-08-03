@@ -15,11 +15,16 @@ class ClassroomsController < ApplicationController
 
     @schools = School.order(:name) if current_user.admin?
     @classroom_active_student_counts = Student.where(classroom_id: @classrooms.select(:id), active: true).group(:classroom_id).count
+    @classroom_student_counts = Student.where(classroom_id: @classrooms.select(:id)).group(:classroom_id).count
   end
 
   def new
     @classroom = Classroom.new(school_year: Time.zone.today.year, active: true)
-    @classroom.school = current_user.school_membership&.school unless current_user.admin?
+    @classroom.school = if current_user.admin?
+      School.find_by(id: params[:school_id])
+    else
+      current_user.school_membership&.school
+    end
     authorize @classroom
     prepare_form_options
   end

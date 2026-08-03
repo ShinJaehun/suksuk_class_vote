@@ -14,10 +14,11 @@
   </div>
   <div>
     <%= form.label :teacher_id, "담임", class: "block text-sm font-medium" %>
-    <% if classroom.school.present? && (current_user.admin? || current_user.school_membership&.manager?) %><p class="mb-2 text-xs text-stone-500"><%= link_to "학교 교사 관리", school_teacher_memberships_path(classroom.school), class: "underline" %>에서 담임 후보를 추가할 수 있습니다.</p><% end %>
+    <% if classroom.school.present? && (current_user.admin? || current_user.school_membership&.manager?) %><p class="mb-2 text-xs text-stone-500"><%= link_to "선생님 관리", school_teacher_memberships_path(classroom.school), class: "underline" %>에서 담임 후보를 추가할 수 있습니다.</p><% end %>
     <% if current_user.admin? || current_user.school_membership&.manager? %>
       <% teacher_options = @teachers.map { |teacher| [current_user.admin? ? "#{teacher.school.name} · #{teacher.name}" : teacher.name, teacher.id] } %>
       <%= form.select :teacher_id, options_for_select(teacher_options, classroom.teacher_id), { include_blank: "담임 미지정" }, class: "mt-1 w-full rounded-md border-stone-300" %>
+      <% if @teachers.empty? %><p class="mt-2 text-sm text-amber-700">해당 학교 소속 선생님이 없습니다. 선생님 관리에서 먼저 선생님을 추가해 주세요.</p><% end %>
       <% if current_user.admin? %><p class="mt-1 text-xs text-stone-500">교사의 소속 학교와 선택한 학교가 같아야 합니다.</p><% end %>
     <% else %><p class="mt-1 rounded-md bg-stone-100 px-3 py-2"><%= classroom.teacher&.name || "담임 미지정" %></p><% end %>
   </div>

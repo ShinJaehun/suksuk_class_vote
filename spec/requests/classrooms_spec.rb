@@ -24,7 +24,7 @@ RSpec.describe "Classrooms", type: :request do
     get classrooms_path, params: { school_id: first_school.id }
 
     expect(response).to have_http_status(:ok)
-    expect(response.body).to include(first.formatted_class_label, "학교 필터", "교실 생성", "활성 학생 1명")
+    expect(response.body).to include(first.formatted_class_label, "학교 필터", "교실 생성", "학생 1/1명")
     expect(response.body).not_to include(second.formatted_class_label)
   end
 
@@ -74,6 +74,19 @@ RSpec.describe "Classrooms", type: :request do
       post classrooms_path, params: classroom_params(school: other_school, teacher: other_teacher, overrides: { class_label: "2" })
     end.not_to change(Classroom, :count)
     expect(response).to have_http_status(:unprocessable_content)
+  end
+
+  it "prefills the School when creating from School detail" do
+    school = create(:school)
+    sign_in create(:user, :admin)
+
+    get new_classroom_path(school_id: school.id)
+
+    expect(response).to have_http_status(:ok)
+    document = Nokogiri::HTML(response.body)
+    selected_option = document.at_css('select[name="classroom[school_id]"] option[selected]')
+
+    expect(selected_option&.[]("value")).to eq(school.id.to_s)
   end
 
   it "prevents a regular teacher from changing protected Classroom fields" do

@@ -208,6 +208,9 @@ foundation rollback은 PollSession row가 있으면 기록 삭제 대신 명시�
 - global admin과 같은 학교 manager는 기존 미소속 teacher를 SchoolMembership으로 추가할 수 있다.
   manager 지정·해제는 global admin만 수행하며 담당 Classroom이 있는 membership은 삭제하지 않는다.
   교사 계정 생성·초대와 학교 간 자동 전근, Classroom 일괄 배정은 범위 밖이다.
+- 관리 화면은 School → Classroom → Teacher → Student 자원 순서로 진입한다. 대표 선생님 관리는
+  School 상세, 담임 배정은 Classroom 설정에만 두며 Teacher는 User·SchoolMembership·담당 Classroom을
+  함께 보여준다. Student bulk 등록은 textarea parser 없이 30개의 번호·이름 행을 원자적으로 저장한다.
 - legacy Poll 시작 경로는 실제 데이터 전환 완료 전까지 별도 분기로 유지한다.
 
 ### 단계 5: 운영 화면과 결과

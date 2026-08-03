@@ -26,11 +26,12 @@ RSpec.describe "Admin teachers", type: :request do
       get admin_teachers_path
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("교사 계정 관리")
-      expect(response.body).to include("교사 추가")
+      expect(response.body).to include("선생님")
+      expect(response.body).to include("선생님 추가")
       expect(response.body).not_to include("실전 운영 전 교사 계정을 미리 생성하고 확인합니다.")
       expect(response.body).to include(teacher.name)
       expect(response.body).to include(teacher.email)
+      expect(response.body).to include("미소속", "담당 교실 없음")
       expect(response.body).to include("생성일")
     end
   end
@@ -42,13 +43,13 @@ RSpec.describe "Admin teachers", type: :request do
       get new_admin_teacher_path
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("교사 추가")
+      expect(response.body).to include("선생님 추가")
       expect(response.body).not_to include("실전 운영 전 교사 계정을 미리 생성합니다.")
       expect(response.body).not_to include("초기 비밀번호는 별도로 교사에게 안내하세요.")
       expect(response.body).to include("초기 비밀번호")
       expect(response.body).to include("초기 비밀번호 확인")
-      expect(response.body).to include("교사 계정 생성")
-      expect(response.body).to include("교사 계정 목록으로 돌아가기")
+      expect(response.body).to include("선생님 계정 생성")
+      expect(response.body).to include("선생님 목록으로 돌아가기")
     end
   end
 
@@ -72,23 +73,29 @@ RSpec.describe "Admin teachers", type: :request do
 
     it "shows validation errors without creating a teacher" do
       sign_in create(:user, :admin)
+      school = create(:school)
 
-      expect do
-        post admin_teachers_path, params: {
-          user: {
-            name: "입력 유지 교사",
-            email: "invalid-teacher@example.com",
-            password: "password123!",
-            password_confirmation: "different-password"
-          }
+      original_user_count = User.count
+      original_membership_count = SchoolMembership.count
+
+      post admin_teachers_path, params: {
+        school_id: school.id,
+        user: {
+          name: "입력 유지 교사",
+          email: "invalid-teacher@example.com",
+          password: "password123!",
+          password_confirmation: "different-password"
         }
-      end.not_to change(User, :count)
+      }
+
+      expect(User.count).to eq(original_user_count)
+      expect(SchoolMembership.count).to eq(original_membership_count)
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(response.body).to include("교사 계정을 생성할 수 없습니다.")
+      expect(response.body).to include("선생님 계정을 생성할 수 없습니다.")
       expect(response.body).to include("입력 유지 교사")
       expect(response.body).to include("invalid-teacher@example.com")
-      expect(response.body).to include("교사 계정 목록으로 돌아가기")
+      expect(response.body).to include("선생님 목록으로 돌아가기")
     end
 
     it "allows admins to create teacher accounts" do
@@ -108,6 +115,28 @@ RSpec.describe "Admin teachers", type: :request do
       teacher = User.find_by!(email: "new-teacher@example.com")
       expect(teacher).to be_teacher
       expect(response).to redirect_to(admin_teachers_path)
+    end
+
+    it "creates an optional member SchoolMembership in the same transaction" do
+      admin = create(:user, :admin)
+      school = create(:school)
+      sign_in admin
+
+      expect do
+        post admin_teachers_path, params: {
+          school_id: school.id,
+          role: "manager",
+          user: {
+            name: "학교 소속 교사",
+            email: "school-teacher@example.com",
+            password: "password123!",
+            password_confirmation: "password123!"
+          }
+        }
+      end.to change(User.teacher, :count).by(1).and change(SchoolMembership, :count).by(1)
+
+      teacher = User.find_by!(email: "school-teacher@example.com")
+      expect(teacher.school_membership).to have_attributes(school: school, role: "member")
     end
 
     it "forces the created account role to teacher" do

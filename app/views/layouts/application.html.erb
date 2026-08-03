@@ -34,15 +34,18 @@
             <% end %>
             <% if user_signed_in? %>
               <%= link_to "내 투표", polls_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
+              <%= link_to "내 투표자 목록", participant_groups_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
+              <span class="mx-1 hidden h-5 border-l border-stone-300 sm:inline-block"></span>
+              <% if current_user.admin? || current_user.school_membership&.manager? %>
+                <%= link_to "학교", schools_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
+              <% end %>
               <%= link_to "교실", classrooms_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
               <% if current_user.admin? %>
-                <details class="relative text-sm text-stone-600"><summary class="cursor-pointer hover:text-stone-900">학교 교사</summary><div class="absolute z-10 mt-2 min-w-48 space-y-1 rounded-md border border-stone-200 bg-white p-2 shadow"><% School.order(:name).each do |school| %><%= link_to school.name, school_teacher_memberships_path(school), class: "block whitespace-nowrap rounded px-2 py-1 hover:bg-stone-100" %><% end %></div></details>
+                <%= link_to "선생님", admin_teachers_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
               <% elsif current_user.school_membership&.manager? %>
-                <%= link_to "학교 교사", school_teacher_memberships_path(current_user.school_membership.school), class: "text-sm text-stone-600 hover:text-stone-900" %>
+                <%= link_to "선생님", school_teacher_memberships_path(current_user.school_membership.school), class: "text-sm text-stone-600 hover:text-stone-900" %>
               <% end %>
-              <%= link_to "내 투표자 목록", participant_groups_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
               <% if current_user.admin? %>
-                <%= link_to "교사 관리", admin_teachers_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
                 <%= link_to "전교임원선거", admin_elections_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
                 <%= link_to "전교임원선거 투표자", admin_election_rosters_path, class: "text-sm text-stone-600 hover:text-stone-900" %>
               <% end %>

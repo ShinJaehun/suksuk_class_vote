@@ -92,29 +92,50 @@ RSpec.describe "Classroom students", type: :request do
     expect(snapshot.reload).to have_attributes(number: student.number, name: student.name)
   end
 
-  it "bulk creates supported formats atomically and ignores blank lines" do
+  it "renders 30 structured bulk rows without a textarea" do
     classroom, teacher = classroom_with_teacher
     sign_in teacher
-    input = "1 김민수\n\n2,이서준\n3\t박하은"
+
+    get bulk_new_classroom_students_path(classroom)
+
+    expect(response).to have_http_status(:ok)
+    expect(response.body).not_to include("textarea")
+    expect(response.body.scan(/students\[rows\]\[\d+\]\[number\]/).size).to eq(30)
+    expect(response.body.scan(/students\[rows\]\[\d+\]\[name\]/).size).to eq(30)
+  end
+
+  it "bulk creates complete rows atomically and ignores empty rows" do
+    classroom, teacher = classroom_with_teacher
+    sign_in teacher
+    rows = {
+      "0" => { number: "1", name: "김민수" },
+      "1" => { number: "", name: "" },
+      "2" => { number: "2", name: "이서준", classroom_id: create(:classroom).id, active: "0" },
+      "3" => { number: "3", name: "박하은" }
+    }
 
     expect do
-      post bulk_create_classroom_students_path(classroom), params: { students: input }
+      post bulk_create_classroom_students_path(classroom), params: { students: { rows: rows } }
     end.to change(Student, :count).by(3)
     expect(classroom.students.order(:number).pluck(:name, :active)).to eq([["김민수", true], ["이서준", true], ["박하은", true]])
     expect(flash[:notice]).to eq("3명의 학생을 등록했습니다.")
   end
 
-  it "rolls back bulk input on malformed, duplicate, or existing numbers" do
+  it "rolls back bulk input on incomplete, duplicate, or existing numbers" do
     classroom, teacher = classroom_with_teacher
     create(:student, classroom: classroom, number: 9)
     sign_in teacher
 
-    ["1 학생\n잘못된 줄", "1 하나\n1 둘", "2 새학생\n9 충돌"].each do |input|
+    [
+      { "0" => { number: "1", name: "" } },
+      { "0" => { number: "1", name: "하나" }, "1" => { number: "1", name: "둘" } },
+      { "0" => { number: "2", name: "새학생" }, "1" => { number: "9", name: "충돌" } }
+    ].each do |rows|
       original_count = classroom.students.count
-      post bulk_create_classroom_students_path(classroom), params: { students: input }
+      post bulk_create_classroom_students_path(classroom), params: { students: { rows: rows } }
       expect(response).to have_http_status(:unprocessable_content)
       expect(classroom.students.count).to eq(original_count)
-      expect(response.body).to include(input)
+      rows.each_value { |row| expect(response.body).to include(row[:number], row[:name]) }
     end
   end
 

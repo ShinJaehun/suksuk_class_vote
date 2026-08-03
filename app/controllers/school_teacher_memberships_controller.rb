@@ -10,11 +10,6 @@ class SchoolTeacherMembershipsController < ApplicationController
       .joins(:user)
       .order(role: :desc)
       .order("users.name", :id)
-    @membership_counts = {
-      all: @memberships.size,
-      managers: @memberships.count(&:manager?),
-      members: @memberships.count(&:member?)
-    }
   end
 
   def new
@@ -39,13 +34,13 @@ class SchoolTeacherMembershipsController < ApplicationController
   def promote
     authorize @membership, :promote?
     @membership.update!(role: :manager) unless @membership.manager?
-    redirect_to school_teacher_memberships_path(@school), notice: "대표 선생님으로 지정했습니다."
+    redirect_to school_path(@school), notice: "대표 선생님으로 지정했습니다."
   end
 
   def demote
     authorize @membership, :demote?
     @membership.update!(role: :member) unless @membership.member?
-    redirect_to school_teacher_memberships_path(@school), notice: "일반 선생님 역할로 변경했습니다."
+    redirect_to school_path(@school), notice: "일반 선생님 역할로 변경했습니다."
   end
 
   def destroy

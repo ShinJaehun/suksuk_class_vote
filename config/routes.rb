@@ -31,7 +31,7 @@ Rails.application.routes.draw do
       end
     end
   end
-  resources :schools, only: [] do
+  resources :schools, only: %i[index show new create edit update] do
     resources :teacher_memberships,
               path: "teachers",
               controller: "school_teacher_memberships",

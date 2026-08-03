@@ -33,15 +33,14 @@ class ClassroomStudentsController < ApplicationController
   end
 
   def bulk_new
-    @bulk_input = ""
     @bulk_errors = []
+    prepare_bulk_rows
   end
 
   def bulk_create
-    @bulk_input = params[:students].to_s
     @bulk_errors = []
-    rows = parse_bulk_rows
-    @bulk_errors << "등록할 학생을 입력해 주세요." if rows.empty? && @bulk_errors.empty?
+    @student_rows = submitted_bulk_rows
+    rows = completed_bulk_rows
     validate_bulk_rows(rows)
 
     if @bulk_errors.any?
@@ -98,31 +97,48 @@ class ClassroomStudentsController < ApplicationController
     %w[active inactive all].include?(params[:status]) ? params[:status] : "active"
   end
 
-  def parse_bulk_rows
-    @bulk_input.lines.each_with_index.filter_map do |line, index|
-      line_number = index + 1
-      value = line.strip
-      next if value.blank?
+  def prepare_bulk_rows
+    first_number = @classroom.students.maximum(:number).to_i + 1
+    @student_rows = Array.new(30) do |index|
+      number = first_number + index
+      { "number" => number, "name" => "", "default_number" => number.to_s }
+    end
+  end
 
-      match = value.match(/\A(\d+)(?:\s+|,\s*)(.+)\z/)
-      unless match
-        @bulk_errors << "#{line_number}번째 줄: 학생 번호와 이름을 확인해 주세요."
+  def submitted_bulk_rows
+    rows = params.fetch(:students, {}).fetch(:rows, {})
+    rows = rows.to_unsafe_h if rows.respond_to?(:to_unsafe_h)
+    rows.sort_by { |index, _attributes| index.to_i }.map do |_index, attributes|
+      attributes.slice("number", "name", "default_number")
+    end
+  end
+
+  def completed_bulk_rows
+    @student_rows.each_with_index.filter_map do |row, index|
+      line_number = index + 1
+      number = row["number"].to_s.strip
+      name = row["name"].to_s.strip
+      next if number.blank? && name.blank?
+      next if name.blank? && number == row["default_number"].to_s
+
+      if number.blank? || name.blank?
+        @bulk_errors << "#{line_number}번째 행: 번호와 이름을 모두 입력해 주세요."
         next
       end
 
-      { line: line_number, number: match[1].to_i, name: match[2].strip }
+      { line: line_number, number: number, name: name }
     end
   end
 
   def validate_bulk_rows(rows)
-    duplicate_numbers = rows.group_by { |row| row[:number] }.select { |_number, matches| matches.many? }.keys
+    duplicate_numbers = rows.group_by { |row| row[:number].to_s }.select { |_number, matches| matches.many? }.keys
     duplicate_numbers.each { |number| @bulk_errors << "학생 번호 #{number}번이 입력 안에서 중복되었습니다." }
 
     rows.each do |row|
       student = Student.new(classroom: @classroom, number: row[:number], name: row[:name], active: true)
       next if student.valid?
 
-      @bulk_errors << "#{row[:line]}번째 줄: #{student.errors.full_messages.to_sentence}"
+      @bulk_errors << "#{row[:line]}번째 행: #{student.errors.full_messages.to_sentence}"
     end
   end
 end

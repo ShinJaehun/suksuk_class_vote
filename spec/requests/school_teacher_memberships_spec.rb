@@ -21,7 +21,8 @@ RSpec.describe "School teacher memberships", type: :request do
     get school_teacher_memberships_path(school)
 
     expect(response).to have_http_status(:ok)
-    expect(response.body).to include("학교 교사 관리", teacher.name, manager.name, "일반 선생님", "대표 선생님")
+    expect(response.body).to include("선생님 관리", teacher.name, manager.name, "일반 선생님", "대표 선생님")
+    expect(response.body).not_to include("대표 선생님 지정", "일반 선생님으로 변경")
     expect(response.body).to include(classroom.formatted_class_label, edit_classroom_path(classroom))
     expect(response.body).not_to include(other_teacher.name)
   end

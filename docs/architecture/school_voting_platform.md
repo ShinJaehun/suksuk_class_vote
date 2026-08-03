@@ -487,6 +487,13 @@ Classroom 선택과 시작 snapshot에 사용하며 ParticipantGroup·Participan
 소속 해제만 할 수 있다. 담당 Classroom이 있으면 membership 삭제를 차단하고 Classroom 설정으로
 연결하며 User 생성·초대, 학교 간 자동 전근, 담임 일괄 배정은 제공하지 않는다.
 
+관리 UI의 기본 자원 순서는 **School → Classroom → Teacher → Student**다. School 상세는 기본 정보,
+대표 선생님과 소속 Classroom·Teacher의 진입점이고, Classroom 설정은 담임 배정의 유일한 위치이자
+Student 관리의 parent다. Teacher 화면은 User 계정, SchoolMembership과 담당 Classroom을 함께
+요약하며 Student는 Classroom 아래에서만 관리한다. 상단 메뉴는 역할에 따라 학교·교실·선생님으로
+정리했고 대표 역할은 School 상세에만 둔다. Teacher 생성 시 School을 선택하면 member membership을
+같은 transaction에서 만들며 Student bulk 입력은 30개의 번호·이름 행 form을 사용한다.
+
 ## 11. 상태 무결성과 운영 이벤트
 
 ### 11.1 시작 시 잠금
