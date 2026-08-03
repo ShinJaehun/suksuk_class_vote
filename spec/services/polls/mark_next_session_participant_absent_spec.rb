@@ -7,6 +7,7 @@ RSpec.describe Polls::MarkNextSessionParticipantAbsent do
     create(:school_membership, school: school, user: operator)
     classroom = create(:classroom, school: school, teacher: operator)
     poll = create(:poll, user: operator, school: school, participant_group: nil)
+    option = create(:poll_option, poll: poll, poll_contest: poll.default_poll_contest)
     poll_session = create(
       :poll_session,
       poll: poll,
@@ -19,6 +20,13 @@ RSpec.describe Polls::MarkNextSessionParticipantAbsent do
     next_participant = create(:poll_participant, poll: poll, poll_session: poll_session, number: 2, name: "서코")
     following = create(:poll_participant, poll: poll, poll_session: poll_session, number: 3, name: "보기")
     create(:poll_participation, poll_participant: current, status: :completed)
+    create(:poll_option_tally, poll: poll, poll_session: poll_session, poll_option: option, votes_count: 1)
+    create(
+      :poll_contest_tally,
+      poll: poll,
+      poll_session: poll_session,
+      poll_contest: poll.default_poll_contest
+    )
     progress = create(
       :poll_progress,
       poll: poll,

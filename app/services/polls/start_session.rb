@@ -57,6 +57,8 @@ module Polls
     end
 
     def validate_locked_start
+      status_check = Polls::SessionStatusCheck.new(poll_session: poll_session).call
+      errors.concat(status_check.issues) unless status_check.startable?
       errors << "draft 상태의 투표 실행만 시작할 수 있습니다." unless poll_session.draft?
       validate_poll_definition
       validate_classroom

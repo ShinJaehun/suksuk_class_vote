@@ -8,6 +8,7 @@ RSpec.describe Polls::MarkCurrentSessionParticipantAbsent do
     operator.reload
     classroom = create(:classroom, school: school, teacher: operator)
     poll = create(:poll, user: operator, school: school, participant_group: nil)
+    option = create(:poll_option, poll: poll, poll_contest: poll.default_poll_contest)
     poll_session = create(
       :poll_session,
       poll: poll,
@@ -38,6 +39,13 @@ RSpec.describe Polls::MarkCurrentSessionParticipantAbsent do
       poll_session: poll_session,
       current_poll_participant: current,
       ballot_status: :ballot_locked
+    )
+    create(:poll_option_tally, poll: poll, poll_session: poll_session, poll_option: option)
+    create(
+      :poll_contest_tally,
+      poll: poll,
+      poll_session: poll_session,
+      poll_contest: poll.default_poll_contest
     )
 
     [poll_session, progress, current, other, operator]

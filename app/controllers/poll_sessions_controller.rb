@@ -17,11 +17,12 @@ class PollSessionsController < ApplicationController
     authorize @poll_session, :show?
 
     @participants = @poll_session.poll_participants.sort_by { |participant| [participant.number, participant.id] }
-    @total_count = @participants.size
-    @completed_count = @participants.count { |participant| participant.poll_participation&.completed? }
-    @absent_count = @participants.count { |participant| participant.poll_participation&.absent? }
-    @abstained_count = @participants.count { |participant| participant.poll_participation&.abstained? }
-    @pending_count = @participants.count { |participant| participant.poll_participation.blank? }
+    @status_check = Polls::SessionStatusCheck.new(poll_session: @poll_session).call
+    @total_count = @status_check.total_count
+    @completed_count = @status_check.completed_count
+    @absent_count = @status_check.absent_count
+    @abstained_count = @status_check.abstained_count
+    @pending_count = @status_check.pending_count
     @pending_participants = @participants.reject { |participant| participant.poll_participation.present? }
     @current_participant = @poll_session.poll_progress&.current_poll_participant
     @current_participation = @current_participant&.poll_participation
@@ -29,14 +30,6 @@ class PollSessionsController < ApplicationController
     @active_students = @poll_session.classroom.students
       .select(&:active?)
       .sort_by { |student| [student.number, student.id] }
-    @readiness_errors = if @poll_session.draft?
-                          Polls::StartSession.new(
-                            actor: current_user,
-                            poll_session: @poll_session
-                          ).readiness_errors
-                        else
-                          []
-                        end
     @poll_events = @poll_session.poll_events
       .select { |event| event.event_type.in?(displayed_event_types) }
       .sort_by { |event| [event.occurred_at, event.id] }
@@ -262,7 +255,6 @@ class PollSessionsController < ApplicationController
     @contest_results = @poll_session.poll.poll_contests
       .sort_by { |contest| [contest.position, contest.id] }
       .map { |contest| contest_result(contest) }
-    @integrity_issues = closed_session_integrity_issues
   end
 
   def contest_result(contest)
@@ -288,45 +280,6 @@ class PollSessionsController < ApplicationController
       contest_tally: contest_tallies.one? ? contest_tallies.first : nil,
       tally_complete: option_results.all? { |result| result[:tally].present? } && contest_tallies.one?
     }
-  end
-
-  def closed_session_integrity_issues
-    issues = []
-    progress = @poll_session.poll_progress
-
-    issues << "투표 종료 시각을 확인해 주세요." if @poll_session.closed_at.blank?
-    issues << "투표 진행 정보가 없습니다." if progress.blank?
-    if progress.present?
-      issues << "투표 진행 정보의 종료 상태를 확인해 주세요." unless progress.closed?
-      issues << "투표 진행 정보의 종료 시각을 확인해 주세요." if progress.closed_at.blank?
-      issues << "투표 화면 잠금 상태를 확인해 주세요." unless progress.ballot_locked?
-    end
-    issues << "확정된 투표자가 없습니다." if @participants.empty?
-    issues << "대기 중인 투표자가 #{@pending_count}명 있습니다." if @pending_count.positive?
-
-    @contest_results.each do |result|
-      contest = result[:contest]
-      issues << "#{contest.title} 항목의 집계 정보를 확인해 주세요." unless result[:tally_complete]
-      result[:option_results].each do |option_result|
-        tally = option_result[:tally]
-        next if tally.blank?
-
-        if tally.poll != @poll_session.poll || tally.poll_session != @poll_session || tally.votes_count.negative?
-          issues << "#{contest.title} 항목의 선택지 집계 정보를 확인해 주세요."
-          break
-        end
-      end
-      contest_tally = result[:contest_tally]
-      next if contest_tally.blank?
-
-      if contest_tally.poll != @poll_session.poll ||
-         contest_tally.poll_session != @poll_session ||
-         contest_tally.abstentions_count.negative?
-        issues << "#{contest.title} 항목의 기권 집계 정보를 확인해 주세요."
-      end
-    end
-
-    issues.uniq
   end
 
   def broadcast_ballot_screen(poll_session)
@@ -367,6 +320,7 @@ class PollSessionsController < ApplicationController
       .select { |event| event.event_type.in?(displayed_event_types) }
       .sort_by { |event| [event.occurred_at, event.id] }
       .reverse
+    status_check = Polls::SessionStatusCheck.new(poll_session: poll_session).call
 
     Turbo::StreamsChannel.broadcast_replace_to(
       poll_session,
@@ -380,7 +334,8 @@ class PollSessionsController < ApplicationController
         next_pending_participant: next_pending_participant(current_participant, participants),
         pending_participants: pending_participants,
         poll_events: poll_events,
-        can_operate: policy(poll_session).operate?
+        can_operate: policy(poll_session).operate?,
+        status_check: status_check
       }
     )
   end

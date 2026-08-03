@@ -8,6 +8,9 @@ RSpec.describe Polls::CloseSession do
     poll_session.poll_participants.each do |participant|
       create(:poll_participation, poll_participant: participant, status: :completed)
     end
+    poll_session.poll_option_tallies.order(:poll_option_id).first.update!(
+      votes_count: poll_session.poll_participants.count
+    )
 
     result = described_class.new(
       actor: operator,
@@ -24,6 +27,25 @@ RSpec.describe Polls::CloseSession do
       current_poll_participant: current
     )
     expect(progress.closed_at).to eq(poll_session.closed_at)
+  end
+
+  it "does not close when the common status check finds an aggregate mismatch" do
+    poll_session, operator = create_started_poll_session
+    progress = poll_session.poll_progress
+    current = progress.current_poll_participant
+    create(:poll_participation, poll_participant: current, status: :completed)
+
+    result = described_class.new(
+      actor: operator,
+      poll_session: poll_session,
+      expected_current_poll_participant_id: current.id
+    ).call
+
+    expect(result).not_to be_success
+    expect(result.error_message).to include("득표 합계와 제출 기록이 일치하지 않습니다.")
+    expect(poll_session.reload).to be_in_progress
+    expect(poll_session.closed_at).to be_nil
+    expect(progress.reload).to be_active
   end
 
   def create_started_poll_session

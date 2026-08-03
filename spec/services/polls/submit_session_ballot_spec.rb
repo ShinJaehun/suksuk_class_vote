@@ -58,6 +58,18 @@ RSpec.describe Polls::SubmitSessionBallot do
       poll_option: second_option,
       votes_count: 0
     )
+    create(
+      :poll_contest_tally,
+      poll: poll,
+      poll_session: poll_session,
+      poll_contest: first_contest
+    )
+    create(
+      :poll_contest_tally,
+      poll: poll,
+      poll_session: poll_session,
+      poll_contest: second_contest
+    )
     choices = {
       first_contest.id.to_s => first_option.id.to_s,
       second_contest.id.to_s => second_option.id.to_s

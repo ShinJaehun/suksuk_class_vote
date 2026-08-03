@@ -52,6 +52,7 @@ module Polls
     end
 
     def validate_locked_state(progress, current_participant)
+      validate_session_status
       errors << "진행 중인 투표 실행만 종료할 수 있습니다." unless poll_session.in_progress?
       errors << "보관된 투표 실행은 종료할 수 없습니다." if poll_session.archived_at.present?
       errors << "진행 정보를 찾을 수 없습니다." if progress.blank?
@@ -63,6 +64,11 @@ module Polls
       errors << "현재 학생의 처리가 끝나지 않았습니다." unless final_participation?(current_participant)
       errors << "아직 처리하지 않은 학생이 있습니다." if pending_participants_exist?
       errors << "이 투표 실행을 운영할 권한이 없습니다." unless authorized_actor?
+    end
+
+    def validate_session_status
+      check = Polls::SessionStatusCheck.new(poll_session: poll_session).call
+      errors.concat(check.issues) unless check.closable?
     end
 
     def pending_participants_exist?

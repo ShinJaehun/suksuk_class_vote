@@ -53,6 +53,14 @@ RSpec.describe "PollSession supervised participant flow", type: :request do
     create(:school_membership, school: school, user: operator)
     classroom = create(:classroom, school: school, teacher: operator)
     poll = create(:poll, user: operator, school: school, participant_group: nil)
+
+    contest = poll.default_poll_contest
+    option = create(
+      :poll_option,
+      poll: poll,
+      poll_contest: contest
+    )
+
     poll_session = create(
       :poll_session,
       poll: poll,
@@ -61,6 +69,22 @@ RSpec.describe "PollSession supervised participant flow", type: :request do
       status: :in_progress,
       started_at: Time.current
     )
+
+    create(
+      :poll_option_tally,
+      poll: poll,
+      poll_session: poll_session,
+      poll_option: option,
+      votes_count: 0
+    )
+    create(
+      :poll_contest_tally,
+      poll: poll,
+      poll_session: poll_session,
+      poll_contest: contest,
+      abstentions_count: 0
+    )
+
     first = create(:poll_participant, poll: poll, poll_session: poll_session, number: 1)
     second = create(:poll_participant, poll: poll, poll_session: poll_session, number: 2)
     progress = create(

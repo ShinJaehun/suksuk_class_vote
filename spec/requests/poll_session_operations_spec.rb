@@ -118,11 +118,11 @@ RSpec.describe "PollSession operations", type: :request do
 
     page = Nokogiri::HTML(response.body)
 
-    expect(page.at_css("[data-testid='poll-session-readiness']").text).to include(
+    expect(page.at_css("[data-testid='poll-session-status-check']").text).to include(
       "상태 점검: 이상 없음",
-      "투표를 시작할 준비가 되었습니다.",
-      "투표 시작"
+      "투표를 시작할 수 있습니다."
     )
+    expect(response.body).to include("투표 시작")
     expect(page.at_css("[data-testid='poll-session-candidates']").text).to include(
       poll.default_poll_contest.title,
       "1번 조현",

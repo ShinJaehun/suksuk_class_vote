@@ -51,6 +51,13 @@ RSpec.describe "PollSession ballots", type: :request do
       poll_option: option,
       votes_count: 0
     )
+    create(
+      :poll_contest_tally,
+      poll: poll,
+      poll_session: poll_session,
+      poll_contest: contest,
+      abstentions_count: 0
+    )
 
     [poll, poll_session, progress, current, waiting, option, tally, operator]
   end
@@ -240,6 +247,8 @@ RSpec.describe "PollSession ballots", type: :request do
     progress_frame = page.at_css("turbo-frame[data-controller='poll-session-progress']")
 
     expect(response.body).to include(
+      "상태 점검: 이상 없음",
+      "진행 상태가 정상입니다.",
       "학생 투표 화면 열기",
       "다음 투표자는 #{current.number}번 #{current.name} 학생입니다.",
       "미참여 처리"
@@ -277,9 +286,32 @@ RSpec.describe "PollSession ballots", type: :request do
     )
   end
 
+  it "hides operation actions when the common status check fails" do
+    poll, poll_session, progress, current, waiting, option, tally, operator = create_execution
+    tally.destroy!
+    sign_in operator
+
+    get poll_poll_session_path(poll, poll_session)
+
+    status_check = Nokogiri::HTML(response.body).at_css(
+      "[data-testid='poll-session-status-check']"
+    )
+    expect(status_check.text.squish).to include(
+      "상태 점검: 확인 필요",
+      "선택지 집계 정보를 확인해 주세요."
+    )
+    expect(response.body).not_to include(
+      "학생 투표 화면 열기",
+      "다음 투표자는",
+      ">미참여 처리<",
+      ">투표 종료<"
+    )
+  end
+
   it "shows a completed current participant and the next participant action" do
     poll, poll_session, progress, current, waiting, option, tally, operator = create_execution
     create(:poll_participation, poll_participant: current, status: :completed)
+    tally.update!(votes_count: 1)
     sign_in operator
 
     get poll_poll_session_path(poll, poll_session)
@@ -319,6 +351,7 @@ RSpec.describe "PollSession ballots", type: :request do
       name: "보기"
     )
     create(:poll_participation, poll_participant: current, status: :completed)
+    tally.update!(votes_count: 1)
     sign_in operator
 
     patch mark_next_participant_absent_poll_poll_session_path(poll, poll_session), params: {
@@ -385,6 +418,7 @@ RSpec.describe "PollSession ballots", type: :request do
   it "shows the explicit close action after the last participant is processed" do
     poll, poll_session, progress, current, waiting, option, tally, operator = create_execution
     create(:poll_participation, poll_participant: current, status: :completed)
+    tally.update!(votes_count: 1)
     create(:poll_participation, poll_participant: waiting, status: :absent)
     sign_in operator
 
@@ -406,20 +440,13 @@ RSpec.describe "PollSession ballots", type: :request do
       number: 2,
       name: "이후보"
     )
-    tally.update!(votes_count: 2)
+    tally.update!(votes_count: 1)
     create(
       :poll_option_tally,
       poll: poll,
       poll_session: poll_session,
       poll_option: second_option,
-      votes_count: 1
-    )
-    create(
-      :poll_contest_tally,
-      poll: poll,
-      poll_session: poll_session,
-      poll_contest: option.poll_contest,
-      abstentions_count: 0
+      votes_count: 0
     )
     create(
       :poll_option_tally,
@@ -440,8 +467,8 @@ RSpec.describe "PollSession ballots", type: :request do
     summary = page.at_css("[data-testid='poll-session-closed-summary']")
 
     results = page.at_css("[data-testid='poll-session-results']")
-    integrity_report = page.at_css(
-      "[data-testid='poll-session-integrity-report']"
+    status_check = page.at_css(
+      "[data-testid='poll-session-status-check']"
     )
     roster_rows = page.css(
       "[data-testid='poll-session-roster'] tbody tr"
@@ -462,17 +489,17 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(response.body).to include(
       "투표 결과",
       "학급 선거 결과",
-      "2표",
       "1표",
+      "0표",
       "투표자 명단",
       "투표 시작 당시 확정된 투표자 명단입니다."
     )
     expect(results.text.squish).to include(
       "최다 득표 후보: 1번 김후보"
     )
-    expect(integrity_report.text.squish).to include(
-      "상태 점검: 이상 없음",
-      "종료된 투표의 결과 상태가 정상입니다."
+    expect(status_check.text.squish).to include(
+      "상태 점검: 종료됨",
+      "이 학급 투표는 완료되었습니다."
     )
     expect(roster_rows).to include(
       "#{current.number}번 #{current.name} 투표 완료",
@@ -507,12 +534,6 @@ RSpec.describe "PollSession ballots", type: :request do
       poll_option: second_option,
       votes_count: 3
     )
-    create(
-      :poll_contest_tally,
-      poll: poll,
-      poll_session: poll_session,
-      poll_contest: option.poll_contest
-    )
     create(:poll_participation, poll_participant: current, status: :completed)
     create(:poll_participation, poll_participant: waiting, status: :abstained)
     closed_at = Time.current
@@ -544,16 +565,16 @@ RSpec.describe "PollSession ballots", type: :request do
 
     page = Nokogiri::HTML(response.body)
     results = page.at_css("[data-testid='poll-session-results']")
-    integrity_report = page.at_css(
-      "[data-testid='poll-session-integrity-report']"
+    status_check = page.at_css(
+      "[data-testid='poll-session-status-check']"
     )
 
     expect(results.text.squish).to include(
       "이 투표 세션의 집계 정보를 확인할 수 없습니다."
     )
-    expect(integrity_report.text.squish).to include(
+    expect(status_check.text.squish).to include(
       "상태 점검: 확인 필요",
-      "회장 항목의 집계 정보를 확인해 주세요."
+      "회장 항목의 선택지 집계 정보를 확인해 주세요."
     )
   end
 end
