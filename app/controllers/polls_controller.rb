@@ -20,6 +20,17 @@ class PollsController < ApplicationController
 
   def show
     authorize @poll
+    @school_based_poll = @poll.school.present?
+
+    if @school_based_poll
+      @poll_contests = @poll.poll_contests.includes(:poll_options).order(:position, :id)
+      @poll_sessions = @poll.poll_sessions
+        .includes(:classroom, :operator, poll_participants: :poll_participation)
+        .order(:created_at, :id)
+        .select { |poll_session| policy(poll_session).show? }
+      return
+    end
+
     @integrity_report = Polls::IntegrityReport.new(@poll)
     @result_summary = Polls::ResultSummary.new(@poll) if @poll.closed?
     @poll_events = operation_event_log_events

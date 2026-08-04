@@ -1,3 +1,9 @@
+<% if @school_based_poll %>
+  <%= render "school_overview",
+             poll: @poll,
+             poll_contests: @poll_contests,
+             poll_sessions: @poll_sessions %>
+<% else %>
 <div class="space-y-6">
   <% if @poll.in_progress? %>
     <%= turbo_stream_from @poll, :operation_screen %>
@@ -63,3 +69,4 @@
   <% end %>
   <%= render "poll_participants", poll: @poll %>
 </div>
+<% end %>
