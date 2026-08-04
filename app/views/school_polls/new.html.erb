@@ -1,0 +1,53 @@
+<div class="mx-auto max-w-3xl space-y-6">
+  <%= link_to "학교투표 목록으로 돌아가기",
+              school_polls_path,
+              class: "text-sm font-medium text-stone-700 underline" %>
+
+  <div class="space-y-2">
+    <h1 class="text-2xl font-semibold">새 투표</h1>
+    <% if @school.present? %>
+      <p class="text-sm text-stone-600">소속 학교: <%= @school.name %></p>
+    <% end %>
+  </div>
+
+  <% if @poll.errors.any? %>
+    <div class="rounded-md border border-red-200 bg-red-50 p-4 text-red-800">
+      <h2 class="font-medium">투표를 생성할 수 없습니다.</h2>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
+        <% @poll.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <%= form_with model: @poll,
+                url: school_polls_path,
+                class: "space-y-4 rounded-md border border-stone-200 bg-white p-4" do |form| %>
+    <% if current_user.admin? %>
+      <div class="space-y-1">
+        <%= label_tag :school_id, "소속 학교", class: "text-sm font-medium text-stone-700" %>
+        <%= select_tag :school_id,
+                       options_from_collection_for_select(@available_schools, :id, :name, params[:school_id]),
+                       prompt: "학교를 선택하세요",
+                       class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+      </div>
+    <% end %>
+
+    <div class="space-y-1">
+      <%= form.label :title, "투표 이름", class: "text-sm font-medium text-stone-700" %>
+      <%= form.text_field :title, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+    </div>
+
+    <div class="space-y-1">
+      <%= form.label :kind, "활동 유형", class: "text-sm font-medium text-stone-700" %>
+      <%= form.select :kind,
+                      [["선거", "election"], ["토의", "discussion"]],
+                      {},
+                      class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+    </div>
+
+    <%= form.submit "투표 만들기",
+                    class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+  <% end %>
+</div>

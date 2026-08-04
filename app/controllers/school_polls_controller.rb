@@ -10,33 +10,30 @@ class SchoolPollsController < ApplicationController
 
   def new
     authorize Poll, :school_create?
-    prepare_form
-    render "polls/new"
+    prepare_new_form
   end
 
   def create
     authorize Poll, :school_create?
     school = school_for_creation
-    classroom = eligible_classrooms(school).find_by(id: params[:classroom_id]) if school
 
-    unless school && classroom
-      prepare_form(["선택한 학교와 학급을 확인해 주세요."])
-      render "polls/new", status: :unprocessable_entity
+    unless school
+      prepare_new_form(["학교를 선택해 주세요."])
+      render :new, status: :unprocessable_entity
       return
     end
 
-    result = Polls::CreateDefinitionWithSession.new(
+    result = Polls::CreateSchoolDefinition.new(
       actor: current_user,
-      classroom: classroom,
-      poll_attributes: poll_params,
-      school_managed: true
+      school: school,
+      poll_attributes: poll_params
     ).call
 
     if result.success?
       redirect_to school_poll_path(result.poll), notice: "투표를 만들었습니다."
     else
-      prepare_form(result.errors)
-      render "polls/new", status: :unprocessable_entity
+      prepare_new_form(result.errors)
+      render :new, status: :unprocessable_entity
     end
   end
 
@@ -77,22 +74,10 @@ class SchoolPollsController < ApplicationController
     scope.order("schools.name ASC").merge(Classroom.in_school_order)
   end
 
-  def prepare_form(errors = [])
-    @school_poll_form = true
-    @poll_form_url = school_polls_path
-    @poll_form_back_path = school_polls_path
-    @poll_form_back_label = "학교투표 목록으로 돌아가기"
+  def prepare_new_form(errors = [])
     @available_schools = current_user.admin? ? School.order(:name) : School.none
     @school = current_user.school_membership&.school unless current_user.admin?
-    @available_classrooms = eligible_classrooms(@school)
-    @available_classroom_student_counts = active_student_counts_for(@available_classrooms)
-
-    form_attributes = params[:poll].present? ? poll_params.to_h.deep_symbolize_keys : {}
-    @poll = Poll.new(form_attributes.slice(:title, :kind))
-    contest = collection_values(form_attributes[:poll_contests_attributes]).first || {}
-    @contest_title = contest[:title].presence || "기본"
-    @poll_option_rows = collection_values(contest[:poll_options_attributes])
-    @poll_option_rows = [{ number: 1, name: "" }, { number: 2, name: "" }] if @poll_option_rows.empty?
+    @poll = Poll.new(poll_params.to_h)
     errors.each { |message| @poll.errors.add(:base, message) }
   end
 
@@ -103,18 +88,7 @@ class SchoolPollsController < ApplicationController
       .count
   end
 
-  def collection_values(value)
-    value.is_a?(Hash) ? value.values : Array(value)
-  end
-
   def poll_params
-    params.fetch(:poll, ActionController::Parameters.new).permit(
-      :title,
-      :kind,
-      poll_contests_attributes: [
-        :title,
-        { poll_options_attributes: %i[number name] }
-      ]
-    )
+    params.fetch(:poll, ActionController::Parameters.new).permit(:title, :kind)
   end
 end

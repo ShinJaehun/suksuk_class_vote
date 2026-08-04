@@ -61,7 +61,7 @@ class Poll < ApplicationRecord
   scope :archived, -> { where.not(archived_at: nil) }
 
   before_destroy :prepare_for_destroy, prepend: true
-  after_create :ensure_default_poll_contest!
+  after_create :ensure_default_poll_contest!, unless: :school_managed?
 
   validates :title, presence: true
   validates :user, presence: true

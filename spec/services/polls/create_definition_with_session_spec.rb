@@ -34,14 +34,12 @@ RSpec.describe Polls::CreateDefinitionWithSession do
   def call_service(
     actor: self.actor,
     classroom: self.classroom,
-    poll_attributes: self.poll_attributes,
-    school_managed: false
+    poll_attributes: self.poll_attributes
   )
     described_class.new(
       actor: actor,
       classroom: classroom,
-      poll_attributes: poll_attributes,
-      school_managed: school_managed
+      poll_attributes: poll_attributes
     ).call
   end
 
@@ -126,25 +124,6 @@ RSpec.describe Polls::CreateDefinitionWithSession do
 
       expect(result).to be_success
       expect(result.poll_session.operator).to eq(admin)
-    end
-
-    it "uses the Classroom teacher for a School-managed PollSession" do
-      manager = create(:user)
-      create(:school_membership, :manager, school: school, user: manager)
-      classroom_teacher = create(:user, name: "담임교사")
-      managed_classroom = create_classroom(school: school, teacher: classroom_teacher)
-
-      result = call_service(
-        actor: manager,
-        classroom: managed_classroom,
-        school_managed: true
-      )
-
-      expect(result).to be_success
-      expect(result.poll_session).to have_attributes(
-        operator: classroom_teacher,
-        operator_name_snapshot: "담임교사"
-      )
     end
 
     it "rejects a regular teacher for another teacher's classroom" do

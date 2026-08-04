@@ -10,22 +10,12 @@ RSpec.describe "School Poll management", type: :request do
     classroom
   end
 
-  def creation_params(school:, classroom:)
+  def creation_params(school:)
     {
       school_id: school.id,
-      classroom_id: classroom.id,
       poll: {
         title: "학교 의견 투표",
-        kind: "discussion",
-        poll_contests_attributes: {
-          "0" => {
-            title: "의견 선택",
-            poll_options_attributes: {
-              "0" => { number: 1, name: "첫 번째 의견" },
-              "1" => { number: 2, name: "두 번째 의견" }
-            }
-          }
-        }
+        kind: "discussion"
       }
     }
   end
@@ -101,21 +91,21 @@ RSpec.describe "School Poll management", type: :request do
       other_school = create(:school, name: "다른초")
       manager = create(:user)
       create(:school_membership, :manager, school: school, user: manager)
-      own_classroom = create_eligible_classroom(school: school, teacher: create(:user))
-      other_classroom = create_eligible_classroom(school: other_school, teacher: create(:user))
       admin = create(:user, :admin)
 
       sign_in admin
       get new_school_poll_path
       expect(response.body).to include("아라초", "다른초")
-      expect(response.body).to include(own_classroom.name, other_classroom.name)
       expect(response.body).to include('name="school_id"')
+      expect(response.body).not_to include('name="classroom_id"')
+      expect(response.body).not_to include("poll_contests_attributes")
+      expect(response.body).not_to include("poll_options_attributes")
 
       sign_out admin
       sign_in manager
       get new_school_poll_path
-      expect(response.body).to include("소속 학교: 아라초", own_classroom.name)
-      expect(response.body).not_to include(other_classroom.name, 'name="school_id"')
+      expect(response.body).to include("소속 학교: 아라초")
+      expect(response.body).not_to include('name="school_id"', 'name="classroom_id"')
     end
 
     it "rejects a regular teacher" do
@@ -128,86 +118,81 @@ RSpec.describe "School Poll management", type: :request do
   end
 
   describe "POST /school_polls" do
-    it "creates a Poll and first draft PollSession for global admin" do
+    it "creates only a School Poll definition for global admin" do
       school = create(:school)
-      classroom = create_eligible_classroom(school: school, teacher: create(:user))
-      sign_in create(:user, :admin)
-      params = creation_params(school: school, classroom: classroom)
+      admin = create(:user, :admin)
+      sign_in admin
+      params = creation_params(school: school)
       params[:poll][:school_managed] = false
+      params[:poll][:user_id] = create(:user).id
+      params[:poll][:status] = "closed"
+      params[:poll][:participant_group_id] = create(:participant_group, :with_participant_slot).id
 
       expect do
         post school_polls_path, params: params
       end.to change(Poll, :count).by(1)
-        .and change(PollSession, :count).by(1)
+        .and change(PollSession, :count).by(0)
+        .and change(PollContest, :count).by(0)
+        .and change(PollOption, :count).by(0)
         .and change(PollParticipant, :count).by(0)
+        .and change(PollParticipation, :count).by(0)
         .and change(PollProgress, :count).by(0)
         .and change(PollOptionTally, :count).by(0)
         .and change(PollContestTally, :count).by(0)
         .and change(PollEvent, :count).by(0)
 
       poll = Poll.order(:created_at).last
-      expect(poll).to have_attributes(school: school, school_managed: true)
-      expect(poll.poll_sessions.first).to have_attributes(
-        classroom: classroom,
-        operator: classroom.teacher,
-        operator_name_snapshot: classroom.teacher.name,
+      expect(poll).to have_attributes(
+        school: school,
+        user: admin,
+        school_managed: true,
+        participant_group: nil,
         status: "draft"
       )
       expect(response).to redirect_to(school_poll_path(poll))
     end
 
-    it "fixes a manager's School and rejects another School Classroom" do
+    it "fixes a manager's School even when another school_id is submitted" do
       school = create(:school)
       other_school = create(:school)
       manager = create(:user)
       create(:school_membership, :manager, school: school, user: manager)
-      classroom = create_eligible_classroom(school: school, teacher: create(:user))
-      other_classroom = create_eligible_classroom(school: other_school, teacher: create(:user))
       sign_in manager
 
-      post school_polls_path, params: creation_params(school: other_school, classroom: classroom)
+      post school_polls_path, params: creation_params(school: other_school)
       expect(Poll.order(:created_at).last).to have_attributes(
         school: school,
+        user: manager,
         school_managed: true
       )
-
-      expect do
-        post school_polls_path, params: creation_params(school: school, classroom: other_classroom)
-      end.not_to change(Poll, :count)
-      expect(response).to have_http_status(:unprocessable_content)
     end
 
-    it "rejects ineligible Classrooms and regular teachers" do
+    it "rejects a regular teacher" do
       school = create(:school)
-      manager = create(:user)
-      create(:school_membership, :manager, school: school, user: manager)
-      inactive = create_eligible_classroom(school: school, teacher: create(:user))
-      inactive.update!(active: false)
-      teacherless = create(:classroom, school: school, teacher: nil)
-      create(:student, classroom: teacherless, active: true)
-      empty = create_eligible_classroom(
-        school: school,
-        teacher: create(:user),
-        active_student: false
-      )
-      sign_in manager
-
-      [inactive, teacherless, empty].each do |classroom|
-        expect do
-          post school_polls_path, params: creation_params(school: school, classroom: classroom)
-        end.not_to change(Poll, :count)
-      end
-
-      sign_out manager
       sign_in create(:user)
+
       expect do
-        post school_polls_path, params: creation_params(school: school, classroom: inactive)
+        post school_polls_path, params: creation_params(school: school)
       end.not_to change(Poll, :count)
       expect(response).to redirect_to(polls_path)
     end
   end
 
   describe "GET /school_polls/:id" do
+    it "renders a definition with no contests or Sessions and keeps Classroom assignment" do
+      school = create(:school)
+      classroom = create_eligible_classroom(school: school, teacher: create(:user))
+      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      sign_in create(:user, :admin)
+
+      get school_poll_path(poll)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("등록된 투표 항목이 없습니다.")
+      expect(response.body).to include("배정된 학급 투표가 없습니다.")
+      expect(response.body).to include("학급 배정", classroom.formatted_class_label)
+    end
+
     it "shows the shared overview to global admin and the same-School manager" do
       school = create(:school)
       manager = create(:user)
