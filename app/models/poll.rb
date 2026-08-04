@@ -65,6 +65,8 @@ class Poll < ApplicationRecord
 
   validates :title, presence: true
   validates :user, presence: true
+  validates :school_managed, inclusion: { in: [true, false] }
+  validates :school, presence: true, if: :school_managed?
   validates :participant_group, presence: true, unless: :participant_group_optional?
   validate :participant_group_has_participant_slots, unless: :participant_group_optional?
   validate :school_and_participant_group_cannot_coexist, on: :create

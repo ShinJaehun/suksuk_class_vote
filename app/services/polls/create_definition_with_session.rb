@@ -10,14 +10,16 @@ module Polls
       user_id
       school_id
       participant_group_id
+      school_managed
       status
       archived_at
     ].freeze
 
-    def initialize(actor:, classroom:, poll_attributes:)
+    def initialize(actor:, classroom:, poll_attributes:, school_managed: false)
       @actor = actor
       @classroom = classroom
       @poll_attributes = normalize_attributes(poll_attributes)
+      @school_managed = school_managed
       @errors = []
     end
 
@@ -42,7 +44,7 @@ module Polls
 
     private
 
-    attr_reader :actor, :classroom, :poll_attributes, :errors, :poll, :poll_session
+    attr_reader :actor, :classroom, :poll_attributes, :school_managed, :errors, :poll, :poll_session
 
     def validate_inputs
       errors << "운영자가 필요합니다." if actor.blank?
@@ -75,6 +77,7 @@ module Polls
         attributes.merge(
           user: actor,
           school: classroom.school,
+          school_managed: school_managed,
           participant_group: nil,
           status: :draft,
           archived_at: nil

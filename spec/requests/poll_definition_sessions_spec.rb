@@ -107,6 +107,7 @@ RSpec.describe "Poll definition sessions", type: :request do
       expect(poll).to have_attributes(
         school: school,
         user: teacher,
+        school_managed: false,
         participant_group: nil,
         status: "draft"
       )
@@ -165,6 +166,7 @@ RSpec.describe "Poll definition sessions", type: :request do
           participant_group_id: participant_group.id,
           user_id: create(:user).id,
           school_id: create(:school).id,
+          school_managed: true,
           status: "in_progress",
           archived_at: Time.current
         }
@@ -175,6 +177,7 @@ RSpec.describe "Poll definition sessions", type: :request do
         participant_group: nil,
         user: teacher,
         school: school,
+        school_managed: false,
         status: "draft",
         archived_at: nil
       )

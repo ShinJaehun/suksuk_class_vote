@@ -1,6 +1,7 @@
 Rails.application.routes.draw do
   devise_for :users
   resource :dashboard, only: :show
+  resources :school_polls, only: %i[index new create show]
   resources :polls, only: %i[index show new create destroy] do
     get :archived, on: :collection
     get :ballot, on: :member

@@ -11,6 +11,20 @@ class PollPolicy < ApplicationPolicy
     admin? || teacher?
   end
 
+  def school_index?
+    admin? || school_manager?
+  end
+
+  def school_create?
+    school_index?
+  end
+
+  def school_show?
+    return false unless record.school_managed? && record.school_id.present?
+
+    admin? || manages_school?(record.school_id)
+  end
+
   def update?
     admin? || owner?
   end
@@ -67,6 +81,18 @@ class PollPolicy < ApplicationPolicy
     end
   end
 
+  class SchoolScope < ApplicationPolicy::Scope
+    def resolve
+      school_polls = scope.where(school_managed: true).where.not(school_id: nil)
+      return school_polls if user&.admin?
+
+      membership = user&.school_membership
+      return school_polls.where(school_id: membership.school_id) if membership&.manager?
+
+      school_polls.none
+    end
+  end
+
   private
 
   def admin?
@@ -75,6 +101,14 @@ class PollPolicy < ApplicationPolicy
 
   def teacher?
     user&.teacher?
+  end
+
+  def school_manager?
+    user&.school_membership&.manager?
+  end
+
+  def manages_school?(school_id)
+    school_manager? && user.school_membership.school_id == school_id
   end
 
   def owner?
