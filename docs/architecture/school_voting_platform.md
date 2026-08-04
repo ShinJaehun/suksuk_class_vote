@@ -457,37 +457,41 @@ PollSession의 운영자 필드와 운영자 변경 이벤트에도 ElectionSess
 nullable `poll_session_id` 연결을 추가했다. 기존 Poll runtime은 `poll_session_id = NULL`인 기록을
 계속 만들며 `poll_id`도 유지한다. participant number, progress, option/contest tally의 legacy와
 PollSession unique index는 분리되어 같은 Poll의 여러 학급 실행을 수용한다. PollParticipation은
-PollParticipant를 통해 간접 연결하며, runtime 전환과 data backfill은 후속 단계다.
+PollParticipant를 통해 간접 연결한다. 신규 PollSession 실행 기록은 `poll_id`와 `poll_session_id`를
+함께 가지며, PollSession ID는 Poll 내부 번호가 아니라 table 전체의 전역 ID다. legacy runtime
+분리와 data backfill은 후속 단계다.
 
 `Polls::CreateDefinitionWithSession`은 학교 기반 Poll 정의와 최초 Classroom draft PollSession을
 같은 transaction에서 생성한다. active Classroom·Student와 actor의 담임/manager/global admin
 권한을 검증하고 학급·운영자 snapshot을 명시적으로 저장한다. controller와 화면은 이 service를
 사용하도록 전환됐다. 신규 ParticipantGroup Poll 생성은 차단되고 기존 legacy Poll의
-조회·runtime은 유지된다. 새 draft PollSession은 목록에서 실행 준비 중으로만 표시하며 시작·진행·
-결과 runtime은 아직 제공하지 않는다.
+조회·runtime은 유지된다. 현재 신규 생성은 Poll 정의 1개와 최초 draft PollSession 1개만 만들며,
+한 Poll을 여러 Classroom PollSession에 배정하는 화면과 흐름은 후속 작업이다.
 
 `Polls::StartSession`은 draft PollSession을 잠근 뒤 active Student를 number 순
 PollParticipant snapshot으로 만들고 PollProgress, option/contest tally, `poll_started` event를
 같은 session에 연결한다. PollParticipation은 시작 시 만들지 않으며 Poll 정의 status도 변경하지
-않는다. PollSession 전용 nested POST route와 controller는 service만 호출하며 목록은 권한 있는
-draft session의 시작과 session별 상태 표시를 제공한다. 진행·투표·중단·종료·결과 runtime은
-후속 단계다. 시작 시 첫 snapshot 학생을 current로 지정하고 ballot은 잠근다. 운영 현황은 완료 또는
-미참여 처리된 current를 유지하며, 교사의 명시적 승인 때 다음 미처리 학생을 number/id 순서로
-지정하고 ballot을 연다. 전환은 transaction과 PollProgress row lock으로 중복 진행을 막는다.
-학생별 선택과 tally는 노출하지 않으며 기존 ParticipantGroup 기반 `Polls::Start`는 그대로 유지한다.
-현재 학생의 ballot은 operator 또는 global admin이 열고 잠글 수 있다. 열린 ballot은
+않는다. 시작 시 첫 snapshot 학생을 current로 지정하고 ballot은 잠근다. 고정된 학생 투표 창을 연
+뒤 operator 또는 global admin이 현재 학생의 ballot을 명시적으로 열고 잠글 수 있다. 열린 ballot은
 각 contest의 PollOption을 하나씩 검증한 뒤 PollSession별 count-only tally를 transaction과 row lock
 안에서 증가시키고 completed participation을 만든다. 성공하면 ballot을 잠그고 current를 유지한다.
-고정 이름의 학생 창은 Turbo Stream으로 상태를 갱신하며 다음 학생은 자동 지정하지 않는다. 마지막
-학생까지 확정된 뒤 교사가 session을 명시적으로 종료한다. 개인별 선택 row는 저장하지 않는다.
-후속 단계는 기권 제출, 세션 중단과 복구, PollSession 결과 집계다.
+교사는 현재 학생을 미참여로 확정하거나, 처리된 current를 유지한 상태에서 다음 미처리 학생을
+number/id 순서로 명시적으로 지정한다. 자동 다음 학생 전환과 자동 종료는 의도적으로 사용하지 않으며,
+마지막 학생까지 확정된 뒤 교사가 session을 명시적으로 종료한다. 종료 화면은 현재
+`poll_session_id`에 속한 tally와 시작 당시 PollParticipant snapshot만으로 결과와 투표자 명단을
+표시하고 개인별 선택 row는 저장하거나 표시하지 않는다. 교사 operation 화면과 고정 이름의 학생
+창은 Turbo Stream으로 갱신하며 polling fallback도 제공한다. `Polls::SessionStatusCheck`가 draft,
+in_progress, closed 단계의 정의·snapshot·진행·집계 무결성을 확인하고 실제 시작·ballot open·제출·
+미참여·다음 학생·종료 service가 해당 조건으로 잘못된 action을 차단한다. 기존 ParticipantGroup 기반
+`Polls::Start`와 legacy 직접 실행 route는 그대로 유지한다. 신규 PollSession의 중단·stopped 이력·
+replacement session·재투표는 아직 구현되지 않았다.
 
 Classroom·Student 관리 UI는 role 기반 Classroom scope와 일반 페이지 CRUD를 제공한다. admin은 모든
 학교, manager는 소속 학교, 일반 teacher는 자신이 담임인 Classroom과 학생 명단만 관리한다. Student는
 단일 또는 textarea bulk 방식으로 등록하고 hard delete 대신 비활성화·복구한다. 이 자료는 신규 Poll의
 Classroom 선택과 시작 snapshot에 사용하며 ParticipantGroup·ParticipantSlot 변환은 수행하지 않는다.
-다음 단계는 이 관리 흐름을 브라우저에서 검증한 뒤 PollSession ballot 제어, 투표 제출과 참여 상태,
-다음 participant 이동, 중단·종료·결과를 순서대로 연결하는 것이다.
+다음 전환 작업은 Poll 정의/Session 목록 화면 재정의, 한 Poll의 여러 Classroom 배정, legacy runtime
+분리와 데이터 이관, PollSession 중단·replacement·재투표를 순서대로 다루는 것이다.
 
 학교 교사 관리 UI는 기존 teacher 계정만 SchoolMembership의 `member`로 소속시키며 global admin만
 `manager` 지정·해제를 수행한다. 같은 학교 manager는 미소속 teacher 추가와 일반 member의 안전한
@@ -594,9 +598,20 @@ read_only: true
 8. 역사 선거를 import한다.
 9. Election과 Poll 전환 완료 후 `ParticipantGroup`을 제거한다.
 
-현재 4단계까지 완료되었다. legacy 관리자 runtime, `SchoolElections::*` service,
-Poll 연결, legacy 모델과 DB table을 제거했으며 구조 제거 migration은
-`20260802000000_remove_legacy_school_election_structure.rb`이다.
+현재 1~7단계의 신규 구조와 기본 PollSession runtime까지 완료되었다. legacy `SchoolElection`
+관리자 runtime, `SchoolElections::*` service, Poll 연결, legacy 모델과 DB table을 제거했고,
+School·SchoolMembership·Classroom·Student 조직 기반과 ElectionSession의 Classroom·
+ParticipantGroup dual-source 전환을 구현했다. PollSession foundation, 신규 Poll 정의와 최초 draft
+Session 생성, Student snapshot, 감독형 제출·count-only 집계·참여 기록·미참여·명시적 다음 학생·
+명시적 종료·Session별 결과, Turbo Stream/polling 갱신과 단계별 상태 점검도 구현됐다.
+
+아직 `/polls/:id`의 Poll 정의·PollSession 목록 화면 재정의, 한 Poll의 여러 Classroom 배정,
+신규/legacy Poll runtime의 서버 측 분리, PollSession 중단·stopped 이력·replacement·재투표,
+Election id=6 변환 리허설과 실제 적용 여부 결정, 운영 Poll 보존 범위 조사와 필요한 backfill이
+남아 있다. 실제 Election id=6 운영 데이터에는 변환 task를 적용하지 않았다. 이관 뒤에야
+ParticipantGroup·ParticipantSlot과 legacy Poll runtime을 제거할 수 있다. Election과 Poll의 최종
+역할 경계, `Poll.kind = election`의 처리, `VotingTarget`·`Voter` 공통 추상화 도입은 확정 사항이
+아니라 검토 대상이다.
 
 `ParticipantGroup`은 현재 Poll 원본 명단과 진행 흐름에 연결되어 있고 export 시 학생
 명단의 출처가 될 수 있다. 이를 일찍 삭제하면 Poll 운영과 export 검증이 깨지고 새
@@ -612,7 +627,8 @@ Student/Voter 구조로 옮기지 못한 기록의 의미를 잃는다. 두 콘�
 - 학급-담임은 양쪽 모두 최대 하나이며 학급의 학교는 변경하지 않는다.
 - Student는 독립 모델이고 User/Devise 계정이 아니다.
 - Election/Poll, 범위, 진행 방식과 접속 방식을 독립 축으로 둔다.
-- 대상은 VotingTarget, 세션 투표자는 공통 Voter snapshot으로 표현한다.
+- 대상 학급과 세션 투표자 snapshot을 공통 개념으로 다루되, `VotingTarget`·`Voter` 같은 공통
+  추상화의 실제 도입은 후속 검토 대상으로 둔다.
 - 학생별 선택을 저장하지 않고 참여 상태와 count-only 집계를 함께 갱신한다.
 - 시작 뒤 설정을 잠그고 전체 결과에는 closed 세션만 포함한다.
 - 중단·replacement 이력과 운영 이벤트를 보존한다.

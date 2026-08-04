@@ -8,21 +8,22 @@
 
 목표는 기존 Poll ID와 진행·집계 기록을 손상하지 않고 신규 경로를 전환한 뒤,
 Election과 Poll 양쪽의 의존을 모두 제거하여 `ParticipantGroup`·`ParticipantSlot` table을
-삭제할 수 있게 하는 것이다. 현재 PollSession foundation, 실행 기록의 nullable 연결, Poll 정의와
-최초 draft PollSession 생성 화면과 `Polls::StartSession` backend, 전용 nested POST start route와
-목록 시작 UI까지 연결됐다. 기존 ParticipantGroup Poll start/runtime은 변경하지 않는다.
+삭제할 수 있게 하는 것이다. 현재 PollSession foundation부터 감독형 진행·종료·Session별 결과와
+단계별 상태 점검까지 연결됐다. 기존 ParticipantGroup Poll start/runtime은 유지한다.
 
 ## 2. 현재 구조
 
-PollSession foundation은 존재하지만 기존 runtime에서 `Poll` 하나가 투표 정의와 한 번의 학급
-실행을 모두 담당한다. 실행 기록에는 nullable `poll_session_id`가 추가됐지만 legacy runtime은
-이를 비운 채 `poll_id`로 기록한다. 또한 개인별 선택지를 저장하는 `PollVote` 모델은 없다. 비밀투표를 위해
-참여 상태와 선택지별 count-only tally를 분리해 저장한다.
+신규 School 기반 흐름에서 `Poll`은 투표 정의이고 `PollSession`은 특정 Classroom에서 실제 시행한
+한 번의 실행이다. 기존 runtime에서는 여전히 `Poll` 하나가 정의와 실행을 함께 담당한다. 실행 기록의
+`poll_session_id`는 nullable이며 신규 기록은 `poll_id`와 현재 `poll_session_id`를 함께, legacy 기록은
+`poll_session_id = NULL`인 채 `poll_id`로 저장한다. PollSession ID는 Poll 내부 번호가 아니라 table
+전체의 전역 ID다. 개인별 선택을 저장하는 `PollVote` 모델은 없으며 참여 상태와 count-only tally를
+분리해 저장한다.
 
 | 모델 | 현재 책임과 association | 상태·제약·삭제 |
 | --- | --- | --- |
 | `Poll` | `user`, optional `participant_group`; contests, options, participants, tallies, events, progress 소유 | `draft/in_progress/closed/stopped`; draft·stopped·미보관 closed만 삭제 가능; 삭제 시 하위 실행 기록 cascade |
-| `PollSession` | `poll`, `classroom`, 실제 `operator`, 학급·운영자 이름 snapshot | foundation만 존재; `draft/in_progress/closed/stopped`; 같은 Poll/Classroom의 active 실행 unique; runtime 미사용 |
+| `PollSession` | `poll`, `classroom`, 실제 `operator`, 학급·운영자 이름 snapshot | `draft/in_progress/closed/stopped`; 시작·감독형 진행·종료·결과 runtime 사용; 중단/replacement는 미구현 |
 | `ParticipantGroup` | `user`, optional `school`, many slots/polls | Poll은 `teacher_personal` group만 생성 UI에서 선택; draft Poll이 사용 중이면 group 삭제 차단 |
 | `ParticipantSlot` | group의 번호·이름 명단 row | group 내 number unique; PollParticipant의 optional source, slot 삭제 시 FK `ON DELETE SET NULL` |
 | `PollParticipant` | Poll 시작 시 number·name snapshot, optional `source_participant_slot`, optional `poll_session` | legacy poll 또는 PollSession 안에서 number unique; participation/event/progress의 실행 기준 |
@@ -43,6 +44,25 @@ DB의 주요 제약은 다음과 같다.
 - 같은 ParticipantGroup으로 여러 Poll을 만드는 것을 금지하는 index는 없다.
 
 ## 3. 현재 Poll 실행 흐름
+
+### 3.1 신규 Classroom PollSession
+
+1. `Polls::CreateDefinitionWithSession`이 Poll 정의와 최초 Classroom draft PollSession을 함께 만든다.
+2. 교사가 session을 시작하면 active Student를 number 순 PollParticipant snapshot으로 만들고 첫 학생을
+   current로 지정한 뒤 ballot을 잠근다.
+3. 고정된 학생 투표 창을 열고 교사가 ballot open을 승인한다.
+4. 학생 제출은 현재 `poll_session_id`의 count-only tally와 participation만 기록하고 ballot을 잠근다.
+   개별 학생의 선택은 저장하거나 표시하지 않는다.
+5. 교사는 학생을 미참여로 처리하거나, 처리된 current에서 다음 학생을 명시적으로 지정한다.
+6. 모든 학생을 처리한 뒤 교사가 session을 명시적으로 종료한다. 자동 다음 학생 전환과 자동 종료는
+   의도적으로 사용하지 않는다.
+7. 종료 결과와 투표자 명단은 현재 PollSession의 tally와 시작 당시 snapshot만 사용한다. operation
+   화면은 Turbo Stream으로 갱신하고 polling fallback을 제공한다.
+
+`Polls::SessionStatusCheck`는 draft, in_progress, closed 단계의 상태를 점검하며 실제 PollSession
+시작·ballot open·제출·미참여·다음 학생·종료 service는 이 조건으로 잘못된 action을 차단한다.
+
+### 3.2 legacy ParticipantGroup Poll
 
 1. **생성**: `PollsController#new/#create`가 `ParticipantGroupPolicy::Scope`를 적용한
    `teacher_personal` group 중 slot이 하나 이상인 group을 선택한다. strong parameter는
@@ -184,7 +204,7 @@ foundation rollback은 PollSession row가 있으면 기록 삭제 대신 명시�
 - 새 School 기반 draft는 목록에서 학급·operator snapshot과 “실행 준비 중”만 표시하며 legacy
   시작·진행·결과 action을 제공하지 않는다. 기존 ParticipantGroup Poll 조회/runtime은 유지한다.
 
-### 단계 4: PollSession 시작
+### 단계 4: PollSession 시작과 감독형 진행 (완료)
 
 - `Polls::StartSession`은 PollSession row를 transaction 안에서 lock하고 draft 상태, 정의,
   Classroom, active Student와 actor 권한을 다시 검증한다.
@@ -208,8 +228,8 @@ foundation rollback은 PollSession row가 있으면 기록 삭제 대신 명시�
 - role 기반 Classroom 목록·생성·설정과 Student active/inactive/all 명단, 단일 등록·수정·비활성화·
   복구 및 textarea 기반 원자적 bulk 등록 화면을 제공한다. 일반 teacher는 자신의 Classroom만
   관리하며 ParticipantGroup 자료를 변환하거나 변경하지 않는다.
-- 마지막 학생까지 확정된 뒤 교사가 명시적으로 session을 종료한다. 다음 단계는 기권 제출,
-  session 중단과 복구, PollSession 결과 집계 순으로 runtime을 전환하는 것이다.
+- 마지막 학생까지 확정된 뒤 교사가 명시적으로 session을 종료한다. 자동 다음 학생 전환과 자동 종료는
+  의도적으로 사용하지 않는다.
 - global admin과 같은 학교 manager는 기존 미소속 teacher를 SchoolMembership으로 추가할 수 있다.
   manager 지정·해제는 global admin만 수행하며 담당 Classroom이 있는 membership은 삭제하지 않는다.
   교사 계정 생성·초대와 학교 간 자동 전근, Classroom 일괄 배정은 범위 밖이다.
@@ -218,7 +238,7 @@ foundation rollback은 PollSession row가 있으면 기록 삭제 대신 명시�
   함께 보여준다. Student bulk 등록은 textarea parser 없이 30개의 번호·이름 행을 원자적으로 저장한다.
 - legacy Poll 시작 경로는 실제 데이터 전환 완료 전까지 별도 분기로 유지한다.
 
-### 단계 5: 운영 화면과 결과
+### 단계 5: 운영 화면과 결과 (완료)
 
 - draft 인원은 active Student, 시작 후 인원·진행은 PollParticipant/Participation/Progress를 쓴다.
 - 숫자·문자 학급명은 PollSession의 `classroom_name_snapshot`으로 안전하게 표시한다.
@@ -226,6 +246,14 @@ foundation rollback은 PollSession row가 있으면 기록 삭제 대신 명시�
   count-only 비밀투표 계산 의미는 바꾸지 않는다.
 - archived·closed·stopped 실행은 Classroom/Student 현재 상태로 재계산하지 않는다.
 - 개인별 선택 row가 없는 count-only 비밀투표 계약을 유지하며 결과를 재계산하지 않는다.
+- 종료 화면은 현재 `poll_session_id`에 속한 tally만 집계하고 시작 당시 PollParticipant snapshot을
+  투표자 명단으로 표시한다.
+- 교사 operation 화면과 학생 ballot 화면은 Turbo Stream으로 갱신하며 polling fallback을 제공한다.
+- `Polls::SessionStatusCheck`가 draft/in_progress/closed 단계의 무결성을 점검하고 실제 action service가
+  점검 결과에 따라 시작·진행·종료를 차단한다.
+
+현재 신규 생성은 Poll 1개와 최초 PollSession 1개만 만든다. `/polls/:id`를 Poll 정의와 PollSession
+목록 화면으로 재정의하고 한 Poll에 여러 Classroom PollSession을 배정하는 작업은 아직 남아 있다.
 
 ### 단계 6: 기존 Poll 데이터 전환
 
@@ -255,6 +283,17 @@ foundation rollback은 PollSession row가 있으면 기록 삭제 대신 명시�
   일회성 변환 도구의 보존/제거 시점을 결정한다.
 - 저장소 전체 검색으로 Poll·Election 외 의존이 없음을 확인한 후
   ParticipantGroup·ParticipantSlot 모델·controller·policy·view·table을 삭제한다.
+
+### 후속 runtime 작업
+
+- 신규 School 기반 Poll과 legacy Poll runtime을 서버 측에서 분리한다.
+- PollSession 중단, stopped 이력, replacement session과 재투표를 구현한다.
+- Election id=6 데이터 변환을 리허설하고 실제 적용 여부를 결정한다. 현재 운영 데이터에는 변환 task를
+  적용하지 않았다.
+- 운영 DB의 기존 Poll 보존 범위를 조사하고 필요한 Poll만 backfill한다.
+- 전환 검증 뒤 ParticipantGroup·ParticipantSlot과 legacy Poll runtime을 제거한다.
+- Election과 Poll의 최종 역할 경계, `Poll.kind = election` 처리, `VotingTarget`·`Voter` 공통 추상화는
+  확정 구현이 아니라 검토 대상이다.
 
 ## 8. 권한과 학교 범위
 
@@ -372,8 +411,8 @@ invariant로 만들지 않는다.
 6. **이름 snapshot column**: `participant_group_name_snapshot`은 group 삭제 후 표시를 보존한다.
    Classroom 표시 snapshot을 별도 열로 둘지, 보존 backfill 후 중립적 이름으로 rename할지
    1단계에서 확정해야 한다.
-7. **PollSession 이관 순서**: foundation만 추가된 동안 기존 Poll runtime과 새 PollSession이
-   함께 존재한다. 실행 기록 FK backfill과 invariant 검증 전에는 새 runtime을 열지 않는다.
+7. **PollSession 이관 순서**: 신규 PollSession runtime과 기존 Poll runtime이 함께 존재한다.
+   신규/legacy 서버 측 분리와 필요한 backfill·invariant 검증 없이 legacy runtime을 제거하지 않는다.
 8. **재투표 없음**: stopped Poll은 terminal이며 replacement/revote 관계도 없다.
    `ResumeCurrentParticipant`는 in_progress pointer 복구일 뿐이다. Poll 재투표는 이 전환의 숨은 요구로
    추가하지 않는다.

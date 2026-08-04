@@ -166,6 +166,26 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - `admin/elections`의 큰 제목 `선거 관리`는 관리 영역 이름으로 유지
 - 투표/선거 이벤트 시간은 기존 KST 표시 helper 정책에 따라 KST 기준으로 표시
 - 문서 기반 설계 정리 중
+- School·SchoolMembership·Classroom·Student 조직 기반 구현
+- 신규 ElectionSession은 Classroom 기반이며 기존 운영 데이터는 전환 기간 동안 ParticipantGroup 기반을 유지할 수 있는 dual-source 구조 구현
+- PollSession foundation과 실행 기록의 nullable `poll_session_id` 연결 구현: 신규 기록은 `poll_id`와 `poll_session_id`를 함께, legacy 기록은 `poll_session_id = NULL`로 유지
+- 신규 Poll 정의와 최초 draft PollSession 동시 생성, 시작 시 active Student의 PollParticipant snapshot 생성 구현
+- PollSession의 고정 학생 투표 창, 교사 ballot open 승인, 학생 제출, count-only tally·participation 기록, 미참여 처리와 명시적 다음 학생 진행 구현
+- PollSession 명시적 종료와 현재 Session tally·시작 당시 snapshot 기반 결과/투표자 명단 구현
+- PollSession 교사 operation 화면 Turbo Stream 갱신과 polling fallback 구현
+- `Polls::SessionStatusCheck`의 draft/in_progress/closed 단계 점검과 실제 PollSession action service 차단 연결
+
+현재 PollSession 흐름은 교사 시작 → active Student snapshot과 첫 current 지정 → ballot locked → 학생
+투표 창 → 교사 승인으로 ballot open → 학생 제출과 tally/participation 기록 → ballot locked → 교사의
+명시적 다음 학생 지정 → 반복 → 교사의 명시적 종료 순서다. 자동 다음 학생 전환과 자동 종료는
+의도적으로 사용하지 않는다. 개인별 학생 선택은 저장하거나 표시하지 않는다.
+
+신규 생성은 현재 Poll 1개와 최초 PollSession 1개만 만든다. `/polls/:id`의 Poll 정의·Session 목록
+화면 재정의, 여러 Classroom Session 배정, 신규/legacy runtime 서버 측 분리, PollSession 중단·stopped
+이력·replacement·재투표는 후속 작업이다. Election id=6 운영 데이터에는 변환 task를 아직 적용하지
+않았으며 운영 Poll 보존 범위 조사와 필요한 backfill 뒤 ParticipantGroup·ParticipantSlot 및 legacy
+Poll runtime 제거를 판단한다. Election/Poll 최종 역할 경계와 `VotingTarget`·`Voter` 공통 추상화도
+검토 대상이다.
 
 현재 `Poll` 상태 흐름:
 
