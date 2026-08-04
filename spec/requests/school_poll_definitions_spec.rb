@@ -19,6 +19,15 @@ RSpec.describe "School Poll definition management", type: :request do
     manager
   end
 
+  def uploaded_photo(filename: "candidate.jpg", content_type: "image/jpeg", contents: "photo")
+    file = Tempfile.new([ File.basename(filename, ".*"), File.extname(filename) ])
+    file.binmode
+    file.write(contents)
+    file.rewind
+
+    Rack::Test::UploadedFile.new(file.path, content_type, true, original_filename: filename)
+  end
+
   describe "authorization and association scope" do
     it "allows global admin and the same-School manager" do
       poll = school_poll
@@ -148,6 +157,199 @@ RSpec.describe "School Poll definition management", type: :request do
         post school_poll_contest_options_path(poll, other_contest),
              params: { poll_option: { number: 1, name: "다른 항목" } }
       end.to change(PollOption, :count).by(1)
+    end
+  end
+
+  describe "Schoolwide Election candidate photos" do
+    let(:poll) { school_poll }
+    let(:contest) { create(:poll_contest, poll: poll, position: 1) }
+
+    before { sign_in create(:user, :admin) }
+
+    it "shows photo controls and candidate fallback only for Schoolwide Elections" do
+      option = create(:poll_option, poll: poll, poll_contest: contest)
+
+      get new_school_poll_contest_option_path(poll, contest)
+      expect(response.body).to include(
+        "poll_option_photo",
+        "candidate-photo-preview",
+        "JPG, PNG, WebP",
+        "최대 15MB"
+      )
+
+      get edit_school_poll_contest_option_path(poll, contest, option)
+      expect(response.body).to include("poll_option_photo")
+
+      get school_poll_path(poll)
+      expect(response.body).to include("avatars/", "h-12 w-12", option.name)
+
+      survey = school_poll(kind: :survey)
+      survey_contest = create(:poll_contest, poll: survey)
+      survey_option = create(:poll_option, poll: survey, poll_contest: survey_contest)
+      get new_school_poll_contest_option_path(survey, survey_contest)
+      expect(response.body).not_to include("poll_option_photo", "candidate-photo-preview", "최대 15MB")
+      get school_poll_path(survey)
+      expect(response.body).not_to include("avatars/", "h-12 w-12")
+      expect(response.body).to include(survey_option.name)
+    end
+
+    it "creates and replaces a photo and requests variant processing" do
+      processed_option_ids = []
+      allow_any_instance_of(SchoolPollOptionsController)
+        .to receive(:process_photo_variants)
+        .and_wrap_original do |_method, option|
+          processed_option_ids << option.id
+          true
+        end
+
+      post school_poll_contest_options_path(poll, contest), params: {
+        poll_option: {
+          number: 1,
+          name: "사진 후보",
+          photo: uploaded_photo
+        }
+      }
+      option = contest.poll_options.find_by!(number: 1)
+      expect(option.photo).to be_attached
+      expect(option.photo.filename.to_s).to eq("candidate.jpg")
+
+      patch school_poll_contest_option_path(poll, contest, option), params: {
+        poll_option: {
+          number: 1,
+          name: option.name,
+          remove_photo: "1",
+          photo: uploaded_photo(filename: "replacement.webp", content_type: "image/webp")
+        }
+      }
+      expect(option.reload.photo.filename.to_s).to eq("replacement.webp")
+      expect(processed_option_ids).to eq([ option.id, option.id ])
+    end
+
+    it "removes a photo and displays the existing preview before removal" do
+      option = create(:poll_option, poll: poll, poll_contest: contest)
+      option.photo.attach(io: StringIO.new("photo"), filename: "candidate.png", content_type: "image/png")
+
+      get edit_school_poll_contest_option_path(poll, contest, option)
+      expect(response.body).to include("현재 사진", "poll_option_remove_photo", "후보 사진")
+
+      patch school_poll_contest_option_path(poll, contest, option), params: {
+        poll_option: { number: option.number, name: option.name, remove_photo: "1" }
+      }
+
+      expect(option.reload.photo).not_to be_attached
+      get school_poll_path(poll)
+      expect(response.body).to include("avatars/")
+    end
+
+    it "keeps a saved Option and reports variant processing failure" do
+      allow_any_instance_of(SchoolPollOptionsController)
+        .to receive(:process_photo_variants)
+        .and_return(false)
+
+      post school_poll_contest_options_path(poll, contest), params: {
+        poll_option: {
+          number: 1,
+          name: "변환 실패 후보",
+          photo: uploaded_photo
+        }
+      }
+
+      expect(contest.poll_options.find_by!(number: 1).photo).to be_attached
+      expect(response).to redirect_to(school_poll_path(poll))
+      expect(flash[:alert]).to include("사진 변환에 실패")
+    end
+
+    it "rejects invalid and oversized photos without losing an existing attachment" do
+      option = create(:poll_option, poll: poll, poll_contest: contest)
+      option.photo.attach(io: StringIO.new("old"), filename: "old.jpg", content_type: "image/jpeg")
+
+      patch school_poll_contest_option_path(poll, contest, option), params: {
+        poll_option: {
+          number: option.number,
+          name: option.name,
+          photo: uploaded_photo(filename: "candidate.txt", content_type: "text/plain")
+        }
+      }
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(option.reload.photo.filename.to_s).to eq("old.jpg")
+
+      patch school_poll_contest_option_path(poll, contest, option), params: {
+        poll_option: {
+          number: option.number,
+          name: option.name,
+          photo: uploaded_photo(contents: "a" * (PollOption::MAX_PHOTO_SIZE + 1))
+        }
+      }
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(option.reload.photo.filename.to_s).to eq("old.jpg")
+    end
+
+    it "ignores manipulated photo and removal parameters outside Schoolwide Elections" do
+      survey = school_poll(kind: :survey)
+      survey_contest = create(:poll_contest, poll: survey)
+      survey_option = create(:poll_option, poll: survey, poll_contest: survey_contest)
+
+      post school_poll_contest_options_path(survey, survey_contest), params: {
+        poll_option: { number: 99, name: "변조 생성", photo: uploaded_photo }
+      }
+      expect(survey_contest.poll_options.find_by!(number: 99).photo).not_to be_attached
+
+      patch school_poll_contest_option_path(survey, survey_contest, survey_option), params: {
+        poll_option: {
+          number: survey_option.number,
+          name: "설문 선택지",
+          photo: uploaded_photo,
+          remove_photo: "1"
+        }
+      }
+
+      expect(survey_option.reload.photo).not_to be_attached
+      expect(survey_option.name).to eq("설문 선택지")
+
+      former_candidate = create(:poll_option, poll: poll, poll_contest: contest)
+      former_candidate.photo.attach(
+        io: StringIO.new("old"),
+        filename: "old.jpg",
+        content_type: "image/jpeg"
+      )
+      poll.update!(kind: :survey)
+      patch school_poll_contest_option_path(poll, contest, former_candidate), params: {
+        poll_option: {
+          number: former_candidate.number,
+          name: former_candidate.name,
+          photo: uploaded_photo(filename: "new.jpg"),
+          remove_photo: "1"
+        }
+      }
+      expect(former_candidate.reload.photo.filename.to_s).to eq("old.jpg")
+    end
+
+    it "blocks photo replacement and removal after definition locking" do
+      option = create(:poll_option, poll: poll, poll_contest: contest)
+      option.photo.attach(io: StringIO.new("old"), filename: "old.jpg", content_type: "image/jpeg")
+      operator = create(:user)
+      create(:school_membership, school: poll.school, user: operator)
+      classroom = create(:classroom, school: poll.school, teacher: operator)
+      create(
+        :poll_session,
+        poll: poll,
+        classroom: classroom,
+        operator: operator,
+        status: :in_progress,
+        started_at: Time.current
+      )
+
+      patch school_poll_contest_option_path(poll, contest, option), params: {
+        poll_option: {
+          number: option.number,
+          name: option.name,
+          remove_photo: "1",
+          photo: uploaded_photo(filename: "new.jpg")
+        }
+      }
+
+      expect(response).to redirect_to(school_poll_path(poll))
+      expect(option.reload.photo.filename.to_s).to eq("old.jpg")
     end
   end
 

@@ -142,6 +142,7 @@ RSpec.describe "PollSession ballots", type: :request do
     get ballot_poll_poll_session_path(poll, poll_session)
 
     page = Nokogiri::HTML(response.body)
+    ballot_wrapper = page.at_css("[data-controller='poll-session-ballot-screen']")
 
     expect(response.body).to include(
       poll.title,
@@ -155,6 +156,156 @@ RSpec.describe "PollSession ballots", type: :request do
         "input[type='submit'][value='제출']"
       )
     ).to be_present
+    expect(response.body).not_to include(
+      "poll-contest-ballot",
+      "election_vote_stamp",
+      "candidate-photo-placeholder"
+    )
+    expect(ballot_wrapper["class"]).to include("mx-auto max-w-2xl")
+  end
+
+  it "renders only the current Schoolwide Election Contest with legacy candidate cards" do
+    poll, poll_session, progress, current, _waiting, first_option, first_tally, operator = create_execution
+    poll.update!(school_managed: true, status: :in_progress, started_at: Time.current)
+    first_option.poll_contest.update!(title: "회장")
+    attached_option = create(
+      :poll_option,
+      poll: poll,
+      poll_contest: first_option.poll_contest,
+      number: 2,
+      name: "사진 후보"
+    )
+    attached_option.photo.attach(
+      io: StringIO.new("photo"),
+      filename: "candidate.jpg",
+      content_type: "image/jpeg"
+    )
+    create(:poll_option_tally, poll: poll, poll_session: poll_session, poll_option: attached_option)
+    second_contest = create(:poll_contest, poll: poll, title: "부회장", position: 2)
+    second_option = create(
+      :poll_option,
+      poll: poll,
+      poll_contest: second_contest,
+      number: 1,
+      name: "다음 후보"
+    )
+    create(:poll_option_tally, poll: poll, poll_session: poll_session, poll_option: second_option)
+    create(:poll_contest_tally, poll: poll, poll_session: poll_session, poll_contest: second_contest)
+    progress.update!(ballot_status: :ballot_open)
+    sign_in operator
+
+    get ballot_poll_poll_session_path(poll, poll_session)
+
+    page = Nokogiri::HTML(response.body)
+    ballot_wrapper = page.at_css("[data-controller='poll-session-ballot-screen']")
+
+    expect(response.body).to include(
+      "data-controller=\"poll-contest-ballot\"",
+      "data-poll-contest-ballot-target=\"card\"",
+      "data-poll-contest-ballot-target=\"choice\"",
+      "data-poll-contest-ballot-target=\"stamp\"",
+      "data-poll-contest-ballot-target=\"warning\"",
+      "election_vote_stamp",
+      "candidate-photo-placeholder",
+      "aspect-[3/2]",
+      "grid-cols-2",
+      "1 / 2",
+      "회장",
+      first_option.name,
+      attached_option.name,
+      "후보 사진",
+      "제출",
+      "기권",
+      "avatars/"
+    )
+    expect(page.at_css("main")["class"]).to include("min-h-screen px-2 py-2")
+    expect(ballot_wrapper["class"]).to include("w-full")
+    expect(ballot_wrapper["class"]).not_to include("max-w-2xl")
+    expect(page.at_css("header").text).to include(poll.title, "#{current.number}번 #{current.name}")
+    expect(response.body.scan("현재 투표자").size).to eq(1)
+    expect(response.body).not_to include("부회장", second_option.name, "opacity-100")
+
+    create(
+      :poll_contest_completion,
+      poll_participant: current,
+      poll_contest: first_option.poll_contest
+    )
+    first_tally.update!(votes_count: 1)
+
+    get ballot_poll_poll_session_path(poll, poll_session)
+    page = Nokogiri::HTML(response.body)
+    ballot = page.at_css("form[data-controller='poll-contest-ballot']")
+
+    expect(ballot).to be_present
+    expect(ballot.at_css("h2").text.strip).to eq(second_contest.title)
+    expect(ballot.text).to include(
+      "2 / 2",
+      second_option.name,
+      "최종제출"
+    )
+    expect(ballot.text).not_to include(
+       first_option.name,
+      attached_option.name
+     )
+    expect(ballot.to_html).not_to include("opacity-100")
+  end
+
+  it "keeps the regular ballot UI for non-Election Schoolwide Polls" do
+    poll, poll_session, progress, _current, _waiting, option, _tally, operator = create_execution
+    poll.update!(
+      school_managed: true,
+      kind: :survey,
+      status: :in_progress,
+      started_at: Time.current
+    )
+    progress.update!(ballot_status: :ballot_open)
+    sign_in operator
+
+    get ballot_poll_poll_session_path(poll, poll_session)
+
+    page = Nokogiri::HTML(response.body)
+    ballot_wrapper = page.at_css("[data-controller='poll-session-ballot-screen']")
+
+    expect(response.body).to include("투표 진행 1 / 1", option.name)
+    expect(ballot_wrapper["class"]).to include("mx-auto max-w-2xl")
+    expect(response.body).not_to include(
+      "poll-contest-ballot",
+      "election_vote_stamp",
+      "candidate-photo-placeholder",
+      "avatars/"
+    )
+  end
+
+  it "uses the legacy candidate-count grid classes" do
+    {
+      1 => "grid-cols-1",
+      2 => "grid-cols-2",
+      3 => "grid-cols-3",
+      4 => "grid-cols-4",
+      5 => "grid-cols-4",
+      9 => "grid-cols-6",
+      13 => "grid-cols-6",
+      19 => "grid-cols-7"
+    }.each do |candidate_count, grid_class|
+      poll, poll_session, progress, _current, _waiting, option, _tally, operator = create_execution
+      poll.update!(school_managed: true, status: :in_progress, started_at: Time.current)
+      (candidate_count - 1).times do |index|
+        candidate = create(
+          :poll_option,
+          poll: poll,
+          poll_contest: option.poll_contest,
+          number: index + 2
+        )
+        create(:poll_option_tally, poll: poll, poll_session: poll_session, poll_option: candidate)
+      end
+      progress.update!(ballot_status: :ballot_open)
+      sign_in operator
+
+      get ballot_poll_poll_session_path(poll, poll_session)
+
+      expect(response.body).to include(grid_class)
+      sign_out operator
+    end
   end
 
   it "submits a choice, keeps the completed current, and explicitly advances" do

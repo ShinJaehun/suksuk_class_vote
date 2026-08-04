@@ -369,9 +369,17 @@ Contest별 단일 선택이며 복수 선택과 yes/no 전용 방식은 후속 �
 ```text
 PollOption
 - poll_id
-- text
-- position
+- poll_contest_id
+- number
+- name
+- photo attachment: 전교투표 election 후보만
 ```
+
+후보 사진은 `school_managed: true`이면서 `kind: election`인 PollOption에만 선택적으로 지원한다.
+JPG·PNG·WebP 형식과 15MB 제한을 적용하고 ballot은 900×900, thumbnail은 400×400 이내 variant를
+사용한다. 사진이 없으면 PollContest ID, PollOption ID와 기호로 결정되는 30개 avatar fallback을
+관리 화면과 학생 화면에서 동일하게 표시한다. 학급 election과 전교 non-election에는 사진을
+첨부하거나 표시하지 않는다.
 
 ```text
 PollSession
@@ -436,14 +444,16 @@ in_progress, closed 단계의 정의·snapshot·진행·집계 무결성을 확�
 미참여·다음 학생·종료 service가 해당 조건으로 잘못된 action을 차단한다. 기존 ParticipantGroup 기반
 `Polls::Start`와 legacy 직접 실행 route는 그대로 유지한다. 신규 PollSession의 중단·stopped 이력·
 replacement session·재투표는 아직 구현되지 않았다.
-PollOption 후보 사진은 후속 작업이다.
+전교 election 학생 화면은 legacy 전교임원선거의 후보 카드, fallback avatar와 투표 도장 animation을
+계승하지만 현재 Contest 하나만 렌더링하고 Contest별 서버 제출을 유지한다. 학생별 선택 PollOption은
+사진 기능과 무관하게 저장하지 않는다.
 
 Classroom·Student 관리 UI는 role 기반 Classroom scope와 일반 페이지 CRUD를 제공한다. admin은 모든
 학교, manager는 소속 학교, 일반 teacher는 자신이 담임인 Classroom과 학생 명단만 관리한다. Student는
 단일 또는 textarea bulk 방식으로 등록하고 hard delete 대신 비활성화·복구한다. 이 자료는 신규 Poll의
 Classroom 선택과 시작 snapshot에 사용하며 ParticipantGroup·ParticipantSlot 변환은 수행하지 않는다.
 다음 전환 작업은 legacy runtime 분리와 데이터 이관, PollSession 중단·replacement·재투표,
-후보 사진과 historical/read_only 정책을 순서대로 다루는 것이다.
+Election ID 6 후보 사진 변환과 historical/read_only 정책을 순서대로 다루는 것이다.
 
 학교 교사 관리 UI는 기존 teacher 계정만 SchoolMembership의 `member`로 소속시키며 global admin만
 `manager` 지정·해제를 수행한다. 같은 학교 manager는 미소속 teacher 추가와 일반 member의 안전한

@@ -79,4 +79,14 @@ module ApplicationHelper
 
     "avatars/#{avatar_prefix}#{avatar_number.to_s.rjust(2, "0")}.png"
   end
+
+  def poll_option_photo_source(option, variant:)
+    return rails_representation_path(option.photo.variant(variant), only_path: true) if option.photo.attached?
+
+    avatar_index = ((option.poll_contest_id.to_i * 7) + (option.id.to_i * 11) + option.number.to_i) % 30
+    avatar_prefix = avatar_index.even? ? "boy" : "girl"
+    avatar_number = ((avatar_index / 2) % 15) + 1
+
+    "avatars/#{avatar_prefix}#{avatar_number.to_s.rjust(2, "0")}.png"
+  end
 end

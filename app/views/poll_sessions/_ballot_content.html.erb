@@ -34,60 +34,171 @@
       <p class="text-lg font-medium text-stone-800">선생님이 투표를 시작할 때까지 기다려 주세요.</p>
     </section>
   <% elsif current_contest.present? %>
-    <%= form_with url: submit_ballot_poll_poll_session_path(poll_session.poll, poll_session),
-                  method: :post,
-                  class: "space-y-6" do |form| %>
-      <%= form.hidden_field :expected_current_poll_participant_id,
-                            name: "ballot[expected_current_poll_participant_id]",
-                            value: current_participant.id %>
-      <%= form.hidden_field :poll_contest_id,
-                            name: "ballot[poll_contest_id]",
-                            value: current_contest.id %>
+    <% if poll_session.poll.school_managed? && poll_session.poll.election? %>
+      <% options = current_contest.poll_options.order(:number, :id).to_a %>
+      <% card_count = options.size %>
+      <% grid_class, content_width_class, grid_gap_class, card_padding_class, name_class =
+        case card_count
+        when 1
+          [ "grid-cols-1", "max-w-lg mx-auto", "gap-2", "p-2", "mt-1.5 text-lg leading-tight break-keep" ]
+        when 2
+          [ "grid-cols-2", "max-w-4xl mx-auto", "gap-2", "p-2", "mt-1.5 text-lg leading-tight break-keep" ]
+        when 3
+          [ "grid-cols-3", "max-w-5xl mx-auto", "gap-2", "p-2", "mt-1.5 text-base leading-tight break-keep" ]
+        when 4
+          [ "grid-cols-4", "max-w-6xl mx-auto", "gap-2", "p-2", "mt-1.5 text-base leading-tight break-keep" ]
+        when 5..8
+          [ "grid-cols-4", "max-w-6xl mx-auto", "gap-2", "p-1.5", "mt-1 text-base leading-tight break-keep" ]
+        when 9..12
+          [ "grid-cols-6", "max-w-[1440px] mx-auto", "gap-1.5", "p-1.5", "mt-1 text-base leading-tight break-keep" ]
+        when 13..18
+          [ "grid-cols-6", "max-w-[1500px] mx-auto", "gap-1.5", "p-1.5", "mt-1 text-base leading-tight break-keep" ]
+        else
+          [ "grid-cols-7", "max-w-[1760px] mx-auto", "gap-1.5", "p-1.5", "mt-1 text-sm leading-tight break-keep" ]
+        end %>
+      <%= form_with url: submit_ballot_poll_poll_session_path(poll_session.poll, poll_session),
+                    method: :post,
+                    class: "space-y-3",
+                    data: {
+                      controller: "poll-contest-ballot",
+                      action: "submit->poll-contest-ballot#submit"
+                    } do |form| %>
+        <%= form.hidden_field :expected_current_poll_participant_id,
+                              name: "ballot[expected_current_poll_participant_id]",
+                              value: current_participant.id %>
+        <%= form.hidden_field :poll_contest_id,
+                              name: "ballot[poll_contest_id]",
+                              value: current_contest.id %>
 
-      <section class="rounded-md border border-stone-200 bg-white p-5">
-        <p class="text-sm font-medium text-stone-500">현재 학생</p>
-        <p class="mt-2 text-3xl font-semibold">
-          <%= current_participant.number %>번 <%= current_participant.name %>
-        </p>
-      </section>
+        <section class="bg-stone-50">
+          <div class="<%= content_width_class %>">
+            <div class="mb-2 px-1">
+              <p class="text-xs font-medium text-stone-600">투표 진행</p>
+              <p class="text-xl font-semibold"><%= completed_contest_count + 1 %> / <%= contests.size %></p>
+            </div>
+            <h2 class="px-1 text-xl font-semibold leading-tight"><%= current_contest.title %></h2>
+            <div class="mt-1 grid <%= grid_class %> <%= grid_gap_class %>">
+              <% options.each do |option| %>
+                <% choice_id = "ballot_contest_#{current_contest.id}_option_#{option.id}" %>
+                <%= radio_button_tag "ballot[poll_option_id]",
+                                     option.id,
+                                     false,
+                                     id: choice_id,
+                                     class: "sr-only",
+                                     data: { poll_contest_ballot_target: "choice" } %>
+                <button type="button"
+                        class="rounded-md border border-stone-200 bg-white <%= card_padding_class %> text-left shadow-sm transition duration-150 ease-out hover:-translate-y-0.5 hover:border-emerald-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        data-action="poll-contest-ballot#choose"
+                        data-poll-contest-ballot-target="card"
+                        data-poll-contest-ballot-choice-id-param="<%= choice_id %>">
+                  <span class="candidate-photo-placeholder relative block aspect-[3/2] overflow-hidden rounded-md bg-stone-100">
+                    <%= image_tag poll_option_photo_source(option, variant: :ballot),
+                                  alt: option.photo.attached? ? "#{option.name} 후보 사진" : "",
+                                  class: option.photo.attached? ?
+                                    "h-full w-full object-cover" :
+                                    "h-full w-full object-contain",
+                                  loading: "eager" %>
+                    <%= image_tag "election_vote_stamp.svg",
+                                  alt: "",
+                                  class: "pointer-events-none absolute bottom-1 right-1 h-[32%] w-[32%] origin-center scale-75 opacity-0 drop-shadow-md transition duration-200 ease-out",
+                                  data: { poll_contest_ballot_target: "stamp" },
+                                  aria: { hidden: true } %>
+                  </span>
+                  <span class="<%= name_class %> block min-w-0 break-words font-semibold text-stone-900 [overflow-wrap:anywhere]">
+                    <%= option.number %>번 <%= option.name %>
+                  </span>
+                </button>
+              <% end %>
+            </div>
 
-      <section class="space-y-4 rounded-md border border-stone-200 bg-white p-5">
-        <p class="text-sm font-semibold text-stone-500">
-          투표 진행 <%= completed_contest_count + 1 %> / <%= contests.size %>
-        </p>
-        <p class="text-sm font-medium text-stone-500"><%= poll_session.poll.contest_label %></p>
-        <h2 class="text-2xl font-semibold"><%= current_contest.title %></h2>
-        <p class="text-sm text-stone-600"><%= poll_session.poll.choice_label %> 선택</p>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <% current_contest.poll_options.order(:number, :id).each do |option| %>
-            <label class="flex cursor-pointer items-center gap-3 rounded-md border border-stone-200 bg-white p-4 shadow-sm">
-              <%= radio_button_tag "ballot[poll_option_id]",
-                                   option.id,
-                                   false,
-                                   required: true,
-                                   class: "h-5 w-5 border-stone-300" %>
-              <span class="text-lg font-medium">
-                <%= poll_session.poll.choice_number_label %> <%= option.number %>번 <%= option.name %>
-              </span>
-            </label>
-          <% end %>
+            <p class="mt-2 hidden rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900"
+               data-poll-contest-ballot-target="warning">
+              후보 또는 기권을 선택한 뒤 제출해 주세요.
+            </p>
+
+            <% abstain_id = "ballot_contest_#{current_contest.id}_abstain" %>
+            <%= radio_button_tag "ballot[abstain]",
+                                 "1",
+                                 false,
+                                 id: abstain_id,
+                                 class: "sr-only",
+                                 data: { poll_contest_ballot_target: "choice" } %>
+            <div class="mt-2 flex items-center justify-between gap-2">
+              <button type="button"
+                      class="rounded-md border-2 border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900 shadow-sm transition duration-150 ease-out hover:border-amber-500 hover:bg-amber-100 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+                      data-action="poll-contest-ballot#choose"
+                      data-poll-contest-ballot-target="card"
+                      data-poll-contest-ballot-choice-id-param="<%= abstain_id %>">
+                기권
+              </button>
+              <button type="button"
+                      class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                      data-action="poll-contest-ballot#submitContest">
+                <%= completed_contest_count + 1 == contests.size ? "최종제출" : "제출" %>
+              </button>
+            </div>
+          </div>
+        </section>
+        <%= form.submit "투표 제출",
+                        class: "sr-only",
+                        data: { poll_contest_ballot_target: "submit" } %>
+      <% end %>
+    <% else %>
+      <%= form_with url: submit_ballot_poll_poll_session_path(poll_session.poll, poll_session),
+                    method: :post,
+                    class: "space-y-6" do |form| %>
+        <%= form.hidden_field :expected_current_poll_participant_id,
+                              name: "ballot[expected_current_poll_participant_id]",
+                              value: current_participant.id %>
+        <%= form.hidden_field :poll_contest_id,
+                              name: "ballot[poll_contest_id]",
+                              value: current_contest.id %>
+
+        <section class="rounded-md border border-stone-200 bg-white p-5">
+          <p class="text-sm font-medium text-stone-500">현재 학생</p>
+          <p class="mt-2 text-3xl font-semibold">
+            <%= current_participant.number %>번 <%= current_participant.name %>
+          </p>
+        </section>
+
+        <section class="space-y-4 rounded-md border border-stone-200 bg-white p-5">
+          <p class="text-sm font-semibold text-stone-500">
+            투표 진행 <%= completed_contest_count + 1 %> / <%= contests.size %>
+          </p>
+          <p class="text-sm font-medium text-stone-500"><%= poll_session.poll.contest_label %></p>
+          <h2 class="text-2xl font-semibold"><%= current_contest.title %></h2>
+          <p class="text-sm text-stone-600"><%= poll_session.poll.choice_label %> 선택</p>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <% current_contest.poll_options.order(:number, :id).each do |option| %>
+              <label class="flex cursor-pointer items-center gap-3 rounded-md border border-stone-200 bg-white p-4 shadow-sm">
+                <%= radio_button_tag "ballot[poll_option_id]",
+                                     option.id,
+                                     false,
+                                     required: true,
+                                     class: "h-5 w-5 border-stone-300" %>
+                <span class="text-lg font-medium">
+                  <%= poll_session.poll.choice_number_label %> <%= option.number %>번 <%= option.name %>
+                </span>
+              </label>
+            <% end %>
+          </div>
+        </section>
+
+        <div class="flex flex-col gap-3 sm:flex-row">
+          <%= form.button "이 항목 기권",
+                          name: "ballot[abstain]",
+                          value: "1",
+                          formnovalidate: true,
+                          data: {
+                            turbo_confirm: "이 투표 항목에서 기권할까요?",
+                            turbo_submits_with: "처리 중..."
+                          },
+                          class: "rounded-md border border-amber-300 px-5 py-4 text-lg font-medium text-amber-900" %>
+          <%= form.submit "제출",
+                          data: { turbo_submits_with: "처리 중..." },
+                          class: "flex-1 rounded-md bg-stone-900 px-5 py-4 text-lg font-medium text-white" %>
         </div>
-      </section>
-
-      <div class="flex flex-col gap-3 sm:flex-row">
-        <%= form.button "이 항목 기권",
-                        name: "ballot[abstain]",
-                        value: "1",
-                        formnovalidate: true,
-                        data: {
-                          turbo_confirm: "이 투표 항목에서 기권할까요?",
-                          turbo_submits_with: "처리 중..."
-                        },
-                        class: "rounded-md border border-amber-300 px-5 py-4 text-lg font-medium text-amber-900" %>
-        <%= form.submit "제출",
-                        data: { turbo_submits_with: "처리 중..." },
-                        class: "flex-1 rounded-md bg-stone-900 px-5 py-4 text-lg font-medium text-white" %>
-      </div>
+      <% end %>
     <% end %>
   <% else %>
     <section class="rounded-md border border-rose-200 bg-rose-50 p-5">

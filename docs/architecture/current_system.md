@@ -49,7 +49,7 @@ runtime은 Election ID 6의 historical Poll 변환과 검증이 끝날 때까지
 
 - 전교임원선거 중앙 집계
 - 전교 투표용 관리자 대시보드
-- 후보 사진 등록
+- 학급 election과 전교 non-election의 사진 등록
 - 선거관리위원 개표 승인
 - 암호화 개표
 - 학생 개인 계정/PIN 로그인
@@ -59,7 +59,7 @@ runtime은 Election ID 6의 historical Poll 변환과 검증이 끝날 때까지
 
 전교투표 관리자는 Poll 정의, 항목과 선택지, 여러 Classroom PollSession을 구성하고 전체 Poll을
 시작·종료한다. 담당 교사는 parent Poll이 in_progress가 된 뒤 자기 PollSession을 운영한다.
-후보 사진, 중단·replacement·재투표는 후속 작업이다.
+학급투표 사진, 전교 non-election 이미지, 중단·replacement·재투표는 후속 작업이다.
 
 ## 배포 저장소 정책
 
@@ -173,17 +173,20 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - `/school_polls` 전교투표 정의·항목·여러 Classroom 배정·전체 결과 관리 구현
 - 전교투표 전체 준비 점검과 명시적 시작·종료, `Poll.started_at`/`closed_at`, Poll-level event 기록 구현
 - 전교투표 parent가 in_progress일 때만 담당 교사가 draft PollSession을 시작하도록 제한
+- 전교 election PollOption에만 JPG·PNG·WebP, 최대 15MB 후보 사진과 ballot 900×900·thumbnail 400×400 variant 지원
+- 사진이 없는 전교 election 후보는 deterministic avatar를 표시하고 legacy 후보 카드·투표 도장 UI를 사용하되 Contest별 서버 제출 유지
 
 현재 PollSession 흐름은 교사 시작 → active Student snapshot과 첫 current 지정 → ballot locked → 학생
 투표 창 → 교사 승인으로 ballot open → Contest별 제출과 tally/completion 기록 → 모든 Contest 완료 뒤
 participation 기록과 ballot locked → 교사의
 명시적 다음 학생 지정 → 반복 → 교사의 명시적 종료 순서다. 자동 다음 학생 전환과 자동 종료는
 의도적으로 사용하지 않는다. 개인별 학생 선택은 저장하거나 표시하지 않는다. 부분 완료는 다음 미완료
-Contest부터 복구하며 완료한 Contest의 취소·개별 재투표는 지원하지 않는다. 후보 사진은 후속 작업이다.
+Contest부터 복구하며 완료한 Contest의 취소·개별 재투표는 지원하지 않는다. 학생별 선택 후보는 사진
+표시와 무관하게 저장하지 않는다.
 
 일반 학급투표 생성은 Poll과 최초 PollSession을 만들고, 전교투표는 Poll 정의를 만든 뒤 여러
 Classroom Session을 배정한다. 신규/legacy runtime 서버 측 분리, PollSession 중단·stopped
-이력·replacement·재투표, 후보 사진은 후속 작업이다. Election id=6 운영 데이터에는 변환 task를 아직 적용하지
+이력·replacement·재투표와 Election ID 6 후보 사진 변환은 후속 작업이다. Election id=6 운영 데이터에는 변환 task를 아직 적용하지
 않았으며 운영 Poll 보존 범위 조사와 필요한 backfill 뒤 ParticipantGroup·ParticipantSlot 및 legacy
 Poll runtime 제거를 판단한다. Election/Poll 최종 역할 경계와 `VotingTarget`·`Voter` 공통 추상화도
 검토 대상이다.

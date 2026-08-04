@@ -11,11 +11,17 @@ class SchoolPollOptionsController < ApplicationController
   end
 
   def create
-    @option = @contest.poll_options.new(option_params)
+    attributes = option_params
+    photo_uploaded = attributes[:photo].present?
+    @option = @contest.poll_options.new(attributes)
     @option.poll = @poll
 
     if @option.save
-      redirect_to school_poll_path(@poll), notice: "#{option_label}를 추가했습니다."
+      if photo_uploaded && !process_photo_variants(@option)
+        redirect_to school_poll_path(@poll), alert: "#{option_label}는 추가했지만 사진 변환에 실패했습니다. 사진을 다시 확인해 주세요."
+      else
+        redirect_to school_poll_path(@poll), notice: "#{option_label}를 추가했습니다."
+      end
     else
       render :new, status: :unprocessable_entity
     end
@@ -24,8 +30,17 @@ class SchoolPollOptionsController < ApplicationController
   def edit; end
 
   def update
-    if @option.update(option_params)
-      redirect_to school_poll_path(@poll), notice: "#{option_label}를 수정했습니다."
+    attributes = option_params
+    photo_uploaded = attributes[:photo].present?
+    remove_photo = photo_management_allowed? && remove_photo_requested? && !photo_uploaded
+
+    if @option.update(attributes)
+      @option.photo.purge if remove_photo && @option.photo.attached?
+      if photo_uploaded && !process_photo_variants(@option)
+        redirect_to school_poll_path(@poll), alert: "#{option_label}는 수정했지만 사진 변환에 실패했습니다. 사진을 다시 확인해 주세요."
+      else
+        redirect_to school_poll_path(@poll), notice: "#{option_label}를 수정했습니다."
+      end
     else
       render :edit, status: :unprocessable_entity
     end
@@ -68,6 +83,28 @@ class SchoolPollOptionsController < ApplicationController
   end
 
   def option_params
-    params.require(:poll_option).permit(:number, :name)
+    permitted_attributes = %i[number name]
+    permitted_attributes << :photo if photo_management_allowed?
+    params.require(:poll_option).permit(*permitted_attributes)
+  end
+
+  def photo_management_allowed?
+    @poll.school_managed? && @poll.election?
+  end
+
+  def remove_photo_requested?
+    ActiveModel::Type::Boolean.new.cast(params.dig(:poll_option, :remove_photo))
+  end
+
+  def process_photo_variants(option)
+    option.photo.variant(:ballot).processed
+    option.photo.variant(:thumbnail).processed
+    true
+  rescue StandardError => error
+    Rails.logger.error(
+      "PollOption photo variant processing failed " \
+      "option_id=#{option.id} error=#{error.class}: #{error.message}"
+    )
+    false
   end
 end
