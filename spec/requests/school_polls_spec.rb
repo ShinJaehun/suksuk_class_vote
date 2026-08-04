@@ -147,7 +147,12 @@ RSpec.describe "School Poll management", type: :request do
 
       poll = Poll.order(:created_at).last
       expect(poll).to have_attributes(school: school, school_managed: true)
-      expect(poll.poll_sessions.first).to have_attributes(classroom: classroom, status: "draft")
+      expect(poll.poll_sessions.first).to have_attributes(
+        classroom: classroom,
+        operator: classroom.teacher,
+        operator_name_snapshot: classroom.teacher.name,
+        status: "draft"
+      )
       expect(response).to redirect_to(school_poll_path(poll))
     end
 
@@ -216,6 +221,7 @@ RSpec.describe "School Poll management", type: :request do
         get school_poll_path(poll)
         expect(response.body).to include(poll.title, "학교투표 목록으로 돌아가기")
         expect(response.body).to include(poll_poll_session_path(poll, poll_session))
+        expect(response.body).to include("학급 배정")
         sign_out actor
       end
     end
@@ -255,6 +261,59 @@ RSpec.describe "School Poll management", type: :request do
       teacher = create(:user)
       sign_in teacher
       get school_poll_path(poll)
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  describe "POST /school_polls/:school_poll_id/poll_sessions" do
+    it "assigns multiple Classrooms and returns to the School Poll" do
+      school = create(:school)
+      manager = create(:user)
+      create(:school_membership, :manager, school: school, user: manager)
+      first = create_eligible_classroom(school: school, teacher: create(:user, name: "첫 담임"))
+      second = create_eligible_classroom(school: school, teacher: create(:user, name: "둘째 담임"))
+      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      sign_in manager
+
+      expect do
+        post school_poll_poll_sessions_path(poll), params: {
+          classroom_ids: [first.id, second.id]
+        }
+      end.to change(PollSession, :count).by(2)
+
+      expect(poll.poll_sessions.pluck(:operator_id)).to contain_exactly(
+        first.teacher_id,
+        second.teacher_id
+      )
+      expect(response).to redirect_to(school_poll_path(poll))
+    end
+
+    it "rejects unauthorized users and a non-School-managed Poll" do
+      school = create(:school)
+      classroom = create_eligible_classroom(school: school, teacher: create(:user))
+      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      classroom_poll = create(
+        :poll,
+        school: school,
+        school_managed: false,
+        participant_group: nil
+      )
+      other_manager = create(:user)
+      create(:school_membership, :manager, school: create(:school), user: other_manager)
+      sign_in other_manager
+
+      expect do
+        post school_poll_poll_sessions_path(poll), params: { classroom_ids: [classroom.id] }
+      end.not_to change(PollSession, :count)
+      expect(response).to have_http_status(:not_found)
+
+      sign_out other_manager
+      sign_in create(:user, :admin)
+      expect do
+        post school_poll_poll_sessions_path(classroom_poll), params: {
+          classroom_ids: [classroom.id]
+        }
+      end.not_to change(PollSession, :count)
       expect(response).to have_http_status(:not_found)
     end
   end

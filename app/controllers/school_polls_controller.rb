@@ -48,6 +48,10 @@ class SchoolPollsController < ApplicationController
       .includes(:classroom, :operator, poll_participants: :poll_participation)
       .order(:created_at, :id)
       .select { |poll_session| policy(poll_session).show? }
+    assigned_classroom_ids = @poll.poll_sessions.select(:classroom_id)
+    @assignable_classrooms = eligible_classrooms(@poll.school)
+      .where.not(id: assigned_classroom_ids)
+    @assignable_classroom_student_counts = active_student_counts_for(@assignable_classrooms)
   end
 
   private

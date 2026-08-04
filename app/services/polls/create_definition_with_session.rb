@@ -53,6 +53,7 @@ module Polls
 
       errors << "활성 학급만 사용할 수 있습니다." unless classroom.active?
       errors << "학교가 지정된 학급만 사용할 수 있습니다." if classroom.school.blank?
+      errors << "담임교사가 있는 학급만 사용할 수 있습니다." if school_managed && classroom.teacher.blank?
       errors << "활성 학생이 1명 이상이어야 합니다." unless classroom.students.where(active: true).exists?
       errors << "이 학급을 운영할 권한이 없습니다." unless authorized_actor?
       errors << "운영자 이름을 저장할 수 없습니다." if operator_name_snapshot.blank?
@@ -108,7 +109,7 @@ module Polls
       @poll_session = PollSession.create!(
         poll: poll,
         classroom: classroom,
-        operator: actor,
+        operator: session_operator,
         status: :draft,
         classroom_name_snapshot: classroom_name_snapshot,
         operator_name_snapshot: operator_name_snapshot
@@ -139,7 +140,11 @@ module Polls
     end
 
     def operator_name_snapshot
-      actor&.name.presence || actor&.email
+      session_operator&.name.presence || session_operator&.email
+    end
+
+    def session_operator
+      school_managed ? classroom&.teacher : actor
     end
 
     def normalize_attributes(attributes)
