@@ -123,6 +123,19 @@ class Poll < ApplicationRecord
     archived_at.present?
   end
 
+  def definition_editable?
+    school_managed? &&
+      draft? &&
+      poll_sessions.where.not(status: :draft).none? &&
+      poll_participants.none? &&
+      PollParticipation.joins(:poll_participant)
+        .where(poll_participants: { poll_id: id }).none? &&
+      PollProgress.where(poll_id: id).none? &&
+      poll_option_tallies.none? &&
+      poll_contest_tallies.none? &&
+      poll_events.none?
+  end
+
   def default_poll_contest
     poll_contests.order(:position).first
   end
