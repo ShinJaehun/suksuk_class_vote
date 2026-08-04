@@ -40,6 +40,7 @@ class SchoolPollsController < ApplicationController
   def show
     @poll = school_poll_scope.find(params[:id])
     authorize @poll, :school_show?
+    @school_result_summary = Polls::SchoolResultSummary.new(@poll)
     @poll_contests = @poll.poll_contests.includes(:poll_options).order(:position, :id)
     @poll_sessions = @poll.poll_sessions
       .includes(:classroom, :operator, poll_participants: :poll_participation)

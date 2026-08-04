@@ -20,6 +20,21 @@ RSpec.describe "School Poll management", type: :request do
     }
   end
 
+  def create_result_session(poll:, status:, classroom_name:)
+    teacher = create(:user, name: "#{classroom_name} 담임")
+    create(:school_membership, school: poll.school, user: teacher)
+    classroom = create(:classroom, school: poll.school, teacher: teacher)
+    create(
+      :poll_session,
+      poll: poll,
+      classroom: classroom,
+      operator: teacher,
+      status: status,
+      classroom_name_snapshot: classroom_name,
+      operator_name_snapshot: teacher.name
+    )
+  end
+
   describe "GET /school_polls" do
     it "shows every School Poll to global admin" do
       first = create(
@@ -191,6 +206,7 @@ RSpec.describe "School Poll management", type: :request do
       expect(response.body).to include("등록된 투표 항목이 없습니다.")
       expect(response.body).to include("배정된 학급 투표가 없습니다.")
       expect(response.body).to include("학급 배정", classroom.formatted_class_label)
+      expect(response.body).to include("종료된 학급 투표 결과가 없습니다.")
     end
 
     it "shows the shared overview to global admin and the same-School manager" do
@@ -247,6 +263,153 @@ RSpec.describe "School Poll management", type: :request do
       sign_in teacher
       get school_poll_path(poll)
       expect(response).to have_http_status(:not_found)
+    end
+
+    it "aggregates only closed Session tallies by Contest and Option" do
+      poll = create(
+        :poll,
+        school: create(:school),
+        school_managed: true,
+        participant_group: nil
+      )
+      president = create(:poll_contest, poll: poll, title: "회장 선거", position: 1)
+      vice_president = create(:poll_contest, poll: poll, title: "부회장 선거", position: 2)
+      zero_option = create(
+        :poll_option,
+        poll: poll,
+        poll_contest: president,
+        number: 1,
+        name: "득표 없는 후보"
+      )
+      president_option = create(
+        :poll_option,
+        poll: poll,
+        poll_contest: president,
+        number: 2,
+        name: "회장 후보"
+      )
+      vice_option = create(
+        :poll_option,
+        poll: poll,
+        poll_contest: vice_president,
+        number: 2,
+        name: "부회장 후보"
+      )
+      first_closed = create_result_session(
+        poll: poll,
+        status: :closed,
+        classroom_name: "종료 1반"
+      )
+      second_closed = create_result_session(
+        poll: poll,
+        status: :closed,
+        classroom_name: "종료 2반"
+      )
+      draft = create_result_session(poll: poll, status: :draft, classroom_name: "준비 3반")
+      in_progress = create_result_session(
+        poll: poll,
+        status: :in_progress,
+        classroom_name: "진행 4반"
+      )
+      stopped = create_result_session(poll: poll, status: :stopped, classroom_name: "중단 5반")
+
+      [[first_closed, 2], [second_closed, 3]].each do |poll_session, votes_count|
+        create(
+          :poll_option_tally,
+          poll: poll,
+          poll_session: poll_session,
+          poll_option: president_option,
+          votes_count: votes_count
+        )
+      end
+      create(
+        :poll_option_tally,
+        poll: poll,
+        poll_session: first_closed,
+        poll_option: vice_option,
+        votes_count: 7
+      )
+      [[draft, 100], [in_progress, 100], [stopped, 100]].each do |poll_session, votes_count|
+        create(
+          :poll_option_tally,
+          poll: poll,
+          poll_session: poll_session,
+          poll_option: president_option,
+          votes_count: votes_count
+        )
+      end
+      create(
+        :poll_option_tally,
+        poll: poll,
+        poll_session: nil,
+        poll_option: president_option,
+        votes_count: 100
+      )
+
+      [[first_closed, 1], [second_closed, 2]].each do |poll_session, abstentions_count|
+        create(
+          :poll_contest_tally,
+          poll: poll,
+          poll_session: poll_session,
+          poll_contest: president,
+          abstentions_count: abstentions_count
+        )
+      end
+      create(
+        :poll_contest_tally,
+        poll: poll,
+        poll_session: stopped,
+        poll_contest: president,
+        abstentions_count: 100
+      )
+      create(
+        :poll_contest_tally,
+        poll: poll,
+        poll_session: nil,
+        poll_contest: president,
+        abstentions_count: 100
+      )
+
+      other_poll = create(
+        :poll,
+        school: poll.school,
+        school_managed: true,
+        participant_group: nil
+      )
+      other_contest = create(:poll_contest, poll: other_poll, position: 1)
+      other_option = create(:poll_option, poll: other_poll, poll_contest: other_contest)
+      other_session = create_result_session(
+        poll: other_poll,
+        status: :closed,
+        classroom_name: "다른 투표 학급"
+      )
+      create(
+        :poll_option_tally,
+        poll: other_poll,
+        poll_session: other_session,
+        poll_option: other_option,
+        votes_count: 200
+      )
+
+      sign_in create(:user, :admin)
+      get school_poll_path(poll)
+
+      result_text = Nokogiri::HTML(response.body)
+        .at_css('[data-testid="school-poll-results"]')
+        .text
+        .squish
+      expect(result_text).to match(/득표 없는 후보 0표/)
+      expect(result_text).to match(/회장 후보 5표/)
+      expect(result_text).to match(/부회장 후보 7표/)
+      expect(result_text).to match(/회장 선거.*기권: 3표/)
+      expect(result_text).not_to include("100표", "200표", "다른 투표 학급")
+
+      expect(result_text).to match(/종료 1반.*종료.*결과 포함/)
+      expect(result_text).to match(/종료 2반.*종료.*결과 포함/)
+      expect(result_text).to match(/준비 3반.*준비.*결과 제외/)
+      expect(result_text).to match(/진행 4반.*진행.*결과 제외/)
+      expect(result_text).to match(/중단 5반.*중단.*결과 제외/)
+      expect(response.body).to include("학급 배정", "선거 항목 관리")
     end
   end
 
