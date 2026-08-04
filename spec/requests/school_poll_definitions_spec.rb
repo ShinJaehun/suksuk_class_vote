@@ -421,6 +421,174 @@ RSpec.describe "School Poll definition management", type: :request do
     end
   end
 
+  describe "POST /school_polls/:id/mock_candidates" do
+    let(:poll) { school_poll }
+    let(:admin) { create(:user, :admin) }
+
+    it "creates the fixed four Contests and fifty candidates for an admin" do
+      sign_in admin
+
+      expect do
+        post mock_candidates_school_poll_path(poll)
+      end.to change(PollContest, :count).by(4)
+        .and change(PollOption, :count).by(50)
+
+      contests = poll.poll_contests.order(:position)
+      expect(contests.pluck(:title, :position)).to eq([
+        [ "회장", 1 ],
+        [ "부회장", 2 ],
+        [ "5학년 부회장", 3 ],
+        [ "4학년 부회장", 4 ]
+      ])
+      expect(contests.map { |contest| contest.poll_options.count }).to eq([ 4, 8, 15, 23 ])
+
+      contests.each do |contest|
+        options = contest.poll_options.order(:number)
+        expect(options.pluck(:number)).to eq((1..options.size).to_a)
+        expect(options.pluck(:name)).to eq(
+          (1..options.size).map { |number| "#{contest.title} 후보 #{number}" }
+        )
+        expect(options).to all(have_attributes(poll_id: poll.id, poll_contest_id: contest.id))
+        expect(options).to all(satisfy { |option| !option.photo.attached? })
+      end
+
+      expect(response).to redirect_to(school_poll_path(poll))
+      expect(flash[:notice]).to eq("테스트 선거 항목 4개와 후보자 50명을 만들었습니다.")
+    end
+
+    it "rejects managers, teachers, and unauthenticated users" do
+      actors = [ manager_for(poll.school), manager_for(create(:school)), create(:user) ]
+
+      actors.each do |actor|
+        sign_in actor
+        expect { post mock_candidates_school_poll_path(poll) }
+          .not_to change(PollContest, :count)
+        sign_out actor
+      end
+
+      expect { post mock_candidates_school_poll_path(poll) }
+        .not_to change(PollContest, :count)
+    end
+
+    it "rejects non-Schoolwide Elections and non-draft Schoolwide Elections" do
+      sign_in admin
+      invalid_polls = [
+        create(:poll, school_managed: false, kind: :election),
+        school_poll(kind: :survey),
+        school_poll(kind: :discussion),
+        school_poll(kind: :debate),
+        school_poll.tap { |item| item.update!(status: :in_progress, started_at: Time.current) },
+        school_poll.tap do |item|
+          item.update!(
+            status: :closed,
+            started_at: 1.hour.ago,
+            closed_at: Time.current
+          )
+        end
+      ]
+
+      invalid_polls.each do |invalid_poll|
+        expect { post mock_candidates_school_poll_path(invalid_poll) }
+          .not_to change(PollContest, :count)
+      end
+    end
+
+    it "rejects a locked draft Poll" do
+      sign_in admin
+      create(:poll_participant, poll: poll)
+
+      expect { post mock_candidates_school_poll_path(poll) }
+        .not_to change(PollContest, :count)
+      expect(flash[:alert]).to eq("테스트 후보는 초안 상태의 전교 선거에서만 만들 수 있습니다.")
+    end
+
+    it "preserves existing definitions and rejects a second request" do
+      sign_in admin
+      existing_poll = school_poll
+      existing_contest = create(:poll_contest, poll: existing_poll, title: "기존 항목")
+
+      expect { post mock_candidates_school_poll_path(existing_poll) }
+        .not_to change(PollContest, :count)
+      expect(existing_contest.reload.title).to eq("기존 항목")
+      expect(flash[:alert]).to eq("기존 선거 항목이나 후보자가 있어 테스트 후보를 만들 수 없습니다.")
+
+      post mock_candidates_school_poll_path(poll)
+      expect { post mock_candidates_school_poll_path(poll) }
+        .to change(PollContest, :count).by(0)
+        .and change(PollOption, :count).by(0)
+      expect(poll.poll_contests.count).to eq(4)
+      expect(PollOption.where(poll_id: poll.id).count).to eq(50)
+    end
+
+    it "rejects an existing PollOption even without a target Poll Contest" do
+      sign_in admin
+      other_poll = school_poll
+      other_contest = create(:poll_contest, poll: other_poll)
+      existing_option = create(:poll_option, poll: other_poll, poll_contest: other_contest)
+      existing_option.update_column(:poll_id, poll.id)
+
+      expect { post mock_candidates_school_poll_path(poll) }
+        .not_to change(PollContest, :count)
+      expect(existing_option.reload.poll_id).to eq(poll.id)
+    end
+
+    it "rolls back every Contest and candidate when a candidate fails" do
+      sign_in admin
+      invalid_option = PollOption.new
+      invalid_option.errors.add(:base, "저장 실패")
+      allow_any_instance_of(PollOption).to receive(:save!).and_wrap_original do |method, *args, **kwargs|
+        if method.receiver.name == "부회장 후보 3"
+          raise ActiveRecord::RecordInvalid, invalid_option
+        end
+
+        method.call(*args, **kwargs)
+      end
+
+      expect do
+        post mock_candidates_school_poll_path(poll)
+      end.to change(PollContest, :count).by(0)
+        .and change(PollOption, :count).by(0)
+      expect(poll.reload).to be_draft
+      expect(flash[:alert]).to eq("저장 실패")
+    end
+
+    it "shows the test tool only to admins with an empty editable Election" do
+      sign_in admin
+      get school_poll_path(poll)
+
+      expect(response.body).to include(
+        "테스트 도구",
+        "테스트 후보 50명 만들기",
+        "회장 4명, 부회장 8명, 5학년 부회장 15명, 4학년 부회장 23명을 사진 없이 생성합니다.",
+        "테스트용 선거 항목 4개와 후보 50명을 만들까요?"
+      )
+
+      manager = manager_for(poll.school)
+      sign_out admin
+      sign_in manager
+      get school_poll_path(poll)
+      expect(response.body).not_to include("테스트 도구", "테스트 후보 50명 만들기")
+
+      teacher = create(:user)
+      sign_out manager
+      sign_in teacher
+      get school_poll_path(poll)
+      expect(response).to have_http_status(:not_found)
+
+      sign_out teacher
+      sign_in admin
+      hidden_polls = [
+        school_poll(kind: :survey),
+        school_poll.tap { |item| create(:poll_contest, poll: item) },
+        school_poll.tap { |item| item.update!(status: :in_progress, started_at: Time.current) }
+      ]
+      hidden_polls.each do |hidden_poll|
+        get school_poll_path(hidden_poll)
+        expect(response.body).not_to include("테스트 도구", "테스트 후보 50명 만들기")
+      end
+    end
+  end
+
   describe "definition UI and existing creation contracts" do
     it "uses election and discussion terminology and keeps empty definitions valid" do
       admin = create(:user, :admin)

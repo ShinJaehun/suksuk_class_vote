@@ -8,6 +8,25 @@
 <% contest_label = @poll.contest_label %>
 <% option_label = @poll.choice_label %>
 
+<% if policy(@poll).mock_candidates? &&
+      @poll.school_managed? &&
+      @poll.election? &&
+      @poll.draft? &&
+      @poll.definition_editable? &&
+      !@has_poll_definition %>
+  <section class="mx-auto my-6 max-w-5xl rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+    <h2 class="text-xl font-semibold text-amber-900">테스트 도구</h2>
+    <p class="mt-2 text-sm text-amber-800">
+      회장 4명, 부회장 8명, 5학년 부회장 15명, 4학년 부회장 23명을 사진 없이 생성합니다.
+    </p>
+    <%= button_to "테스트 후보 50명 만들기",
+                  mock_candidates_school_poll_path(@poll),
+                  method: :post,
+                  data: { turbo_confirm: "테스트용 선거 항목 4개와 후보 50명을 만들까요?" },
+                  class: "mt-4 rounded-md bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-800" %>
+  </section>
+<% end %>
+
 <section class="mx-auto my-6 max-w-5xl rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
          data-testid="schoolwide-status-check">
   <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

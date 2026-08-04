@@ -140,6 +140,36 @@ RSpec.describe PollPolicy do
     end
   end
 
+  describe "#mock_candidates?" do
+    let(:school) { create(:school) }
+    let(:poll) do
+      create(
+        :poll,
+        school: school,
+        school_managed: true,
+        participant_group: nil
+      )
+    end
+
+    it "allows only global admins" do
+      same_school_manager = create(:user)
+      other_school_manager = create(:user)
+      create(:school_membership, :manager, school: school, user: same_school_manager)
+      create(
+        :school_membership,
+        :manager,
+        school: create(:school),
+        user: other_school_manager
+      )
+
+      expect(described_class.new(create(:user, :admin), poll)).to be_mock_candidates
+      expect(described_class.new(same_school_manager, poll)).not_to be_mock_candidates
+      expect(described_class.new(other_school_manager, poll)).not_to be_mock_candidates
+      expect(described_class.new(create(:user), poll)).not_to be_mock_candidates
+      expect(described_class.new(nil, poll)).not_to be_mock_candidates
+    end
+  end
+
   describe "#open_current_participant_ballot?" do
     it "allows admins to open another teacher's current participant ballot" do
       admin = create(:user, :admin)

@@ -1,4 +1,13 @@
 class SchoolPollsController < ApplicationController
+  InvalidMockCandidateTarget = Class.new(StandardError)
+  ExistingMockCandidateDefinition = Class.new(StandardError)
+  MOCK_CANDIDATE_DEFINITIONS = [
+    { title: "회장", candidate_count: 4 },
+    { title: "부회장", candidate_count: 8 },
+    { title: "5학년 부회장", candidate_count: 15 },
+    { title: "4학년 부회장", candidate_count: 23 }
+  ].freeze
+
   before_action :authenticate_user!
 
   def index
@@ -43,6 +52,7 @@ class SchoolPollsController < ApplicationController
     @schoolwide_status_check = Polls::SchoolwideStatusCheck.new(poll: @poll)
     @school_result_summary = Polls::SchoolResultSummary.new(@poll)
     @poll_contests = @poll.poll_contests.includes(:poll_options).order(:position, :id)
+    @has_poll_definition = @poll_contests.any? || PollOption.where(poll_id: @poll.id).exists?
     @poll_sessions = @poll.poll_sessions
       .includes(:classroom, :operator, poll_participants: :poll_participation)
       .order(:created_at, :id)
@@ -77,7 +87,48 @@ class SchoolPollsController < ApplicationController
     end
   end
 
+  def create_mock_candidates
+    @poll = school_poll_scope.find(params[:id])
+    authorize @poll, :mock_candidates?
+
+    @poll.with_lock do
+      raise InvalidMockCandidateTarget unless mock_candidate_target?(@poll)
+      raise ExistingMockCandidateDefinition if mock_candidate_definition_exists?(@poll)
+
+      MOCK_CANDIDATE_DEFINITIONS.each_with_index do |definition, index|
+        contest = @poll.poll_contests.create!(
+          title: definition.fetch(:title),
+          position: index + 1
+        )
+
+        1.upto(definition.fetch(:candidate_count)) do |number|
+          contest.poll_options.create!(
+            poll: @poll,
+            number: number,
+            name: "#{definition.fetch(:title)} 후보 #{number}"
+          )
+        end
+      end
+    end
+
+    redirect_to school_poll_path(@poll), notice: "테스트 선거 항목 4개와 후보자 50명을 만들었습니다."
+  rescue InvalidMockCandidateTarget
+    redirect_to school_poll_path(@poll), alert: "테스트 후보는 초안 상태의 전교 선거에서만 만들 수 있습니다."
+  rescue ExistingMockCandidateDefinition
+    redirect_to school_poll_path(@poll), alert: "기존 선거 항목이나 후보자가 있어 테스트 후보를 만들 수 없습니다."
+  rescue ActiveRecord::RecordInvalid => e
+    redirect_to school_poll_path(@poll), alert: e.record.errors.full_messages.to_sentence.presence || "테스트 후보를 만들 수 없습니다."
+  end
+
   private
+
+  def mock_candidate_target?(poll)
+    poll.school_managed? && poll.election? && poll.draft? && poll.definition_editable?
+  end
+
+  def mock_candidate_definition_exists?(poll)
+    poll.poll_contests.exists? || PollOption.where(poll_id: poll.id).exists?
+  end
 
   def school_poll_scope
     PollPolicy::SchoolScope.new(current_user, Poll).resolve

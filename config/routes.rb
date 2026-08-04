@@ -4,6 +4,7 @@ Rails.application.routes.draw do
   resources :school_polls, only: %i[index new create show] do
     post :start, on: :member
     post :close, on: :member
+    post :mock_candidates, on: :member, action: :create_mock_candidates
     resources :contests,
               only: %i[new create edit update destroy],
               controller: "school_poll_contests" do

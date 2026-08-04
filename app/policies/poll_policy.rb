@@ -33,6 +33,10 @@ class PollPolicy < ApplicationPolicy
     school_show?
   end
 
+  def mock_candidates?
+    user&.admin?
+  end
+
   def update?
     admin? || owner?
   end
