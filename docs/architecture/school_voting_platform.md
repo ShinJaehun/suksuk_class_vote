@@ -10,7 +10,7 @@
 6. [투표 도메인의 독립 축](#6-투표-도메인의-독립-축)
 7. [대상 학급과 Voter snapshot](#7-대상-학급과-voter-snapshot)
 8. [비밀투표](#8-비밀투표)
-9. [Election 목표 구조](#9-election-목표-구조)
+9. [기존 Election 전환](#9-기존-election-전환)
 10. [Poll 목표 구조](#10-poll-목표-구조)
 11. [상태 무결성과 운영 이벤트](#11-상태-무결성과-운영-이벤트)
 12. [역사 자료 export/import](#12-역사-자료-exportimport)
@@ -42,9 +42,11 @@ export/import 절차로 옮긴다.
 소유권 중심이다.
 
 목표 구조는 `School`을 조직과 권한의 최상위 경계로 삼고 실제 학급과 학생을
-`Classroom`, `Student`로 표현한다. 후보자와 당선자를 다루는 `Election`과 의견·찬반·
-선택 활동인 `Poll`을 분리하되 대상 학급, 세션별 투표자 snapshot, 비밀투표와 운영
-이벤트 원칙을 공통화한다.
+`Classroom`, `Student`로 표현한다. 모든 신규 학급투표와 전교투표는 `Poll` 정의와
+학급별 `PollSession`을 사용한다. 후보자 선거는 `Poll.kind = election`, 설문조사는
+`survey`, 토의는 `discussion`, 토론은 `debate`로 표현한다. 기존 `Election`은 신규
+기능을 개발하지 않는 전환 대상이며 Election ID 6을 historical Poll로 변환하고 검증한
+뒤 runtime과 table을 제거할 예정이다.
 
 ## 3. 목표 조직 구조
 
@@ -209,16 +211,9 @@ global admin도 시작 후 불변조건과 역사 자료의 읽기 전용 제한
 
 ### 6.1 콘텐츠 종류
 
-```text
-Election
-Poll
-```
-
-`Election`은 후보자와 당선자를 다룬다. 전교임원선거, 학급 임원 선거, 단일 후보
-찬반과 무투표 당선은 Election이 담당한다.
-
-`Poll`은 후보자 선거가 아닌 선호도 조사, 찬반 조사, 토의 전 의견 조사와 학급
-의사결정을 담당한다. 따라서 기존 `Poll.kind = election`은 제거한다.
+신규 콘텐츠는 모두 `Poll`로 정의한다. `Poll.kind`는 `election`, `survey`,
+`discussion`, `debate`이며 공통 `PollContest`, `PollOption`, `PollSession` runtime을
+사용한다. Election과 Poll을 별도 신규 엔진으로 발전시키지 않는다.
 
 ### 6.2 운영 범위
 
@@ -340,71 +335,16 @@ Voter에 저장할 수 있다.
 같은 표를 두 번 집계할 수 없다. 기권은 학생의 의사이므로 개인별로 외부에 드러내지
 않고 이벤트에도 남기지 않는다. `absent`는 권한 있는 운영자만 처리한다.
 
-## 9. Election 목표 구조
+## 9. 기존 Election 전환
 
-```text
-Election
-- school_id
-- created_by_id
-- title
-- operation_scope
-- ballot_flow
-- status
-- historical
-- read_only
-```
+`Election`, `ElectionContest`, `ElectionCandidate`, `ElectionSession`은 현재 운영 데이터
+호환을 위해 남아 있지만 신규 기능의 목표 구조가 아니다. Election ID 6을 Poll,
+PollContest, PollOption, PollSession과 count-only historical 기록으로 변환하는 리허설과
+운영 검증을 먼저 수행한다. 이후 Election runtime과 table을 제거한다.
 
-Election은 학교 안 선거 정의이며 Contest, 대상과 Session의 부모다. `Election.kind`
-같은 고정 종류 대신 전교임원선거나 학급 임원 선거 생성을 돕는 preset만 제공한다.
-생성 후에는 모두 동일한 Election 규칙을 따른다.
-
-```text
-ElectionContest
-- title
-- position
-- vote_method
-- min_selections
-- max_selections
-- seats_count
-- allow_abstain
-- single_candidate_policy
-- approval_rule
-```
-
-Contest는 하나의 선출 단위이며 후보자는 Contest에 속한다. 선택 수, 좌석 수와 단일
-후보 정책의 조합은 시작 전에 검증한다.
-
-단일 후보 정책은 우선 `yes_no`, `uncontested`를 지원한다. `yes_no`는 찬반 투표 후
-`approval_rule`로 당선을 판단하고, `uncontested`는 무투표 당선으로 확정한다.
-
-초기 구현 우선순위:
-
-1. 복수 후보 단일 선택
-2. 선택적 기권
-3. 단일 후보 찬반
-4. 무투표 당선
-
-복잡한 결선, 복수 당선과 득표율 규칙은 후속 범위다.
-
-```text
-ElectionSession
-- election_id
-- classroom_id
-- operator_id
-- operator_name_snapshot
-- ballot_flow
-- status
-- started_at
-- closed_at
-```
-
-`Classroom.teacher_id`는 담임이고 `ElectionSession.operator_id`는 실제 운영자다. 둘을
-분리하여 manager, 대체 교사나 global admin의 운영도 보존한다. `operator_id`와
-`operator_name_snapshot`은 현재 배정된 운영자를 함께 나타낸다. 운영자를 변경하면
-두 값을 함께 갱신하고, 운영자 변경 이벤트에는 이전·새 운영자의 식별 정보와 당시
-이름 snapshot을 남긴다. 종료된 이벤트의 이름 snapshot은 이후 User 이름이 바뀌거나
-계정이 비활성화되어도 변경하지 않는다. 이벤트에는 투표 선택이나 학생별 투표 내용을
-포함하지 않는다.
+변환 전까지 legacy 화면과 service는 수정하지 않는다. 후보 사진, 재투표 관계와
+historical/read_only 표시는 Poll 쪽 후속 작업에서 명시적으로 설계하며 Election 코드를
+새 Poll runtime에서 호출하거나 복사하지 않는다.
 
 ## 10. Poll 목표 구조
 
@@ -416,14 +356,15 @@ Poll
 - school_id
 - created_by_id
 - title
-- operation_scope
-- ballot_flow
-- response_method
-- allow_abstain
+- kind: election / survey / discussion / debate
+- school_managed
 - status
+- started_at
+- closed_at
 ```
 
-초기 response method는 `single_choice`, `yes_no`이며 복수 선택은 후속 범위다.
+`school_managed: false`는 학급투표, `school_managed: true`는 전교투표다. 초기 응답 방식은
+Contest별 단일 선택이며 복수 선택과 yes/no 전용 방식은 후속 범위다.
 
 ```text
 PollOption
@@ -461,12 +402,17 @@ PollParticipant를 통해 간접 연결한다. 신규 PollSession 실행 기록�
 함께 가지며, PollSession ID는 Poll 내부 번호가 아니라 table 전체의 전역 ID다. legacy runtime
 분리와 data backfill은 후속 단계다.
 
-`Polls::CreateDefinitionWithSession`은 학교 기반 Poll 정의와 최초 Classroom draft PollSession을
-같은 transaction에서 생성한다. active Classroom·Student와 actor의 담임/manager/global admin
-권한을 검증하고 학급·운영자 snapshot을 명시적으로 저장한다. controller와 화면은 이 service를
-사용하도록 전환됐다. 신규 ParticipantGroup Poll 생성은 차단되고 기존 legacy Poll의
-조회·runtime은 유지된다. 현재 신규 생성은 Poll 정의 1개와 최초 draft PollSession 1개만 만들며,
-한 Poll을 여러 Classroom PollSession에 배정하는 화면과 흐름은 후속 작업이다.
+일반 학급투표는 `Polls::CreateDefinitionWithSession`이 Poll 정의와 최초 Classroom draft
+PollSession을 같은 transaction에서 만든다. 전교투표는 `/school_polls`에서 정의를 먼저 만들고
+같은 School의 여러 Classroom을 draft PollSession으로 배정한다. 각 Session operator는 해당
+Classroom의 담임이며 담당 교사의 `/polls` 목록에 나타난다. 사용자 화면에서는 이 두 범위를
+각각 학급투표와 전교투표라고 부른다.
+
+전교투표 관리자는 준비 점검을 통과한 draft Poll을 명시적으로 시작한다. 시작은 Poll만
+`in_progress`로 전환하고 `started_at`과 Poll-level event를 기록하며 Session snapshot은 만들지
+않는다. 이후 담당 교사가 각 draft PollSession을 개별 시작한다. 모든 Session이 무결한 closed
+상태일 때 관리자가 전교투표를 명시적으로 종료하고 `closed_at`과 Poll-level event를 기록한다.
+재투표가 구현되기 전에는 draft, in_progress, stopped Session이 하나라도 있으면 전체 종료할 수 없다.
 
 `Polls::StartSession`은 draft PollSession을 잠근 뒤 active Student를 number 순
 PollParticipant snapshot으로 만들고 PollProgress, option/contest tally, `poll_started` event를
@@ -490,8 +436,8 @@ Classroom·Student 관리 UI는 role 기반 Classroom scope와 일반 페이지 
 학교, manager는 소속 학교, 일반 teacher는 자신이 담임인 Classroom과 학생 명단만 관리한다. Student는
 단일 또는 textarea bulk 방식으로 등록하고 hard delete 대신 비활성화·복구한다. 이 자료는 신규 Poll의
 Classroom 선택과 시작 snapshot에 사용하며 ParticipantGroup·ParticipantSlot 변환은 수행하지 않는다.
-다음 전환 작업은 Poll 정의/Session 목록 화면 재정의, 한 Poll의 여러 Classroom 배정, legacy runtime
-분리와 데이터 이관, PollSession 중단·replacement·재투표를 순서대로 다루는 것이다.
+다음 전환 작업은 legacy runtime 분리와 데이터 이관, PollSession 중단·replacement·재투표,
+후보 사진과 historical/read_only 정책을 순서대로 다루는 것이다.
 
 학교 교사 관리 UI는 기존 teacher 계정만 SchoolMembership의 `member`로 소속시키며 global admin만
 `manager` 지정·해제를 수행한다. 같은 학교 manager는 미소속 teacher 추가와 일반 member의 안전한
@@ -593,25 +539,27 @@ read_only: true
 3. 장기 통합 브랜치 `rebuild/school-voting-platform`을 생성한다.
 4. legacy `SchoolElection`을 제거한다.
 5. 학교 조직 기반을 구현한다.
-6. Election을 Classroom/Student/Voter 구조로 전환한다.
-7. Poll 정의와 PollSession을 분리한다.
-8. 역사 선거를 import한다.
-9. Election과 Poll 전환 완료 후 `ParticipantGroup`을 제거한다.
+6. ElectionSession을 전환 기간의 Classroom dual-source 구조로 정리한다.
+7. Poll 정의와 PollSession을 분리하고 전교투표 생명주기를 구현한다.
+8. Election ID 6을 historical Poll로 import하고 검증한다.
+9. Election runtime과 table을 제거한다.
+10. Poll 전환 완료 후 `ParticipantGroup`을 제거한다.
 
-현재 1~7단계의 신규 구조와 기본 PollSession runtime까지 완료되었다. legacy `SchoolElection`
+현재 1~7단계의 신규 구조와 PollSession runtime까지 완료되었다. legacy `SchoolElection`
 관리자 runtime, `SchoolElections::*` service, Poll 연결, legacy 모델과 DB table을 제거했고,
 School·SchoolMembership·Classroom·Student 조직 기반과 ElectionSession의 Classroom·
 ParticipantGroup dual-source 전환을 구현했다. PollSession foundation, 신규 Poll 정의와 최초 draft
-Session 생성, Student snapshot, 감독형 제출·count-only 집계·참여 기록·미참여·명시적 다음 학생·
-명시적 종료·Session별 결과, Turbo Stream/polling 갱신과 단계별 상태 점검도 구현됐다.
+Session 생성, 여러 Classroom 배정, Student snapshot, 감독형 제출·count-only 집계·참여 기록·
+미참여·명시적 다음 학생·명시적 종료·Session별 결과, 담당 Session 목록, 전교투표 전체 결과,
+Turbo Stream/polling 갱신과 단계별 상태 점검도 구현됐다. Poll은 전체 시작·종료 시각과 Poll-level
+event를 기록하며 전교투표가 in_progress일 때만 담당 학급 Session을 시작할 수 있다.
 
-아직 `/polls/:id`의 Poll 정의·PollSession 목록 화면 재정의, 한 Poll의 여러 Classroom 배정,
-신규/legacy Poll runtime의 서버 측 분리, PollSession 중단·stopped 이력·replacement·재투표,
+아직 신규/legacy Poll runtime의 서버 측 분리, PollSession 중단·stopped 이력·replacement·재투표,
 Election id=6 변환 리허설과 실제 적용 여부 결정, 운영 Poll 보존 범위 조사와 필요한 backfill이
 남아 있다. 실제 Election id=6 운영 데이터에는 변환 task를 적용하지 않았다. 이관 뒤에야
-ParticipantGroup·ParticipantSlot과 legacy Poll runtime을 제거할 수 있다. Election과 Poll의 최종
-역할 경계, `Poll.kind = election`의 처리, `VotingTarget`·`Voter` 공통 추상화 도입은 확정 사항이
-아니라 검토 대상이다.
+ParticipantGroup·ParticipantSlot과 legacy Poll runtime을 제거할 수 있다. 신규 Election 기능은
+추가하지 않으며 검증된 historical Poll 변환 뒤 Election runtime과 table을 제거한다. 재투표,
+후보 사진, historical/read_only 표시는 후속 작업이다.
 
 `ParticipantGroup`은 현재 Poll 원본 명단과 진행 흐름에 연결되어 있고 export 시 학생
 명단의 출처가 될 수 있다. 이를 일찍 삭제하면 Poll 운영과 export 검증이 깨지고 새

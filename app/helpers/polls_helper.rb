@@ -27,6 +27,7 @@ module PollsHelper
   def poll_activity_badge_class(poll)
     case poll.kind
     when "election" then "border-indigo-200 bg-indigo-50 text-indigo-700"
+    when "survey" then "border-teal-200 bg-teal-50 text-teal-700"
     when "discussion" then "border-sky-200 bg-sky-50 text-sky-700"
     when "debate" then "border-violet-200 bg-violet-50 text-violet-700"
     else "border-stone-200 bg-stone-50 text-stone-700"

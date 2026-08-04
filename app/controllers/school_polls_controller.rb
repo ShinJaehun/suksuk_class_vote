@@ -30,7 +30,7 @@ class SchoolPollsController < ApplicationController
     ).call
 
     if result.success?
-      redirect_to school_poll_path(result.poll), notice: "투표를 만들었습니다."
+      redirect_to school_poll_path(result.poll), notice: "전교투표를 만들었습니다."
     else
       prepare_new_form(result.errors)
       render :new, status: :unprocessable_entity
@@ -40,6 +40,7 @@ class SchoolPollsController < ApplicationController
   def show
     @poll = school_poll_scope.find(params[:id])
     authorize @poll, :school_show?
+    @schoolwide_status_check = Polls::SchoolwideStatusCheck.new(poll: @poll)
     @school_result_summary = Polls::SchoolResultSummary.new(@poll)
     @poll_contests = @poll.poll_contests.includes(:poll_options).order(:position, :id)
     @poll_sessions = @poll.poll_sessions
@@ -50,6 +51,30 @@ class SchoolPollsController < ApplicationController
     @assignable_classrooms = eligible_classrooms(@poll.school)
       .where.not(id: assigned_classroom_ids)
     @assignable_classroom_student_counts = active_student_counts_for(@assignable_classrooms)
+  end
+
+  def start
+    poll = school_poll_scope.find(params[:id])
+    authorize poll, :school_start?
+    result = Polls::StartSchoolwidePoll.new(poll: poll, actor: current_user).call
+
+    if result.success?
+      redirect_to school_poll_path(poll), notice: "전교투표를 시작했습니다."
+    else
+      redirect_to school_poll_path(poll), alert: result.error_message
+    end
+  end
+
+  def close
+    poll = school_poll_scope.find(params[:id])
+    authorize poll, :school_close?
+    result = Polls::CloseSchoolwidePoll.new(poll: poll, actor: current_user).call
+
+    if result.success?
+      redirect_to school_poll_path(poll), notice: "전교투표를 종료했습니다."
+    else
+      redirect_to school_poll_path(poll), alert: result.error_message
+    end
   end
 
   private

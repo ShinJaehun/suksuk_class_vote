@@ -1,5 +1,96 @@
-<% contest_label = @poll.election? ? "선거 항목" : "투표 항목" %>
-<% option_label = @poll.election? ? "후보자" : "선택지" %>
+<%= render "polls/school_overview",
+           poll: @poll,
+           poll_contests: @poll_contests,
+           poll_sessions: @poll_sessions,
+           back_path: school_polls_path,
+           back_label: "전교투표 목록으로 돌아가기" %>
+
+<% contest_label = @poll.contest_label %>
+<% option_label = @poll.choice_label %>
+
+<section class="mx-auto my-6 max-w-5xl rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
+         data-testid="schoolwide-status-check">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div>
+      <h2 class="text-xl font-semibold">
+        <% if @poll.draft? %>
+          전교투표 시작 준비
+        <% elsif @poll.in_progress? %>
+          전교투표 진행 현황
+        <% else %>
+          전교투표 종료
+        <% end %>
+      </h2>
+      <p class="mt-2 text-sm text-stone-600">
+        시작 <%= kst_datetime(@poll.started_at) %>
+        · 종료 <%= kst_datetime(@poll.closed_at) %>
+        <% if @poll.lifecycle_duration_minutes.present? %>
+          · 진행 시간 <%= @poll.lifecycle_duration_minutes %>분
+        <% end %>
+      </p>
+    </div>
+
+    <% if @poll.draft? && @schoolwide_status_check.startable? %>
+      <%= button_to "전교투표 시작",
+                    start_school_poll_path(@poll),
+                    method: :post,
+                    data: { turbo_confirm: "전교투표를 시작할까요? 시작 후 항목과 학급 배정을 변경할 수 없습니다." },
+                    class: "rounded-md bg-emerald-600 px-5 py-3 text-sm font-semibold text-white" %>
+    <% elsif @poll.in_progress? && @schoolwide_status_check.closable? %>
+      <%= button_to "전교투표 종료",
+                    close_school_poll_path(@poll),
+                    method: :post,
+                    data: { turbo_confirm: "모든 학급 결과를 확인하고 전교투표를 종료할까요?" },
+                    class: "rounded-md bg-stone-900 px-5 py-3 text-sm font-semibold text-white" %>
+    <% end %>
+  </div>
+
+  <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-4">
+    <div class="rounded-md bg-stone-50 p-3">
+      <dt class="text-stone-500">대상 학급</dt>
+      <dd class="mt-1 text-xl font-semibold"><%= @schoolwide_status_check.session_count %>개</dd>
+    </div>
+    <div class="rounded-md bg-stone-50 p-3">
+      <dt class="text-stone-500">대상 학생</dt>
+      <dd class="mt-1 text-xl font-semibold"><%= @schoolwide_status_check.active_student_count %>명</dd>
+    </div>
+    <div class="rounded-md bg-stone-50 p-3">
+      <dt class="text-stone-500"><%= contest_label %></dt>
+      <dd class="mt-1 text-xl font-semibold"><%= @schoolwide_status_check.contest_count %>개</dd>
+    </div>
+    <div class="rounded-md bg-stone-50 p-3">
+      <dt class="text-stone-500"><%= option_label %></dt>
+      <dd class="mt-1 text-xl font-semibold"><%= @schoolwide_status_check.option_count %>개</dd>
+    </div>
+  </dl>
+
+  <% if @poll.in_progress? || @poll.closed? %>
+    <p class="mt-4 text-sm text-stone-600">
+      시작 전 <%= @schoolwide_status_check.session_counts.fetch("draft", 0) %>
+      · 진행 중 <%= @schoolwide_status_check.session_counts.fetch("in_progress", 0) %>
+      · 종료 <%= @schoolwide_status_check.session_counts.fetch("closed", 0) %>
+      · 중단 <%= @schoolwide_status_check.session_counts.fetch("stopped", 0) %>
+    </p>
+  <% end %>
+
+  <% issues = @poll.draft? ? @schoolwide_status_check.start_issues : @schoolwide_status_check.close_issues %>
+  <% if !@poll.closed? && issues.any? %>
+    <div class="mt-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+      <p class="font-medium"><%= @poll.draft? ? "시작 전 확인이 필요합니다." : "종료 전 확인이 필요합니다." %></p>
+      <ul class="mt-2 list-disc space-y-1 pl-5">
+        <% issues.each do |issue| %>
+          <li><%= issue %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% elsif @poll.closed? %>
+    <p class="mt-4 font-medium text-emerald-700">전교투표가 종료되었습니다.</p>
+  <% else %>
+    <p class="mt-4 font-medium text-emerald-700">
+      <%= @poll.draft? ? "전교투표를 시작할 수 있습니다." : "모든 학급 투표가 종료되었습니다." %>
+    </p>
+  <% end %>
+</section>
 
 <section class="mx-auto mb-6 max-w-5xl rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
   <div class="flex items-center justify-between gap-4">
@@ -37,7 +128,7 @@
             <ul class="mt-3 space-y-2">
               <% contest.poll_options.sort_by { |option| [option.number, option.id] }.each do |option| %>
                 <li class="flex items-center justify-between gap-4 text-sm">
-                  <span>기호 <%= option.number %>번 <%= option.name %></span>
+                  <span><%= @poll.choice_number_label %> <%= option.number %>번 <%= option.name %></span>
                   <% if @poll.definition_editable? %>
                     <span class="flex gap-3">
                       <%= link_to "수정", edit_school_poll_contest_option_path(@poll, contest, option) %>
@@ -64,17 +155,18 @@
       <% end %>
     </div>
   <% else %>
-    <p class="mt-3 text-stone-600">등록된 투표 항목이 없습니다.</p>
+    <p class="mt-3 text-stone-600">등록된 <%= contest_label %>이 없습니다.</p>
   <% end %>
 </section>
 
-<section class="mx-auto mb-6 max-w-5xl rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
-  <h2 class="text-xl font-semibold">학급 배정</h2>
+<% if @poll.draft? %>
+  <section class="mx-auto mb-6 max-w-5xl rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+    <h2 class="text-xl font-semibold">학급 배정</h2>
 
-  <% if @assignable_classrooms.any? %>
-    <%= form_with url: school_poll_poll_sessions_path(@poll), class: "mt-4 space-y-4" do %>
-      <div class="space-y-2">
-        <% @assignable_classrooms.each do |classroom| %>
+    <% if @assignable_classrooms.any? %>
+      <%= form_with url: school_poll_poll_sessions_path(@poll), class: "mt-4 space-y-4" do %>
+        <div class="space-y-2">
+          <% @assignable_classrooms.each do |classroom| %>
           <label class="flex items-center gap-3 rounded-md border border-stone-200 p-3">
             <%= check_box_tag "classroom_ids[]", classroom.id, false, class: "rounded border-stone-300" %>
             <span>
@@ -89,20 +181,24 @@
               </span>
             </span>
           </label>
-        <% end %>
-      </div>
+          <% end %>
+        </div>
 
-      <%= submit_tag "선택한 학급 배정",
-                     class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+        <%= submit_tag "선택한 학급 배정",
+                       class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+      <% end %>
+    <% else %>
+      <p class="mt-3 text-stone-600">추가로 배정할 수 있는 학급이 없습니다.</p>
     <% end %>
-  <% else %>
-    <p class="mt-3 text-stone-600">추가로 배정할 수 있는 학급이 없습니다.</p>
-  <% end %>
-</section>
+  </section>
+<% end %>
 
-<section class="mx-auto mb-6 max-w-5xl rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
-         data-testid="school-poll-results">
-  <h2 class="text-xl font-semibold">학교투표 전체 결과</h2>
+<% unless @poll.draft? %>
+  <section class="mx-auto mb-6 max-w-5xl rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
+           data-testid="school-poll-results">
+    <h2 class="text-xl font-semibold">
+      <%= @poll.closed? ? "전교투표 최종 결과" : "현재까지 종료된 학급 결과" %>
+    </h2>
 
   <div class="mt-4 overflow-x-auto">
     <table class="min-w-full divide-y divide-stone-200 text-sm">
@@ -139,9 +235,9 @@
             <table class="min-w-full divide-y divide-stone-200 text-sm">
               <thead>
                 <tr class="text-left text-stone-500">
-                  <th class="py-2 pr-4 font-medium">기호</th>
-                  <th class="py-2 pr-4 font-medium"><%= @poll.election? ? "후보자" : "선택지" %></th>
-                  <th class="py-2 font-medium">득표수</th>
+                  <th class="py-2 pr-4 font-medium"><%= @poll.choice_number_label %></th>
+                  <th class="py-2 pr-4 font-medium"><%= option_label %></th>
+                  <th class="py-2 font-medium"><%= @poll.vote_count_label %></th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-stone-100">
@@ -161,12 +257,6 @@
         </section>
       <% end %>
     </div>
-  <% end %>
-</section>
-
-<%= render "polls/school_overview",
-           poll: @poll,
-           poll_contests: @poll_contests,
-           poll_sessions: @poll_sessions,
-           back_path: school_polls_path,
-           back_label: "학교투표 목록으로 돌아가기" %>
+    <% end %>
+  </section>
+<% end %>

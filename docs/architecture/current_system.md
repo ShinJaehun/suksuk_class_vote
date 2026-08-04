@@ -4,10 +4,10 @@
 
 이 문서는 `쑥쑥교실투표(suksuk_class_vote)`의 현재 구현 상태와 문서 구조를 요약한다.
 
-현재 프로젝트에는 두 운영 흐름이 있다. 교사가 학급에서 선거, 토의, 토론을 운영하는
-`Poll` 흐름과, admin이 여러 학급의 전교임원선거를 구성하고 각 교사가
-`ElectionSession`을 운영하는 `Election` 흐름이다.
-두 흐름은 화면 일부를 공유하지만 상태, 권한, 결과 집계 기준은 분리한다.
+모든 신규 학급투표와 전교투표는 `Poll` 정의와 학급별 `PollSession`으로 운영한다.
+`Poll.kind`는 선거, 설문조사, 토의, 토론을 표현한다. 기존 `Election`/`ElectionSession`
+runtime은 Election ID 6의 historical Poll 변환과 검증이 끝날 때까지 호환 목적으로 남지만,
+신규 Election 기능은 더 이상 개발하지 않는다.
 
 ---
 
@@ -45,8 +45,7 @@
 - 중복 제출 방지
 - 종료 투표 수동 보관
 
-교사 주도 학급 `Poll` MVP 자체의 제외 범위이며, 일부는 별도 Admin `Election`
-흐름으로 구현되어 있다.
+다음은 현재 제외 범위이거나 후속 작업이다.
 
 - 전교임원선거 중앙 집계
 - 전교 투표용 관리자 대시보드
@@ -58,14 +57,9 @@
 - ActionCable 기반 실시간 대시보드
 - PDF 출력 고도화
 
-별도 Admin `Election` 흐름에서는 전교/여러 학급 운영을 위한 관리 기능이 구현되어 있다.
-admin은 공식 명단, 후보, 후보 사진, 학급 세션을 구성하고 draft `Election`을 시작한다.
-교사는 parent `Election`이 시작된 뒤 본인에게 배정된 `ElectionSession`을 운영한다.
-중단된 세션도 `/polls`에서 확인할 수 있으며, 상세를 확인한 뒤 본인 목록에서만 숨길 수 있다.
-Admin `ElectionCandidate` 후보자 사진은 전교임원선거 등에서 후보 식별을 돕기 위한 선택 입력이다.
-교사 주도 학급 `Poll` 흐름에는 사진 기능을 도입하지 않는다.
-
-전교임원선거의 canonical 정책은 `docs/specs/school_council_election.md`를 따른다.
+전교투표 관리자는 Poll 정의, 항목과 선택지, 여러 Classroom PollSession을 구성하고 전체 Poll을
+시작·종료한다. 담당 교사는 parent Poll이 in_progress가 된 뒤 자기 PollSession을 운영한다.
+후보 사진, 중단·replacement·재투표는 후속 작업이다.
 
 ## 배포 저장소 정책
 
@@ -161,7 +155,7 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - stopped 세션은 Admin 선거 상세와 직접 상세에서 voter, participation, tally, event와 함께 보존
 - 담당 교사는 stopped 세션 상세에서 `hidden_from_teacher_at`을 기록해 본인의 `/polls` 목록에서만 숨길 수 있음
 - `Election` 시작 뒤 학급 세션 추가/삭제와 후보자 등록/수정/삭제 차단
-- 화면 표시 용어 정리: `Election` kind `school_council`은 `전교임원선거`, `Poll` kind `election`은 `학급선거`, `discussion`은 `학급토의`, `debate`는 `학급토론`으로 표시
+- 화면 표시 용어 정리: 사용자 범위는 `학급투표`와 `전교투표`, Poll kind는 `선거`, `설문조사`, `토의`, `토론`으로 표시
 - 알 수 없거나 custom인 `Election` kind는 강제 번역하지 않고 원래 kind 값을 fallback으로 표시
 - `admin/elections`의 큰 제목 `선거 관리`는 관리 영역 이름으로 유지
 - 투표/선거 이벤트 시간은 기존 KST 표시 helper 정책에 따라 KST 기준으로 표시
@@ -174,15 +168,18 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - PollSession 명시적 종료와 현재 Session tally·시작 당시 snapshot 기반 결과/투표자 명단 구현
 - PollSession 교사 operation 화면 Turbo Stream 갱신과 polling fallback 구현
 - `Polls::SessionStatusCheck`의 draft/in_progress/closed 단계 점검과 실제 PollSession action service 차단 연결
+- `/school_polls` 전교투표 정의·항목·여러 Classroom 배정·전체 결과 관리 구현
+- 전교투표 전체 준비 점검과 명시적 시작·종료, `Poll.started_at`/`closed_at`, Poll-level event 기록 구현
+- 전교투표 parent가 in_progress일 때만 담당 교사가 draft PollSession을 시작하도록 제한
 
 현재 PollSession 흐름은 교사 시작 → active Student snapshot과 첫 current 지정 → ballot locked → 학생
 투표 창 → 교사 승인으로 ballot open → 학생 제출과 tally/participation 기록 → ballot locked → 교사의
 명시적 다음 학생 지정 → 반복 → 교사의 명시적 종료 순서다. 자동 다음 학생 전환과 자동 종료는
 의도적으로 사용하지 않는다. 개인별 학생 선택은 저장하거나 표시하지 않는다.
 
-신규 생성은 현재 Poll 1개와 최초 PollSession 1개만 만든다. `/polls/:id`의 Poll 정의·Session 목록
-화면 재정의, 여러 Classroom Session 배정, 신규/legacy runtime 서버 측 분리, PollSession 중단·stopped
-이력·replacement·재투표는 후속 작업이다. Election id=6 운영 데이터에는 변환 task를 아직 적용하지
+일반 학급투표 생성은 Poll과 최초 PollSession을 만들고, 전교투표는 Poll 정의를 만든 뒤 여러
+Classroom Session을 배정한다. 신규/legacy runtime 서버 측 분리, PollSession 중단·stopped
+이력·replacement·재투표, 후보 사진은 후속 작업이다. Election id=6 운영 데이터에는 변환 task를 아직 적용하지
 않았으며 운영 Poll 보존 범위 조사와 필요한 backfill 뒤 ParticipantGroup·ParticipantSlot 및 legacy
 Poll runtime 제거를 판단한다. Election/Poll 최종 역할 경계와 `VotingTarget`·`Voter` 공통 추상화도
 검토 대상이다.
@@ -200,17 +197,16 @@ Poll runtime 제거를 판단한다. Election/Poll 최종 역할 경계와 `Voti
 보관된 종료 투표는 기록으로 남기기로 한 상태이므로 삭제하지 않는다.
 보관 해제와 종료 후 30일 자동 보관은 아직 구현하지 않았다.
 
-### Poll과 전교임원선거의 경계
+### 학급투표와 전교투표의 경계
 
-`Poll`은 교사가 직접 만드는 학급 활동 단위다. 생성, 후보/선택지 구성, 진행, 중단,
-종료, 보관을 해당 교사가 담당한다.
+학급투표는 교사가 만드는 `school_managed: false` Poll과 담당 PollSession이다.
+전교투표는 global admin 또는 같은 학교 manager가 만드는 `school_managed: true` Poll이며,
+여러 Classroom PollSession을 배정한다. 관리자가 전체 Poll을 시작하면 담당 교사가 각 Session을
+운영하고, 모든 Session이 closed가 된 뒤 관리자가 전체 Poll을 종료한다. 전체 결과에는 closed
+Session tally만 포함한다.
 
-전교임원선거는 admin이 만든 parent `Election` 아래에 학급별 `ElectionSession`을
-배정하는 구조다. Admin은 전체 구성, 중단, 재투표, 최종 종료와 결과 집계를 담당하고,
-teacher는 본인 학급 세션의 시작과 진행만 담당한다.
-
-Poll 기반 legacy `SchoolElection` 구조는 제거되었다. 현재 전교임원선거는
-`Election`과 학급별 `ElectionSession`을 사용하며, 일반 학급 활동은 `Poll`이 담당한다.
+기존 Election ID 6은 추후 historical Poll로 변환하고 검증한 뒤 Election runtime과 table을
+제거한다. 재투표와 historical/read_only 상태는 변환 전에 별도 구현한다.
 
 ---
 

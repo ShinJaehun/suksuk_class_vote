@@ -558,7 +558,7 @@ RSpec.describe "PollSession ballots", type: :request do
 
     get poll_poll_session_path(poll, poll_session)
 
-    expect(response.body).to include("득표 기록이 없습니다.")
+    expect(response.body).to include("집계 기록이 없습니다.")
 
     tally.destroy!
     get poll_poll_session_path(poll, poll_session)

@@ -1,4 +1,4 @@
-<% option_label = @poll.election? ? "후보자" : "선택지" %>
+<% option_label = @poll.choice_label %>
 <section class="mx-auto max-w-2xl rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
   <h1 class="text-2xl font-semibold"><%= option_label %> 수정</h1>
   <p class="mt-2 text-sm text-stone-600"><%= @contest.title %></p>
@@ -15,7 +15,7 @@
                 url: school_poll_contest_option_path(@poll, @contest, @option),
                 class: "mt-6 space-y-4" do |form| %>
     <div>
-      <%= form.label :number, "기호", class: "block text-sm font-medium" %>
+      <%= form.label :number, @poll.choice_number_label, class: "block text-sm font-medium" %>
       <%= form.number_field :number, min: 1, class: "mt-1 w-full rounded-md border-stone-300" %>
     </div>
     <div>

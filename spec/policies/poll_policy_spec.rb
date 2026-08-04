@@ -103,6 +103,43 @@ RSpec.describe PollPolicy do
     end
   end
 
+  describe "Schoolwide lifecycle permissions" do
+    it "allows global admin and the same-School manager" do
+      school = create(:school)
+      poll = create(
+        :poll,
+        school: school,
+        school_managed: true,
+        participant_group: nil
+      )
+      manager = create(:user)
+      create(:school_membership, :manager, school: school, user: manager)
+
+      [create(:user, :admin), manager].each do |actor|
+        policy = described_class.new(actor, poll)
+        expect(policy).to be_school_start
+        expect(policy).to be_school_close
+      end
+    end
+
+    it "rejects a regular teacher and another School manager" do
+      poll = create(
+        :poll,
+        school: create(:school),
+        school_managed: true,
+        participant_group: nil
+      )
+      other_manager = create(:user)
+      create(:school_membership, :manager, school: create(:school), user: other_manager)
+
+      [create(:user), other_manager].each do |actor|
+        policy = described_class.new(actor, poll)
+        expect(policy).not_to be_school_start
+        expect(policy).not_to be_school_close
+      end
+    end
+  end
+
   describe "#open_current_participant_ballot?" do
     it "allows admins to open another teacher's current participant ballot" do
       admin = create(:user, :admin)

@@ -1,10 +1,10 @@
 <div class="mx-auto max-w-3xl space-y-6">
-  <%= link_to "학교투표 목록으로 돌아가기",
+  <%= link_to "전교투표 목록으로 돌아가기",
               school_polls_path,
               class: "text-sm font-medium text-stone-700 underline" %>
 
   <div class="space-y-2">
-    <h1 class="text-2xl font-semibold">새 투표</h1>
+    <h1 class="text-2xl font-semibold">새 전교투표</h1>
     <% if @school.present? %>
       <p class="text-sm text-stone-600">소속 학교: <%= @school.name %></p>
     <% end %>
@@ -42,12 +42,12 @@
     <div class="space-y-1">
       <%= form.label :kind, "활동 유형", class: "text-sm font-medium text-stone-700" %>
       <%= form.select :kind,
-                      [["선거", "election"], ["토의", "discussion"]],
+                      [["선거", "election"], ["설문조사", "survey"], ["토의", "discussion"], ["토론", "debate"]],
                       {},
                       class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
     </div>
 
-    <%= form.submit "투표 만들기",
+    <%= form.submit "전교투표 만들기",
                     class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
   <% end %>
 </div>

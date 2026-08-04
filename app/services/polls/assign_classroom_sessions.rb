@@ -22,6 +22,10 @@ module Polls
 
       ActiveRecord::Base.transaction do
         poll.lock!
+        unless poll.draft?
+          errors << "준비 상태의 전교투표에만 학급을 배정할 수 있습니다."
+          raise ActiveRecord::Rollback
+        end
         if poll.poll_sessions.where(classroom_id: classroom_ids).exists?
           errors << "이미 배정된 학급이 포함되어 있습니다."
           raise ActiveRecord::Rollback
@@ -50,9 +54,10 @@ module Polls
                 :poll_sessions
 
     def validate_inputs
-      errors << "학교투표가 필요합니다." unless poll&.persisted? && poll.school_managed?
-      errors << "학교가 지정된 학교투표가 필요합니다." if poll&.school.blank?
-      errors << "학교투표를 관리할 권한이 없습니다." unless authorized_actor?
+      errors << "전교투표가 필요합니다." unless poll&.persisted? && poll.school_managed?
+      errors << "학교가 지정된 전교투표가 필요합니다." if poll&.school.blank?
+      errors << "전교투표를 관리할 권한이 없습니다." unless authorized_actor?
+      errors << "준비 상태의 전교투표에만 학급을 배정할 수 있습니다." unless poll&.draft?
       errors << "배정할 학급을 선택해 주세요." if classroom_ids.empty?
       errors << "선택한 학급을 찾을 수 없습니다." if invalid_classroom_ids
       return if errors.any?

@@ -237,7 +237,7 @@ RSpec.describe "School Poll definition management", type: :request do
 
       create(:poll_contest, poll: discussion, title: "급식 의견", position: 1)
       get school_poll_path(discussion)
-      expect(response.body).to include("투표 항목 관리", "선택지 추가")
+      expect(response.body).to include("토의 주제 관리", "의견 추가")
 
       expect(election.reload.poll_contests).to be_present
       regular_poll = create(:poll, participant_group: create(:participant_group, :with_participant_slot))

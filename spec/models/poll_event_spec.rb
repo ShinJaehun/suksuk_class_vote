@@ -49,6 +49,15 @@ RSpec.describe PollEvent, type: :model do
       expect(event).to be_poll_level_event
     end
 
+    it "supports Schoolwide Poll-level lifecycle events" do
+      %w[schoolwide_poll_started schoolwide_poll_closed].each do |event_type|
+        event = build(:poll_event, event_type: event_type, poll_session: nil)
+
+        expect(event).to be_valid
+        expect(event).to be_poll_level_event
+      end
+    end
+
     it "does not allow poll_option information in details" do
       event = build(:poll_event, details: { poll_option_id: 1 })
 

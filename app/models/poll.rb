@@ -11,41 +11,54 @@ class Poll < ApplicationRecord
   has_many :poll_events, dependent: :destroy
   has_one :poll_progress, dependent: :destroy
 
-  enum :kind, { election: 0, discussion: 10, debate: 20 }
+  enum :kind, { election: 0, discussion: 10, debate: 20, survey: 30 }
   enum :status, { draft: 0, in_progress: 10, closed: 20, stopped: 30 }
 
   ACTIVITY_LABELS = {
-    "election" => "학급선거",
-    "discussion" => "학급토의",
-    "debate" => "학급토론"
+    "election" => "선거",
+    "survey" => "설문조사",
+    "discussion" => "토의",
+    "debate" => "토론"
+  }.freeze
+
+  CONTEST_LABELS = {
+    "election" => "선거 항목",
+    "survey" => "설문 문항",
+    "discussion" => "토의 주제",
+    "debate" => "토론 쟁점"
   }.freeze
 
   CHOICE_LABELS = {
     "election" => "후보자",
+    "survey" => "선택지",
     "discussion" => "의견",
     "debate" => "입장"
   }.freeze
 
   CHOICE_LIST_LABELS = {
     "election" => "후보자",
+    "survey" => "선택지",
     "discussion" => "의견",
     "debate" => "입장"
   }.freeze
 
   CHOICE_NUMBER_LABELS = {
     "election" => "기호",
+    "survey" => "번호",
     "discussion" => "번호",
     "debate" => "번호"
   }.freeze
 
   WINNER_LABELS = {
     "election" => "최다 득표 후보",
+    "survey" => "가장 많이 선택된 응답",
     "discussion" => "가장 많이 선택된 의견",
     "debate" => "가장 많이 선택된 입장"
   }.freeze
 
   VOTE_COUNT_LABELS = {
     "election" => "득표수",
+    "survey" => "응답 수",
     "discussion" => "선택 수",
     "debate" => "선택 수"
   }.freeze
@@ -70,6 +83,7 @@ class Poll < ApplicationRecord
   validates :participant_group, presence: true, unless: :participant_group_optional?
   validate :participant_group_has_participant_slots, unless: :participant_group_optional?
   validate :school_and_participant_group_cannot_coexist, on: :create
+  validate :school_managed_lifecycle_timestamps
 
   def readiness_poll_option_count
     default_poll_contest&.poll_options&.count.to_i
@@ -89,6 +103,10 @@ class Poll < ApplicationRecord
 
   def activity_label
     ACTIVITY_LABELS.fetch(kind, kind)
+  end
+
+  def contest_label
+    CONTEST_LABELS.fetch(kind, kind)
   end
 
   def choice_label
@@ -123,6 +141,13 @@ class Poll < ApplicationRecord
     archived_at.present?
   end
 
+  def lifecycle_duration_minutes(now: Time.current)
+    return if started_at.blank?
+
+    finish_at = closed_at || now
+    [((finish_at - started_at) / 60).floor, 0].max
+  end
+
   def definition_editable?
     school_managed? &&
       draft? &&
@@ -152,8 +177,22 @@ class Poll < ApplicationRecord
 
   private
 
+  def school_managed_lifecycle_timestamps
+    return unless school_managed?
+
+    errors.add(:closed_at, "준비 상태에는 기록할 수 없습니다.") if draft? && closed_at.present?
+    errors.add(:started_at, "진행 상태에는 필요합니다.") if in_progress? && started_at.blank?
+    if closed?
+      errors.add(:started_at, "종료 상태에는 필요합니다.") if started_at.blank?
+      errors.add(:closed_at, "종료 상태에는 필요합니다.") if closed_at.blank?
+    end
+    if started_at.present? && closed_at.present? && closed_at < started_at
+      errors.add(:closed_at, "시작 시각보다 빠를 수 없습니다.")
+    end
+  end
+
   def participant_group_optional?
-    closed? || stopped? || (draft? && school.present?)
+    closed? || stopped? || school.present?
   end
 
   def school_and_participant_group_cannot_coexist

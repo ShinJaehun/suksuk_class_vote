@@ -139,6 +139,44 @@ RSpec.describe "PollSession starts", type: :request do
     expect(execution_counts(poll_session.reload)).to eq(counts)
   end
 
+  it "requires a Schoolwide Poll to be in progress" do
+    poll, poll_session, teacher = create_startable_poll_session
+    poll.update_column(:school_managed, true)
+    sign_in teacher
+
+    get poll_poll_session_path(poll, poll_session)
+    expect(response.body).to include("전교투표가 시작되면 이 학급 투표를 시작할 수 있습니다.")
+    expect(response.body).not_to include(start_poll_poll_session_path(poll, poll_session))
+
+    post start_poll_poll_session_path(poll, poll_session)
+    expect(response).to redirect_to(polls_path)
+    expect(flash[:alert]).to include("아직 전교투표가 시작되지 않았습니다")
+    expect(poll_session.reload).to be_draft
+
+    poll.update!(status: :in_progress, started_at: Time.current)
+    get poll_poll_session_path(poll, poll_session)
+    expect(response.body).to include(start_poll_poll_session_path(poll, poll_session))
+
+    post start_poll_poll_session_path(poll, poll_session)
+    expect(poll_session.reload).to be_in_progress
+  end
+
+  it "rejects a Session start after its Schoolwide Poll is closed" do
+    poll, poll_session, teacher = create_startable_poll_session
+    poll.update_columns(
+      school_managed: true,
+      status: Poll.statuses[:closed],
+      started_at: 1.hour.ago,
+      closed_at: Time.current
+    )
+    sign_in teacher
+
+    post start_poll_poll_session_path(poll, poll_session)
+
+    expect(flash[:alert]).to include("진행 중인 전교투표")
+    expect(poll_session.reload).to be_draft
+  end
+
   def execution_counts(poll_session)
     [
       poll_session.poll_participants.count,

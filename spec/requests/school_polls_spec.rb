@@ -206,7 +206,8 @@ RSpec.describe "School Poll management", type: :request do
       expect(response.body).to include("등록된 투표 항목이 없습니다.")
       expect(response.body).to include("배정된 학급 투표가 없습니다.")
       expect(response.body).to include("학급 배정", classroom.formatted_class_label)
-      expect(response.body).to include("종료된 학급 투표 결과가 없습니다.")
+      expect(response.body).to include("전교투표 시작 준비")
+      expect(response.body).not_to include("종료된 학급 투표 결과가 없습니다.")
     end
 
     it "shows the shared overview to global admin and the same-School manager" do
@@ -220,7 +221,7 @@ RSpec.describe "School Poll management", type: :request do
       [create(:user, :admin), manager].each do |actor|
         sign_in actor
         get school_poll_path(poll)
-        expect(response.body).to include(poll.title, "학교투표 목록으로 돌아가기")
+        expect(response.body).to include(poll.title, "전교투표 목록으로 돌아가기")
         expect(response.body).to include(poll_poll_session_path(poll, poll_session))
         expect(response.body).to include("학급 배정")
         sign_out actor
@@ -272,6 +273,7 @@ RSpec.describe "School Poll management", type: :request do
         school_managed: true,
         participant_group: nil
       )
+      poll.update!(status: :in_progress, started_at: Time.current)
       president = create(:poll_contest, poll: poll, title: "회장 선거", position: 1)
       vice_president = create(:poll_contest, poll: poll, title: "부회장 선거", position: 2)
       zero_option = create(
@@ -409,7 +411,119 @@ RSpec.describe "School Poll management", type: :request do
       expect(result_text).to match(/준비 3반.*준비.*결과 제외/)
       expect(result_text).to match(/진행 4반.*진행.*결과 제외/)
       expect(result_text).to match(/중단 5반.*중단.*결과 제외/)
-      expect(response.body).to include("학급 배정", "선거 항목 관리")
+      expect(response.body).to include("전교투표 진행 현황", "선거 항목 관리")
+      expect(response.body).not_to include("학급 배정")
+    end
+  end
+
+  describe "Schoolwide Poll lifecycle" do
+    def create_startable_schoolwide_poll(school:, actor:)
+      teacher = create(:user)
+      classroom = create_eligible_classroom(school: school, teacher: teacher)
+      poll = create(
+        :poll,
+        user: actor,
+        school: school,
+        school_managed: true,
+        participant_group: nil
+      )
+      contest = create(:poll_contest, poll: poll, position: 1)
+      create(:poll_option, poll: poll, poll_contest: contest, number: 1)
+      create(:poll_option, poll: poll, poll_contest: contest, number: 2)
+      poll_session = create(
+        :poll_session,
+        poll: poll,
+        classroom: classroom,
+        operator: teacher
+      )
+
+      [poll, poll_session, teacher]
+    end
+
+    it "starts and closes a Schoolwide Poll through member actions" do
+      admin = create(:user, :admin)
+      poll, poll_session, teacher = create_startable_schoolwide_poll(
+        school: create(:school),
+        actor: admin
+      )
+      sign_in admin
+
+      get school_poll_path(poll)
+      expect(response.body).to include(
+        "전교투표 시작 준비",
+        "대상 학급",
+        "대상 학생",
+        start_school_poll_path(poll)
+      )
+
+      post start_school_poll_path(poll)
+      expect(response).to redirect_to(school_poll_path(poll))
+      expect(poll.reload).to be_in_progress
+      expect(poll_session.reload).to be_draft
+
+      get school_poll_path(poll)
+      expect(response.body).to include("전교투표 진행 현황", "현재까지 종료된 학급 결과")
+      expect(response.body).not_to include(close_school_poll_path(poll))
+
+      Polls::StartSession.new(actor: teacher, poll_session: poll_session).call
+      poll_session.poll_participants.each do |participant|
+        create(:poll_participation, poll_participant: participant, status: :absent)
+      end
+      current = poll_session.poll_progress.current_poll_participant
+      Polls::CloseSession.new(
+        actor: teacher,
+        poll_session: poll_session,
+        expected_current_poll_participant_id: current.id
+      ).call
+
+      post close_school_poll_path(poll)
+      expect(response).to redirect_to(school_poll_path(poll))
+      expect(poll.reload).to be_closed
+
+      get school_poll_path(poll)
+      expect(response.body).to include("전교투표 최종 결과")
+      expect(response.body).not_to include(
+        start_school_poll_path(poll),
+        close_school_poll_path(poll),
+        "학급 배정"
+      )
+    end
+
+    it "allows the same-School manager and rejects direct requests from other teachers" do
+      school = create(:school)
+      manager = create(:user)
+      create(:school_membership, :manager, school: school, user: manager)
+      poll, = create_startable_schoolwide_poll(school: school, actor: manager)
+      sign_in manager
+      post start_school_poll_path(poll)
+      expect(poll.reload).to be_in_progress
+
+      another_poll, = create_startable_schoolwide_poll(
+        school: create(:school),
+        actor: create(:user, :admin)
+      )
+      [create(:user), manager].each do |actor|
+        sign_out manager
+        sign_in actor
+        post start_school_poll_path(another_poll)
+        expect(another_poll.reload).to be_draft
+      end
+    end
+
+    it "creates survey Schoolwide Polls and displays the new terminology" do
+      school = create(:school)
+      admin = create(:user, :admin)
+      sign_in admin
+
+      post school_polls_path, params: {
+        school_id: school.id,
+        poll: { title: "학교 만족도", kind: "survey" }
+      }
+
+      poll = Poll.order(:created_at).last
+      expect(poll).to be_survey
+      get school_poll_path(poll)
+      expect(response.body).to include("설문조사", "설문 문항", "선택지")
     end
   end
 
@@ -463,6 +577,19 @@ RSpec.describe "School Poll management", type: :request do
         }
       end.not_to change(PollSession, :count)
       expect(response).to have_http_status(:not_found)
+    end
+
+    it "rejects Classroom assignment after the Schoolwide Poll starts" do
+      school = create(:school)
+      classroom = create_eligible_classroom(school: school, teacher: create(:user))
+      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      poll.update!(status: :in_progress, started_at: Time.current)
+      sign_in create(:user, :admin)
+
+      expect do
+        post school_poll_poll_sessions_path(poll), params: { classroom_ids: [classroom.id] }
+      end.not_to change(PollSession, :count)
+      expect(flash[:alert]).to include("준비 상태")
     end
   end
 end

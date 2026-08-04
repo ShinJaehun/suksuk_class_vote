@@ -57,6 +57,7 @@ module Polls
     end
 
     def validate_locked_start
+      validate_parent_poll_status
       status_check = Polls::SessionStatusCheck.new(poll_session: poll_session).call
       errors.concat(status_check.issues) unless status_check.startable?
       errors << "draft 상태의 투표 실행만 시작할 수 있습니다." unless poll_session.draft?
@@ -65,6 +66,16 @@ module Polls
       errors << "이 투표 실행을 운영할 권한이 없습니다." unless authorized_actor?
       errors << "운영자 이름을 저장할 수 없습니다." if operator_name_snapshot.blank?
       errors << "이미 실행 기록이 생성된 투표 실행입니다." if execution_records_exist?
+    end
+
+    def validate_parent_poll_status
+      return unless poll&.school_managed?
+
+      if poll.draft?
+        errors << "아직 전교투표가 시작되지 않았습니다."
+      elsif !poll.in_progress?
+        errors << "진행 중인 전교투표의 학급 투표만 시작할 수 있습니다."
+      end
     end
 
     def validate_poll_definition

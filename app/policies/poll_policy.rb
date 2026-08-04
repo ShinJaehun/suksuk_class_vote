@@ -25,6 +25,14 @@ class PollPolicy < ApplicationPolicy
     admin? || manages_school?(record.school_id)
   end
 
+  def school_start?
+    school_show?
+  end
+
+  def school_close?
+    school_show?
+  end
+
   def update?
     admin? || owner?
   end

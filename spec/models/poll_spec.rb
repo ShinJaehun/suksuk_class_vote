@@ -121,13 +121,20 @@ RSpec.describe Poll, type: :model do
       expect(poll).to be_election
     end
 
-    it "supports discussion and debate kinds" do
+    it "supports discussion, debate, and survey kinds without changing existing values" do
       discussion = build(:poll, :discussion)
       debate = build(:poll, :debate)
+      survey = build(:poll, kind: :survey)
 
       expect(discussion).to be_discussion
       expect(debate).to be_debate
-      expect(Poll.kinds).to include("discussion" => 10, "debate" => 20)
+      expect(survey).to be_survey
+      expect(Poll.kinds).to include(
+        "election" => 0,
+        "discussion" => 10,
+        "debate" => 20,
+        "survey" => 30
+      )
     end
   end
 
@@ -135,7 +142,8 @@ RSpec.describe Poll, type: :model do
     it "returns poll labels" do
       poll = build(:poll)
 
-      expect(poll.activity_label).to eq("학급선거")
+      expect(poll.activity_label).to eq("선거")
+      expect(poll.contest_label).to eq("선거 항목")
       expect(poll.choice_label).to eq("후보자")
       expect(poll.choice_list_label).to eq("후보자")
       expect(poll.choice_number_label).to eq("기호")
@@ -146,7 +154,8 @@ RSpec.describe Poll, type: :model do
     it "returns discussion labels" do
       poll = build(:poll, :discussion)
 
-      expect(poll.activity_label).to eq("학급토의")
+      expect(poll.activity_label).to eq("토의")
+      expect(poll.contest_label).to eq("토의 주제")
       expect(poll.choice_label).to eq("의견")
       expect(poll.choice_list_label).to eq("의견")
       expect(poll.choice_number_label).to eq("번호")
@@ -157,12 +166,57 @@ RSpec.describe Poll, type: :model do
     it "returns debate labels" do
       poll = build(:poll, :debate)
 
-      expect(poll.activity_label).to eq("학급토론")
+      expect(poll.activity_label).to eq("토론")
+      expect(poll.contest_label).to eq("토론 쟁점")
       expect(poll.choice_label).to eq("입장")
       expect(poll.choice_list_label).to eq("입장")
       expect(poll.choice_number_label).to eq("번호")
       expect(poll.winner_label).to eq("가장 많이 선택된 입장")
       expect(poll.vote_count_label).to eq("선택 수")
+    end
+
+    it "returns survey labels" do
+      poll = build(:poll, kind: :survey)
+
+      expect(poll.activity_label).to eq("설문조사")
+      expect(poll.contest_label).to eq("설문 문항")
+      expect(poll.choice_label).to eq("선택지")
+      expect(poll.choice_number_label).to eq("번호")
+      expect(poll.vote_count_label).to eq("응답 수")
+    end
+  end
+
+  describe "Schoolwide lifecycle timestamps" do
+    let(:school_poll) do
+      build(
+        :poll,
+        school: create(:school),
+        school_managed: true,
+        participant_group: nil
+      )
+    end
+
+    it "requires consistent timestamps for in-progress and closed Schoolwide Polls" do
+      school_poll.status = :in_progress
+      expect(school_poll).to be_invalid
+
+      school_poll.started_at = Time.current
+      expect(school_poll).to be_valid
+
+      school_poll.status = :closed
+      expect(school_poll).to be_invalid
+
+      school_poll.closed_at = school_poll.started_at - 1.minute
+      expect(school_poll).to be_invalid
+
+      school_poll.closed_at = school_poll.started_at + 1.minute
+      expect(school_poll).to be_valid
+    end
+
+    it "does not apply the strict lifecycle contract to legacy Polls" do
+      poll = build(:poll, status: :in_progress, started_at: nil)
+
+      expect(poll).to be_valid
     end
   end
 
