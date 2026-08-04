@@ -8,6 +8,8 @@ module Polls
       :absent_count,
       :abstained_count,
       :pending_count,
+      :partial_count,
+      :contest_completion_count,
       keyword_init: true
     ) do
       def valid?
@@ -23,7 +25,7 @@ module Polls
       end
 
       def closable?
-        progress_valid? && pending_count.zero?
+        progress_valid? && pending_count.zero? && partial_count.zero?
       end
     end
 
@@ -53,7 +55,7 @@ module Polls
 
     private
 
-    attr_reader :poll_session, :issues, :participants, :participations
+    attr_reader :poll_session, :issues, :participants, :participations, :completions
 
     def phase
       poll_session&.status&.to_sym
@@ -62,10 +64,21 @@ module Polls
     def collect_counts
       @participants = poll_session&.poll_participants&.to_a || []
       @participations = participants.filter_map(&:poll_participation)
+      @completions = PollContestCompletion
+        .where(poll_participant_id: participants.map(&:id))
+        .includes(:poll_contest)
+        .to_a
       @completed_count = participations.count(&:completed?)
       @absent_count = participations.count(&:absent?)
       @abstained_count = participations.count(&:abstained?)
       @pending_count = participants.size - participations.size
+      @contest_completion_count = completions.size
+      completion_counts = completions.group_by(&:poll_participant_id).transform_values(&:size)
+      contest_count = poll_session&.poll&.poll_contests&.size.to_i
+      @partial_count = participants.count do |participant|
+        count = completion_counts.fetch(participant.id, 0)
+        participant.poll_participation.blank? && count.positive? && count < contest_count
+      end
     end
 
     def check_draft
@@ -153,6 +166,8 @@ module Polls
       if participations.any? { |participation| !participation.status.in?(FINAL_STATUSES) }
         issues << "투표자 처리 상태를 확인해 주세요."
       end
+      check_completion_links
+      check_participation_completions
     end
 
     def check_current_state
@@ -178,7 +193,6 @@ module Polls
       contest_tallies = poll_session.poll_contest_tallies.to_a
       option_tallies_by_option = option_tallies.group_by(&:poll_option_id)
       contest_tallies_by_contest = contest_tallies.group_by(&:poll_contest_id)
-      submitted_ballot_count = completed_count + abstained_count
       issues << "투표 항목이 없습니다." if poll.poll_contests.empty?
 
       poll.poll_contests.each do |contest|
@@ -209,8 +223,33 @@ module Polls
         end
 
         recorded_count = option_rows.sum(&:votes_count) + contest_tally_rows.first.abstentions_count
-        if recorded_count != submitted_ballot_count
+        completion_count = completions.count { |completion| completion.poll_contest_id == contest.id }
+        if recorded_count != completion_count
           issues << "#{contest.title} 항목의 득표 합계와 제출 기록이 일치하지 않습니다."
+        end
+      end
+    end
+
+    def check_completion_links
+      invalid_completion = completions.any? do |completion|
+        completion.poll_contest.poll_id != poll.id
+      end
+      issues << "투표 항목 완료 기록의 실행 정보를 확인해 주세요." if invalid_completion
+    end
+
+    def check_participation_completions
+      contest_count = poll&.poll_contests&.size.to_i
+      counts = completions.group_by(&:poll_participant_id).transform_values(&:size)
+
+      participants.each do |participant|
+        completion_count = counts.fetch(participant.id, 0)
+        participation = participant.poll_participation
+        if participation&.status.in?(%w[completed abstained]) && completion_count != contest_count
+          issues << "완료된 투표자의 투표 항목 제출 기록을 확인해 주세요."
+        elsif participation.blank? && contest_count.positive? && completion_count == contest_count
+          issues << "모든 항목을 제출한 투표자의 참여 기록을 확인해 주세요."
+        elsif participation&.absent? && completion_count.positive?
+          issues << "미참여 투표자의 투표 항목 제출 기록을 확인해 주세요."
         end
       end
     end
@@ -261,6 +300,14 @@ module Polls
       @pending_count
     end
 
+    def partial_count
+      @partial_count
+    end
+
+    def contest_completion_count
+      @contest_completion_count
+    end
+
     def result
       Result.new(
         phase: phase,
@@ -269,7 +316,9 @@ module Polls
         completed_count: completed_count,
         absent_count: absent_count,
         abstained_count: abstained_count,
-        pending_count: pending_count
+        pending_count: pending_count,
+        partial_count: partial_count,
+        contest_completion_count: contest_completion_count
       )
     end
   end

@@ -7,8 +7,8 @@ class PollSessionsController < ApplicationController
         :operator,
         poll: { poll_contests: :poll_options },
         classroom: :students,
-        poll_progress: { current_poll_participant: :poll_participation },
-        poll_participants: :poll_participation,
+        poll_progress: { current_poll_participant: %i[poll_participation poll_contest_completions] },
+        poll_participants: %i[poll_participation poll_contest_completions],
         poll_option_tallies: :poll_option,
         poll_contest_tallies: :poll_contest,
         poll_events: %i[actor poll_participant]
@@ -60,7 +60,9 @@ class PollSessionsController < ApplicationController
     @poll_session = PollSession
       .includes(
         poll: { poll_contests: :poll_options },
-        poll_progress: { current_poll_participant: :poll_participation }
+        poll_progress: {
+          current_poll_participant: %i[poll_participation poll_contest_completions]
+        }
       )
       .find_by!(id: params[:id], poll_id: params[:poll_id])
     authorize @poll_session, :operate?
@@ -181,19 +183,26 @@ class PollSessionsController < ApplicationController
     authorize poll_session, :operate?
     ballot = ballot_params
 
-    result = Polls::SubmitSessionBallot.new(
+    result = Polls::SubmitContestBallot.new(
       actor: current_user,
       poll_session: poll_session,
-      choices: ballot.fetch(:choices, {}),
+      poll_contest_id: ballot[:poll_contest_id],
+      poll_option_id: ballot[:poll_option_id],
+      abstain: ballot[:abstain],
       expected_current_poll_participant_id: ballot[:expected_current_poll_participant_id]
     ).call
 
     broadcast_ballot_screen(poll_session) if result.success?
     broadcast_operation_screen(poll_session) if result.success?
+    success_message = if result.completed?
+                        "투표가 완료되었습니다. 선생님의 안내를 기다려 주세요."
+                      else
+                        "다음 투표 항목으로 이동합니다."
+                      end
     redirect_with_result(
       result,
       ballot_poll_poll_session_path(poll_session.poll, poll_session),
-      "투표가 제출되었습니다. 선생님의 안내를 기다려 주세요."
+      success_message
     )
   end
 
@@ -225,7 +234,9 @@ class PollSessionsController < ApplicationController
   def ballot_params
     params.fetch(:ballot, ActionController::Parameters.new).permit(
       :expected_current_poll_participant_id,
-      choices: {}
+      :poll_contest_id,
+      :poll_option_id,
+      :abstain
     )
   end
 
@@ -303,8 +314,8 @@ class PollSessionsController < ApplicationController
   def broadcast_operation_screen(poll_session)
     poll_session = PollSession
       .includes(
-        poll_progress: { current_poll_participant: :poll_participation },
-        poll_participants: :poll_participation,
+        poll_progress: { current_poll_participant: %i[poll_participation poll_contest_completions] },
+        poll_participants: %i[poll_participation poll_contest_completions],
         poll_events: %i[actor poll_participant]
       )
       .find(poll_session.id)

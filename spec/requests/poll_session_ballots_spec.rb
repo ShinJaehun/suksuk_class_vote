@@ -62,6 +62,12 @@ RSpec.describe "PollSession ballots", type: :request do
     [poll, poll_session, progress, current, waiting, option, tally, operator]
   end
 
+  def create_contest_completions(participant)
+    participant.poll.poll_contests.each do |contest|
+      create(:poll_contest_completion, poll_participant: participant, poll_contest: contest)
+    end
+  end
+
   it "opens and locks the current participant ballot" do
     poll, poll_session, progress, current, waiting, option, tally, operator = create_execution
     sign_in operator
@@ -135,12 +141,20 @@ RSpec.describe "PollSession ballots", type: :request do
     progress.update!(ballot_status: :ballot_open)
     get ballot_poll_poll_session_path(poll, poll_session)
 
+    page = Nokogiri::HTML(response.body)
+
     expect(response.body).to include(
       poll.title,
       "#{current.number}번 #{current.name}",
       option.name,
-      "투표 제출"
+      "투표 진행 1 / 1"
     )
+    expect(
+      page.at_css(
+        "form[action='#{submit_ballot_poll_poll_session_path(poll, poll_session)}'] " \
+        "input[type='submit'][value='제출']"
+      )
+    ).to be_present
   end
 
   it "submits a choice, keeps the completed current, and explicitly advances" do
@@ -151,12 +165,13 @@ RSpec.describe "PollSession ballots", type: :request do
     post submit_ballot_poll_poll_session_path(poll, poll_session), params: {
       ballot: {
         expected_current_poll_participant_id: current.id,
-        choices: { option.poll_contest_id => option.id }
+        poll_contest_id: option.poll_contest_id,
+        poll_option_id: option.id
       }
     }
 
     expect(response).to redirect_to(ballot_poll_poll_session_path(poll, poll_session))
-    expect(flash[:notice]).to include("투표가 제출되었습니다.")
+    expect(flash[:notice]).to include("투표가 완료되었습니다.")
     expect(tally.reload.votes_count).to eq(1)
     expect(current.reload.poll_participation).to be_completed
     expect(waiting.reload.poll_participation).to be_nil
@@ -187,6 +202,66 @@ RSpec.describe "PollSession ballots", type: :request do
       ballot_status: "ballot_open",
       current_poll_participant: waiting
     )
+  end
+
+  it "submits one Contest at a time and resumes from the first incomplete Contest" do
+    poll, poll_session, progress, current, waiting, first_option, first_tally, operator = create_execution
+    first_option.poll_contest.update!(title: "회장")
+    second_contest = create(:poll_contest, poll: poll, title: "부회장", position: 2)
+    second_option = create(:poll_option, poll: poll, poll_contest: second_contest, number: 1, name: "이후보")
+    second_tally = create(
+      :poll_option_tally,
+      poll: poll,
+      poll_session: poll_session,
+      poll_option: second_option
+    )
+    create(
+      :poll_contest_tally,
+      poll: poll,
+      poll_session: poll_session,
+      poll_contest: second_contest
+    )
+    progress.update!(ballot_status: :ballot_open)
+    sign_in operator
+
+    get ballot_poll_poll_session_path(poll, poll_session)
+    expect(response.body).to include("투표 진행 1 / 2", "회장", first_option.name)
+    expect(response.body).not_to include("부회장", second_option.name)
+
+    post submit_ballot_poll_poll_session_path(poll, poll_session), params: {
+      ballot: {
+        expected_current_poll_participant_id: current.id,
+        poll_contest_id: first_option.poll_contest_id,
+        poll_option_id: first_option.id
+      }
+    }
+
+    expect(first_tally.reload.votes_count).to eq(1)
+    expect(current.reload.poll_participation).to be_nil
+    expect(progress.reload).to be_ballot_open
+
+    get ballot_poll_poll_session_path(poll, poll_session)
+    expect(response.body).to include("투표 진행 2 / 2", "부회장", second_option.name)
+    expect(response.body).not_to include(first_option.name)
+
+    post close_ballot_screen_poll_poll_session_path(poll, poll_session)
+    get poll_poll_session_path(poll, poll_session)
+    expect(response.body).to include("투표 진행 중", "1 / 2 항목 완료", "투표 계속하기")
+    expect(response.body).not_to include(">미참여 처리<", ">투표 종료<")
+
+    patch open_ballot_poll_poll_session_path(poll, poll_session)
+    post submit_ballot_poll_poll_session_path(poll, poll_session), params: {
+      ballot: {
+        expected_current_poll_participant_id: current.id,
+        poll_contest_id: second_contest.id,
+        poll_option_id: second_option.id
+      }
+    }
+
+    expect(second_tally.reload.votes_count).to eq(1)
+    expect(current.reload.poll_participation).to be_completed
+    expect(waiting.reload.poll_participation).to be_nil
+    expect(progress.reload).to be_ballot_locked
   end
 
   it "rejects unauthorized access and mismatched Poll parents" do
@@ -311,6 +386,7 @@ RSpec.describe "PollSession ballots", type: :request do
   it "shows a completed current participant and the next participant action" do
     poll, poll_session, progress, current, waiting, option, tally, operator = create_execution
     create(:poll_participation, poll_participant: current, status: :completed)
+    create_contest_completions(current)
     tally.update!(votes_count: 1)
     sign_in operator
 
@@ -351,6 +427,7 @@ RSpec.describe "PollSession ballots", type: :request do
       name: "보기"
     )
     create(:poll_participation, poll_participant: current, status: :completed)
+    create_contest_completions(current)
     tally.update!(votes_count: 1)
     sign_in operator
 
@@ -418,6 +495,7 @@ RSpec.describe "PollSession ballots", type: :request do
   it "shows the explicit close action after the last participant is processed" do
     poll, poll_session, progress, current, waiting, option, tally, operator = create_execution
     create(:poll_participation, poll_participant: current, status: :completed)
+    create_contest_completions(current)
     tally.update!(votes_count: 1)
     create(:poll_participation, poll_participant: waiting, status: :absent)
     sign_in operator
@@ -455,6 +533,7 @@ RSpec.describe "PollSession ballots", type: :request do
       votes_count: 99
     )
     create(:poll_participation, poll_participant: current, status: :completed)
+    create_contest_completions(current)
     create(:poll_participation, poll_participant: waiting, status: :absent)
     closed_at = Time.current
     poll_session.update!(status: :closed, closed_at: closed_at)
@@ -536,6 +615,8 @@ RSpec.describe "PollSession ballots", type: :request do
     )
     create(:poll_participation, poll_participant: current, status: :completed)
     create(:poll_participation, poll_participant: waiting, status: :abstained)
+    create_contest_completions(current)
+    create_contest_completions(waiting)
     closed_at = Time.current
     poll_session.update!(status: :closed, closed_at: closed_at)
     progress.update!(status: :closed, closed_at: closed_at, ballot_status: :ballot_locked)

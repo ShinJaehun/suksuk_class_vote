@@ -97,6 +97,28 @@ RSpec.describe Polls::MarkCurrentSessionParticipantAbsent do
     )
   end
 
+  it "rejects a participant who has started submitting Contests" do
+    poll_session, progress, current, other, operator = create_execution
+    second_contest = create(:poll_contest, poll: poll_session.poll, position: 2)
+    second_option = create(:poll_option, poll: poll_session.poll, poll_contest: second_contest)
+    create(:poll_option_tally, poll: poll_session.poll, poll_session: poll_session, poll_option: second_option)
+    create(:poll_contest_tally, poll: poll_session.poll, poll_session: poll_session, poll_contest: second_contest)
+    create(
+      :poll_contest_completion,
+      poll_participant: current,
+      poll_contest: poll_session.poll.default_poll_contest
+    )
+    poll_session.poll_option_tallies.order(:poll_option_id).first.update!(votes_count: 1)
+
+    result = described_class.new(actor: operator, poll_session: poll_session).call
+
+    expect(result).not_to be_success
+    expect(result.error_message).to include("남은 투표 항목을 먼저 완료")
+    expect(current.reload.poll_participation).to be_nil
+    expect(other.reload.poll_participation).to be_nil
+    expect(progress.reload.current_poll_participant).to eq(current)
+  end
+
   it "rejects non-running sessions and unauthorized actors" do
     poll_session, progress, current, other, operator = create_execution
     other_teacher = create(:user)

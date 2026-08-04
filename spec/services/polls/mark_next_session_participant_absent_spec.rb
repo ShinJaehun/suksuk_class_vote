@@ -20,6 +20,11 @@ RSpec.describe Polls::MarkNextSessionParticipantAbsent do
     next_participant = create(:poll_participant, poll: poll, poll_session: poll_session, number: 2, name: "서코")
     following = create(:poll_participant, poll: poll, poll_session: poll_session, number: 3, name: "보기")
     create(:poll_participation, poll_participant: current, status: :completed)
+    create(
+      :poll_contest_completion,
+      poll_participant: current,
+      poll_contest: poll.default_poll_contest
+    )
     create(:poll_option_tally, poll: poll, poll_session: poll_session, poll_option: option, votes_count: 1)
     create(
       :poll_contest_tally,

@@ -20,6 +20,11 @@ RSpec.describe Polls::AdvanceSessionParticipant do
     skipped = create(:poll_participant, poll: poll, poll_session: poll_session, number: 2)
     next_participant = create(:poll_participant, poll: poll, poll_session: poll_session, number: 3)
     create(:poll_participation, poll_participant: current, status: :completed)
+    create(
+      :poll_contest_completion,
+      poll_participant: current,
+      poll_contest: poll.default_poll_contest
+    )
     create(:poll_participation, poll_participant: skipped, status: :absent)
     create(:poll_option_tally, poll: poll, poll_session: poll_session, poll_option: option, votes_count: 1)
     create(
@@ -83,6 +88,11 @@ RSpec.describe Polls::AdvanceSessionParticipant do
   it "keeps the final current participant when no next participant remains" do
     poll_session, progress, current, next_participant, operator = create_execution
     create(:poll_participation, poll_participant: next_participant, status: :completed)
+    create(
+      :poll_contest_completion,
+      poll_participant: next_participant,
+      poll_contest: poll_session.poll.default_poll_contest
+    )
 
     result = advance(poll_session, current, operator)
 
@@ -91,6 +101,22 @@ RSpec.describe Polls::AdvanceSessionParticipant do
       current_poll_participant: current,
       ballot_status: "ballot_locked"
     )
+  end
+
+  it "rejects advancing a partially completed participant" do
+    poll_session, progress, current, next_participant, operator = create_execution
+    current.poll_participation.destroy!
+    second_contest = create(:poll_contest, poll: poll_session.poll, position: 2)
+    second_option = create(:poll_option, poll: poll_session.poll, poll_contest: second_contest)
+    create(:poll_option_tally, poll: poll_session.poll, poll_session: poll_session, poll_option: second_option)
+    create(:poll_contest_tally, poll: poll_session.poll, poll_session: poll_session, poll_contest: second_contest)
+
+    result = advance(poll_session, current, operator)
+
+    expect(result).not_to be_success
+    expect(result.error_message).to include("남은 투표 항목을 먼저 완료")
+    expect(progress.reload.current_poll_participant).to eq(current)
+    expect(next_participant.reload.poll_participation).to be_nil
   end
 
   it "allows a global admin and rejects another teacher" do

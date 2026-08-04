@@ -419,10 +419,15 @@ PollParticipant snapshot으로 만들고 PollProgress, option/contest tally, `po
 같은 session에 연결한다. PollParticipation은 시작 시 만들지 않으며 Poll 정의 status도 변경하지
 않는다. 시작 시 첫 snapshot 학생을 current로 지정하고 ballot은 잠근다. 고정된 학생 투표 창을 연
 뒤 operator 또는 global admin이 현재 학생의 ballot을 명시적으로 열고 잠글 수 있다. 열린 ballot은
-각 contest의 PollOption을 하나씩 검증한 뒤 PollSession별 count-only tally를 transaction과 row lock
-안에서 증가시키고 completed participation을 만든다. 성공하면 ballot을 잠그고 current를 유지한다.
+`position`, `id` 순서의 첫 미완료 PollContest 하나만 표시하고 선택 또는 해당 항목 기권을 제출한다.
+각 제출은 PollSession별 count-only tally 증가와 `PollContestCompletion` 생성을 같은 transaction과
+row lock 안에서 처리한다. completion은 Contest 제출 완료 사실만 저장하며 선택한 PollOption은 저장하지
+않는다. 일부 항목 제출 뒤 다시 접속하면 다음 미완료 Contest부터 이어지고, 모든 Contest를 완료한
+시점에만 completed participation을 만들고 ballot을 잠근다.
 교사는 현재 학생을 미참여로 확정하거나, 처리된 current를 유지한 상태에서 다음 미처리 학생을
 number/id 순서로 명시적으로 지정한다. 자동 다음 학생 전환과 자동 종료는 의도적으로 사용하지 않으며,
+부분 완료 학생은 남은 항목을 마칠 때까지 미참여·다음 학생·Session 종료를 할 수 없다. 제출한 Contest의
+개별 취소, tally 차감과 학생별 재투표는 지원하지 않는다.
 마지막 학생까지 확정된 뒤 교사가 session을 명시적으로 종료한다. 종료 화면은 현재
 `poll_session_id`에 속한 tally와 시작 당시 PollParticipant snapshot만으로 결과와 투표자 명단을
 표시하고 개인별 선택 row는 저장하거나 표시하지 않는다. 교사 operation 화면과 고정 이름의 학생
@@ -431,6 +436,7 @@ in_progress, closed 단계의 정의·snapshot·진행·집계 무결성을 확�
 미참여·다음 학생·종료 service가 해당 조건으로 잘못된 action을 차단한다. 기존 ParticipantGroup 기반
 `Polls::Start`와 legacy 직접 실행 route는 그대로 유지한다. 신규 PollSession의 중단·stopped 이력·
 replacement session·재투표는 아직 구현되지 않았다.
+PollOption 후보 사진은 후속 작업이다.
 
 Classroom·Student 관리 UI는 role 기반 Classroom scope와 일반 페이지 CRUD를 제공한다. admin은 모든
 학교, manager는 소속 학교, 일반 teacher는 자신이 담임인 Classroom과 학생 명단만 관리한다. Student는

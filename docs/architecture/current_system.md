@@ -131,8 +131,10 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - 다음 참여자 이동/투표 종료 요청도 현재 참여자 id를 포함하고, service가 lock 이후 현재 참여자를 재확인해 늦게 도착한 운영 요청을 거부
 - 투표 화면과 운영 액션 버튼에 Turbo submit 중 문구를 적용해 중복 클릭으로 인한 혼란 완화
 - 교사 승인형 ballot 흐름 추가: 투표 시작 직후 ballot은 locked이며, 교사가 현재/다음 투표자 버튼을 눌러야 해당 학생 ballot이 열린다.
-- 학생 투표 화면은 후보 선택과 기권만 제공하고, 미참여 처리와 다음 투표자 이동은 교사 투표 정보 화면에서만 제공
-- 학생이 후보 선택 또는 기권을 완료하면 ballot은 다시 locked 상태가 되고, 교사 화면에는 완료 상태와 다음 투표자 진행 버튼을 표시
+- 학생 투표 화면은 PollContest별로 현재 항목 하나의 선택 또는 기권만 제출하며, 다음 미완료 항목부터 이어서 진행
+- `PollContestCompletion`은 항목 제출 완료 사실만 저장하고 학생이 선택한 PollOption은 저장하지 않음
+- 모든 PollContest를 완료한 시점에만 completed participation을 만들고 ballot을 다시 locked 상태로 전환
+- 부분 완료 학생은 남은 항목을 마칠 때까지 미참여 처리, 다음 투표자 이동과 PollSession 종료를 차단
 - 상태 점검 카드의 표시용 투표 완료 수는 `completed + abstained`이며, 기권 항목은 별도로 표시하지 않음
 - 학생 submit/기권/미참여/다음 투표자 진행 직후 투표 진행, 운영 기록, 상태 점검 카드가 Turbo로 갱신됨
 - `Polls::Close`가 `closed` 전환 직전에 참여 처리 수, count-only tally 합계, 선택지/tally row 대응, 다른 투표 선택지 연결, 음수 득표수를 검증
@@ -164,7 +166,7 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - 신규 ElectionSession은 Classroom 기반이며 기존 운영 데이터는 전환 기간 동안 ParticipantGroup 기반을 유지할 수 있는 dual-source 구조 구현
 - PollSession foundation과 실행 기록의 nullable `poll_session_id` 연결 구현: 신규 기록은 `poll_id`와 `poll_session_id`를 함께, legacy 기록은 `poll_session_id = NULL`로 유지
 - 신규 Poll 정의와 최초 draft PollSession 동시 생성, 시작 시 active Student의 PollParticipant snapshot 생성 구현
-- PollSession의 고정 학생 투표 창, 교사 ballot open 승인, 학생 제출, count-only tally·participation 기록, 미참여 처리와 명시적 다음 학생 진행 구현
+- PollSession의 고정 학생 투표 창, 교사 ballot open 승인, Contest별 단계 제출과 복구, count-only tally·완료 기록, 미참여 처리와 명시적 다음 학생 진행 구현
 - PollSession 명시적 종료와 현재 Session tally·시작 당시 snapshot 기반 결과/투표자 명단 구현
 - PollSession 교사 operation 화면 Turbo Stream 갱신과 polling fallback 구현
 - `Polls::SessionStatusCheck`의 draft/in_progress/closed 단계 점검과 실제 PollSession action service 차단 연결
@@ -173,9 +175,11 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - 전교투표 parent가 in_progress일 때만 담당 교사가 draft PollSession을 시작하도록 제한
 
 현재 PollSession 흐름은 교사 시작 → active Student snapshot과 첫 current 지정 → ballot locked → 학생
-투표 창 → 교사 승인으로 ballot open → 학생 제출과 tally/participation 기록 → ballot locked → 교사의
+투표 창 → 교사 승인으로 ballot open → Contest별 제출과 tally/completion 기록 → 모든 Contest 완료 뒤
+participation 기록과 ballot locked → 교사의
 명시적 다음 학생 지정 → 반복 → 교사의 명시적 종료 순서다. 자동 다음 학생 전환과 자동 종료는
-의도적으로 사용하지 않는다. 개인별 학생 선택은 저장하거나 표시하지 않는다.
+의도적으로 사용하지 않는다. 개인별 학생 선택은 저장하거나 표시하지 않는다. 부분 완료는 다음 미완료
+Contest부터 복구하며 완료한 Contest의 취소·개별 재투표는 지원하지 않는다. 후보 사진은 후속 작업이다.
 
 일반 학급투표 생성은 Poll과 최초 PollSession을 만들고, 전교투표는 Poll 정의를 만든 뒤 여러
 Classroom Session을 배정한다. 신규/legacy runtime 서버 측 분리, PollSession 중단·stopped

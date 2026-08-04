@@ -64,7 +64,11 @@ module Polls
       errors << "현재 학생이 없습니다." if current_participant.blank?
       errors << "현재 학생이 이 투표 실행에 속하지 않습니다." unless current_belongs_to_session?(current_participant)
       errors << "현재 학생이 변경되었습니다. 화면을 새로고침해 주세요." unless expected_current?(current_participant)
-      errors << "현재 학생의 처리가 끝나지 않았습니다." unless final_participation?(current_participant)
+      if current_participant&.partial_ballot?
+        errors << "이 학생은 투표를 진행 중입니다. 남은 투표 항목을 먼저 완료해 주세요."
+      elsif !final_participation?(current_participant)
+        errors << "현재 학생의 처리가 끝나지 않았습니다."
+      end
       errors << "이 투표 실행을 운영할 권한이 없습니다." unless authorized_actor?
     end
 

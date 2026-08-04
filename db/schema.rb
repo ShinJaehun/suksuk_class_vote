@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_04_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_04_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -230,6 +230,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_04_000000) do
     t.index ["participant_group_id"], name: "index_participant_slots_on_participant_group_id"
   end
 
+  create_table "poll_contest_completions", force: :cascade do |t|
+    t.datetime "completed_at", null: false
+    t.datetime "created_at", null: false
+    t.bigint "poll_contest_id", null: false
+    t.bigint "poll_participant_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["poll_contest_id"], name: "index_poll_contest_completions_on_poll_contest_id"
+    t.index ["poll_participant_id", "poll_contest_id"], name: "idx_poll_contest_completions_participant_contest", unique: true
+    t.index ["poll_participant_id"], name: "index_poll_contest_completions_on_poll_participant_id"
+  end
+
   create_table "poll_contest_tallies", force: :cascade do |t|
     t.integer "abstentions_count", default: 0, null: false
     t.datetime "created_at", null: false
@@ -445,6 +456,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_04_000000) do
   add_foreign_key "participant_groups", "schools"
   add_foreign_key "participant_groups", "users"
   add_foreign_key "participant_slots", "participant_groups"
+  add_foreign_key "poll_contest_completions", "poll_contests"
+  add_foreign_key "poll_contest_completions", "poll_participants"
   add_foreign_key "poll_contest_tallies", "poll_contests"
   add_foreign_key "poll_contest_tallies", "poll_sessions"
   add_foreign_key "poll_contest_tallies", "polls"

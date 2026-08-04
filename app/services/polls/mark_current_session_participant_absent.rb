@@ -64,6 +64,9 @@ module Polls
       if current_participant&.poll_participation.present?
         errors << "현재 학생은 이미 처리되었습니다."
       end
+      if current_participant&.poll_contest_completions&.exists?
+        errors << "이 학생은 투표를 진행 중입니다. 남은 투표 항목을 먼저 완료해 주세요."
+      end
       errors << "이 투표 실행을 운영할 권한이 없습니다." unless authorized_actor?
     end
 

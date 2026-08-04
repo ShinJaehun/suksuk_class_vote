@@ -31,6 +31,7 @@ RSpec.describe Polls::SessionStatusCheck do
   def complete_participant(poll_session, participant)
     create(:poll_participation, poll_participant: participant, status: :completed)
     poll_session.poll.poll_contests.each do |contest|
+      create(:poll_contest_completion, poll_participant: participant, poll_contest: contest)
       option = contest.poll_options.order(:number, :id).first
       tally = poll_session.poll_option_tallies.find_by!(poll_option: option)
       tally.update!(votes_count: tally.votes_count + 1)
@@ -196,6 +197,109 @@ RSpec.describe Polls::SessionStatusCheck do
     expect(result.issues).to include(
       "#{poll_session.poll.default_poll_contest.title} 항목의 득표 합계와 제출 기록이 일치하지 않습니다."
     )
+  end
+
+  it "tracks a valid partial ballot and matches each Contest completion to its tally" do
+    poll_session, operator = build_draft
+    second_contest = create(:poll_contest, poll: poll_session.poll, position: 2)
+    create(:poll_option, poll: poll_session.poll, poll_contest: second_contest, number: 1)
+    create(:poll_option, poll: poll_session.poll, poll_contest: second_contest, number: 2)
+    start_session(poll_session, operator)
+    participant = poll_session.poll_progress.current_poll_participant
+    first_contest = poll_session.poll.poll_contests.order(:position, :id).first
+    first_option = first_contest.poll_options.order(:number, :id).first
+    create(:poll_contest_completion, poll_participant: participant, poll_contest: first_contest)
+    poll_session.poll_option_tallies.find_by!(poll_option: first_option).update!(votes_count: 1)
+
+    result = described_class.new(poll_session: poll_session.reload).call
+
+    expect(result).to be_progress_valid
+    expect(result).not_to be_closable
+    expect(result).to have_attributes(partial_count: 1, contest_completion_count: 1)
+
+    poll_session.poll_option_tallies.find_by!(poll_option: first_option).update!(votes_count: 2)
+    mismatch = described_class.new(poll_session: poll_session.reload).call
+    expect(mismatch.issues).to include(
+      "#{first_contest.title} 항목의 득표 합계와 제출 기록이 일치하지 않습니다."
+    )
+  end
+
+  it "detects terminal Participation and completion consistency errors" do
+    poll_session, operator = build_draft
+    second_contest = create(:poll_contest, poll: poll_session.poll, position: 2)
+    create(:poll_option, poll: poll_session.poll, poll_contest: second_contest, number: 1)
+    create(:poll_option, poll: poll_session.poll, poll_contest: second_contest, number: 2)
+    start_session(poll_session, operator)
+    participant = poll_session.poll_progress.current_poll_participant
+    contests = poll_session.poll.poll_contests.order(:position, :id).to_a
+    create(:poll_participation, poll_participant: participant, status: :completed)
+    create(:poll_contest_completion, poll_participant: participant, poll_contest: contests.first)
+
+    partial_terminal = described_class.new(poll_session: poll_session.reload).call
+    expect(partial_terminal.issues).to include(
+      "완료된 투표자의 투표 항목 제출 기록을 확인해 주세요."
+    )
+
+    participant.poll_participation.destroy!
+    create(:poll_contest_completion, poll_participant: participant, poll_contest: contests.second)
+    all_without_participation = described_class.new(poll_session: poll_session.reload).call
+    expect(all_without_participation.issues).to include(
+      "모든 항목을 제출한 투표자의 참여 기록을 확인해 주세요."
+    )
+  end
+
+  it "accepts a backfilled historical abstained Participation as terminal" do
+    poll_session, operator = build_draft
+    start_session(poll_session, operator)
+    participant = poll_session.poll_progress.current_poll_participant
+    contest = poll_session.poll.default_poll_contest
+    create(:poll_participation, poll_participant: participant, status: :abstained)
+    create(:poll_contest_completion, poll_participant: participant, poll_contest: contest)
+    poll_session.poll_contest_tallies.find_by!(poll_contest: contest)
+      .update!(abstentions_count: 1)
+
+    result = described_class.new(poll_session: poll_session.reload).call
+
+    expect(result).to be_progress_valid
+    expect(result).to be_closable
+  end
+
+  it "excludes completions belonging to another Session participant" do
+    poll_session, operator = build_draft
+    start_session(poll_session, operator)
+    other_teacher = create(:user)
+    create(:school_membership, school: poll_session.poll.school, user: other_teacher)
+    other_classroom = create(:classroom, school: poll_session.poll.school, teacher: other_teacher)
+    other_session = create(
+      :poll_session,
+      poll: poll_session.poll,
+      classroom: other_classroom,
+      operator: other_teacher,
+      status: :stopped,
+      stopped_at: Time.current
+    )
+    other_participant = create(
+      :poll_participant,
+      poll: poll_session.poll,
+      poll_session: other_session,
+      source_participant_slot: nil
+    )
+    create(
+      :poll_contest_completion,
+      poll_participant: other_participant,
+      poll_contest: poll_session.poll.default_poll_contest
+    )
+    other_poll_participant = create(:poll_participant)
+    create(
+      :poll_contest_completion,
+      poll_participant: other_poll_participant,
+      poll_contest: other_poll_participant.poll.default_poll_contest
+    )
+
+    result = described_class.new(poll_session: poll_session.reload).call
+
+    expect(result).to have_attributes(partial_count: 0, contest_completion_count: 0)
+    expect(result).to be_progress_valid
   end
 
   it "reports valid and invalid closed sessions" do

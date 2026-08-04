@@ -7,6 +7,9 @@ RSpec.describe Polls::CloseSession do
     current = progress.current_poll_participant
     poll_session.poll_participants.each do |participant|
       create(:poll_participation, poll_participant: participant, status: :completed)
+      poll_session.poll.poll_contests.each do |contest|
+        create(:poll_contest_completion, poll_participant: participant, poll_contest: contest)
+      end
     end
     poll_session.poll_option_tallies.order(:poll_option_id).first.update!(
       votes_count: poll_session.poll_participants.count
@@ -34,6 +37,9 @@ RSpec.describe Polls::CloseSession do
     progress = poll_session.poll_progress
     current = progress.current_poll_participant
     create(:poll_participation, poll_participant: current, status: :completed)
+    poll_session.poll.poll_contests.each do |contest|
+      create(:poll_contest_completion, poll_participant: current, poll_contest: contest)
+    end
 
     result = described_class.new(
       actor: operator,
@@ -46,6 +52,31 @@ RSpec.describe Polls::CloseSession do
     expect(poll_session.reload).to be_in_progress
     expect(poll_session.closed_at).to be_nil
     expect(progress.reload).to be_active
+  end
+
+  it "does not close while the current participant has a partial ballot" do
+    poll_session, operator = create_started_poll_session
+    current = poll_session.poll_progress.current_poll_participant
+    second_contest = create(:poll_contest, poll: poll_session.poll, position: 2)
+    second_option = create(:poll_option, poll: poll_session.poll, poll_contest: second_contest)
+    create(:poll_option_tally, poll: poll_session.poll, poll_session: poll_session, poll_option: second_option)
+    create(:poll_contest_tally, poll: poll_session.poll, poll_session: poll_session, poll_contest: second_contest)
+    create(
+      :poll_contest_completion,
+      poll_participant: current,
+      poll_contest: poll_session.poll.default_poll_contest
+    )
+    poll_session.poll_option_tallies.order(:poll_option_id).first.update!(votes_count: 1)
+
+    result = described_class.new(
+      actor: operator,
+      poll_session: poll_session,
+      expected_current_poll_participant_id: current.id
+    ).call
+
+    expect(result).not_to be_success
+    expect(result.error_message).to include("남은 투표 항목을 먼저 완료")
+    expect(poll_session.reload).to be_in_progress
   end
 
   def create_started_poll_session
