@@ -11,24 +11,51 @@ RSpec.describe "Polls", type: :request do
       expect(response).to redirect_to(new_user_session_path)
     end
 
-    it "allows teachers to view polls" do
+    it "shows a PollSession operated by the teacher" do
       teacher = create(:user, name: "4-11", email: "teacher411@example.com")
-      create(:poll, user: teacher, title: "담당 표시 투표")
+      school = create(:school)
+      create(:school_membership, school: school, user: teacher)
+      classroom = create(:classroom, school: school, teacher: teacher)
+      poll = create(
+        :poll,
+        user: teacher,
+        school: school,
+        participant_group: nil,
+        title: "담당 표시 투표"
+      )
+      poll_session = create(
+        :poll_session,
+        poll: poll,
+        classroom: classroom,
+        operator: teacher
+      )
       sign_in teacher
 
       get polls_path
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("투표")
-      expect(response.body).to include("담당 표시 투표")
-      expect(response.body).not_to include("담당 교사:")
-      expect(response.body).to include("4학년 1반")
+      expect(response.body).to include(poll.title)
+      expect(response.body).to include(poll_session.classroom_name_snapshot)
+      expect(response.body).to include("실행 전")
+      expect(response.body).to include(poll_poll_session_path(poll, poll_session))
     end
 
-    it "hides archived polls from the default list" do
+    it "hides archived Sessions from the default list" do
       teacher = create(:user)
-      active_poll = create(:poll, user: teacher, title: "진행할 투표")
-      archived_poll = create(:poll, user: teacher, title: "지난 학급 선거", status: :closed, archived_at: Time.current)
+      school = create(:school)
+      create(:school_membership, school: school, user: teacher)
+      classroom = create(:classroom, school: school, teacher: teacher)
+      active_poll = create(:poll, school: school, participant_group: nil, title: "진행할 투표")
+      archived_poll = create(:poll, school: school, participant_group: nil, title: "지난 학급 선거")
+      create(:poll_session, poll: active_poll, classroom: classroom, operator: teacher)
+      create(
+        :poll_session,
+        poll: archived_poll,
+        classroom: classroom,
+        operator: teacher,
+        status: :closed,
+        archived_at: Time.current
+      )
       sign_in teacher
 
       get polls_path
@@ -43,7 +70,6 @@ RSpec.describe "Polls", type: :request do
       other_teacher = create(:user)
       participant_group = create(:participant_group, :school_election, user: teacher, name: "4학년 1반")
       create(:participant_slot, participant_group: participant_group)
-      poll = create(:poll, user: teacher, title: "기존 투표")
       election_session = create(
         :election_session,
         election: create(:election, title: "학급 회장 선거", status: :in_progress),
@@ -61,7 +87,6 @@ RSpec.describe "Polls", type: :request do
       get polls_path
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include(poll.title)
       expect(response.body).to include(election_session.election.title)
       expect(response.body).to include(elections_session_path(election_session))
       expect(response.body).to include("선거")
@@ -194,38 +219,124 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include("집계된 선거")
     end
 
-    it "shows voter counts from participant slots for draft polls and snapshots for started polls" do
+    it "shows only Sessions operated by the current user, including School Poll Sessions" do
+      school = create(:school)
       teacher = create(:user)
-      draft_group = create(:participant_group, user: teacher, name: "테스트3")
-      create(:participant_slot, participant_group: draft_group, number: 1)
-      create(:participant_slot, participant_group: draft_group, number: 2)
-      create(:participant_slot, participant_group: draft_group, number: 3)
-      draft_poll = create(:poll, user: teacher, title: "준비 투표", participant_group: draft_group)
-
-      in_progress_poll = create(:poll, user: teacher, title: "진행 투표", status: :in_progress)
-      create(:poll_participant, poll: in_progress_poll, teacher: teacher, participant_group: in_progress_poll.participant_group, number: 1)
-      create(:poll_participant, poll: in_progress_poll, teacher: teacher, participant_group: in_progress_poll.participant_group, number: 2)
-
-      stopped_poll = create(:poll, user: teacher, title: "중단 투표", status: :stopped)
-      create(:poll_participant, poll: stopped_poll, teacher: teacher, participant_group: stopped_poll.participant_group, number: 1)
-
-      closed_poll = create(:poll, user: teacher, title: "종료 투표", status: :closed)
-      create(:poll_participant, poll: closed_poll, teacher: teacher, participant_group: closed_poll.participant_group, number: 1)
-      create(:poll_participant, poll: closed_poll, teacher: teacher, participant_group: closed_poll.participant_group, number: 2)
-      create(:poll_participant, poll: closed_poll, teacher: teacher, participant_group: closed_poll.participant_group, number: 3)
-      create(:poll_participant, poll: closed_poll, teacher: teacher, participant_group: closed_poll.participant_group, number: 4)
+      other_teacher = create(:user)
+      create(:school_membership, school: school, user: teacher)
+      create(:school_membership, school: school, user: other_teacher)
+      classroom = create(:classroom, school: school, teacher: teacher)
+      other_classroom = create(:classroom, school: school, teacher: other_teacher)
+      school_poll = create(
+        :poll,
+        school: school,
+        school_managed: true,
+        participant_group: nil,
+        title: "학교 회장 선거"
+      )
+      own_session = create(
+        :poll_session,
+        poll: school_poll,
+        classroom: classroom,
+        operator: teacher,
+        classroom_name_snapshot: "담당 학급"
+      )
+      other_session = create(
+        :poll_session,
+        poll: school_poll,
+        classroom: other_classroom,
+        operator: other_teacher,
+        classroom_name_snapshot: "다른 학급"
+      )
       sign_in teacher
 
       get polls_path
 
-      visible_text = Nokogiri::HTML(response.body).text.squish
-      expect(visible_text).to include("테스트3(투표자 3명)")
-      expect(visible_text).not_to include("담당 교사")
-      expect(visible_text).not_to include("담당 학급")
-      expect(response.body).to match(/#{draft_poll.title}.*투표자 3명/m)
-      expect(response.body).to match(/#{in_progress_poll.title}.*투표자 2명/m)
-      expect(response.body).to match(/#{stopped_poll.title}.*투표자 1명/m)
-      expect(response.body).to match(/#{closed_poll.title}.*투표자 4명/m)
+      expect(response.body).to include(school_poll.title)
+      expect(response.body).to include(own_session.classroom_name_snapshot)
+      expect(response.body).to include(poll_poll_session_path(school_poll, own_session))
+      expect(response.body).not_to include(other_session.classroom_name_snapshot)
+    end
+
+    it "shows only Sessions operated by a School manager" do
+      school = create(:school)
+      manager = create(:user)
+      create(:school_membership, :manager, school: school, user: manager)
+      poll = create(:poll, school: school, participant_group: nil, title: "관리자 운영 투표")
+      own_session = create(
+        :poll_session,
+        poll: poll,
+        classroom: create(:classroom, school: school),
+        operator: manager,
+        classroom_name_snapshot: "관리자 담당 학급"
+      )
+      create(
+        :poll_session,
+        poll: poll,
+        classroom: create(:classroom, school: school),
+        operator: create(:user),
+        classroom_name_snapshot: "다른 담당 학급"
+      )
+      sign_in manager
+
+      get polls_path
+
+      expect(response.body).to include(own_session.classroom_name_snapshot)
+      expect(response.body).not_to include("다른 담당 학급")
+    end
+
+    it "does not show a School Poll definition without an operated Session" do
+      admin = create(:user, :admin)
+      create(
+        :poll,
+        user: admin,
+        school: create(:school),
+        school_managed: true,
+        participant_group: nil,
+        title: "관리 전용 학교투표"
+      )
+      sign_in admin
+
+      get polls_path
+
+      expect(response.body).not_to include("관리 전용 학교투표")
+      expect(response.body).to include("운영할 투표가 없습니다.")
+      expect(response.body).to include(new_poll_path)
+    end
+
+    it "shows every operated Session separately and orders active work first" do
+      admin = create(:user, :admin)
+      school = create(:school)
+      poll = create(:poll, school: school, participant_group: nil, title: "여러 학급 투표")
+      first_classroom = create(:classroom, school: school)
+      second_classroom = create(:classroom, school: school)
+      closed_session = create(
+        :poll_session,
+        poll: poll,
+        classroom: first_classroom,
+        operator: admin,
+        status: :closed,
+        classroom_name_snapshot: "종료 학급"
+      )
+      active_session = create(
+        :poll_session,
+        poll: poll,
+        classroom: second_classroom,
+        operator: admin,
+        status: :in_progress,
+        classroom_name_snapshot: "진행 학급"
+      )
+      sign_in admin
+
+      get polls_path
+
+      expect(response.body.scan(poll.title).size).to eq(2)
+      expect(response.body).to include(
+        poll_poll_session_path(poll, active_session),
+        poll_poll_session_path(poll, closed_session)
+      )
+      expect(response.body.index(active_session.classroom_name_snapshot))
+        .to be < response.body.index(closed_session.classroom_name_snapshot)
     end
   end
 

@@ -3,8 +3,17 @@ class PollsController < ApplicationController
   before_action :set_poll, only: %i[show ballot start open_current_participant_ballot submit_vote record_participation_outcome record_next_participant_absent advance_current_participant resume_current_participant close stop archive destroy]
 
   def index
-    @polls = policy_scope(Poll).active_list.includes(:participant_group, :poll_sessions, :user).order(created_at: :desc)
-    @poll_voter_counts = voter_counts_for(@polls)
+    @poll_sessions = PollSession
+      .where(operator: current_user, archived_at: nil)
+      .includes(:classroom, :operator, :poll)
+      .order(
+        Arel.sql(
+          "CASE poll_sessions.status " \
+          "WHEN 10 THEN 0 WHEN 0 THEN 1 WHEN 20 THEN 2 WHEN 30 THEN 2 ELSE 3 END"
+        ),
+        updated_at: :desc,
+        created_at: :desc
+      )
     @assigned_election_sessions = assigned_election_sessions
     @election_session_voter_counts = election_session_voter_counts_for(@assigned_election_sessions)
     authorize Poll

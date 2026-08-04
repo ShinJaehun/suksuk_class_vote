@@ -207,14 +207,13 @@ RSpec.describe "Poll definition sessions", type: :request do
   end
 
   describe "index compatibility" do
-    it "shows new drafts as pending while preserving legacy Poll detail actions" do
+    it "shows an operated draft Session with its detail link" do
       classroom = create_classroom(
         school: school,
         teacher: teacher,
         grade: 6,
         class_label: "생활교육실"
       )
-      legacy_poll = create(:poll, user: teacher, title: "기존 학급 투표")
       sign_in teacher
       post polls_path, params: poll_params(classroom: classroom)
 
@@ -224,15 +223,13 @@ RSpec.describe "Poll definition sessions", type: :request do
       poll_session = new_poll.poll_sessions.first
       expect(response.body).to include("2026학년도 6학년 생활교육실")
       expect(response.body).to include("실행 전")
-      expect(response.body).to include("투표 시작")
-      expect(response.body).to include(start_poll_poll_session_path(new_poll, poll_session))
-      expect(response.body).not_to include("PollSession 실행 기능 준비 중")
+      expect(response.body).to include("상세")
+      expect(response.body).to include(poll_poll_session_path(new_poll, poll_session))
+      expect(response.body).not_to include(start_poll_poll_session_path(new_poll, poll_session))
       expect(response.body).not_to include(%(href="#{poll_path(new_poll)}"))
-      expect(response.body).to include(legacy_poll.title)
-      expect(response.body).to include(poll_path(legacy_poll))
     end
 
-    it "shows every PollSession state without exposing unfinished runtime links" do
+    it "shows only the current user's operated Session" do
       classroom = create_classroom(school: school, teacher: teacher)
       sign_in teacher
       post polls_path, params: poll_params(classroom: classroom)
@@ -253,11 +250,9 @@ RSpec.describe "Poll definition sessions", type: :request do
 
       expect(response.body).to include(first_session.classroom_name_snapshot)
       expect(response.body).to include("진행 중")
-      expect(response.body).to include("투표 진행 중")
-      expect(response.body).to include("운영 현황")
+      expect(response.body).to include("상세")
       expect(response.body).to include(poll_poll_session_path(poll, first_session))
-      expect(response.body).to include(closed_session.classroom_name_snapshot)
-      expect(response.body).to include("종료")
+      expect(response.body).not_to include(closed_session.classroom_name_snapshot)
       expect(response.body).not_to include(start_poll_poll_session_path(poll, first_session))
       expect(response.body).not_to include(start_poll_poll_session_path(poll, closed_session))
       expect(response.body).not_to include(poll_poll_session_path(poll, closed_session))
