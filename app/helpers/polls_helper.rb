@@ -1,4 +1,10 @@
 module PollsHelper
+  def poll_kind_options
+    Poll::ACTIVITY_LABELS.map do |kind, label|
+      [label, kind]
+    end
+  end
+
   def poll_activity_badge(poll)
     badge(poll.activity_label, poll_activity_badge_class(poll))
   end

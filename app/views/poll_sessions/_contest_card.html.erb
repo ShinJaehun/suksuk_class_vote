@@ -1,0 +1,30 @@
+<%= turbo_frame_tag contest, class: "block rounded-md border border-stone-200 p-4" do %>
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h3 class="font-semibold"><%= contest.position %>. <%= contest.title %></h3>
+    <div class="flex gap-3 text-sm">
+      <%= link_to "#{poll_session.poll.contest_label} 수정",
+                  edit_poll_poll_session_contest_path(poll_session.poll, poll_session, contest),
+                  data: { turbo_frame: dom_id(contest) },
+                  class: "underline" %>
+      <%= button_to "#{poll_session.poll.contest_label} 삭제",
+                    poll_poll_session_contest_path(poll_session.poll, poll_session, contest),
+                    method: :delete,
+                    form: { data: { turbo_stream: true } },
+                    data: { turbo_confirm: "삭제할까요?" },
+                    class: "underline" %>
+    </div>
+  </div>
+  <div class="mt-3 flex items-center justify-between gap-3">
+    <h4 class="text-sm font-medium"><%= poll_session.poll.choice_label %></h4>
+    <%= link_to "#{poll_session.poll.choice_label} 추가",
+                new_poll_poll_session_contest_option_path(poll_session.poll, poll_session, contest),
+                data: { turbo_frame: dom_id(contest, :new_option) },
+                class: "text-sm underline" %>
+  </div>
+  <%= turbo_frame_tag dom_id(contest, :option_list), class: "mt-2 block space-y-1 text-stone-700" do %>
+    <% contest.poll_options.sort_by { |option| [option.number, option.id] }.each do |option| %>
+      <%= render "poll_sessions/option_row", poll_session: poll_session, contest: contest, option: option %>
+    <% end %>
+  <% end %>
+  <%= turbo_frame_tag dom_id(contest, :new_option), class: "mt-3 block" %>
+<% end %>

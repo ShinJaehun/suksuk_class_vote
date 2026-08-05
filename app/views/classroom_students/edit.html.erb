@@ -1,2 +1,2 @@
-<div><h1 class="text-2xl font-semibold">학생 수정</h1><p class="text-sm text-stone-600"><%= @classroom.school_year %>학년도 <%= @classroom.grade %>학년 <%= @classroom.formatted_class_label %></p><%= link_to "학생 관리로 돌아가기", classroom_students_path(@classroom, status: params[:status]), class: "text-sm underline" %></div>
+<div><h1 class="text-2xl font-semibold">학생 수정</h1><p class="text-sm text-stone-600"><%= @classroom.school_year %>학년도 <%= @classroom.grade %>학년 <%= @classroom.formatted_class_label %></p><%= link_to "학생 관리로 돌아가기", classroom_students_path(@classroom, status: params[:status], **student_return_context_params), class: "text-sm underline" %></div>
 <%= render "form", classroom: @classroom, student: @student %>

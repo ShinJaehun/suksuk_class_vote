@@ -182,4 +182,64 @@ RSpec.describe "Classroom students", type: :request do
     expect(student.reload.attributes.slice("classroom_id", "number", "name"))
       .to eq(original_attributes)
   end
+
+  it "preserves a validated PollSession return context across student management" do
+    classroom, teacher = classroom_with_teacher
+    student = create(:student, classroom: classroom, number: 1, name: "기존 학생")
+    poll = create(:poll, user: teacher, school: classroom.school, participant_group: nil)
+    poll_session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
+    context = { return_poll_id: poll.id, return_poll_session_id: poll_session.id }
+    sign_in teacher
+    expect_return_context = lambda do |body|
+      page = Nokogiri::HTML(body)
+
+      expect(page.at_css('input[name="return_poll_id"]')&.[]("value")).to eq(poll.id.to_s)
+      expect(page.at_css('input[name="return_poll_session_id"]')&.[]("value")).to eq(poll_session.id.to_s)
+    end
+
+    get classroom_students_path(classroom, **context)
+    page = Nokogiri::HTML(response.body)
+    expect(page.at_css(%(a[href="#{poll_poll_session_path(poll, poll_session)}"])).text).to include("투표로 돌아가기")
+    expect(response.body).to include("return_poll_id=#{poll.id}", "return_poll_session_id=#{poll_session.id}")
+
+    get new_classroom_student_path(classroom, **context)
+    expect_return_context.call(response.body)
+    get edit_classroom_student_path(classroom, student, status: "all", **context)
+    expect_return_context.call(response.body)
+    get bulk_new_classroom_students_path(classroom, **context)
+    expect_return_context.call(response.body)
+
+    post classroom_students_path(classroom), params: { student: { number: 2, name: "새 학생" }, **context }
+    expect(response).to redirect_to(classroom_students_path(classroom, **context))
+    patch classroom_student_path(classroom, student), params: { student: { number: 1, name: "수정 학생" }, status: "all", **context }
+    expect(response).to redirect_to(classroom_students_path(classroom, status: "all", **context))
+    patch deactivate_classroom_student_path(classroom, student), params: { status: "all", **context }
+    expect(response).to redirect_to(classroom_students_path(classroom, status: "all", **context))
+    patch reactivate_classroom_student_path(classroom, student), params: { status: "all", **context }
+    expect(response).to redirect_to(classroom_students_path(classroom, status: "all", **context))
+    post bulk_create_classroom_students_path(classroom), params: { students: { rows: { "0" => { number: 3, name: "일괄 학생" } } }, **context }
+    expect(response).to redirect_to(classroom_students_path(classroom, **context))
+
+    get poll_poll_session_path(poll, poll_session)
+    expect(response.body).to include("전체 3명", "수정 학생", "새 학생", "일괄 학생")
+  end
+
+  it "ignores invalid and raw return contexts" do
+    classroom, teacher = classroom_with_teacher
+    other_classroom = create(:classroom, school: classroom.school)
+    poll = create(:poll, user: teacher, school: classroom.school, participant_group: nil)
+    same_classroom_session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
+    other_session = create(:poll_session, poll: poll, classroom: other_classroom, operator: teacher)
+    other_poll = create(:poll, user: teacher, school: classroom.school, participant_group: nil)
+    sign_in teacher
+
+    [
+      { return_poll_id: poll.id, return_poll_session_id: other_session.id },
+      { return_poll_id: other_poll.id, return_poll_session_id: same_classroom_session.id },
+      { return_to: "https://example.com" }
+    ].each do |context|
+      get classroom_students_path(classroom, **context)
+      expect(response.body).not_to include("투표로 돌아가기")
+    end
+  end
 end

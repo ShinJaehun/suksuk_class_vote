@@ -3,5 +3,6 @@
   <div><%= form.label :number, "번호", class: "block text-sm font-medium" %><%= form.number_field :number, min: 1, class: "mt-1 w-full rounded-md border-stone-300" %></div>
   <div><%= form.label :name, "이름", class: "block text-sm font-medium" %><%= form.text_field :name, class: "mt-1 w-full rounded-md border-stone-300" %></div>
   <%= hidden_field_tag :status, params[:status] if student.persisted? %>
+  <% student_return_context_params.each do |key, value| %><%= hidden_field_tag key, value %><% end %>
   <%= form.submit student.new_record? ? "학생 등록" : "학생 정보 저장", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
 <% end %>

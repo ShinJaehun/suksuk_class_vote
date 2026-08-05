@@ -91,39 +91,51 @@
         </p>
       </header>
 
-      <% if @poll_session.poll.school_managed? && @poll_session.poll.draft? %>
-        <section class="rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-800"
-                 data-testid="poll-session-status-check">
-          <h2 class="font-semibold">상태 점검: 시작 대기</h2>
-          <p class="mt-2 text-sm">전교투표가 시작되면 이 학급 투표를 시작할 수 있습니다.</p>
+      <% if policy(@poll_session).edit_definition? %>
+        <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm" data-testid="poll-session-definition-form">
+          <h2 class="text-lg font-semibold">투표 기본 정보</h2>
+          <%= form_with model: @poll_session.poll,
+                        url: definition_poll_poll_session_path(@poll_session.poll, @poll_session),
+                        class: "mt-4 space-y-4" do |form| %>
+            <div>
+              <%= form.label :title, "투표 이름", class: "block text-sm font-medium" %>
+              <%= form.text_field :title, class: "mt-1 w-full rounded-md border-stone-300" %>
+            </div>
+            <%= render "poll_definitions/kind_selector", form: form, poll: @poll_session.poll %>
+            <%= form.submit "저장", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+          <% end %>
         </section>
+
+        <%= render "poll_sessions/definition_management", poll_session: @poll_session %>
       <% else %>
-        <%= render "poll_sessions/status_check", status_check: @status_check %>
+        <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm" data-testid="poll-session-candidates">
+          <h2 class="text-lg font-semibold"><%= @poll_session.poll.choice_label %></h2>
+          <% @poll_session.poll.poll_contests.sort_by { |contest| [contest.position, contest.id] }.each do |contest| %>
+            <h3 class="mt-4 font-semibold"><%= contest.title %></h3>
+            <ul class="mt-2"><% contest.poll_options.sort_by { |option| [option.number, option.id] }.each do |option| %><li><%= @poll_session.poll.choice_number_label %> <%= option.number %> · <%= option.name %></li><% end %></ul>
+          <% end %>
+        </section>
       <% end %>
 
       <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
-               data-testid="poll-session-candidates">
-        <h2 class="text-lg font-semibold"><%= @poll_session.poll.choice_label %></h2>
-        <div class="mt-4 space-y-5">
-          <% @poll_session.poll.poll_contests.sort_by { |contest| [contest.position, contest.id] }.each do |contest| %>
-            <div>
-              <h3 class="font-semibold"><%= contest.title %></h3>
-              <ul class="mt-2 space-y-1 text-stone-700">
-                <% contest.poll_options.sort_by { |option| [option.number, option.id] }.each do |option| %>
-                  <li><%= @poll_session.poll.choice_number_label %> <%= option.number %>번 <%= option.name %></li>
-                <% end %>
-              </ul>
-            </div>
-          <% end %>
-        </div>
-      </section>
-
-      <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
                data-testid="poll-session-roster">
-        <div class="flex items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-3">
           <h2 class="text-lg font-semibold">투표자 명단</h2>
-          <span class="text-sm text-stone-600">전체 <%= @active_students.size %>명</span>
+          <div class="flex items-center gap-3">
+            <span class="text-sm text-stone-600">전체 <%= @active_students.size %>명</span>
+            <% if policy(@poll_session.classroom).manage_students? %>
+              <%= link_to "학생 명단 관리",
+                          classroom_students_path(
+                            @poll_session.classroom,
+                            return_poll_id: @poll_session.poll_id,
+                            return_poll_session_id: @poll_session.id
+                          ),
+                          data: { turbo_frame: "_top" },
+                          class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium" %>
+            <% end %>
+          </div>
         </div>
+        <p class="mt-2 text-sm text-stone-600">투표를 시작할 때 이 학급의 활성 학생 명단이 투표자로 확정됩니다.</p>
         <% if @active_students.any? %>
           <ul class="mt-4 divide-y divide-stone-200">
             <% @active_students.each do |student| %>
@@ -137,19 +149,16 @@
           <p class="mt-4 text-stone-600">투표 대상 학생이 없습니다.</p>
         <% end %>
       </section>
-      <% parent_allows_start = !@poll_session.poll.school_managed? || @poll_session.poll.in_progress? %>
-      <% if parent_allows_start && @status_check.startable? && policy(@poll_session).operate? %>
-        <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
-          <p class="font-medium text-stone-700">투표를 시작할 수 있습니다.</p>
-          <%= button_to "투표 시작",
-                        start_poll_poll_session_path(@poll_session.poll, @poll_session),
-                        method: :post,
-                        data: {
-                          turbo_confirm: "현재 활성 학생 명단으로 투표를 시작할까요?"
-                        },
-                        class: "mt-5 rounded-md bg-stone-900 px-5 py-3 text-sm font-medium text-white" %>
+
+      <% if @poll_session.poll.school_managed? && @poll_session.poll.draft? %>
+        <section class="rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-800" data-testid="poll-session-status-check">
+          <h2 class="font-semibold">상태 점검: 시작 대기</h2>
+          <p class="mt-2 text-sm">전교투표가 시작되면 이 학급 투표를 시작할 수 있습니다.</p>
         </section>
+      <% else %>
+        <%= render "poll_sessions/status_check_frame", poll_session: @poll_session, status_check: @status_check %>
       <% end %>
+      <%= render "poll_sessions/start_action_frame", poll_session: @poll_session, status_check: @status_check %>
       <%= render "event_log", poll_events: @poll_events %>
     <% elsif @poll_session.closed? %>
       <%= render "poll_sessions/closed_summary" %>

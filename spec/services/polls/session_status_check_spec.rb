@@ -1,13 +1,13 @@
 require "rails_helper"
 
 RSpec.describe Polls::SessionStatusCheck do
-  def build_draft
+  def build_draft(kind: :election)
     school = create(:school)
     operator = create(:user)
     create(:school_membership, school: school, user: operator)
     classroom = create(:classroom, school: school, teacher: operator)
     create(:student, classroom: classroom, active: true)
-    poll = create(:poll, school: school, user: operator, participant_group: nil)
+    poll = create(:poll, school: school, user: operator, participant_group: nil, kind: kind)
     contest = poll.default_poll_contest
     create(:poll_option, poll: poll, poll_contest: contest, number: 1)
     create(:poll_option, poll: poll, poll_contest: contest, number: 2)
@@ -71,10 +71,26 @@ RSpec.describe Polls::SessionStatusCheck do
     expect(result).not_to be_startable
     expect(result.issues).to include(
       "투표 대상 학생이 없습니다.",
-      "선택지가 2개 미만인 항목이 있습니다.",
+      "등록된 후보자 수가 2개 이상이어야 합니다.",
       "이미 생성된 진행 정보가 있습니다.",
       "이미 확정된 투표자 명단이 있습니다."
     )
+  end
+
+  it "uses the Poll choice label in draft readiness issues" do
+    {
+      election: "후보자",
+      survey: "선택지",
+      discussion: "의견",
+      debate: "입장"
+    }.each do |kind, choice_label|
+      poll_session, = build_draft(kind: kind)
+      poll_session.poll.default_poll_contest.poll_options.last.destroy!
+
+      result = described_class.new(poll_session: poll_session.reload).call
+
+      expect(result.issues).to include("등록된 #{choice_label} 수가 2개 이상이어야 합니다.")
+    end
   end
 
   it "accepts each supported in-progress current and ballot combination" do
@@ -105,7 +121,7 @@ RSpec.describe Polls::SessionStatusCheck do
     expect(result).not_to be_progress_valid
     expect(result.issues).to include(
       "현재 투표자가 지정되지 않았습니다.",
-      "#{poll_session.poll.default_poll_contest.title} 항목의 선택지 집계 정보를 확인해 주세요."
+      "#{poll_session.poll.default_poll_contest.title} 항목의 후보자 집계 정보를 확인해 주세요."
     )
   end
 
@@ -176,7 +192,7 @@ RSpec.describe Polls::SessionStatusCheck do
 
     expect(result).not_to be_progress_valid
     expect(result.issues).to include(
-      "#{existing.poll_option.poll_contest.title} 항목의 선택지 집계 정보를 확인해 주세요."
+      "#{existing.poll_option.poll_contest.title} 항목의 후보자 집계 정보를 확인해 주세요."
     )
   end
 

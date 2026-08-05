@@ -1,0 +1,7 @@
+<% if turbo_frame_request? %>
+  <%= turbo_frame_tag dom_id(@contest, :new_option) do %>
+    <%= render "poll_sessions/option_form", poll_session: @poll_session, contest: @contest, option: @option, form_url: poll_poll_session_contest_options_path(@poll, @poll_session, @contest), submit_label: "추가", cancel_path: poll_poll_session_path(@poll, @poll_session), frame_id: dom_id(@contest, :new_option) %>
+  <% end %>
+<% else %>
+  <%= render "poll_definitions/option_form", poll: @poll, contest: @contest, option: @option, form_url: poll_poll_session_contest_options_path(@poll, @poll_session, @contest), heading_action: "추가", submit_label: "추가", cancel_path: poll_poll_session_path(@poll, @poll_session), photo_management_allowed: false %>
+<% end %>

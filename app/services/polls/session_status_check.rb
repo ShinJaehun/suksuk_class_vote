@@ -86,7 +86,7 @@ module Polls
       contests = poll&.poll_contests&.to_a || []
       issues << "투표 항목이 없습니다." if contests.empty?
       if contests.any? { |contest| contest.poll_options.size < 2 }
-        issues << "선택지가 2개 미만인 항목이 있습니다."
+        issues << "등록된 #{poll.choice_label} 수가 2개 이상이어야 합니다."
       end
       if contests.any? { |contest| contest.poll_options.map(&:number).compact.uniq.size != contest.poll_options.size }
         issues << "후보 번호가 중복된 항목이 있습니다."
@@ -197,7 +197,7 @@ module Polls
 
       poll.poll_contests.each do |contest|
         if contest.poll_options.empty?
-          issues << "#{contest.title} 항목의 선택지 정보를 확인해 주세요."
+          issues << "#{contest.title} 항목의 #{poll.choice_label} 정보를 확인해 주세요."
         end
         contest_tally_rows = contest_tallies_by_contest.fetch(contest.id, [])
         unless contest_tally_rows.one?
@@ -206,7 +206,7 @@ module Polls
 
         option_rows = contest.poll_options.flat_map do |option|
           rows = option_tallies_by_option.fetch(option.id, [])
-          issues << "#{contest.title} 항목의 선택지 집계 정보를 확인해 주세요." unless rows.one?
+          issues << "#{contest.title} 항목의 #{poll.choice_label} 집계 정보를 확인해 주세요." unless rows.one?
           rows
         end
         next unless contest_tally_rows.one? && option_rows.size == contest.poll_options.size

@@ -2,7 +2,9 @@ class ClassroomStudentsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_classroom
   before_action :authorize_student_management
+  before_action :set_return_poll_session
   before_action :set_student, only: %i[edit update deactivate reactivate]
+  helper_method :student_return_context_params
 
   def index
     @status = %w[active inactive all].include?(params[:status]) ? params[:status] : "active"
@@ -26,7 +28,7 @@ class ClassroomStudentsController < ApplicationController
     @student.active = true
 
     if @student.save
-      redirect_to classroom_students_path(@classroom), notice: "학생을 등록했습니다."
+      redirect_to classroom_students_path(@classroom, **student_return_context_params), notice: "학생을 등록했습니다."
     else
       render :new, status: :unprocessable_entity
     end
@@ -49,7 +51,7 @@ class ClassroomStudentsController < ApplicationController
     end
 
     Student.transaction { rows.each { |row| @classroom.students.create!(number: row[:number], name: row[:name], active: true) } }
-    redirect_to classroom_students_path(@classroom), notice: "#{rows.size}명의 학생을 등록했습니다."
+    redirect_to classroom_students_path(@classroom, **student_return_context_params), notice: "#{rows.size}명의 학생을 등록했습니다."
   rescue ActiveRecord::RecordInvalid => e
     @bulk_errors << e.record.errors.full_messages.to_sentence
     render :bulk_new, status: :unprocessable_entity
@@ -59,7 +61,7 @@ class ClassroomStudentsController < ApplicationController
 
   def update
     if @student.update(student_params)
-      redirect_to classroom_students_path(@classroom, status: return_status), notice: "학생 정보를 수정했습니다."
+      redirect_to classroom_students_path(@classroom, status: return_status, **student_return_context_params), notice: "학생 정보를 수정했습니다."
     else
       render :edit, status: :unprocessable_entity
     end
@@ -67,12 +69,12 @@ class ClassroomStudentsController < ApplicationController
 
   def deactivate
     @student.update!(active: false)
-    redirect_to classroom_students_path(@classroom, status: return_status), notice: "학생을 비활성화했습니다."
+    redirect_to classroom_students_path(@classroom, status: return_status, **student_return_context_params), notice: "학생을 비활성화했습니다."
   end
 
   def reactivate
     @student.update!(active: true)
-    redirect_to classroom_students_path(@classroom, status: return_status), notice: "학생을 활성 명단으로 복구했습니다."
+    redirect_to classroom_students_path(@classroom, status: return_status, **student_return_context_params), notice: "학생을 활성 명단으로 복구했습니다."
   end
 
   private
@@ -87,6 +89,26 @@ class ClassroomStudentsController < ApplicationController
 
   def set_student
     @student = @classroom.students.find(params[:id])
+  end
+
+  def set_return_poll_session
+    return if params[:return_poll_id].blank? || params[:return_poll_session_id].blank?
+
+    poll_session = PollSession.find_by(
+      id: params[:return_poll_session_id],
+      poll_id: params[:return_poll_id],
+      classroom_id: @classroom.id
+    )
+    @return_poll_session = poll_session if poll_session && policy(poll_session).show?
+  end
+
+  def student_return_context_params
+    return {} unless @return_poll_session
+
+    {
+      return_poll_id: @return_poll_session.poll_id,
+      return_poll_session_id: @return_poll_session.id
+    }
   end
 
   def student_params

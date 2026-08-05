@@ -39,13 +39,7 @@
       <%= form.text_field :title, class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
     </div>
 
-    <div class="space-y-1">
-      <%= form.label :kind, "활동 유형", class: "text-sm font-medium text-stone-700" %>
-      <%= form.select :kind,
-                      [["선거", "election"], ["설문조사", "survey"], ["토의", "discussion"], ["토론", "debate"]],
-                      {},
-                      class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
-    </div>
+    <%= render "poll_definitions/kind_selector", form: form, poll: @poll %>
 
     <%= form.submit "전교투표 만들기",
                     class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>

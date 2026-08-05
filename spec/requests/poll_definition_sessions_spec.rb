@@ -6,256 +6,92 @@ RSpec.describe "Poll definition sessions", type: :request do
   let(:school) { create(:school, name: "아라초등학교") }
   let(:teacher) { create(:user, name: "김교사") }
 
-  def create_classroom(school:, teacher:, active: true, active_students: 1, **attributes)
-    unless teacher.school_membership
-      create(:school_membership, school: school, user: teacher)
-      teacher.reload
-    end
-    classroom = create(:classroom, { school: school, teacher: teacher, active: active }.merge(attributes))
-    active_students.times { create(:student, classroom: classroom, active: true) }
+  def active_classroom_for(user, students: 1)
+    create(:school_membership, school: school, user: user) unless user.school_membership
+    classroom = create(:classroom, school: school, teacher: user)
+    students.times { create(:student, classroom: classroom) }
+    user.reload
     classroom
   end
 
-  def poll_params(classroom:, overrides: {})
-    {
-      classroom_id: classroom.id,
-      poll: {
-        title: "우리 반 의견 투표",
-        kind: "discussion",
-        poll_contests_attributes: {
-          "0" => {
-            title: "의견 선택",
-            poll_options_attributes: {
-              "0" => { number: 1, name: "첫 번째 의견" },
-              "1" => { number: 2, name: "두 번째 의견" }
-            }
-          }
-        }
-      }.merge(overrides)
-    }
-  end
-
   describe "GET /polls/new" do
-    it "shows only the teacher's eligible Classroom and no ParticipantGroup input" do
-      classroom = create_classroom(school: school, teacher: teacher)
-      other_teacher = create(:user)
-      other_classroom = create_classroom(school: school, teacher: other_teacher)
-      inactive_classroom = create_classroom(school: school, teacher: teacher, active: false)
+    it "requires authentication" do
+      get new_poll_path
+      expect(response).to redirect_to(new_user_session_path)
+    end
+
+    it "shows only the active homeroom summary and definition fields" do
+      classroom = active_classroom_for(teacher, students: 2)
       sign_in teacher
 
       get new_poll_path
 
+      page = Nokogiri::HTML(response.body)
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include(classroom.formatted_class_label)
-      expect(response.body).not_to include(other_classroom.name)
-      expect(response.body).not_to include(inactive_classroom.name)
-      expect(response.body).not_to include("participant_group_id")
-      expect(response.body).not_to include('name="poll[participant_group_id]"')
-      expect(response.body).not_to include('id="poll_participant_group_id"')
-      expect(response.body).to include("투표 만들기")
+      expect(response.body).to include("새 학급투표", classroom.formatted_class_label, "담당 교사", "김교사 선생님", "현재 학생", "2명")
+      expect(response.body).not_to include("담임 교사")
+      expect(page.at_css('[data-testid="poll-kind-selector"]')).to be_present
+      expect(page.css('select[name="poll[kind]"] option').map { |node| node["value"] }).to eq(%w[election survey discussion debate])
+      expect(response.body).not_to include("번호 표시")
+      expect(response.body).not_to include('name="classroom_id"', "poll_contests_attributes", "poll_options_attributes")
+      expect(response.body).to include("학급투표 초안 만들기")
     end
 
-    it "shows all same-school eligible Classrooms to a manager" do
-      manager = create(:user)
-      create(:school_membership, :manager, school: school, user: manager)
-      classroom = create_classroom(school: school, teacher: teacher)
-      other_school_classroom = create_classroom(school: create(:school), teacher: create(:user))
-      sign_in manager
-
-      get new_poll_path
-
-      expect(response.body).to include(classroom.name)
-      expect(response.body).not_to include(other_school_classroom.name)
-    end
-
-    it "shows eligible Classrooms from multiple schools to a global admin" do
-      first = create_classroom(school: school, teacher: teacher)
-      second = create_classroom(school: create(:school), teacher: create(:user))
-      sign_in create(:user, :admin)
-
-      get new_poll_path
-
-      expect(response.body).to include(first.name)
-      expect(response.body).to include(second.name)
-    end
-
-    it "shows an empty state and no submit button without an eligible Classroom" do
+    it "does not show the form without an active homeroom or active students" do
       create(:school_membership, school: school, user: teacher)
       sign_in teacher
+      get new_poll_path
+      expect(response.body).to include("활성 담임 학급이 없어")
+      expect(response.body).not_to include("학급투표 초안 만들기")
 
+      sign_out teacher
+      empty_teacher = create(:user)
+      active_classroom_for(empty_teacher, students: 0)
+      sign_in empty_teacher
+      get new_poll_path
+      expect(response.body).to include("활성 학생이 있는 담임 학급")
+      expect(response.body).not_to include("학급투표 초안 만들기")
+    end
+
+    it "renders every kind option from Poll labels" do
+      active_classroom_for(teacher)
+      sign_in teacher
       get new_poll_path
 
-      expect(response.body).to include("투표를 만들 수 있는 활성 학급이 없습니다.")
-      expect(response.body).not_to include("투표 만들기")
+      options = Nokogiri::HTML(response.body).css('[data-testid="poll-kind-selector"] option')
+      expect(options.map { |node| [node.text, node["value"]] }).to eq(Poll::ACTIVITY_LABELS.map { |kind, label| [label, kind] })
     end
   end
 
   describe "POST /polls" do
-    it "creates a Poll and first PollSession without creating legacy roster rows" do
-      classroom = create_classroom(school: school, teacher: teacher)
+    it "uses active_classroom, ignores forged input, and creates an empty draft workspace" do
+      classroom = active_classroom_for(teacher, students: 2)
+      forged = create(:classroom, :with_teacher)
       sign_in teacher
 
       expect do
-        post polls_path, params: poll_params(classroom: classroom)
-      end.to change(Poll, :count).by(1)
-        .and change(PollSession, :count).by(1)
-        .and change(ParticipantGroup, :count).by(0)
-        .and change(ParticipantSlot, :count).by(0)
+        post polls_path, params: { classroom_id: forged.id, poll: { title: "우리 반 토의", kind: "discussion", poll_contests_attributes: { "0" => { title: "위조" } } } }
+      end.to change(Poll, :count).by(1).and change(PollSession, :count).by(1).and change(PollContest, :count).by(1).and change(PollOption, :count).by(0)
 
-      poll = Poll.order(:created_at).last
-      poll_session = poll.poll_sessions.first
-      expect(poll).to have_attributes(
-        school: school,
-        user: teacher,
-        school_managed: false,
-        participant_group: nil,
-        status: "draft"
-      )
-      expect(poll_session).to have_attributes(
-        classroom: classroom,
-        operator: teacher,
-        status: "draft",
-        classroom_name_snapshot: "2026학년도 4학년 #{classroom.formatted_class_label}"
-      )
-      expect(response).to redirect_to(poll_poll_session_path(poll, poll_session))
-      expect(flash[:notice]).to eq("투표를 만들었습니다.")
+      poll = Poll.order(:id).last
+      session = poll.poll_sessions.sole
+      expect(poll).to have_attributes(title: "우리 반 토의", kind: "discussion", status: "draft", school_managed: false, school: school, user: teacher)
+      expect(poll.poll_contests.sole.title).to eq("기본")
+      expect(session).to have_attributes(classroom: classroom, operator: teacher, status: "draft")
+      expect([poll.poll_participants.count, poll.poll_option_tallies.count, poll.poll_contest_tallies.count, poll.poll_events.count]).to all(eq(0))
+      expect(response).to redirect_to(poll_poll_session_path(poll, session))
+      expect(flash[:notice]).to eq("학급투표 초안을 만들었습니다. 투표 정보를 입력해 주세요.")
     end
 
-    it "allows a manager and global admin to operate another teacher's Classroom" do
-      classroom = create_classroom(school: school, teacher: teacher)
-      manager = create(:user)
-      create(:school_membership, :manager, school: school, user: manager)
-
-      sign_in manager
-      post polls_path, params: poll_params(classroom: classroom)
-      expect(PollSession.order(:created_at).last.operator).to eq(manager)
-
-      sign_out manager
-      admin = create(:user, :admin)
-      sign_in admin
-      post polls_path, params: poll_params(classroom: classroom)
-      expect(PollSession.order(:created_at).last.operator).to eq(admin)
-      expect(classroom.reload.teacher).to eq(teacher)
-    end
-
-    it "rejects unauthorized, inactive, empty, and missing Classroom IDs" do
-      other_teacher = create(:user)
-      other_classroom = create_classroom(school: school, teacher: other_teacher)
-      other_school_classroom = create_classroom(school: create(:school), teacher: create(:user))
-      inactive_classroom = create_classroom(school: school, teacher: teacher, active: false)
-      empty_classroom = create_classroom(school: school, teacher: teacher, active_students: 0)
+    it "preserves the selected kind after validation failure without a preview" do
+      active_classroom_for(teacher)
       sign_in teacher
+      post polls_path, params: { poll: { title: "", kind: "debate" } }
 
-      [other_classroom.id, other_school_classroom.id, inactive_classroom.id, empty_classroom.id, -1].each do |classroom_id|
-        expect do
-          post polls_path, params: poll_params(classroom: other_classroom).merge(classroom_id: classroom_id)
-        end.not_to change(Poll, :count)
-        expect(response).to have_http_status(:unprocessable_content)
-        expect(response.body).to include("투표를 생성할 수 없습니다.")
-      end
-    end
-
-    it "ignores manipulated ownership, source, and lifecycle parameters" do
-      classroom = create_classroom(school: school, teacher: teacher)
-      participant_group = create(:participant_group, :with_participant_slot)
-      sign_in teacher
-
-      post polls_path, params: poll_params(
-        classroom: classroom,
-        overrides: {
-          participant_group_id: participant_group.id,
-          user_id: create(:user).id,
-          school_id: create(:school).id,
-          school_managed: true,
-          status: "in_progress",
-          archived_at: Time.current
-        }
-      )
-
-      poll = Poll.order(:created_at).last
-      expect(poll).to have_attributes(
-        participant_group: nil,
-        user: teacher,
-        school: school,
-        school_managed: false,
-        status: "draft",
-        archived_at: nil
-      )
-    end
-
-    it "returns 422 and rolls back partial content for invalid input" do
-      classroom = create_classroom(school: school, teacher: teacher)
-      sign_in teacher
-      params = poll_params(classroom: classroom)
-      params[:poll][:poll_contests_attributes]["0"][:poll_options_attributes]["1"][:name] = ""
-      original_counts = [Poll.count, PollContest.count, PollOption.count, PollSession.count]
-
-      post polls_path, params: params
-
+      page = Nokogiri::HTML(response.body)
       expect(response).to have_http_status(:unprocessable_content)
-      expect(response.body).to include("투표를 생성할 수 없습니다.")
-      expect([Poll.count, PollContest.count, PollOption.count, PollSession.count]).to eq(original_counts)
-      expect(response.body).to include("우리 반 의견 투표")
-
-      missing_title_params = poll_params(classroom: classroom)
-      missing_title_params[:poll][:title] = ""
-      expect do
-        post polls_path, params: missing_title_params
-      end.not_to change(Poll, :count)
-      expect(response).to have_http_status(:unprocessable_content)
-    end
-  end
-
-  describe "index compatibility" do
-    it "shows an operated draft Session with its detail link" do
-      classroom = create_classroom(
-        school: school,
-        teacher: teacher,
-        grade: 6,
-        class_label: "생활교육실"
-      )
-      sign_in teacher
-      post polls_path, params: poll_params(classroom: classroom)
-
-      get polls_path
-
-      new_poll = Poll.find_by!(title: "우리 반 의견 투표")
-      poll_session = new_poll.poll_sessions.first
-      expect(response.body).to include("2026학년도 6학년 생활교육실")
-      expect(response.body).to include("실행 전")
-      expect(response.body).to include("상세")
-      expect(response.body).to include(poll_poll_session_path(new_poll, poll_session))
-      expect(response.body).not_to include(start_poll_poll_session_path(new_poll, poll_session))
-      expect(response.body).not_to include(%(href="#{poll_path(new_poll)}"))
-    end
-
-    it "shows only the current user's operated Session" do
-      classroom = create_classroom(school: school, teacher: teacher)
-      sign_in teacher
-      post polls_path, params: poll_params(classroom: classroom)
-      poll = Poll.find_by!(title: "우리 반 의견 투표")
-      first_session = poll.poll_sessions.first
-      first_session.update!(status: :in_progress)
-      other_teacher = create(:user)
-      other_classroom = create_classroom(school: school, teacher: other_teacher)
-      closed_session = create(
-        :poll_session,
-        poll: poll,
-        classroom: other_classroom,
-        operator: other_teacher,
-        status: :closed
-      )
-
-      get polls_path
-
-      expect(response.body).to include(first_session.classroom_name_snapshot)
-      expect(response.body).to include("진행 중")
-      expect(response.body).to include("상세")
-      expect(response.body).to include(poll_poll_session_path(poll, first_session))
-      expect(response.body).not_to include(closed_session.classroom_name_snapshot)
-      expect(response.body).not_to include(start_poll_poll_session_path(poll, first_session))
-      expect(response.body).not_to include(start_poll_poll_session_path(poll, closed_session))
-      expect(response.body).not_to include(poll_poll_session_path(poll, closed_session))
+      expect(page.at_css('select[name="poll[kind]"] option[value="debate"][selected]')).to be_present
+      expect(response.body).not_to include("번호 표시")
     end
   end
 end

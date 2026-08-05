@@ -1,0 +1,19 @@
+<%= form_with model: option, url: form_url, data: { turbo_stream: true }, class: "rounded-md border border-stone-200 bg-stone-50 p-3" do |form| %>
+  <% if option.errors.any? %>
+    <ul class="mb-3 list-disc pl-5 text-sm text-red-700"><% option.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul>
+  <% end %>
+  <div class="grid gap-3 sm:grid-cols-[7rem_1fr_auto] sm:items-end">
+    <div>
+      <%= form.label :number, poll_session.poll.choice_number_label, class: "block text-sm font-medium" %>
+      <%= form.number_field :number, min: 1, class: "mt-1 w-full rounded-md border-stone-300" %>
+    </div>
+    <div>
+      <%= form.label :name, poll_session.poll.election? || poll_session.poll.survey? ? "이름" : "내용", class: "block text-sm font-medium" %>
+      <%= form.text_field :name, class: "mt-1 w-full rounded-md border-stone-300" %>
+    </div>
+    <div class="flex gap-3">
+      <%= form.submit submit_label, class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+      <%= link_to "취소", cancel_path, data: { turbo_frame: frame_id }, class: "px-2 py-2 text-sm underline" %>
+    </div>
+  </div>
+<% end %>

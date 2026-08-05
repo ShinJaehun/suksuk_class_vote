@@ -112,7 +112,14 @@
                                 params: {
                                   expected_current_poll_participant_id: current_participant.id
                                 },
-                                data: { turbo_confirm: "투표를 종료할까요?" },
+                                form: {
+                                  data: {
+                                    turbo_frame: dom_id(poll_session, :teacher_progress)
+                                  }
+                                },
+                                data: {
+                                  turbo_confirm: "투표를 종료할까요?"
+                                },
                                 class: "rounded-md bg-stone-900 px-5 py-3 text-sm font-medium text-white" %>
                 </div>
               <% end %>
