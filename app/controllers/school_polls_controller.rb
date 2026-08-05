@@ -49,18 +49,46 @@ class SchoolPollsController < ApplicationController
   def show
     @poll = school_poll_scope.find(params[:id])
     authorize @poll, :school_show?
-    @schoolwide_status_check = Polls::SchoolwideStatusCheck.new(poll: @poll)
+    prepare_show
+  end
+
+  def edit
+    @poll = school_poll_scope.find(params[:id])
+    authorize @poll, :school_edit?
+    prepare_edit
+  end
+
+  def update
+    @poll = school_poll_scope.find(params[:id])
+    authorize @poll, :school_update?
+
+    attributes = school_poll_params
+    if invalid_school_change?(attributes[:school_id])
+      @poll.errors.add(:school, "학급 세션이 배정된 뒤에는 변경할 수 없습니다.")
+      prepare_edit
+      render :edit, status: :unprocessable_entity
+    elsif @poll.update(attributes)
+      redirect_to school_poll_path(@poll), notice: "전교투표 정보를 수정했습니다."
+    else
+      prepare_edit
+      render :edit, status: :unprocessable_entity
+    end
+  end
+
+  def results
+    @poll = school_poll_scope.find(params[:id])
+    authorize @poll, :school_show?
+    unless @poll.closed?
+      redirect_to school_poll_path(@poll), alert: "전교투표 종료 후 결과를 확인할 수 있습니다."
+      return
+    end
+
+    authorize @poll, :school_results?
     @school_result_summary = Polls::SchoolResultSummary.new(@poll)
-    @poll_contests = @poll.poll_contests.includes(:poll_options).order(:position, :id)
-    @has_poll_definition = @poll_contests.any? || PollOption.where(poll_id: @poll.id).exists?
-    @poll_sessions = @poll.poll_sessions
-      .includes(:classroom, :operator, poll_participants: :poll_participation)
+    @current_session_count = @school_result_summary.session_results.count { |result| !result.poll_session.stopped? }
+    @included_sessions = @poll.poll_sessions.closed
+      .includes(:poll_participants, poll_option_tallies: :poll_option, poll_contest_tallies: :poll_contest)
       .order(:created_at, :id)
-      .select { |poll_session| policy(poll_session).show? }
-    assigned_classroom_ids = @poll.poll_sessions.select(:classroom_id)
-    @assignable_classrooms = eligible_classrooms(@poll.school)
-      .where.not(id: assigned_classroom_ids)
-    @assignable_classroom_student_counts = active_student_counts_for(@assignable_classrooms)
   end
 
   def start
@@ -121,6 +149,39 @@ class SchoolPollsController < ApplicationController
   end
 
   private
+
+  def prepare_show
+    @schoolwide_status_check = Polls::SchoolwideStatusCheck.new(poll: @poll)
+    @poll_contests = @poll.poll_contests.includes(poll_options: { photo_attachment: :blob }).order(:position, :id)
+    @has_poll_definition = @poll_contests.any? || PollOption.where(poll_id: @poll.id).exists?
+    @poll_sessions = @poll.poll_sessions
+      .includes(:operator, classroom: :students, poll_participants: :poll_participation)
+      .order(:created_at, :id)
+      .select { |poll_session| policy(poll_session).show? }
+    @current_poll_sessions = @poll_sessions.reject(&:stopped?)
+    @stopped_history_sessions = @poll_sessions.select(&:stopped?)
+    @current_session_counts = PollSession.statuses.keys.index_with do |status|
+      @current_poll_sessions.count { |session| session.status == status }
+    end
+    assigned_classroom_ids = @poll.poll_sessions.select(:classroom_id)
+    @assignable_classrooms = eligible_classrooms(@poll.school).where.not(id: assigned_classroom_ids)
+    @assignable_classroom_student_counts = active_student_counts_for(@assignable_classrooms)
+  end
+
+  def prepare_edit
+    @available_schools = current_user.admin? ? School.order(:name) : School.where(id: @poll.school_id)
+    @has_poll_definition = @poll.poll_contests.exists? || @poll.poll_options.exists?
+  end
+
+  def school_poll_params
+    attributes = params.require(:poll).permit(:title, :school_id)
+    attributes[:school_id] = @poll.school_id unless current_user.admin?
+    attributes
+  end
+
+  def invalid_school_change?(school_id)
+    current_user.admin? && school_id.present? && school_id.to_i != @poll.school_id && @poll.poll_sessions.exists?
+  end
 
   def mock_candidate_target?(poll)
     poll.school_managed? && poll.election? && poll.draft? && poll.definition_editable?

@@ -206,7 +206,7 @@ RSpec.describe "School Poll management", type: :request do
       expect(response.body).to include("등록된 투표 항목이 없습니다.")
       expect(response.body).to include("배정된 학급 투표가 없습니다.")
       expect(response.body).to include("학급 배정", classroom.formatted_class_label)
-      expect(response.body).to include("전교투표 시작 준비")
+      expect(response.body).to include("상태점검")
       expect(response.body).not_to include("종료된 학급 투표 결과가 없습니다.")
     end
 
@@ -266,14 +266,15 @@ RSpec.describe "School Poll management", type: :request do
       expect(response).to have_http_status(:not_found)
     end
 
-    it "aggregates only closed Session tallies by Contest and Option" do
+    it "moves aggregate results to the closed-only results page" do
       poll = create(
         :poll,
         school: create(:school),
         school_managed: true,
         participant_group: nil
       )
-      poll.update!(status: :in_progress, started_at: Time.current)
+      started_at = 1.hour.ago
+      poll.update!(status: :closed, started_at: started_at, closed_at: Time.current)
       president = create(:poll_contest, poll: poll, title: "회장 선거", position: 1)
       vice_president = create(:poll_contest, poll: poll, title: "부회장 선거", position: 2)
       zero_option = create(
@@ -394,25 +395,92 @@ RSpec.describe "School Poll management", type: :request do
       )
 
       sign_in create(:user, :admin)
-      get school_poll_path(poll)
+      get results_school_poll_path(poll)
 
-      result_text = Nokogiri::HTML(response.body)
-        .at_css('[data-testid="school-poll-results"]')
-        .text
-        .squish
+      result_text = Nokogiri::HTML(response.body).text.squish
       expect(result_text).to match(/득표 없는 후보 0표/)
       expect(result_text).to match(/회장 후보 5표/)
       expect(result_text).to match(/부회장 후보 7표/)
       expect(result_text).to match(/회장 선거.*기권: 3표/)
       expect(result_text).not_to include("100표", "200표", "다른 투표 학급")
 
-      expect(result_text).to match(/종료 1반.*종료.*결과 포함/)
-      expect(result_text).to match(/종료 2반.*종료.*결과 포함/)
-      expect(result_text).to match(/준비 3반.*준비.*결과 제외/)
-      expect(result_text).to match(/진행 4반.*진행.*결과 제외/)
-      expect(result_text).to match(/중단 5반.*중단.*결과 제외/)
-      expect(response.body).to include("전교투표 진행 현황", "선거 항목 관리")
-      expect(response.body).not_to include("학급 배정")
+      expect(result_text).to include("종료 1반", "종료 2반", "결과 집계", "63%")
+      expect(result_text).not_to include("준비 3반", "진행 4반", "중단 5반")
+
+      get school_poll_path(poll)
+      expect(response.body).to include("결과 집계 보기")
+      expect(response.body).not_to include("전체 집계", "현재까지 종료된 학급 결과")
+    end
+  end
+
+  describe "Schoolwide Poll settings and results access" do
+    it "lets global admin open settings and shows only supported management tools" do
+      poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil)
+      sign_in create(:user, :admin)
+
+      get edit_school_poll_path(poll)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("테스트 후보 50명 만들기")
+      expect(response.body).not_to include("선거 초기화", "후보 사진 전체 삭제", "학급 Session 일괄 삭제")
+    end
+
+    it "lets a same-School manager edit a draft title" do
+      school = create(:school)
+      manager = create(:user)
+      create(:school_membership, :manager, school: school, user: manager)
+      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      sign_in manager
+
+      get edit_school_poll_path(poll)
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("전교투표 정보 수정", "선거 이름")
+
+      patch school_poll_path(poll), params: { poll: { title: "수정한 전교선거", school_id: create(:school).id } }
+      expect(response).to redirect_to(school_poll_path(poll))
+      expect(poll.reload).to have_attributes(title: "수정한 전교선거", school: school)
+    end
+
+    it "rejects updates after start and access by another School manager" do
+      school = create(:school)
+      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      poll.update!(status: :in_progress, started_at: Time.current)
+      manager = create(:user)
+      create(:school_membership, :manager, school: school, user: manager)
+      sign_in manager
+      patch school_poll_path(poll), params: { poll: { title: "변경 금지" } }
+      expect(response).to redirect_to(polls_path)
+      expect(poll.reload.title).not_to eq("변경 금지")
+
+      sign_out manager
+      other_manager = create(:user)
+      create(:school_membership, :manager, school: create(:school), user: other_manager)
+      sign_in other_manager
+      get edit_school_poll_path(poll)
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "redirects results until the Poll is closed" do
+      poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil)
+      sign_in create(:user, :admin)
+
+      get results_school_poll_path(poll)
+
+      expect(response).to redirect_to(school_poll_path(poll))
+      expect(flash[:alert]).to eq("전교투표 종료 후 결과를 확인할 수 있습니다.")
+    end
+
+    it "separates current Sessions from stopped history" do
+      poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil)
+      current = create_result_session(poll: poll, status: :draft, classroom_name: "현재 1반")
+      stopped = create_result_session(poll: poll, status: :stopped, classroom_name: "중단 1반")
+      sign_in create(:user, :admin)
+
+      get school_poll_path(poll)
+
+      page = Nokogiri::HTML(response.body)
+      expect(page.text.squish).to include("전체 학급 1", "준비 1", "중단 이력 1", "중단된 학급 세션 이력")
+      expect(response.body).to include(poll_poll_session_path(poll, current), poll_poll_session_path(poll, stopped))
     end
   end
 
@@ -450,9 +518,9 @@ RSpec.describe "School Poll management", type: :request do
 
       get school_poll_path(poll)
       expect(response.body).to include(
-        "전교투표 시작 준비",
-        "대상 학급",
-        "대상 학생",
+        "상태점검",
+        "전체 학급",
+        "준비",
         start_school_poll_path(poll)
       )
 
@@ -462,7 +530,8 @@ RSpec.describe "School Poll management", type: :request do
       expect(poll_session.reload).to be_draft
 
       get school_poll_path(poll)
-      expect(response.body).to include("전교투표 진행 현황", "현재까지 종료된 학급 결과")
+      expect(response.body).to include("상태점검", "진행 중")
+      expect(response.body).not_to include("전체 집계")
       expect(response.body).not_to include(close_school_poll_path(poll))
 
       Polls::StartSession.new(actor: teacher, poll_session: poll_session).call
@@ -481,7 +550,8 @@ RSpec.describe "School Poll management", type: :request do
       expect(poll.reload).to be_closed
 
       get school_poll_path(poll)
-      expect(response.body).to include("전교투표 최종 결과")
+      expect(response.body).to include("결과 집계 보기", results_school_poll_path(poll))
+      expect(response.body).not_to include("전체 집계")
       expect(response.body).not_to include(
         start_school_poll_path(poll),
         close_school_poll_path(poll),

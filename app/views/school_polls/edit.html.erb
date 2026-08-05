@@ -1,0 +1,49 @@
+<div class="mx-auto max-w-3xl space-y-6">
+  <%= link_to "전교투표 상세로 돌아가기", school_poll_path(@poll),
+              class: "text-sm font-medium text-stone-700 underline" %>
+  <div class="flex flex-wrap items-center gap-2">
+    <h1 class="text-3xl font-semibold">전교투표 정보 수정</h1>
+    <%= poll_status_badge(@poll) %>
+  </div>
+
+  <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+    <% if @poll.errors.any? %>
+      <div class="mb-4 rounded-md border border-rose-200 bg-rose-50 p-4 text-rose-800">
+        <p class="font-medium">전교투표 정보를 수정할 수 없습니다.</p>
+        <ul class="mt-2 list-disc pl-5 text-sm"><% @poll.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul>
+      </div>
+    <% end %>
+    <% unless @poll.draft? %>
+      <p class="mb-4 rounded-md bg-stone-50 p-3 text-sm text-stone-600">선거 시작 후에는 정보를 수정할 수 없습니다.</p>
+    <% end %>
+    <%= form_with model: @poll, url: school_poll_path(@poll), class: "space-y-4" do |form| %>
+      <div><%= form.label :title, "선거 이름", class: "text-sm font-medium" %>
+        <%= form.text_field :title, disabled: !@poll.draft?, class: "mt-1 w-full rounded-md border border-stone-300 px-3 py-2" %></div>
+      <div><%= form.label :school_id, "대상 학교", class: "text-sm font-medium" %>
+        <% school_change_allowed = current_user.admin? && @poll.draft? && @poll.poll_sessions.none? %>
+        <%= form.collection_select :school_id, @available_schools, :id, :name, {},
+                                   disabled: !school_change_allowed,
+                                   class: "mt-1 w-full rounded-md border border-stone-300 px-3 py-2" %>
+        <% if @poll.poll_sessions.exists? %><p class="mt-1 text-sm text-stone-600">학급 Session이 배정되어 대상 학교를 변경할 수 없습니다.</p><% end %>
+      </div>
+      <div class="flex gap-3">
+        <%= form.submit "저장", disabled: !@poll.draft?, class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-stone-300" %>
+        <%= link_to "취소", school_poll_path(@poll), class: "rounded-md border border-stone-300 px-4 py-2 text-sm font-medium" %>
+      </div>
+    <% end %>
+  </section>
+
+  <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+    <h2 class="text-xl font-semibold">관리 편의</h2>
+    <p class="mt-2 text-sm text-stone-600">테스트용 선거 항목 4개와 후보 50명을 사진 없이 생성합니다.</p>
+    <% mock_available = policy(@poll).mock_candidates? && @poll.election? && @poll.draft? && @poll.definition_editable? && !@has_poll_definition %>
+    <% if mock_available %>
+      <%= button_to "테스트 후보 50명 만들기", mock_candidates_school_poll_path(@poll), method: :post,
+                    data: { turbo_confirm: "테스트용 선거 항목 4개와 후보 50명을 만들까요?" },
+                    class: "mt-4 rounded-md bg-amber-700 px-4 py-2 text-sm font-semibold text-white" %>
+    <% else %>
+      <button type="button" disabled class="mt-4 cursor-not-allowed rounded-md bg-stone-100 px-4 py-2 text-sm font-medium text-stone-400">테스트 후보 50명 만들기</button>
+      <p class="mt-2 text-sm text-stone-600">global admin이 비어 있는 초안 전교 선거에서만 사용할 수 있습니다.</p>
+    <% end %>
+  </section>
+</div>

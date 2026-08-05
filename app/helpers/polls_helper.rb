@@ -22,6 +22,22 @@ module PollsHelper
     }.fetch(poll_session.status, poll_session.status)
   end
 
+  def poll_session_status_badge(poll_session)
+    label = poll_session.draft? ? "준비" : poll_session_status_label(poll_session)
+
+    content_tag(
+      :span,
+      label,
+      class: "rounded-md border px-2 py-1 text-xs font-medium #{poll_session_status_badge_class(poll_session)}"
+    )
+  end
+
+  def poll_result_percentage(count, total)
+    return 0 unless total.to_i.positive?
+
+    [[((count.to_f / total) * 100).round, 0].max, 100].min
+  end
+
   private
 
   def poll_activity_badge_class(poll)
@@ -45,6 +61,16 @@ module PollsHelper
       "border-rose-200 bg-rose-50 text-rose-700"
     else
       "border-stone-200 bg-stone-50 text-stone-700"
+    end
+  end
+
+  def poll_session_status_badge_class(poll_session)
+    case poll_session.status
+    when "draft" then "border-amber-200 bg-amber-50 text-amber-700"
+    when "in_progress" then "border-blue-200 bg-blue-50 text-blue-700"
+    when "closed" then "border-emerald-200 bg-emerald-50 text-emerald-700"
+    when "stopped" then "border-rose-200 bg-rose-50 text-rose-700"
+    else "border-stone-200 bg-stone-50 text-stone-700"
     end
   end
 end

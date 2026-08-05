@@ -1,290 +1,42 @@
-<%= render "polls/school_overview",
-           poll: @poll,
-           poll_contests: @poll_contests,
-           poll_sessions: @poll_sessions,
-           back_path: school_polls_path,
-           back_label: "전교투표 목록으로 돌아가기" %>
+<div class="mx-auto max-w-5xl space-y-6">
+  <%= render "polls/school_overview",
+             poll: @poll,
+             poll_contests: @poll_contests,
+             current_sessions: @current_poll_sessions,
+             back_path: school_polls_path,
+             back_label: "전교투표 목록으로 돌아가기" %>
 
-<% contest_label = @poll.contest_label %>
-<% option_label = @poll.choice_label %>
-
-<% if policy(@poll).mock_candidates? &&
-      @poll.school_managed? &&
-      @poll.election? &&
-      @poll.draft? &&
-      @poll.definition_editable? &&
-      !@has_poll_definition %>
-  <section class="mx-auto my-6 max-w-5xl rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
-    <h2 class="text-xl font-semibold text-amber-900">테스트 도구</h2>
-    <p class="mt-2 text-sm text-amber-800">
-      회장 4명, 부회장 8명, 5학년 부회장 15명, 4학년 부회장 23명을 사진 없이 생성합니다.
-    </p>
-    <%= button_to "테스트 후보 50명 만들기",
-                  mock_candidates_school_poll_path(@poll),
-                  method: :post,
-                  data: { turbo_confirm: "테스트용 선거 항목 4개와 후보 50명을 만들까요?" },
-                  class: "mt-4 rounded-md bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-800" %>
-  </section>
-<% end %>
-
-<section class="mx-auto my-6 max-w-5xl rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
-         data-testid="schoolwide-status-check">
-  <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-    <div>
-      <h2 class="text-xl font-semibold">
-        <% if @poll.draft? %>
-          전교투표 시작 준비
-        <% elsif @poll.in_progress? %>
-          전교투표 진행 현황
-        <% else %>
-          전교투표 종료
-        <% end %>
-      </h2>
-      <p class="mt-2 text-sm text-stone-600">
-        시작 <%= kst_datetime(@poll.started_at) %>
-        · 종료 <%= kst_datetime(@poll.closed_at) %>
-        <% if @poll.lifecycle_duration_minutes.present? %>
-          · 진행 시간 <%= @poll.lifecycle_duration_minutes %>분
-        <% end %>
+  <% if policy(@poll).mock_candidates? &&
+        @poll.school_managed? &&
+        @poll.election? &&
+        @poll.draft? &&
+        @poll.definition_editable? &&
+        !@has_poll_definition %>
+    <section class="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+      <h2 class="text-xl font-semibold text-amber-900">테스트 도구</h2>
+      <p class="mt-2 text-sm text-amber-800">
+        회장 4명, 부회장 8명, 5학년 부회장 15명, 4학년 부회장 23명을 사진 없이 생성합니다.
       </p>
-    </div>
-
-    <% if @poll.draft? && @schoolwide_status_check.startable? %>
-      <%= button_to "전교투표 시작",
-                    start_school_poll_path(@poll),
+      <%= button_to "테스트 후보 50명 만들기",
+                    mock_candidates_school_poll_path(@poll),
                     method: :post,
-                    data: { turbo_confirm: "전교투표를 시작할까요? 시작 후 항목과 학급 배정을 변경할 수 없습니다." },
-                    class: "rounded-md bg-emerald-600 px-5 py-3 text-sm font-semibold text-white" %>
-    <% elsif @poll.in_progress? && @schoolwide_status_check.closable? %>
-      <%= button_to "전교투표 종료",
-                    close_school_poll_path(@poll),
-                    method: :post,
-                    data: { turbo_confirm: "모든 학급 결과를 확인하고 전교투표를 종료할까요?" },
-                    class: "rounded-md bg-stone-900 px-5 py-3 text-sm font-semibold text-white" %>
-    <% end %>
-  </div>
-
-  <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-4">
-    <div class="rounded-md bg-stone-50 p-3">
-      <dt class="text-stone-500">대상 학급</dt>
-      <dd class="mt-1 text-xl font-semibold"><%= @schoolwide_status_check.session_count %>개</dd>
-    </div>
-    <div class="rounded-md bg-stone-50 p-3">
-      <dt class="text-stone-500">대상 학생</dt>
-      <dd class="mt-1 text-xl font-semibold"><%= @schoolwide_status_check.active_student_count %>명</dd>
-    </div>
-    <div class="rounded-md bg-stone-50 p-3">
-      <dt class="text-stone-500"><%= contest_label %></dt>
-      <dd class="mt-1 text-xl font-semibold"><%= @schoolwide_status_check.contest_count %>개</dd>
-    </div>
-    <div class="rounded-md bg-stone-50 p-3">
-      <dt class="text-stone-500"><%= option_label %></dt>
-      <dd class="mt-1 text-xl font-semibold"><%= @schoolwide_status_check.option_count %>개</dd>
-    </div>
-  </dl>
-
-  <% if @poll.in_progress? || @poll.closed? %>
-    <p class="mt-4 text-sm text-stone-600">
-      시작 전 <%= @schoolwide_status_check.session_counts.fetch("draft", 0) %>
-      · 진행 중 <%= @schoolwide_status_check.session_counts.fetch("in_progress", 0) %>
-      · 종료 <%= @schoolwide_status_check.session_counts.fetch("closed", 0) %>
-      · 중단 <%= @schoolwide_status_check.session_counts.fetch("stopped", 0) %>
-    </p>
+                    data: { turbo_confirm: "테스트용 선거 항목 4개와 후보 50명을 만들까요?" },
+                    class: "mt-4 rounded-md bg-amber-700 px-4 py-2 text-sm font-semibold text-white" %>
+    </section>
   <% end %>
 
-  <% issues = @poll.draft? ? @schoolwide_status_check.start_issues : @schoolwide_status_check.close_issues %>
-  <% if !@poll.closed? && issues.any? %>
-    <div class="mt-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-      <p class="font-medium"><%= @poll.draft? ? "시작 전 확인이 필요합니다." : "종료 전 확인이 필요합니다." %></p>
-      <ul class="mt-2 list-disc space-y-1 pl-5">
-        <% issues.each do |issue| %>
-          <li><%= issue %></li>
-        <% end %>
-      </ul>
-    </div>
-  <% elsif @poll.closed? %>
-    <p class="mt-4 font-medium text-emerald-700">전교투표가 종료되었습니다.</p>
-  <% else %>
-    <p class="mt-4 font-medium text-emerald-700">
-      <%= @poll.draft? ? "전교투표를 시작할 수 있습니다." : "모든 학급 투표가 종료되었습니다." %>
-    </p>
-  <% end %>
-</section>
+  <%= render "status_report",
+             poll: @poll,
+             status_check: @schoolwide_status_check,
+             current_session_counts: @current_session_counts,
+             stopped_history_count: @stopped_history_sessions.size %>
 
-<section class="mx-auto mb-6 max-w-5xl rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
-  <div class="flex items-center justify-between gap-4">
-    <h2 class="text-xl font-semibold"><%= contest_label %> 관리</h2>
-    <% if @poll.definition_editable? %>
-      <%= link_to "#{contest_label} 추가",
-                  new_school_poll_contest_path(@poll),
-                  class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
-    <% end %>
-  </div>
+  <%= render "contests", poll: @poll, poll_contests: @poll_contests %>
 
-  <% unless @poll.definition_editable? %>
-    <p class="mt-3 text-sm text-stone-600">투표가 진행되어 투표 정의를 변경할 수 없습니다.</p>
-  <% end %>
-
-  <% if @poll_contests.any? %>
-    <div class="mt-4 space-y-4">
-      <% @poll_contests.each do |contest| %>
-        <article class="rounded-md border border-stone-200 p-4">
-          <div class="flex items-start justify-between gap-4">
-            <h3 class="font-semibold"><%= contest.title %></h3>
-            <% if @poll.definition_editable? %>
-              <div class="flex gap-3 text-sm">
-                <%= link_to "수정", edit_school_poll_contest_path(@poll, contest) %>
-                <%= button_to "삭제",
-                              school_poll_contest_path(@poll, contest),
-                              method: :delete,
-                              class: "text-red-700",
-                              form: { data: { turbo_confirm: "이 #{contest_label}을 삭제하시겠습니까?" } } %>
-              </div>
-            <% end %>
-          </div>
-
-          <% if contest.poll_options.any? %>
-            <ul class="mt-3 space-y-2">
-              <% contest.poll_options.sort_by { |option| [option.number, option.id] }.each do |option| %>
-                <li class="flex items-center justify-between gap-4 text-sm">
-                  <span class="flex items-center gap-3">
-                    <% if @poll.school_managed? && @poll.election? %>
-                      <%= image_tag poll_option_photo_source(option, variant: :thumbnail),
-                                    alt: option.photo.attached? ? "#{option.name} 후보 사진" : "",
-                                    class: option.photo.attached? ?
-                                      "h-12 w-12 rounded-md object-cover" :
-                                      "h-12 w-12 rounded-md object-contain" %>
-                    <% end %>
-                    <span><%= @poll.choice_number_label %> <%= option.number %>번 <%= option.name %></span>
-                  </span>
-                  <% if @poll.definition_editable? %>
-                    <span class="flex gap-3">
-                      <%= link_to "수정", edit_school_poll_contest_option_path(@poll, contest, option) %>
-                      <%= button_to "삭제",
-                                    school_poll_contest_option_path(@poll, contest, option),
-                                    method: :delete,
-                                    class: "text-red-700",
-                                    form: { data: { turbo_confirm: "이 #{option_label}를 삭제하시겠습니까?" } } %>
-                    </span>
-                  <% end %>
-                </li>
-              <% end %>
-            </ul>
-          <% else %>
-            <p class="mt-3 text-sm text-stone-600">등록된 <%= option_label %>가 없습니다.</p>
-          <% end %>
-
-          <% if @poll.definition_editable? %>
-            <%= link_to "#{option_label} 추가",
-                        new_school_poll_contest_option_path(@poll, contest),
-                        class: "mt-3 inline-block text-sm font-medium underline" %>
-          <% end %>
-        </article>
-      <% end %>
-    </div>
-  <% else %>
-    <p class="mt-3 text-stone-600">등록된 <%= contest_label %>이 없습니다.</p>
-  <% end %>
-</section>
-
-<% if @poll.draft? %>
-  <section class="mx-auto mb-6 max-w-5xl rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
-    <h2 class="text-xl font-semibold">학급 배정</h2>
-
-    <% if @assignable_classrooms.any? %>
-      <%= form_with url: school_poll_poll_sessions_path(@poll), class: "mt-4 space-y-4" do %>
-        <div class="space-y-2">
-          <% @assignable_classrooms.each do |classroom| %>
-          <label class="flex items-center gap-3 rounded-md border border-stone-200 p-3">
-            <%= check_box_tag "classroom_ids[]", classroom.id, false, class: "rounded border-stone-300" %>
-            <span>
-              <span class="font-medium">
-                <%= classroom.school_year %>학년도
-                <%= classroom.grade %>학년
-                <%= classroom.formatted_class_label %>
-              </span>
-              <span class="text-sm text-stone-600">
-                · 담임 <%= classroom.teacher.name %>
-                · 학생 <%= @assignable_classroom_student_counts.fetch(classroom.id, 0) %>명
-              </span>
-            </span>
-          </label>
-          <% end %>
-        </div>
-
-        <%= submit_tag "선택한 학급 배정",
-                       class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
-      <% end %>
-    <% else %>
-      <p class="mt-3 text-stone-600">추가로 배정할 수 있는 학급이 없습니다.</p>
-    <% end %>
-  </section>
-<% end %>
-
-<% unless @poll.draft? %>
-  <section class="mx-auto mb-6 max-w-5xl rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
-           data-testid="school-poll-results">
-    <h2 class="text-xl font-semibold">
-      <%= @poll.closed? ? "전교투표 최종 결과" : "현재까지 종료된 학급 결과" %>
-    </h2>
-
-  <div class="mt-4 overflow-x-auto">
-    <table class="min-w-full divide-y divide-stone-200 text-sm">
-      <thead>
-        <tr class="text-left text-stone-500">
-          <th class="py-2 pr-4 font-medium">학급</th>
-          <th class="py-2 pr-4 font-medium">운영자</th>
-          <th class="py-2 pr-4 font-medium">상태</th>
-          <th class="py-2 font-medium">전체 결과</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-stone-100">
-        <% @school_result_summary.session_results.each do |session_result| %>
-          <% poll_session = session_result.poll_session %>
-          <tr>
-            <td class="py-3 pr-4 font-medium"><%= poll_session.classroom_name_snapshot %></td>
-            <td class="py-3 pr-4"><%= poll_session.operator_name_snapshot %></td>
-            <td class="py-3 pr-4"><%= poll_session_status_label(poll_session) %></td>
-            <td class="py-3"><%= session_result.included ? "결과 포함" : "결과 제외" %></td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
-  </div>
-
-  <% if @school_result_summary.closed_session_count.zero? %>
-    <p class="mt-4 text-stone-600">종료된 학급 투표 결과가 없습니다.</p>
-  <% else %>
-    <div class="mt-6 space-y-8">
-      <% @school_result_summary.contest_results.each do |contest_result| %>
-        <section>
-          <h3 class="font-semibold"><%= contest_result.poll_contest.title %></h3>
-          <div class="mt-3 overflow-x-auto">
-            <table class="min-w-full divide-y divide-stone-200 text-sm">
-              <thead>
-                <tr class="text-left text-stone-500">
-                  <th class="py-2 pr-4 font-medium"><%= @poll.choice_number_label %></th>
-                  <th class="py-2 pr-4 font-medium"><%= option_label %></th>
-                  <th class="py-2 font-medium"><%= @poll.vote_count_label %></th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-stone-100">
-                <% contest_result.option_results.each do |option_result| %>
-                  <tr>
-                    <td class="py-3 pr-4"><%= option_result.poll_option.number %>번</td>
-                    <td class="py-3 pr-4 font-medium"><%= option_result.poll_option.name %></td>
-                    <td class="py-3"><%= option_result.votes_count %>표</td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
-          </div>
-          <p class="mt-3 text-sm text-stone-600">
-            기권: <%= contest_result.abstentions_count %>표
-          </p>
-        </section>
-      <% end %>
-    </div>
-    <% end %>
-  </section>
-<% end %>
+  <%= render "sessions",
+             poll: @poll,
+             current_sessions: @current_poll_sessions,
+             stopped_history_sessions: @stopped_history_sessions,
+             assignable_classrooms: @assignable_classrooms,
+             assignable_classroom_student_counts: @assignable_classroom_student_counts %>
+</div>
