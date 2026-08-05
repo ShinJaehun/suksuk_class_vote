@@ -19,4 +19,14 @@ class PollSessionPolicy < ApplicationPolicy
 
     user.admin? || record.operator == user
   end
+
+  def edit_definition?
+    return false if user.blank? || record.poll.school_managed?
+    return false unless user.admin? || record.operator == user
+
+    record.draft? &&
+      record.poll.draft? &&
+      record.poll.poll_sessions.where.not(id: record.id).none? &&
+      record.poll.definition_editable?
+  end
 end

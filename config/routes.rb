@@ -31,6 +31,7 @@ Rails.application.routes.draw do
     post :stop, on: :member
     post :archive, on: :member
     resources :poll_sessions, only: :show do
+      patch :definition, on: :member, action: :update_definition
       post :start, on: :member
       get :ballot, on: :member
       patch :mark_current_participant_absent, on: :member
@@ -41,6 +42,13 @@ Rails.application.routes.draw do
       post :close_ballot_screen, on: :member
       post :submit_ballot, on: :member
       patch :close, on: :member
+      resources :contests,
+                controller: "classroom_poll_contests",
+                only: %i[new create edit update destroy] do
+        resources :options,
+                  controller: "classroom_poll_options",
+                  only: %i[new create edit update destroy]
+      end
     end
     resources :poll_options, path: "options", only: %i[new create edit update destroy]
   end

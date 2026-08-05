@@ -1,0 +1,53 @@
+<section class="mx-auto max-w-2xl rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+  <h1 class="text-2xl font-semibold"><%= poll.choice_label %> <%= heading_action %></h1>
+  <p class="mt-2 text-sm text-stone-600"><%= contest.title %></p>
+
+  <% if option.errors.any? %>
+    <ul class="mt-4 list-disc pl-5 text-sm text-red-700">
+      <% option.errors.full_messages.each do |message| %><li><%= message %></li><% end %>
+    </ul>
+  <% end %>
+
+  <%= form_with model: option, url: form_url, multipart: photo_management_allowed, class: "mt-6 space-y-4" do |form| %>
+    <div>
+      <%= form.label :number, poll.choice_number_label, class: "block text-sm font-medium" %>
+      <%= form.number_field :number, min: 1, class: "mt-1 w-full rounded-md border-stone-300" %>
+    </div>
+    <div>
+      <%= form.label :name, poll.election? || poll.survey? ? "이름" : "내용", class: "block text-sm font-medium" %>
+      <%= form.text_field :name, class: "mt-1 w-full rounded-md border-stone-300" %>
+    </div>
+
+    <% if photo_management_allowed %>
+      <% persisted_photo = option.persisted? && option.photo.attached? && option.photo.blob&.persisted? %>
+      <div class="space-y-3 rounded-md border border-stone-200 bg-stone-50 p-4" data-controller="candidate-photo-preview">
+        <div>
+          <%= form.label :photo, "후보 사진", class: "block text-sm font-medium text-stone-700" %>
+          <p class="mt-1 text-sm text-stone-600">JPG, PNG, WebP 파일을 업로드할 수 있습니다. 최대 15MB</p>
+          <p class="mt-1 text-xs text-stone-500">저장 실패 시 사진 파일은 다시 선택해야 할 수 있습니다.</p>
+        </div>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center" data-candidate-photo-preview-target="preview" <%= "hidden" unless persisted_photo %>>
+          <% if persisted_photo %>
+            <%= image_tag poll_option_photo_source(option, variant: :thumbnail), alt: "#{option.name.presence || '후보'} 후보 사진", class: "h-28 w-28 rounded-md object-cover", data: { candidate_photo_preview_target: "previewImage" } %>
+          <% else %>
+            <%= tag.img alt: "", class: "h-28 w-28 rounded-md object-cover", data: { candidate_photo_preview_target: "previewImage" } %>
+          <% end %>
+          <div class="space-y-2">
+            <p class="text-sm font-medium text-stone-700" data-candidate-photo-preview-target="previewLabel"><%= persisted_photo ? "현재 사진" : "새로 선택한 사진" %></p>
+            <% if persisted_photo %>
+              <div class="flex items-center gap-2">
+                <%= check_box_tag "poll_option[remove_photo]", "1", false, id: "poll_option_remove_photo", class: "rounded border-stone-300", data: { candidate_photo_preview_target: "removeCheckbox", action: "candidate-photo-preview#toggleRemove" } %>
+                <%= label_tag "poll_option_remove_photo", "현재 사진 삭제", class: "text-sm text-stone-700" %>
+              </div>
+            <% end %>
+            <p class="text-xs text-stone-500" data-candidate-photo-preview-target="removeMessage" hidden>저장하면 현재 사진이 삭제됩니다.</p>
+          </div>
+        </div>
+        <%= form.file_field :photo, accept: "image/png,image/jpeg,image/webp", class: "block w-full text-sm text-stone-700", data: { candidate_photo_preview_target: "input", action: "candidate-photo-preview#preview" } %>
+      </div>
+    <% end %>
+
+    <%= form.submit submit_label, class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+    <%= link_to "취소", cancel_path, class: "ml-3 text-sm underline" %>
+  <% end %>
+</section>

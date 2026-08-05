@@ -1,0 +1,17 @@
+<%= turbo_frame_tag option do %>
+  <div class="flex flex-wrap items-center justify-between gap-3 py-1">
+    <span><%= poll_session.poll.choice_number_label %> <%= option.number %> · <%= option.name %></span>
+    <span class="flex gap-3 text-sm">
+      <%= link_to "#{poll_session.poll.choice_label} 수정",
+                  edit_poll_poll_session_contest_option_path(poll_session.poll, poll_session, contest, option),
+                  data: { turbo_frame: dom_id(option) },
+                  class: "underline" %>
+      <%= button_to "#{poll_session.poll.choice_label} 삭제",
+                    poll_poll_session_contest_option_path(poll_session.poll, poll_session, contest, option),
+                    method: :delete,
+                    form: { data: { turbo_stream: true } },
+                    data: { turbo_confirm: "삭제할까요?" },
+                    class: "underline" %>
+    </span>
+  </div>
+<% end %>

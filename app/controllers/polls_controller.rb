@@ -241,13 +241,7 @@ class PollsController < ApplicationController
 
   def create
     authorize Poll
-    classroom = Classroom.find_by(id: params[:classroom_id])
-
-    unless classroom
-      prepare_failed_poll_form(["선택한 학급을 찾을 수 없습니다."])
-      render :new, status: :unprocessable_entity
-      return
-    end
+    classroom = current_user.active_classroom
 
     result = Polls::CreateDefinitionWithSession.new(
       actor: current_user,
@@ -257,7 +251,7 @@ class PollsController < ApplicationController
 
     if result.success?
       redirect_to poll_poll_session_path(result.poll, result.poll_session),
-                  notice: "투표를 만들었습니다."
+                  notice: "학급투표 초안을 만들었습니다. 투표 정보를 입력해 주세요."
     else
       prepare_failed_poll_form(result.errors)
       render :new, status: :unprocessable_entity
@@ -327,14 +321,10 @@ class PollsController < ApplicationController
   end
 
   def prepare_new_poll_form
-    @available_classrooms = available_classrooms
-    @available_classroom_student_counts = active_student_counts_for(@available_classrooms)
+    @classroom = current_user.active_classroom
+    @active_students = @classroom&.students&.where(active: true)&.order(:number, :id) || Student.none
     form_attributes = params[:poll].present? ? poll_params.to_h.deep_symbolize_keys : {}
     @poll = Poll.new(form_attributes.slice(:title, :kind))
-    contest = collection_values(form_attributes[:poll_contests_attributes]).first || {}
-    @contest_title = contest[:title].presence || "기본"
-    @poll_option_rows = collection_values(contest[:poll_options_attributes])
-    @poll_option_rows = [{ number: 1, name: "" }, { number: 2, name: "" }] if @poll_option_rows.empty?
   end
 
   def prepare_failed_poll_form(messages)
@@ -432,13 +422,6 @@ class PollsController < ApplicationController
   end
 
   def poll_params
-    params.require(:poll).permit(
-      :title,
-      :kind,
-      poll_contests_attributes: [
-        :title,
-        { poll_options_attributes: %i[number name] }
-      ]
-    )
+    params.require(:poll).permit(:title, :kind)
   end
 end

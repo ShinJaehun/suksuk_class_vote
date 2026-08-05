@@ -2,6 +2,7 @@ require "rails_helper"
 
 RSpec.describe "PollSession operations", type: :request do
   include Devise::Test::IntegrationHelpers
+  include ActionView::RecordIdentifier
 
   def create_operations_session(status: :in_progress)
     school = create(:school)
@@ -123,10 +124,16 @@ RSpec.describe "PollSession operations", type: :request do
       "투표를 시작할 수 있습니다."
     )
     expect(response.body).to include("투표 시작")
-    expect(page.at_css("[data-testid='poll-session-candidates']").text).to include(
+    start_form = page.at_css(
+      "form[action='#{start_poll_poll_session_path(poll, poll_session)}']"
+    )
+    expect(start_form).to be_present
+    expect(start_form["data-turbo-frame"]).to eq(dom_id(poll_session, :teacher_progress))
+    candidate_text = page.at_css("[data-testid='poll-session-candidates']").text.squish
+    expect(candidate_text).to include(
       poll.default_poll_contest.title,
-      "1번 조현",
-      "2번 서코"
+      "#{poll.choice_number_label} 1 · 조현",
+      "#{poll.choice_number_label} 2 · 서코"
     )
     expect(page.at_css("[data-testid='poll-session-roster']").text).to include(
       "전체 2명",
@@ -136,6 +143,14 @@ RSpec.describe "PollSession operations", type: :request do
       "서코"
     )
     expect(response.body).not_to include("현재 투표자", "학생 투표 화면 열기", "미참여 처리")
+
+    post start_poll_poll_session_path(poll, poll_session)
+    expect(response).to redirect_to(poll_poll_session_path(poll, poll_session))
+    expect(poll_session.reload).to be_in_progress
+    expect(poll_session.poll_participants.count).to eq(2)
+    follow_redirect!
+    outer_frame_id = dom_id(poll_session, :teacher_progress)
+    expect(Nokogiri::HTML(response.body).at_css("turbo-frame##{outer_frame_id}")).to be_present
   end
 
   it "renders draft, closed, and stopped sessions safely without progress" do

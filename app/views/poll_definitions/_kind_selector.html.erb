@@ -1,0 +1,7 @@
+<div class="space-y-1" data-testid="poll-kind-selector">
+  <%= form.label :kind, "활동 유형", class: "text-sm font-medium text-stone-700" %>
+  <%= form.select :kind,
+                  poll_kind_options,
+                  {},
+                  class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+</div>

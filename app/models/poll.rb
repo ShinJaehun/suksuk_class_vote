@@ -149,8 +149,7 @@ class Poll < ApplicationRecord
   end
 
   def definition_editable?
-    school_managed? &&
-      draft? &&
+    draft? &&
       poll_sessions.where.not(status: :draft).none? &&
       poll_participants.none? &&
       PollParticipation.joins(:poll_participant)

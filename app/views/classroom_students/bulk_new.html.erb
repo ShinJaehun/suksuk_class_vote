@@ -2,11 +2,12 @@
   <h1 class="text-2xl font-semibold">여러 학생 추가</h1>
   <p class="mt-1 text-stone-600"><%= @classroom.school_year %>학년도 <%= @classroom.grade %>학년 <%= @classroom.formatted_class_label %></p>
   <%= link_to "학생 관리로 돌아가기",
-              classroom_students_path(@classroom),
+              classroom_students_path(@classroom, **student_return_context_params),
               class: "text-sm underline" %>
 </div>
 
 <%= form_with url: bulk_create_classroom_students_path(@classroom), method: :post, class: "space-y-5 rounded-md border border-stone-200 bg-white p-6" do |form| %>
+  <% student_return_context_params.each do |key, value| %><%= hidden_field_tag key, value %><% end %>
   <% if @bulk_errors.any? %>
     <div class="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
       <ul class="list-disc pl-5">

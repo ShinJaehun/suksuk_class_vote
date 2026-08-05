@@ -117,6 +117,10 @@ RSpec.describe "School Poll management", type: :request do
       expect(response.body).not_to include('name="classroom_id"')
       expect(response.body).not_to include("poll_contests_attributes")
       expect(response.body).not_to include("poll_options_attributes")
+      page = Nokogiri::HTML(response.body)
+      expect(page.at_css('[data-testid="poll-kind-selector"]')).to be_present
+      expect(page.css('[data-testid="poll-kind-selector"] option').map { |node| [node.text, node["value"]] }).to eq(Poll::ACTIVITY_LABELS.map { |kind, label| [label, kind] })
+      expect(response.body).not_to include("번호 표시")
 
       sign_out admin
       sign_in manager
@@ -131,6 +135,19 @@ RSpec.describe "School Poll management", type: :request do
       get new_school_poll_path
 
       expect(response).to redirect_to(polls_path)
+    end
+
+    it "keeps the selected kind after validation failure without a preview" do
+      school = create(:school)
+      sign_in create(:user, :admin)
+
+      post school_polls_path, params: { school_id: school.id, poll: { title: "", kind: "discussion" } }
+
+      page = Nokogiri::HTML(response.body)
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(page.at_css('select[name="poll[kind]"] option[value="discussion"][selected]')).to be_present
+      expect(response.body).not_to include("번호 표시")
+      expect(response.body).to include('name="school_id"')
     end
   end
 

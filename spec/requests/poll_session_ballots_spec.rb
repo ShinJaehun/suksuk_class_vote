@@ -524,7 +524,7 @@ RSpec.describe "PollSession ballots", type: :request do
     )
     expect(status_check.text.squish).to include(
       "상태 점검: 확인 필요",
-      "선택지 집계 정보를 확인해 주세요."
+      "#{poll.choice_label} 집계 정보를 확인해 주세요."
     )
     expect(response.body).not_to include(
       "학생 투표 화면 열기",
@@ -658,6 +658,13 @@ RSpec.describe "PollSession ballots", type: :request do
       "투표 종료"
     )
     expect(response.body).not_to include("다음 투표자는")
+    close_form = Nokogiri::HTML(response.body).at_css(
+      "form[action='#{close_poll_poll_session_path(poll, poll_session)}']"
+    )
+    expect(close_form).to be_present
+    expect(close_form["data-turbo-frame"]).to eq(
+      ActionView::RecordIdentifier.dom_id(poll_session, :teacher_progress)
+    )
   end
 
   it "renders a closed summary without operation actions or ballot internals" do
@@ -806,7 +813,7 @@ RSpec.describe "PollSession ballots", type: :request do
     )
     expect(status_check.text.squish).to include(
       "상태 점검: 확인 필요",
-      "회장 항목의 선택지 집계 정보를 확인해 주세요."
+      "회장 항목의 #{poll.choice_label} 집계 정보를 확인해 주세요."
     )
   end
 end
