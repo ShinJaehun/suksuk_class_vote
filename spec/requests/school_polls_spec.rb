@@ -65,6 +65,8 @@ RSpec.describe "School Poll management", type: :request do
 
       expect(response.body).to include(first.title, second.title)
       expect(response.body).not_to include(classroom_poll.title)
+      badges = Nokogiri::HTML(response.body).css('[data-testid="poll-badges"]')
+      expect(badges.map { |node| node.text.squish }).to all(eq("전교 선거 준비"))
     end
 
     it "shows only the manager's School Polls and rejects a regular teacher" do
@@ -208,6 +210,8 @@ RSpec.describe "School Poll management", type: :request do
       expect(response.body).to include("학급 배정", classroom.formatted_class_label)
       expect(response.body).to include("상태점검")
       expect(response.body).not_to include("종료된 학급 투표 결과가 없습니다.")
+      badges = Nokogiri::HTML(response.body).at_css('[data-testid="poll-badges"]')
+      expect(badges.text.squish).to eq("전교 선거 준비")
     end
 
     it "shows the shared overview to global admin and the same-School manager" do
@@ -397,7 +401,9 @@ RSpec.describe "School Poll management", type: :request do
       sign_in create(:user, :admin)
       get results_school_poll_path(poll)
 
-      result_text = Nokogiri::HTML(response.body).text.squish
+      page = Nokogiri::HTML(response.body)
+      expect(page.at_css('[data-testid="poll-badges"]').text.squish).to eq("전교 선거 종료")
+      result_text = page.text.squish
       expect(result_text).to match(/득표 없는 후보 0표/)
       expect(result_text).to match(/회장 후보 5표/)
       expect(result_text).to match(/부회장 후보 7표/)
@@ -423,6 +429,8 @@ RSpec.describe "School Poll management", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("테스트 후보 50명 만들기")
       expect(response.body).not_to include("선거 초기화", "후보 사진 전체 삭제", "학급 Session 일괄 삭제")
+      badges = Nokogiri::HTML(response.body).at_css('[data-testid="poll-badges"]')
+      expect(badges.text.squish).to eq("전교 선거 준비")
     end
 
     it "lets a same-School manager edit a draft title" do
