@@ -7,8 +7,7 @@
   <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
     <div class="flex flex-wrap items-center gap-2">
       <h1 class="text-3xl font-semibold"><%= poll.title %></h1>
-      <%= poll_activity_badge(poll) %>
-      <%= poll_status_badge(poll) %>
+      <%= poll_badges(poll: poll, status_record: poll) %>
     </div>
     <div class="flex flex-wrap gap-2">
       <% if poll.school_managed? && policy(poll).school_edit? %>

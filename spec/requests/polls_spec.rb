@@ -38,6 +38,8 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include(poll_session.classroom_name_snapshot)
       expect(response.body).to include("실행 전")
       expect(response.body).to include(poll_poll_session_path(poll, poll_session))
+      badges = Nokogiri::HTML(response.body).at_css('[data-testid="poll-badges"]')
+      expect(badges.text.squish).to eq("학급 선거 준비")
     end
 
     it "hides archived Sessions from the default list" do
@@ -256,6 +258,8 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include(own_session.classroom_name_snapshot)
       expect(response.body).to include(poll_poll_session_path(school_poll, own_session))
       expect(response.body).not_to include(other_session.classroom_name_snapshot)
+      badges = Nokogiri::HTML(response.body).at_css('[data-testid="poll-badges"]')
+      expect(badges.text.squish).to eq("전교 선거 준비")
     end
 
     it "shows only Sessions operated by a School manager" do
@@ -473,6 +477,8 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include("관리자 확인 선거")
       expect(response.body).to include("담당 교사: 4-11")
       expect(response.body).not_to include("4-11 &lt;teacher411@example.com&gt;")
+      badges = Nokogiri::HTML(response.body).at_css('[data-testid="poll-badges"]')
+      expect(badges.text.squish).to eq("학급 선거 준비")
     end
 
     it "does not allow teachers to view another teacher's poll" do

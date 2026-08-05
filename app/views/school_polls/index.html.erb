@@ -15,8 +15,7 @@
             <div class="space-y-1">
               <div class="flex flex-wrap items-center gap-2">
                 <h2 class="font-semibold"><%= poll.title %></h2>
-                <%= poll_activity_badge(poll) %>
-                <%= poll_status_badge(poll) %>
+                <%= poll_badges(poll: poll, status_record: poll) %>
               </div>
               <p class="text-sm text-stone-600">
                 <%= poll.school.name %>
