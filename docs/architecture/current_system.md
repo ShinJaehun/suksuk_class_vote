@@ -45,10 +45,9 @@ runtime은 Election ID 6의 historical Poll 변환과 검증이 끝날 때까지
 - 중복 제출 방지
 - 종료 투표 수동 보관
 
-다음은 현재 제외 범위이거나 후속 작업이다.
+다음은 초기 MVP에서 제외됐던 범위다. 이 가운데 전교투표 중앙 집계와 관리자 화면은
+신규 Classroom/PollSession runtime에서 현재 구현됐다.
 
-- 전교임원선거 중앙 집계
-- 전교 투표용 관리자 대시보드
 - 학급 election과 전교 non-election의 사진 등록
 - 선거관리위원 개표 승인
 - 암호화 개표
@@ -76,10 +75,12 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 
 현재 상태:
 
+### 초기·legacy runtime 구현 연혁
+
 - Rails 앱 생성
 - PostgreSQL 사용
-- Tailwind CSS 사용 예정
-- 투표 도메인 모델을 MVP 순서대로 구현 중
+- Tailwind CSS 사용
+- 투표 도메인은 신규 Classroom/PollSession runtime까지 구현하고 legacy runtime을 단계적으로 전환 중
 - Devise 기반 `User` 인증 구조 추가
 - Devise `registerable` 미사용: 교사 공개 회원가입 없음
 - `User` role enum 추가: `teacher`, `admin`
@@ -161,9 +162,11 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - 알 수 없거나 custom인 `Election` kind는 강제 번역하지 않고 원래 kind 값을 fallback으로 표시
 - `admin/elections`의 큰 제목 `선거 관리`는 관리 영역 이름으로 유지
 - 투표/선거 이벤트 시간은 기존 KST 표시 helper 정책에 따라 KST 기준으로 표시
-- 문서 기반 설계 정리 중
+### 신규 Classroom/PollSession runtime
+
 - School·SchoolMembership·Classroom·Student 조직 기반 구현
-- 신규 ElectionSession은 Classroom 기반이며 기존 운영 데이터는 전환 기간 동안 ParticipantGroup 기반을 유지할 수 있는 dual-source 구조 구현
+- admin은 전체 학교, manager는 소속 학교, 일반 teacher는 담임 Classroom 범위에서 학급·학생을 관리
+- Student 단일·bulk 등록과 비활성화·복구 구현
 - PollSession foundation과 실행 기록의 nullable `poll_session_id` 연결 구현: 신규 기록은 `poll_id`와 `poll_session_id`를 함께, legacy 기록은 `poll_session_id = NULL`로 유지
 - 신규 Poll 정의와 최초 draft PollSession 동시 생성, 시작 시 active Student의 PollParticipant snapshot 생성 구현
 - PollSession의 고정 학생 투표 창, 교사 ballot open 승인, Contest별 단계 제출과 복구, count-only tally·완료 기록, 미참여 처리와 명시적 다음 학생 진행 구현
@@ -173,8 +176,19 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - `/school_polls` 전교투표 정의·항목·여러 Classroom 배정·전체 결과 관리 구현
 - 전교투표 전체 준비 점검과 명시적 시작·종료, `Poll.started_at`/`closed_at`, Poll-level event 기록 구현
 - 전교투표 parent가 in_progress일 때만 담당 교사가 draft PollSession을 시작하도록 제한
+
+### 전교 election 후보 UI
+
 - 전교 election PollOption에만 JPG·PNG·WebP, 최대 15MB 후보 사진과 ballot 900×900·thumbnail 400×400 variant 지원
 - 사진이 없는 전교 election 후보는 deterministic avatar를 표시하고 legacy 후보 카드·투표 도장 UI를 사용하되 Contest별 서버 제출 유지
+- 후보 수에 따라 1·2·3·4·6·7열 grid를 사용
+- global admin 전용 테스트 선거 항목 4개·후보 50명 생성 도구 구현
+
+### 기존 Election/ElectionSession runtime
+
+- 신규 ElectionSession은 Classroom 기반이며 기존 운영 데이터는 전환 기간 동안 ParticipantGroup 기반을 유지할 수 있는 dual-source 구조 구현
+- 선택 Election의 명단 source를 Classroom/Student로 바꾸는 dry-run 기본·`APPLY=1` 변환 도구 구현
+- 실제 Election ID 6 운영 데이터에는 변환 도구를 적용하지 않음
 
 현재 PollSession 흐름은 교사 시작 → active Student snapshot과 첫 current 지정 → ballot locked → 학생
 투표 창 → 교사 승인으로 ballot open → Contest별 제출과 tally/completion 기록 → 모든 Contest 완료 뒤
@@ -185,11 +199,17 @@ Contest부터 복구하며 완료한 Contest의 취소·개별 재투표는 지�
 표시와 무관하게 저장하지 않는다.
 
 일반 학급투표 생성은 Poll과 최초 PollSession을 만들고, 전교투표는 Poll 정의를 만든 뒤 여러
-Classroom Session을 배정한다. 신규/legacy runtime 서버 측 분리, PollSession 중단·stopped
-이력·replacement·재투표와 Election ID 6 후보 사진 변환은 후속 작업이다. Election id=6 운영 데이터에는 변환 task를 아직 적용하지
-않았으며 운영 Poll 보존 범위 조사와 필요한 backfill 뒤 ParticipantGroup·ParticipantSlot 및 legacy
-Poll runtime 제거를 판단한다. Election/Poll 최종 역할 경계와 `VotingTarget`·`Voter` 공통 추상화도
-검토 대상이다.
+Classroom Session을 배정한다. 현재 runtime 경계는 다음과 같다.
+
+1. 신규 Classroom/PollSession runtime: 위 학급·전교투표 흐름을 사용한다.
+2. legacy ParticipantGroup 기반 Poll runtime: 기존 기록 호환을 위해 별도 경로가 남아 있다.
+3. 기존 Election/ElectionSession runtime: Classroom/ParticipantGroup dual-source로 운영 기록을 호환한다.
+
+아직 PollSession 중단·stopped 운영 이력·replacement·재투표와 historical/read_only Poll은
+구현되지 않았다. Election ID 6의 historical Poll·후보 사진 변환도 미구현이며 운영 데이터에는
+Classroom 변환 task조차 아직 적용하지 않았다. 신규/legacy Poll runtime 서버 측 분리, 운영 Poll
+보존 범위 조사와 PollSession backfill 뒤 Election runtime/table과 ParticipantGroup·ParticipantSlot
+제거를 판단한다.
 
 현재 `Poll` 상태 흐름:
 
@@ -339,8 +359,8 @@ Session tally만 포함한다.
 
 현재 검증 상태:
 
-- 전체 RSpec 1029 examples, 0 failures 통과.
-- 브라우저 smoke test 통과.
+- 최근 전교 election 후보 사진·투표 카드 관련 집중 spec과 브라우저 검증은 통과했다.
+- 최신 HEAD 전체 RSpec은 별도로 확인해야 한다.
 - smoke 확인 항목:
   - admin root/dashboard -> `/admin/teachers`
   - teacher root/dashboard -> `/polls`

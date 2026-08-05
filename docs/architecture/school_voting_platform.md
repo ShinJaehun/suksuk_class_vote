@@ -342,7 +342,7 @@ Voter에 저장할 수 있다.
 PollContest, PollOption, PollSession과 count-only historical 기록으로 변환하는 리허설과
 운영 검증을 먼저 수행한다. 이후 Election runtime과 table을 제거한다.
 
-변환 전까지 legacy 화면과 service는 수정하지 않는다. 후보 사진, 재투표 관계와
+변환 전까지 legacy 화면과 service는 수정하지 않는다. Election 후보 사진의 PollOption 변환, 재투표 관계와
 historical/read_only 표시는 Poll 쪽 후속 작업에서 명시적으로 설계하며 Election 코드를
 새 Poll runtime에서 호출하거나 복사하지 않는다.
 
@@ -569,13 +569,23 @@ Session 생성, 여러 Classroom 배정, Student snapshot, 감독형 제출·cou
 미참여·명시적 다음 학생·명시적 종료·Session별 결과, 담당 Session 목록, 전교투표 전체 결과,
 Turbo Stream/polling 갱신과 단계별 상태 점검도 구현됐다. Poll은 전체 시작·종료 시각과 Poll-level
 event를 기록하며 전교투표가 in_progress일 때만 담당 학급 Session을 시작할 수 있다.
+전교 election PollOption 후보 사진과 deterministic fallback, legacy형 후보 카드·투표 도장,
+global admin 전용 테스트 후보 50명 도구도 구현됐다. Election 명단 source를 Classroom으로
+전환하는 service와 dry-run 기본·`APPLY=1` Rake task도 구현됐다.
 
-아직 신규/legacy Poll runtime의 서버 측 분리, PollSession 중단·stopped 이력·replacement·재투표,
-Election id=6 변환 리허설과 실제 적용 여부 결정, 운영 Poll 보존 범위 조사와 필요한 backfill이
-남아 있다. 실제 Election id=6 운영 데이터에는 변환 task를 적용하지 않았다. 이관 뒤에야
-ParticipantGroup·ParticipantSlot과 legacy Poll runtime을 제거할 수 있다. 신규 Election 기능은
-추가하지 않으며 검증된 historical Poll 변환 뒤 Election runtime과 table을 제거한다. 재투표,
-후보 사진, historical/read_only 표시는 후속 작업이다.
+Election Classroom 변환 도구는 구현됐지만 실제 Election ID 6에는 적용하지 않았다.
+historical/read_only는 목표 설계이며 현재 runtime에는 아직 구현되지 않았다. 후속 작업 순서는
+다음과 같다.
+
+1. PollSession 중단·stopped·replacement·재투표
+2. historical/read_only 기반
+3. Election ID 6 historical Poll과 후보 사진 변환
+4. 운영 Poll 보존 범위 조사와 backfill
+5. 신규/legacy Poll runtime 분리
+6. Election runtime과 table 제거
+7. ParticipantGroup·ParticipantSlot 제거
+
+따라서 실제 Election ID 6 운영 데이터 적용, legacy Poll backfill과 runtime 완전 분리도 미완료다.
 
 `ParticipantGroup`은 현재 Poll 원본 명단과 진행 흐름에 연결되어 있고 export 시 학생
 명단의 출처가 될 수 있다. 이를 일찍 삭제하면 Poll 운영과 export 검증이 깨지고 새

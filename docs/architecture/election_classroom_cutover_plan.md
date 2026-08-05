@@ -16,17 +16,18 @@
 
 이 문서는 새로 생성하는 `ElectionSession`의 명단 원본을
 `ParticipantGroup`·`ParticipantSlot`에서 `Classroom`·`Student`로 전환하는 최소
-구현 순서를 확정한다. 기존 세션과 실제 선거 기록은 현재 구조 그대로 보존한다.
+구현 순서와 완료 상태를 기록한다. 기존 세션과 실제 선거 기록은 현재 구조 그대로 보존한다.
+이 문서는 Election ID 6을 historical Poll로 변환하는 계획이 아니다.
 
 이 전환은 학생의 진급, 반 이동, 전입·전출 또는 학년도 간 동일인 연결을 다루지
 않는다. 새 학년도에는 새 Classroom과 Student 명단을 만든다는 단순 운영 정책을
 유지한다.
 
-## 2. 현재 Election 의존성
+## 2. 전환 전 Election 의존성과 현재 상태
 
-### 2.1 ElectionSession
+### 2.1 전환 전 ElectionSession
 
-현재 `ElectionSession`은 다음 association을 가진다.
+전환 전 `ElectionSession`은 다음 association을 가졌다.
 
 - `Election` 필수
 - 운영 교사인 `User` 필수
@@ -34,14 +35,18 @@
 - `ElectionProgress` 하나
 - `ElectionVoter`, tally, event 다수
 
-DB의 `election_sessions.participant_group_id`는 `null: false`다. 모델도
+당시 DB의 `election_sessions.participant_group_id`는 `null: false`였다. 모델도
 `participant_group` 존재를 검증하며 생성 시 `purpose: school_election`인 group만
 허용한다. 같은 Election에서 동일 group의 `draft` 또는 `in_progress` 세션은 하나만
 허용하는 partial unique index와 model validation이 있다.
 
-관리자 세션 생성은 `Admin::ElectionSessionsController`가 Election과 같은 학교의
+당시 관리자 세션 생성은 `Admin::ElectionSessionsController`가 Election과 같은 학교의
 미배정 school-election group을 선택하고 `participant_group.user`를 세션 교사로
 배정한다. 단일 생성과 일괄 생성 모두 `participant_group_id` parameter를 사용한다.
+
+현재는 `Election`과 운영 교사인 `User`가 필수이며 명단 source로 `ParticipantGroup` 또는
+`Classroom` 중 정확히 하나를 사용한다. 신규 세션은 Classroom 기반이고 legacy 세션은
+ParticipantGroup 기반 조회를 계속 지원한다.
 
 ### 2.2 ParticipantGroup과 권한
 
@@ -55,9 +60,9 @@ school-election group은 학교, 학년, 반 표시값과 소유 교사를 가�
 `SchoolMembership.role = manager`는 Election 세션 배정이나 운영 권한에 아직
 적용되지 않았다. 이번 전환에서 manager 권한이 이미 구현된 것으로 가정하지 않는다.
 
-### 2.3 세션 시작과 snapshot
+### 2.3 전환 전 세션 시작과 snapshot
 
-`Elections::StartSession`은 group의 `participant_slots.order(:number)`를 읽는다.
+전환 전 `Elections::StartSession`은 group의 `participant_slots.order(:number)`를 읽었다.
 각 slot에서 다음 값을 기존 `ElectionVoter`로 복사한다.
 
 ```text
@@ -76,9 +81,9 @@ transaction 안에서 생성한다.
 진행 데이터·유효하지 않은 session을 거부한다. transaction, session row lock,
 재검증과 unique constraint가 중복 시작을 방어한다.
 
-### 2.4 화면과 조회
+### 2.4 전환 전 화면과 조회
 
-관리자 Election 상세의 세션 배정 화면은 group을 학년별로 나열하고
+전환 전 관리자 Election 상세의 세션 배정 화면은 group을 학년별로 나열하고
 `participant_group_ids[]`를 제출한다. 세션 목록, 결과와 운영 화면의 다음 부분도
 group 이름, 학년·반 또는 slot 수를 직접 사용한다.
 
@@ -96,6 +101,10 @@ draft 세션의 인원수는 group의 slot 수로 계산하지만 시작 뒤 운
 재투표 서비스도 기존 session의 election, participant group, teacher와 operation
 mode를 복사해 replacement draft session을 만든다. 관리자 Turbo 갱신 서비스 역시
 group 목록과 배정 상태를 다시 조회한다.
+
+현재 신규 ElectionSession은 active Classroom과 담임교사를 사용하고, 시작 시 active Student를
+기존 ElectionVoter로 snapshot한다. 화면은 Classroom과 legacy ParticipantGroup source를 모두
+표시하며 재투표 replacement도 원본 session과 같은 source를 유지한다.
 
 ### 2.5 핵심 spec 의존성
 
@@ -195,16 +204,16 @@ ParticipantGroup table 제거는 기존 세션의 표시 정보까지 독립적�
 
 ## 6. 최소 전환 단계
 
-### 1단계 — Classroom 연결 기반
+### 1단계 — Classroom 연결 기반 (완료)
 
 - `election_sessions.classroom_id` nullable foreign key를 추가한다.
 - 기존 `participant_group_id`를 nullable로 바꾸되 기존 값은 유지한다.
 - 두 source 중 정확히 하나를 요구하는 model validation과 DB check constraint를 둔다.
 - `(election_id, classroom_id)`에 active status용 partial unique index를 추가한다.
 - 기존 group용 partial unique index는 legacy 세션과 재투표를 위해 유지한다.
-- 아직 세션 생성과 시작 runtime은 ParticipantGroup 경로를 사용한다.
+- legacy 세션은 ParticipantGroup 경로를 계속 사용할 수 있다.
 
-### 2단계 — 새 세션 생성 경로 전환
+### 2단계 — 새 세션 생성 경로 전환 (완료)
 
 - 관리자 배정 화면의 새 source를 Election 학교의 active Classroom으로 바꾼다.
 - Classroom에는 Student가 하나 이상 있고 supervised 운영 교사가 배정돼 있어야 한다.
@@ -214,7 +223,7 @@ ParticipantGroup table 제거는 기존 세션의 표시 정보까지 독립적�
 - school manager의 Election 관리 권한은 현재 미구현 상태이므로 이 단계에 섞지 않고
   별도 policy 작업으로 다룬다.
 
-### 3단계 — voter snapshot 원본 전환
+### 3단계 — voter snapshot 원본 전환 (완료)
 
 - Classroom 기반 draft session은 `students.where(active: true).order(:number)`를 읽는다.
 - ParticipantGroup 기반 기존 draft/replacement session은 기존 slot 경로를 유지한다.
@@ -224,7 +233,7 @@ ParticipantGroup table 제거는 기존 세션의 표시 정보까지 독립적�
   private 분기를 두는 방식을 우선한다. 별도 범용 roster 계층은 만들지 않는다.
 - 시작 뒤에는 source가 아니라 ElectionVoter snapshot만으로 투표를 진행한다.
 
-### 4단계 — 조회·표시와 재투표 전환
+### 4단계 — 조회·표시와 재투표 전환 (완료)
 
 - Classroom 세션은 `school_year`, `grade`, `class_label`, `name`을 표시한다.
 - `class_label`은 숫자와 문자를 허용해 `생활교육실` 같은 특수 학급도 표현한다. 숫자
@@ -237,9 +246,11 @@ ParticipantGroup table 제거는 기존 세션의 표시 정보까지 독립적�
 - 완료 결과의 투표자·참여·집계는 source association이 아니라 기존 snapshot과 tally로
   조회되는지 spec으로 고정한다.
 
-### 5단계 — 기존 명단 의존 제거
+### 5단계 — 기존 명단 의존 제거 (미완료)
 
-다음 조건을 모두 만족한 뒤 별도 작업으로 진행한다.
+선택한 실제 Election의 복원본 리허설과 invariant 검증, 실제 적용 여부 결정을 먼저 수행한 뒤
+legacy source 제거를 별도 작업으로 진행한다. 현재 실제 운영 Election ID 6이나 production DB에는
+변환을 적용하지 않았다. 다음 조건을 모두 만족해야 한다.
 
 - 새 ElectionSession 생성이 Classroom 기반이다.
 - StartSession이 새 세션에서 Student snapshot을 만든다.
@@ -250,7 +261,14 @@ ParticipantGroup table 제거는 기존 세션의 표시 정보까지 독립적�
 
 이 문서에서는 ParticipantGroup table 제거를 바로 수행하지 않는다.
 
+선택 Election의 ParticipantGroup/ParticipantSlot을 Classroom/Student source로 바꾸는 service와
+dry-run 기본 Rake task, `APPLY=1` 적용 모드는 구현됐다. 이 도구는 기존 ElectionVoter를 새로 만들거나
+Student로 바꾸지 않고 voter·participation·progress·tally·event invariant를 검산하며 기존 tally와
+event를 수정하지 않는다. 이는 ElectionSession 명단 source 전환 도구이지 historical Poll 변환이 아니다.
+
 ## 7. 예상 변경 파일
+
+아래 목록은 전환 계획을 세울 당시의 예상 변경 범위다.
 
 ### 1단계
 
@@ -296,13 +314,9 @@ association이 필수가 아니다.
 
 ## 8. 주요 위험
 
-- `participant_group_id`의 DB `null: false`와 model 필수 validation을 함께 바꿔야 한다.
-- active session unique 제약이 현재 participant group만 기준으로 한다.
-- 세션 교사 적합성 검증이 group 소유권에 직접 의존한다.
-- StartSession이 participant slots를 직접 읽는다.
-- 재투표가 participant group을 그대로 복사하고 같은 group으로 활성 세션을 검사한다.
-- 관리자 Turbo 갱신과 여러 view가 group 이름과 slot 수를 무조건 사용한다.
-- 완료 결과 화면도 학급 표시를 위해 ParticipantGroup을 요구한다.
+- dual-source exactly-one 제약과 source별 active session unique 제약을 legacy 제거 전까지 유지해야 한다.
+- Classroom session은 active Student, legacy session은 ParticipantSlot을 읽는 분기가 회귀하지 않아야 한다.
+- 재투표와 화면 표시가 원본 session의 source 종류를 계속 보존해야 한다.
 - 실제 선거 데이터가 있으므로 legacy association을 조기에 제거할 수 없다.
 
 ## 9. 명시적으로 제외하는 작업
