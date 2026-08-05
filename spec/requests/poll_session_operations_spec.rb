@@ -139,14 +139,15 @@ RSpec.describe "PollSession operations", type: :request do
   end
 
   it "renders draft, closed, and stopped sessions safely without progress" do
-    { draft: "실행 전", closed: "종료", stopped: "중단" }.each do |status, label|
+    { draft: "준비", closed: "종료", stopped: "중단" }.each do |status, label|
       poll, poll_session, teacher = create_operations_session(status: status)
       sign_in teacher
 
       get poll_poll_session_path(poll, poll_session)
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include(label)
+      status_card = Nokogiri::HTML(response.body).at_css('[data-testid="poll-session-status-card"]')
+      expect(status_card.text.squish).to include(label, poll_session.classroom_name_snapshot, poll_session.operator_name_snapshot)
       expect(response.body).to include("투표자 명단이 없습니다.") if status == :closed
       sign_out teacher
     end

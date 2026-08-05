@@ -1,99 +1,46 @@
-<div class="mx-auto max-w-5xl space-y-6">
-  <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-    <div class="space-y-2">
-      <%= link_to local_assigns.fetch(:back_label, "내 투표 목록으로 돌아가기"),
-                  local_assigns.fetch(:back_path, polls_path),
-                  class: "text-sm font-medium text-stone-700 underline" %>
+<section class="space-y-4 rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+  <% overview_sessions = local_assigns[:current_sessions] || local_assigns.fetch(:poll_sessions, []).reject(&:stopped?) %>
+  <%= link_to local_assigns.fetch(:back_label, "내 투표 목록으로 돌아가기"),
+              local_assigns.fetch(:back_path, polls_path),
+              class: "text-sm font-medium text-stone-700 underline" %>
 
-      <div class="flex flex-wrap items-center gap-2">
-        <h1 class="text-3xl font-semibold"><%= poll.title %></h1>
-        <%= poll_activity_badge(poll) %>
-        <%= poll_status_badge(poll) %>
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div class="flex flex-wrap items-center gap-2">
+      <h1 class="text-3xl font-semibold"><%= poll.title %></h1>
+      <%= poll_activity_badge(poll) %>
+      <%= poll_status_badge(poll) %>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <% if poll.school_managed? && policy(poll).school_edit? %>
+        <%= link_to "선거 설정", edit_school_poll_path(poll),
+                    class: "rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700" %>
+      <% end %>
+      <% if poll.school_managed? && poll.closed? && policy(poll).school_results? %>
+        <%= link_to "결과 집계 보기", results_school_poll_path(poll),
+                    class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+      <% end %>
+    </div>
+  </div>
+
+  <% candidate_summary = poll_contests.map { |contest| "#{contest.title} #{contest.poll_options.size}명" }.join(" · ") %>
+  <dl class="grid gap-3 sm:grid-cols-4">
+    <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+      <dt class="text-xs font-medium text-stone-500">대상 학교</dt>
+      <dd class="mt-1 font-semibold"><%= poll.school.name %></dd>
+    </div>
+    <div class="rounded-md border border-stone-200 bg-stone-50 p-3 sm:col-span-2">
+      <dt class="text-xs font-medium text-stone-500">후보 구성</dt>
+      <dd class="mt-1 font-semibold"><%= candidate_summary.presence || "등록된 투표 항목 없음" %></dd>
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+        <dt class="text-xs font-medium text-stone-500">학급 세션</dt>
+        <dd class="mt-1 text-2xl font-semibold"><%= overview_sessions.size %></dd>
+      </div>
+      <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+        <dt class="text-xs font-medium text-stone-500">완료</dt>
+        <dd class="mt-1 text-2xl font-semibold"><%= overview_sessions.count(&:closed?) %>/<%= overview_sessions.size %></dd>
       </div>
     </div>
-  </header>
-
-  <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
-    <h2 class="text-xl font-semibold">투표 정보</h2>
-    <dl class="mt-4 grid gap-4 text-sm sm:grid-cols-3">
-      <div>
-        <dt class="text-stone-500">소속 학교</dt>
-        <dd class="mt-1 font-medium"><%= poll.school.name %></dd>
-      </div>
-      <div>
-        <dt class="text-stone-500">담당 교사</dt>
-        <dd class="mt-1 font-medium"><%= poll.user.name.presence || poll.user.email %></dd>
-      </div>
-      <div>
-        <dt class="text-stone-500">정의 상태</dt>
-        <dd class="mt-1 font-medium"><%= poll.display_status %></dd>
-      </div>
-    </dl>
-  </section>
-
-  <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
-    <h2 class="text-xl font-semibold">투표 항목</h2>
-
-    <% if poll_contests.any? %>
-      <div class="mt-4 space-y-5">
-        <% poll_contests.each do |contest| %>
-          <div>
-            <h3 class="font-semibold"><%= contest.title %></h3>
-            <% options = contest.poll_options.sort_by { |option| [option.number, option.id] } %>
-            <% if options.any? %>
-              <ul class="mt-2 space-y-1 text-stone-700">
-                <% options.each do |option| %>
-                  <li><%= option.number %>번 <%= option.name %></li>
-                <% end %>
-              </ul>
-            <% else %>
-              <p class="mt-2 text-sm text-stone-600">등록된 <%= poll.choice_label %>이 없습니다.</p>
-            <% end %>
-          </div>
-        <% end %>
-      </div>
-    <% else %>
-      <p class="mt-4 text-stone-600">등록된 투표 항목이 없습니다.</p>
-    <% end %>
-  </section>
-
-  <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
-    <div>
-      <h2 class="text-xl font-semibold">학급별 투표</h2>
-      <p class="mt-1 text-sm text-stone-600">배정된 학급의 투표 준비와 진행 상태를 확인합니다.</p>
-    </div>
-
-    <% if poll_sessions.any? %>
-      <ul class="mt-4 space-y-3">
-        <% poll_sessions.each do |poll_session| %>
-          <% participant_count = poll_session.poll_participants.size %>
-          <% processed_count = poll_session.poll_participants.count(&:poll_participation) %>
-          <li class="rounded-lg border border-stone-200 bg-stone-50 p-4">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div class="space-y-1">
-                <h3 class="font-semibold"><%= poll_session.classroom_name_snapshot %></h3>
-                <p class="text-sm text-stone-600">
-                  담당 교사: <%= poll_session.operator_name_snapshot %>
-                  · <%= poll_session_status_label(poll_session) %>
-                </p>
-                <% if poll_session.draft? %>
-                  <p class="text-sm text-stone-600">투표 준비</p>
-                <% else %>
-                  <p class="text-sm text-stone-600">
-                    참여 현황 <%= processed_count %>/<%= participant_count %>명
-                  </p>
-                <% end %>
-              </div>
-
-              <%= link_to poll_session.closed? ? "투표 결과 보기" : "투표 운영 화면",
-                          poll_poll_session_path(poll, poll_session),
-                          class: "text-sm font-medium text-stone-700 underline" %>
-            </div>
-          </li>
-        <% end %>
-      </ul>
-    <% else %>
-      <p class="mt-4 text-stone-600">배정된 학급 투표가 없습니다.</p>
-    <% end %>
-  </section>
-</div>
+  </dl>
+</section>

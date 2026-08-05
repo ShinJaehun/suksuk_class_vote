@@ -1,7 +1,8 @@
 Rails.application.routes.draw do
   devise_for :users
   resource :dashboard, only: :show
-  resources :school_polls, only: %i[index new create show] do
+  resources :school_polls, only: %i[index new create show edit update] do
+    get :results, on: :member
     post :start, on: :member
     post :close, on: :member
     post :mock_candidates, on: :member, action: :create_mock_candidates
