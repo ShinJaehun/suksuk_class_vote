@@ -25,12 +25,13 @@
     <% end %>
   </div>
 
-  <dl class="grid gap-3 text-sm sm:grid-cols-5">
-    <% [["전체 학급", current_session_counts.values_at("draft", "in_progress", "closed").sum],
+  <dl class="grid gap-3 text-sm sm:grid-cols-6">
+    <% [["전체 학급", current_session_counts.values.sum],
         ["준비", current_session_counts.fetch("draft", 0)],
         ["진행 중", current_session_counts.fetch("in_progress", 0)],
         ["종료", current_session_counts.fetch("closed", 0)],
-        ["중단 이력", stopped_history_count]].each do |label, count| %>
+        ["중단", current_session_counts.fetch("stopped", 0)],
+        ["재투표 이력", history_session_count]].each do |label, count| %>
       <div class="rounded-md bg-stone-50 p-3">
         <dt class="text-stone-500"><%= label %></dt>
         <dd class="mt-1 text-xl font-semibold"><%= count %></dd>

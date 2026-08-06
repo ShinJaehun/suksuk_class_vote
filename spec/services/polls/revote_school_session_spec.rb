@@ -35,14 +35,33 @@ RSpec.describe Polls::RevoteSchoolSession do
     expect(source.poll_events.where(event_type: "replacement_created")).to exist
   end
 
-  it "accepts a closed source but rejects its teacher and a stopped School Poll" do
+  it "preserves a closed source and rejects its teacher and a stopped School Poll" do
     source, manager, teacher = setup_source(status: :closed)
+    closed_at = source.closed_at
     expect(described_class.new(poll_session: source, actor: teacher).call).not_to be_success
     expect(described_class.new(poll_session: source, actor: manager).call).to be_success
+    expect(source.reload).to have_attributes(status: "closed", closed_at: closed_at, stopped_at: nil)
+    expect(source.replacement_session).to be_draft
 
     other, manager, = setup_source
     other.poll.update!(status: :stopped, stopped_at: Time.current)
     expect(described_class.new(poll_session: other, actor: manager).call).not_to be_success
+  end
+
+  it "rejects closed and stopped School Polls without creating history" do
+    %i[closed stopped].each do |poll_status|
+      source, manager, = setup_source
+      source.poll.update!(
+        status: poll_status,
+        closed_at: (Time.current if poll_status == :closed),
+        stopped_at: (Time.current if poll_status == :stopped)
+      )
+
+      expect { described_class.new(poll_session: source, actor: manager).call }
+        .not_to change(PollSession, :count)
+      expect(source.reload.replacement_session).to be_nil
+      expect(source.poll_events.where(event_type: "replacement_created")).to be_empty
+    end
   end
 
 

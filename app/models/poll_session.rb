@@ -19,6 +19,8 @@ class PollSession < ApplicationRecord
 
   enum :status, { draft: 0, in_progress: 10, closed: 20, stopped: 30 }
 
+  scope :current_execution, -> { where.missing(:replacement_session) }
+
   validates :status, presence: true
   validates :classroom_name_snapshot, presence: true, length: { maximum: 100 }
   validates :operator_name_snapshot, presence: true, length: { maximum: 100 }
@@ -89,10 +91,13 @@ class PollSession < ApplicationRecord
     if poll.school_managed? || replacement_of.poll.school_managed?
       errors.add(:poll, "must match the schoolwide source poll") unless poll == replacement_of.poll
       errors.add(:poll, "must be an in-progress schoolwide poll") unless poll.school_managed? && poll.in_progress?
+      unless replacement_of.stopped? || replacement_of.closed?
+        errors.add(:replacement_of, "must be stopped or closed")
+      end
     else
       errors.add(:poll, "must be draft for a replacement") unless poll.draft?
+      errors.add(:replacement_of, "must be stopped") unless replacement_of.stopped?
     end
-    errors.add(:replacement_of, "must be stopped") unless replacement_of.stopped?
   end
 
   def replacement_taken?

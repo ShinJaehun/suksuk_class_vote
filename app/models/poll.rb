@@ -73,6 +73,10 @@ class Poll < ApplicationRecord
   scope :active_list, -> { where(archived_at: nil) }
   scope :archived, -> { where.not(archived_at: nil) }
 
+  def current_poll_sessions
+    poll_sessions.current_execution
+  end
+
   before_destroy :prepare_for_destroy, prepend: true
   after_create :ensure_default_poll_contest!, unless: :school_managed?
 

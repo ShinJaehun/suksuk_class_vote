@@ -85,8 +85,8 @@ class SchoolPollsController < ApplicationController
 
     authorize @poll, :school_results?
     @school_result_summary = Polls::SchoolResultSummary.new(@poll)
-    @current_session_count = @school_result_summary.session_results.count { |result| !result.poll_session.stopped? }
-    @included_sessions = @poll.poll_sessions.closed
+    @current_session_count = @school_result_summary.session_results.count(&:included)
+    @included_sessions = @poll.current_poll_sessions.closed
       .includes(:poll_participants, poll_option_tallies: :poll_option, poll_contest_tallies: :poll_contest)
       .order(:created_at, :id)
   end
@@ -170,8 +170,8 @@ class SchoolPollsController < ApplicationController
       .includes(:operator, classroom: :students, poll_participants: :poll_participation)
       .order(:created_at, :id)
       .select { |poll_session| policy(poll_session).show? }
-    @current_poll_sessions = @poll_sessions.reject(&:stopped?)
-    @stopped_history_sessions = @poll_sessions.select(&:stopped?)
+    @current_poll_sessions = @poll_sessions.reject(&:superseded?)
+    @history_poll_sessions = @poll_sessions.select(&:superseded?)
     @current_session_counts = PollSession.statuses.keys.index_with do |status|
       @current_poll_sessions.count { |session| session.status == status }
     end

@@ -36,7 +36,7 @@
         <section class="space-y-2 rounded-md border border-stone-200 p-3">
           <h4 class="font-medium"><%= grade %>학년</h4>
           <% sessions.each do |session| %>
-            <% voter_count = session.draft? ? session.classroom.students.count(&:active?) : session.poll_participants.size %>
+            <% voter_count = session.draft? && !session.replacement? ? session.classroom.students.count(&:active?) : session.poll_participants.size %>
             <div class="flex flex-col gap-3 rounded-md bg-stone-50 p-3 sm:flex-row sm:items-center sm:justify-between">
               <div class="space-y-1">
                 <div class="flex flex-wrap items-center gap-2">
@@ -62,14 +62,14 @@
         </section>
       <% end %>
     </div>
-  <% elsif stopped_history_sessions.empty? %>
+  <% elsif history_sessions.empty? %>
     <p class="text-sm text-stone-600">배정된 학급 투표가 없습니다.</p>
   <% end %>
 
-  <% if stopped_history_sessions.any? %>
+  <% if history_sessions.any? %>
     <div class="space-y-2">
-      <h3 class="font-semibold">중단된 학급 세션 이력</h3>
-      <% stopped_history_sessions.each do |session| %>
+      <h3 class="font-semibold">재투표 학급 세션 이력</h3>
+      <% history_sessions.each do |session| %>
         <div class="flex items-center justify-between gap-3 rounded-md border border-rose-100 bg-rose-50/40 p-3">
           <div>
             <span class="font-medium"><%= session.classroom_name_snapshot %></span> <%= poll_session_status_badge(session) %>

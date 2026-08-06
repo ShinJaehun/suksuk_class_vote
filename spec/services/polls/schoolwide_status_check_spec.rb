@@ -189,4 +189,36 @@ RSpec.describe Polls::SchoolwideStatusCheck do
       expect(described_class.new(poll: poll.reload)).not_to be_closable
     end
   end
+
+  it "counts only the last replacement in a multi-step chain" do
+    poll, source, teacher = create_startable_schoolwide_poll
+    poll.update!(status: :in_progress, started_at: 1.hour.ago)
+    source.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: 50.minutes.ago)
+    first = create(:poll_session, poll: poll, classroom: source.classroom, operator: teacher,
+                                  replacement_of: source)
+    first.update!(status: :stopped, started_at: 40.minutes.ago, stopped_at: 30.minutes.ago)
+    leaf = create(:poll_session, poll: poll, classroom: source.classroom, operator: teacher,
+                                 replacement_of: first)
+    3.times do |number|
+      create(:poll_participant, poll: poll, poll_session: leaf,
+                                source_participant_slot: nil, number: number + 1)
+    end
+
+    check = described_class.new(poll: poll.reload)
+    expect(check).to have_attributes(session_count: 1, active_student_count: 3)
+    expect(check.session_counts).to include("draft" => 1, "stopped" => 0)
+  end
+
+  it "allows a closed leaf to supersede a stopped source when closing" do
+    poll, source, teacher = create_startable_schoolwide_poll
+    poll.update!(status: :in_progress, started_at: 1.hour.ago)
+    source.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: 45.minutes.ago)
+    leaf = create(:poll_session, poll: poll, classroom: source.classroom, operator: teacher,
+                                 replacement_of: source)
+    leaf.update!(status: :closed, started_at: 30.minutes.ago, closed_at: Time.current)
+    allow(Polls::SessionStatusCheck).to receive(:new).with(poll_session: leaf)
+      .and_return(instance_double(Polls::SessionStatusCheck, call: double(issues: [])))
+
+    expect(described_class.new(poll: poll.reload)).to be_closable
+  end
 end

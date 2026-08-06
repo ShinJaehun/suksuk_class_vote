@@ -20,8 +20,10 @@ module Polls
             source.reload
             validate
             raise ActiveRecord::Rollback if errors.any?
-            stopped_at = Time.current
-            source.update!(status: :stopped, stopped_at: source.stopped_at || stopped_at, closed_at: nil)
+            if source.in_progress?
+              stopped_at = Time.current
+              source.update!(status: :stopped, stopped_at: source.stopped_at || stopped_at, closed_at: nil)
+            end
             @replacement = source.poll.poll_sessions.create!(
               classroom: source.classroom,
               operator: source.operator,

@@ -248,6 +248,22 @@ RSpec.describe PollSession, type: :model do
       expect(replacement).to be_valid
     end
 
+    it "allows a closed schoolwide source and identifies only the leaf as current" do
+      school = create(:school)
+      teacher = create(:user)
+      create(:school_membership, school: school, user: teacher)
+      classroom = create(:classroom, school: school, teacher: teacher)
+      poll = create(:poll, school: school, school_managed: true, participant_group: nil,
+                           status: :in_progress, started_at: Time.current)
+      source = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
+                                     status: :closed, started_at: 1.hour.ago, closed_at: Time.current)
+      replacement = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
+                                          replacement_of: source)
+
+      expect(poll.current_poll_sessions).to contain_exactly(replacement)
+      expect(poll.poll_sessions).to contain_exactly(source, replacement)
+    end
+
     it "allows a chain but only one direct replacement and prevents changing the source" do
       first = stopped_session
       second = create(:poll_session, poll: first.poll, classroom: first.classroom,

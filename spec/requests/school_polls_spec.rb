@@ -113,13 +113,20 @@ RSpec.describe "School Poll management", type: :request do
 
     it "allows the manager to replace a closed classroom while the School Poll is running" do
       poll, session, manager, = create_schoolwide_lifecycle
-      session.update!(status: :closed, closed_at: Time.current)
+      closed_at = Time.current
+      session.update!(status: :closed, closed_at: closed_at)
       sign_in manager
 
       post revote_school_poll_poll_session_path(poll, session)
+      replacement = session.reload.replacement_session
 
-      expect(response).to redirect_to(poll_poll_session_path(poll, session.reload.replacement_session))
-      expect(session).to be_stopped
+      expect(response).to redirect_to(poll_poll_session_path(poll, replacement))
+      expect(session).to have_attributes(
+        status: "closed",
+        stopped_at: nil
+      )
+      expect(session.closed_at).to be_within(0.000001).of(closed_at)
+      expect(replacement).to have_attributes(poll: poll, status: "draft")
     end
   end
 
@@ -583,16 +590,18 @@ RSpec.describe "School Poll management", type: :request do
       expect(flash[:alert]).to eq("전교투표 종료 후 결과를 확인할 수 있습니다.")
     end
 
-    it "separates current Sessions from stopped history" do
-      poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil)
-      current = create_result_session(poll: poll, status: :draft, classroom_name: "현재 1반")
+    it "separates the current leaf from its replacement history" do
+      poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil,
+                           status: :in_progress, started_at: Time.current)
       stopped = create_result_session(poll: poll, status: :stopped, classroom_name: "중단 1반")
+      current = create(:poll_session, poll: poll, classroom: stopped.classroom,
+                                      operator: stopped.operator, replacement_of: stopped)
       sign_in create(:user, :admin)
 
       get school_poll_path(poll)
 
       page = Nokogiri::HTML(response.body)
-      expect(page.text.squish).to include("전체 학급 1", "준비 1", "중단 이력 1", "중단된 학급 세션 이력")
+      expect(page.text.squish).to include("전체 학급 1", "준비 1", "재투표 이력 1", "재투표 학급 세션 이력")
       expect(response.body).to include(poll_poll_session_path(poll, current), poll_poll_session_path(poll, stopped))
     end
   end

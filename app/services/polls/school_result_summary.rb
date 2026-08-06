@@ -27,7 +27,7 @@ module Polls
       @session_results ||= poll.poll_sessions.order(:created_at, :id).map do |poll_session|
         SessionResult.new(
           poll_session: poll_session,
-          included: poll_session.closed?
+          included: poll_session.closed? && !poll_session.superseded?
         )
       end
     end
@@ -41,7 +41,7 @@ module Polls
     attr_reader :poll
 
     def closed_sessions
-      @closed_sessions ||= poll.poll_sessions.closed
+      @closed_sessions ||= poll.current_poll_sessions.closed
     end
 
     def option_results_for(contest)

@@ -24,7 +24,7 @@ module Polls
 
           closed_at = Time.current
           participant_count = poll.poll_participants
-            .where(poll_session_id: poll.poll_sessions.closed.select(:id))
+            .where(poll_session_id: poll.current_poll_sessions.closed.select(:id))
             .count
           poll.update!(status: :closed, closed_at: closed_at, stopped_at: nil)
           poll.poll_events.create!(

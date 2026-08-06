@@ -33,7 +33,7 @@
              poll: @poll,
              status_check: @schoolwide_status_check,
              current_session_counts: @current_session_counts,
-             stopped_history_count: @stopped_history_sessions.size %>
+             history_session_count: @history_poll_sessions.size %>
 
   <% if policy(@poll).school_stop? %>
     <%= button_to "전교투표 중단",
@@ -49,7 +49,7 @@
   <%= render "sessions",
              poll: @poll,
              current_sessions: @current_poll_sessions,
-             stopped_history_sessions: @stopped_history_sessions,
+             history_sessions: @history_poll_sessions,
              assignable_classrooms: @assignable_classrooms,
              assignable_classroom_student_counts: @assignable_classroom_student_counts %>
 </div>

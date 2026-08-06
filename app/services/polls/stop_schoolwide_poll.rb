@@ -19,7 +19,7 @@ module Polls
           validate
           raise ActiveRecord::Rollback if errors.any?
           stopped_at = Time.current
-          sessions = poll.poll_sessions.order(:id).to_a
+          sessions = poll.current_poll_sessions.order(:id).to_a
           newly_stopped = 0
           sessions.each do |session|
             next if session.closed? || session.stopped?

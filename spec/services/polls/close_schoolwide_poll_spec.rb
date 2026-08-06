@@ -60,6 +60,34 @@ RSpec.describe Polls::CloseSchoolwidePoll do
     expect(described_class.new(poll: poll, actor: manager).call).to be_success
   end
 
+  it "closes after a closed source is replaced and the replacement is closed" do
+    poll, source = create_closable_poll
+    original_started_at = source.started_at
+    original_closed_at = source.closed_at
+    replacement = Polls::RevoteSchoolSession.new(poll_session: source, actor: poll.user).call.poll_session
+    expect(Polls::StartSession.new(actor: replacement.operator, poll_session: replacement).call).to be_success
+    replacement.poll_participants.each do |participant|
+      create(:poll_participation, poll_participant: participant, status: :absent)
+    end
+    current = replacement.poll_progress.current_poll_participant
+    expect(
+      Polls::CloseSession.new(
+        actor: replacement.operator,
+        poll_session: replacement,
+        expected_current_poll_participant_id: current.id
+      ).call
+    ).to be_success
+
+    expect(described_class.new(poll: poll.reload, actor: poll.user).call).to be_success
+    expect(source.reload).to have_attributes(
+      status: "closed",
+      started_at: original_started_at,
+      closed_at: original_closed_at,
+      stopped_at: nil
+    )
+    expect(poll.poll_sessions).to contain_exactly(source, replacement)
+  end
+
   it "rejects unfinished and stopped Sessions without changing the Poll" do
     %i[draft in_progress stopped].each do |status|
       poll, poll_session = create_closable_poll

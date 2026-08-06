@@ -75,7 +75,7 @@ module Polls
       @participant_counts_by_session ||= PollParticipant
         .where(
           poll: poll,
-          poll_session_id: poll.poll_sessions.select(:id)
+          poll_session_id: poll.current_poll_sessions.select(:id)
         )
         .group(:poll_session_id)
         .count
@@ -114,6 +114,9 @@ module Polls
       issues = base_issues
       issues << "진행 중인 전교투표만 종료할 수 있습니다." unless poll&.in_progress?
       issues << "종료할 학급 투표가 없습니다." if sessions.empty?
+      if sessions.group_by(&:classroom_id).any? { |_classroom_id, classroom_sessions| classroom_sessions.many? }
+        issues << "학급별 현재 투표 실행이 하나여야 합니다."
+      end
       issues << "중단된 학급 투표가 있어 전교투표를 종료할 수 없습니다." if sessions.any?(&:stopped?)
       issues << "모든 학급 투표가 종료되어야 합니다." if sessions.any? { |session| !session.closed? }
 
@@ -135,7 +138,7 @@ module Polls
     end
 
     def sessions
-      @sessions ||= poll&.poll_sessions&.includes(:operator, classroom: :students)&.to_a || []
+      @sessions ||= poll&.current_poll_sessions&.includes(:operator, classroom: :students)&.to_a || []
     end
 
     def contests

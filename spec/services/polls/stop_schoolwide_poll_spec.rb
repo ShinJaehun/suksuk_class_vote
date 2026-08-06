@@ -42,6 +42,19 @@ RSpec.describe Polls::StopSchoolwidePoll do
     )
   end
 
+  it "stops only the current leaf and preserves its superseded source" do
+    poll, manager, sessions = setup_poll
+    source = sessions.last
+    original_closed_at = source.closed_at
+    replacement = create(:poll_session, poll: poll, classroom: source.classroom,
+                                         operator: source.operator, replacement_of: source)
+
+    expect(described_class.new(poll: poll, actor: manager).call).to be_success
+    expect(source.reload).to have_attributes(status: "closed", closed_at: original_closed_at, stopped_at: nil)
+    expect(replacement.reload).to be_stopped
+    expect(poll.poll_sessions.where(id: [source.id, replacement.id]).count).to eq(2)
+  end
+
   it "allows admin and rejects regular teachers, other managers, and non-progress Polls" do
     poll, _manager, = setup_poll
     regular = create(:user)

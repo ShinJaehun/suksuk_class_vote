@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe Polls::SchoolResultSummary do
-  it "excludes a stopped source and includes only its closed replacement tally" do
+  it "excludes a closed source and includes only its closed replacement tally" do
     school = create(:school)
     teacher = create(:user)
     create(:school_membership, school: school, user: teacher)
@@ -11,7 +11,7 @@ RSpec.describe Polls::SchoolResultSummary do
     contest = create(:poll_contest, poll: poll, title: "회장", position: 1)
     option = create(:poll_option, poll: poll, poll_contest: contest)
     source = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
-                                   status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
+                                   status: :closed, started_at: 1.hour.ago, closed_at: 45.minutes.ago)
     replacement = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                                         replacement_of: source)
     replacement.update!(status: :closed, started_at: 30.minutes.ago, closed_at: Time.current)
@@ -22,5 +22,7 @@ RSpec.describe Polls::SchoolResultSummary do
 
     expect(summary.closed_session_count).to eq(1)
     expect(summary.contest_results.sole.option_results.sole.votes_count).to eq(3)
+    expect(summary.session_results.find { |result| result.poll_session == source }.included).to be(false)
+    expect(summary.session_results.find { |result| result.poll_session == replacement }.included).to be(true)
   end
 end
