@@ -53,7 +53,7 @@ RSpec.describe "Schools", type: :request do
     expect(response).to have_http_status(:not_found)
 
     get school_path(school)
-    expect(response.body).not_to include("대표 선생님 지정", "일반 선생님으로 변경", "학교 정보 수정")
+    expect(response.body).not_to include("대표 선생님 지정", "대표 선생님 지정 해제", "학교 정보 수정")
   end
 
   it "rejects regular and membershipless teachers" do
@@ -79,6 +79,6 @@ RSpec.describe "Schools", type: :request do
     patch promote_school_teacher_membership_path(school, membership)
     expect(membership.reload).to be_manager
     get school_path(school)
-    expect(response.body).to include("일반 선생님으로 변경")
+    expect(response.body).to include("대표 선생님 지정 해제")
   end
 end

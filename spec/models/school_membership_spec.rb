@@ -87,5 +87,36 @@ RSpec.describe SchoolMembership, type: :model do
 
       expect(another_membership).to be_valid
     end
+
+    it "allows only one manager per school" do
+      manager = create(:school_membership, :manager)
+      duplicate = build(:school_membership, :manager, school: manager.school)
+
+      expect(duplicate).not_to be_valid
+      expect(duplicate.errors[:school_id]).to include("이미 대표 선생님이 지정되어 있습니다")
+    end
+
+    it "allows one manager in each school and multiple regular members" do
+      first_school = create(:school)
+      second_school = create(:school)
+
+      expect(create(:school_membership, :manager, school: first_school)).to be_manager
+      expect(create(:school_membership, :manager, school: second_school)).to be_manager
+      expect(create_list(:school_membership, 2, school: first_school)).to all(be_member)
+    end
+
+    it "allows replacing or omitting a manager while keeping user membership unique" do
+      school = create(:school)
+      manager = create(:school_membership, :manager, school: school)
+      replacement = create(:school_membership, school: school)
+
+      manager.update!(role: :member)
+      replacement.update!(role: :manager)
+
+      expect(school.school_memberships.manager.sole).to eq(replacement)
+      replacement.update!(role: :member)
+      expect(school.school_memberships.manager).to be_empty
+      expect(build(:school_membership, user: manager.user)).not_to be_valid
+    end
   end
 end

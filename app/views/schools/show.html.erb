@@ -16,21 +16,17 @@
     <h2 class="text-lg font-semibold">대표 선생님</h2>
     <span class="text-sm text-stone-500">global admin만 역할을 변경할 수 있습니다.</span>
   </div>
-  <% managers = @memberships.select(&:manager?) %>
-  <% if managers.any? %>
-    <ul class="mt-3 space-y-2">
-      <% managers.each do |membership| %>
-        <li class="flex items-center justify-between">
-          <span><%= membership.user.name %> · <%= membership.user.email %></span>
-          <% if current_user.admin? %>
-            <%= button_to "일반 선생님으로 변경",
-                          demote_school_teacher_membership_path(@school, membership),
-                          method: :patch,
-                          class: "text-sm font-medium underline" %>
-          <% end %>
-        </li>
+  <% manager_membership = @memberships.find(&:manager?) %>
+  <% if manager_membership.present? %>
+    <div class="mt-3 flex items-center justify-between">
+      <span><%= manager_membership.user.name %> · <%= manager_membership.user.email %></span>
+      <% if current_user.admin? %>
+        <%= button_to "대표 선생님 지정 해제",
+                      demote_school_teacher_membership_path(@school, manager_membership),
+                      method: :patch,
+                      class: "text-sm font-medium underline" %>
       <% end %>
-    </ul>
+    </div>
   <% else %>
     <p class="mt-3 text-sm text-stone-600">대표 선생님이 없습니다.</p>
   <% end %>
@@ -42,6 +38,11 @@
           <%= button_to "대표 선생님 지정",
                         promote_school_teacher_membership_path(@school, membership),
                         method: :patch,
+                        data: {
+                          turbo_confirm: manager_membership.present? ?
+                            "이 선생님을 대표 선생님으로 지정할까요? 기존 대표 선생님은 일반 선생님으로 변경됩니다." :
+                            "이 선생님을 대표 선생님으로 지정할까요?"
+                        },
                         class: "text-sm font-medium underline" %>
         </li>
       <% end %>

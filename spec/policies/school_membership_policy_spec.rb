@@ -26,14 +26,11 @@ RSpec.describe SchoolMembershipPolicy do
     expect(policy).not_to be_demote
   end
 
-  it "prevents a manager from removing self or another manager" do
+  it "prevents a manager from removing self" do
     manager = create(:user)
     manager_membership = create(:school_membership, :manager, school: school, user: manager)
-    other_manager = create(:user)
-    other_manager_membership = create(:school_membership, :manager, school: school, user: other_manager)
 
     expect(described_class.new(manager, manager_membership)).not_to be_destroy
-    expect(described_class.new(manager, other_manager_membership)).not_to be_destroy
   end
 
   it "rejects another-school manager, regular teacher, and membershipless teacher" do

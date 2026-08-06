@@ -8,6 +8,12 @@ class SchoolMembership < ApplicationRecord
   validates :user, presence: true
   validates :role, presence: true
   validates :user_id, uniqueness: true
+  validates :school_id,
+            uniqueness: {
+              conditions: -> { where(role: :manager) },
+              message: "이미 대표 선생님이 지정되어 있습니다"
+            },
+            if: :manager?
 
   validate :user_must_be_teacher
 

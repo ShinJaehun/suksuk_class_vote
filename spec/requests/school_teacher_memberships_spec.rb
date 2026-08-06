@@ -70,25 +70,63 @@ RSpec.describe "School teacher memberships", type: :request do
     end
   end
 
-  it "allows only admin to promote and demote" do
+  it "lets only admin assign, replace, repeat, and clear the single manager" do
     school = create(:school)
-    _teacher, membership = add_teacher(school)
+    _teacher, first_membership = add_teacher(school, name: "기존 대표")
+    _replacement, second_membership = add_teacher(school, name: "새 대표")
     admin = create(:user, :admin)
     sign_in admin
 
-    patch promote_school_teacher_membership_path(school, membership)
-    expect(membership.reload).to be_manager
-    patch promote_school_teacher_membership_path(school, membership)
-    expect(membership.reload).to be_manager
-    patch demote_school_teacher_membership_path(school, membership)
-    expect(membership.reload).to be_member
+    patch promote_school_teacher_membership_path(school, first_membership)
+    expect(first_membership.reload).to be_manager
+    expect(flash[:notice]).to eq("대표 선생님으로 지정했습니다.")
 
-    manager, = add_teacher(school, role: :manager, name: "다른 대표")
+    patch promote_school_teacher_membership_path(school, second_membership)
+    expect(first_membership.reload).to be_member
+    expect(second_membership.reload).to be_manager
+    expect(school.school_memberships.manager.count).to eq(1)
+    expect(flash[:notice]).to eq("대표 선생님을 변경했습니다.")
+
+    patch promote_school_teacher_membership_path(school, second_membership)
+    expect(school.school_memberships.manager.sole).to eq(second_membership)
+
+    patch demote_school_teacher_membership_path(school, second_membership)
+    expect(second_membership.reload).to be_member
+    expect(school.school_memberships.manager).to be_empty
+    expect(flash[:notice]).to eq("대표 선생님 지정을 해제했습니다.")
+
+    patch promote_school_teacher_membership_path(school, second_membership)
+    manager = second_membership.user.reload
     sign_out admin
     sign_in manager
-    patch promote_school_teacher_membership_path(school, membership)
+    patch promote_school_teacher_membership_path(school, first_membership)
     expect(response).to redirect_to(polls_path)
-    expect(membership.reload).to be_member
+    patch demote_school_teacher_membership_path(school, second_membership)
+    expect(response).to redirect_to(polls_path)
+    expect(first_membership.reload).to be_member
+    expect(second_membership.reload).to be_manager
+  end
+
+  it "rolls back both roles when replacing the manager fails" do
+    school = create(:school)
+    _manager, manager_membership = add_teacher(school, role: :manager, name: "기존 대표")
+    _teacher, target_membership = add_teacher(school, name: "변경 대상")
+    allow_any_instance_of(SchoolMembership).to receive(:update!).and_wrap_original do |method, *args|
+      if method.receiver.id == target_membership.id
+        raise ActiveRecord::RecordInvalid.new(method.receiver)
+      end
+
+      method.call(*args)
+    end
+    sign_in create(:user, :admin)
+
+    patch promote_school_teacher_membership_path(school, target_membership)
+
+    expect(response).to redirect_to(school_path(school))
+    expect(flash[:alert]).to eq("대표 선생님을 변경할 수 없습니다.")
+    expect(manager_membership.reload).to be_manager
+    expect(target_membership.reload).to be_member
+    expect(school.school_memberships.manager.count).to eq(1)
   end
 
   it "removes only the membership and blocks removal while a Classroom is assigned" do
@@ -122,16 +160,35 @@ RSpec.describe "School teacher memberships", type: :request do
     expect(teacher.reload).to be_persisted
   end
 
-  it "prevents a manager from removing self or another manager" do
+  it "prevents a manager from removing self" do
     school = create(:school)
     manager, manager_membership = add_teacher(school, role: :manager)
-    _other_manager, other_membership = add_teacher(school, role: :manager, name: "다른 대표")
     sign_in manager
 
-    [manager_membership, other_membership].each do |target|
-      expect { delete school_teacher_membership_path(school, target) }.not_to change(SchoolMembership, :count)
-      expect(response).to redirect_to(polls_path)
-    end
+    expect { delete school_teacher_membership_path(school, manager_membership) }.not_to change(SchoolMembership, :count)
+    expect(response).to redirect_to(polls_path)
+  end
+
+  it "shows only the new manager in the representative area after replacement" do
+    school = create(:school)
+    old_manager, = add_teacher(school, role: :manager, name: "기존 대표")
+    new_manager, new_membership = add_teacher(school, name: "새 대표")
+    sign_in create(:user, :admin)
+
+    patch promote_school_teacher_membership_path(school, new_membership)
+    get school_path(school)
+
+    page = Nokogiri::HTML(response.body)
+    representative_section = page.css("section").find { |section| section.at_css("h2")&.text == "대표 선생님" }
+    demote_form = representative_section.at_css(
+      %(form[action="#{demote_school_teacher_membership_path(school, new_membership)}"])
+    )
+    current_manager_row = demote_form.parent
+
+    expect(demote_form).to be_present
+    expect(current_manager_row.text).to include(new_manager.name, new_manager.email)
+    expect(current_manager_row.text).not_to include(old_manager.name, old_manager.email)
+    expect(response.body).to include(old_manager.name, "일반 선생님")
   end
 
   it "returns 404 when deleting a membership from another parent School" do

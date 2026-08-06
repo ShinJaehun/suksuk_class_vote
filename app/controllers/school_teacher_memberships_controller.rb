@@ -33,14 +33,17 @@ class SchoolTeacherMembershipsController < ApplicationController
 
   def promote
     authorize @membership, :promote?
-    @membership.update!(role: :manager) unless @membership.manager?
-    redirect_to school_path(@school), notice: "대표 선생님으로 지정했습니다."
+    manager_changed = promote_to_manager!
+    notice = manager_changed ? "대표 선생님을 변경했습니다." : "대표 선생님으로 지정했습니다."
+    redirect_to school_path(@school), notice: notice
+  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique
+    redirect_to school_path(@school), alert: "대표 선생님을 변경할 수 없습니다."
   end
 
   def demote
     authorize @membership, :demote?
     @membership.update!(role: :member) unless @membership.member?
-    redirect_to school_path(@school), notice: "일반 선생님 역할로 변경했습니다."
+    redirect_to school_path(@school), notice: "대표 선생님 지정을 해제했습니다."
   end
 
   def destroy
@@ -89,5 +92,18 @@ class SchoolTeacherMembershipsController < ApplicationController
     else
       @membership.user = user
     end
+  end
+
+  def promote_to_manager!
+    manager_changed = false
+    @school.with_lock do
+      current_manager = @school.school_memberships.find_by(role: :manager)
+      if current_manager.present? && current_manager != @membership
+        current_manager.update!(role: :member)
+        manager_changed = true
+      end
+      @membership.update!(role: :manager) unless @membership.manager?
+    end
+    manager_changed
   end
 end
