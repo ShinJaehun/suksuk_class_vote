@@ -4,7 +4,9 @@
 
   <% if option.errors.any? %>
     <ul class="mt-4 list-disc pl-5 text-sm text-red-700">
-      <% option.errors.full_messages.each do |message| %><li><%= message %></li><% end %>
+      <% option.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
     </ul>
   <% end %>
 

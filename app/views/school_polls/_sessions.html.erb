@@ -61,8 +61,10 @@
       <h3 class="font-semibold">중단된 학급 세션 이력</h3>
       <% stopped_history_sessions.each do |session| %>
         <div class="flex items-center justify-between gap-3 rounded-md border border-rose-100 bg-rose-50/40 p-3">
-          <div><span class="font-medium"><%= session.classroom_name_snapshot %></span> <%= poll_session_status_badge(session) %>
-            <p class="mt-1 text-sm text-stone-600">담당 교사 <%= session.operator_name_snapshot %> · 투표자 <%= session.poll_participants.size %>명</p></div>
+          <div>
+            <span class="font-medium"><%= session.classroom_name_snapshot %></span> <%= poll_session_status_badge(session) %>
+            <p class="mt-1 text-sm text-stone-600">담당 교사 <%= session.operator_name_snapshot %> · 투표자 <%= session.poll_participants.size %>명</p>
+          </div>
           <%= link_to "상세", poll_poll_session_path(poll, session), class: "text-sm font-medium underline" %>
         </div>
       <% end %>

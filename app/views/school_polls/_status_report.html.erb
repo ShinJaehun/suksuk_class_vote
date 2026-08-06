@@ -9,7 +9,9 @@
       </div>
       <p class="mt-2 text-sm text-stone-600">
         시작 <%= kst_datetime(poll.started_at) %> · 종료 <%= kst_datetime(poll.closed_at) %>
-        <% if poll.lifecycle_duration_minutes.present? %>· 진행 시간 <%= poll.lifecycle_duration_minutes %>분<% end %>
+        <% if poll.lifecycle_duration_minutes.present? %>
+          · 진행 시간 <%= poll.lifecycle_duration_minutes %>분
+        <% end %>
       </p>
     </div>
     <% if poll.draft? && status_check.startable? %>
@@ -39,7 +41,11 @@
   <% if !poll.closed? && issues.any? %>
     <div class="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
       <p class="font-medium"><%= poll.draft? ? "시작 전 확인이 필요합니다." : "종료 전 확인이 필요합니다." %></p>
-      <ul class="mt-2 list-disc space-y-1 pl-5"><% issues.each do |issue| %><li><%= issue %></li><% end %></ul>
+      <ul class="mt-2 list-disc space-y-1 pl-5">
+        <% issues.each do |issue| %>
+          <li><%= issue %></li>
+        <% end %>
+      </ul>
     </div>
   <% elsif poll.closed? %>
     <p class="font-medium text-emerald-700">전교투표가 종료되었습니다.</p>

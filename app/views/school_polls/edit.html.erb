@@ -10,7 +10,11 @@
     <% if @poll.errors.any? %>
       <div class="mb-4 rounded-md border border-rose-200 bg-rose-50 p-4 text-rose-800">
         <p class="font-medium">전교투표 정보를 수정할 수 없습니다.</p>
-        <ul class="mt-2 list-disc pl-5 text-sm"><% @poll.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul>
+        <ul class="mt-2 list-disc pl-5 text-sm">
+          <% @poll.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
       </div>
     <% end %>
     <% unless @poll.draft? %>
@@ -24,7 +28,9 @@
         <%= form.collection_select :school_id, @available_schools, :id, :name, {},
                                    disabled: !school_change_allowed,
                                    class: "mt-1 w-full rounded-md border border-stone-300 px-3 py-2" %>
-        <% if @poll.poll_sessions.exists? %><p class="mt-1 text-sm text-stone-600">학급 Session이 배정되어 대상 학교를 변경할 수 없습니다.</p><% end %>
+        <% if @poll.poll_sessions.exists? %>
+          <p class="mt-1 text-sm text-stone-600">학급 Session이 배정되어 대상 학교를 변경할 수 없습니다.</p>
+        <% end %>
       </div>
       <div class="flex gap-3">
         <%= form.submit "저장", disabled: !@poll.draft?, class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-stone-300" %>

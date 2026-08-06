@@ -1,2 +1,11 @@
-<div class="flex items-end justify-between gap-4"><div><h1 class="text-2xl font-semibold">교실 설정</h1><p class="text-sm text-stone-600"><%= @classroom.school_year %>학년도 <%= @classroom.grade %>학년 <%= @classroom.formatted_class_label %></p></div><div class="flex gap-3 text-sm"><%= link_to "학생 관리", classroom_students_path(@classroom), class: "underline" %><%= link_to "교실 목록", classrooms_path, class: "underline" %></div></div>
+<div class="flex items-end justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-semibold">교실 설정</h1>
+    <p class="text-sm text-stone-600"><%= @classroom.school_year %>학년도 <%= @classroom.grade %>학년 <%= @classroom.formatted_class_label %></p>
+  </div>
+  <div class="flex gap-3 text-sm">
+    <%= link_to "학생 관리", classroom_students_path(@classroom), class: "underline" %>
+    <%= link_to "교실 목록", classrooms_path, class: "underline" %>
+  </div>
+</div>
 <%= render "form", classroom: @classroom %>

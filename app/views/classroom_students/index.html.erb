@@ -1,37 +1,81 @@
 <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-  <div><h1 class="text-2xl font-semibold">학생 관리</h1><p class="mt-1 text-stone-600"><%= @classroom.school_year %>학년도 <%= @classroom.grade %>학년 <%= @classroom.formatted_class_label %></p></div>
+  <div>
+    <h1 class="text-2xl font-semibold">학생 관리</h1>
+    <p class="mt-1 text-stone-600"><%= @classroom.school_year %>학년도 <%= @classroom.grade %>학년 <%= @classroom.formatted_class_label %></p>
+  </div>
   <div class="flex flex-wrap gap-3 text-sm font-medium">
-    <% if @return_poll_session %><%= link_to "투표로 돌아가기", poll_poll_session_path(@return_poll_session.poll, @return_poll_session), class: "underline" %><% end %>
-    <%= link_to "교실 설정", edit_classroom_path(@classroom), class: "underline" %><%= link_to "교실 목록", classrooms_path, class: "underline" %>
+    <% if @return_poll_session %>
+      <%= link_to "투표로 돌아가기", poll_poll_session_path(@return_poll_session.poll, @return_poll_session), class: "underline" %>
+    <% end %>
+    <%= link_to "교실 설정", edit_classroom_path(@classroom), class: "underline" %>
+    <%= link_to "교실 목록", classrooms_path, class: "underline" %>
   </div>
 </div>
 
 <div class="grid gap-3 sm:grid-cols-3">
-  <div class="rounded-md border border-stone-200 bg-white p-4"><p class="text-sm text-stone-500">활성</p><p class="text-2xl font-semibold"><%= @student_counts[:active] %>명</p></div>
-  <div class="rounded-md border border-stone-200 bg-white p-4"><p class="text-sm text-stone-500">비활성</p><p class="text-2xl font-semibold"><%= @student_counts[:inactive] %>명</p></div>
-  <div class="rounded-md border border-stone-200 bg-white p-4"><p class="text-sm text-stone-500">전체</p><p class="text-2xl font-semibold"><%= @student_counts[:all] %>명</p></div>
+  <div class="rounded-md border border-stone-200 bg-white p-4">
+    <p class="text-sm text-stone-500">활성</p>
+    <p class="text-2xl font-semibold"><%= @student_counts[:active] %>명</p>
+  </div>
+  <div class="rounded-md border border-stone-200 bg-white p-4">
+    <p class="text-sm text-stone-500">비활성</p>
+    <p class="text-2xl font-semibold"><%= @student_counts[:inactive] %>명</p>
+  </div>
+  <div class="rounded-md border border-stone-200 bg-white p-4">
+    <p class="text-sm text-stone-500">전체</p>
+    <p class="text-2xl font-semibold"><%= @student_counts[:all] %>명</p>
+  </div>
 </div>
 
 <div class="flex flex-col gap-4 rounded-md border border-stone-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
   <nav class="flex gap-3 text-sm font-medium">
-    <% { "active" => "활성", "inactive" => "비활성", "all" => "전체" }.each do |status, label| %><%= link_to label, classroom_students_path(@classroom, status: status, **student_return_context_params), class: @status == status ? "text-stone-900 underline" : "text-stone-500" %><% end %>
+    <% { "active" => "활성", "inactive" => "비활성", "all" => "전체" }.each do |status, label| %>
+      <%= link_to label, classroom_students_path(@classroom, status: status, **student_return_context_params), class: @status == status ? "text-stone-900 underline" : "text-stone-500" %>
+    <% end %>
   </nav>
-  <div class="flex gap-3"><%= link_to "학생 한 명 추가", new_classroom_student_path(@classroom, **student_return_context_params), class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium" %><%= link_to "여러 학생 추가", bulk_new_classroom_students_path(@classroom, **student_return_context_params), class: "rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white" %></div>
+  <div class="flex gap-3">
+    <%= link_to "학생 한 명 추가", new_classroom_student_path(@classroom, **student_return_context_params), class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium" %>
+    <%= link_to "여러 학생 추가", bulk_new_classroom_students_path(@classroom, **student_return_context_params), class: "rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white" %>
+  </div>
 </div>
 
 <% if @students.any? %>
   <div class="overflow-hidden rounded-md border border-stone-200 bg-white">
-    <table class="w-full text-left text-sm"><thead class="bg-stone-100 text-stone-600"><tr><th class="px-4 py-3">번호</th><th class="px-4 py-3">이름</th><th class="px-4 py-3">상태</th><th class="px-4 py-3 text-right">관리</th></tr></thead>
+    <table class="w-full text-left text-sm">
+      <thead class="bg-stone-100 text-stone-600">
+        <tr>
+          <th class="px-4 py-3">번호</th>
+          <th class="px-4 py-3">이름</th>
+          <th class="px-4 py-3">상태</th>
+          <th class="px-4 py-3 text-right">관리</th>
+        </tr>
+      </thead>
       <tbody class="divide-y divide-stone-200">
         <% @students.each do |student| %>
-          <tr class="<%= "text-stone-400" unless student.active? %>"><td class="px-4 py-3 font-medium"><%= student.number %></td><td class="px-4 py-3"><%= student.name %></td><td class="px-4 py-3"><%= student.active? ? "활성" : "비활성" %></td><td class="px-4 py-3"><div class="flex justify-end gap-3"><%= link_to "수정", edit_classroom_student_path(@classroom, student, status: @status, **student_return_context_params), class: "font-medium underline" %>
-            <% if student.active? %><%= button_to "비활성화", deactivate_classroom_student_path(@classroom, student, status: @status, **student_return_context_params), method: :patch, data: { turbo_confirm: "이 학생을 새 투표 명단에서 제외할까요? 이미 시작된 투표의 snapshot은 유지됩니다." }, class: "font-medium text-rose-700 underline" %>
-            <% else %><%= button_to "복구", reactivate_classroom_student_path(@classroom, student, status: @status, **student_return_context_params), method: :patch, data: { turbo_confirm: "이 학생을 활성 명단으로 복구할까요?" }, class: "font-medium text-emerald-700 underline" %><% end %>
-          </div></td></tr>
+          <tr class="<%= "text-stone-400" unless student.active? %>">
+            <td class="px-4 py-3 font-medium"><%= student.number %></td>
+            <td class="px-4 py-3"><%= student.name %></td>
+            <td class="px-4 py-3"><%= student.active? ? "활성" : "비활성" %></td>
+            <td class="px-4 py-3">
+              <div class="flex justify-end gap-3">
+                <%= link_to "수정", edit_classroom_student_path(@classroom, student, status: @status, **student_return_context_params), class: "font-medium underline" %>
+                <% if student.active? %>
+                  <%= button_to "비활성화", deactivate_classroom_student_path(@classroom, student, status: @status, **student_return_context_params), method: :patch, data: { turbo_confirm: "이 학생을 새 투표 명단에서 제외할까요? 이미 시작된 투표의 snapshot은 유지됩니다." }, class: "font-medium text-rose-700 underline" %>
+                <% else %>
+                  <%= button_to "복구", reactivate_classroom_student_path(@classroom, student, status: @status, **student_return_context_params), method: :patch, data: { turbo_confirm: "이 학생을 활성 명단으로 복구할까요?" }, class: "font-medium text-emerald-700 underline" %>
+                <% end %>
+              </div>
+            </td>
+          </tr>
         <% end %>
       </tbody>
     </table>
   </div>
 <% else %>
-  <div class="rounded-md border border-dashed border-stone-300 bg-white p-8 text-center"><p class="font-medium"><%= @student_counts[:all].zero? ? "등록된 학생이 없습니다." : "이 상태의 학생이 없습니다." %></p><% if @student_counts[:all].zero? %><p class="mt-1 text-sm text-stone-600">학생 한 명 추가 또는 여러 학생 추가로 명단을 준비해 주세요.</p><% end %></div>
+  <div class="rounded-md border border-dashed border-stone-300 bg-white p-8 text-center">
+    <p class="font-medium"><%= @student_counts[:all].zero? ? "등록된 학생이 없습니다." : "이 상태의 학생이 없습니다." %></p>
+    <% if @student_counts[:all].zero? %>
+      <p class="mt-1 text-sm text-stone-600">학생 한 명 추가 또는 여러 학생 추가로 명단을 준비해 주세요.</p>
+    <% end %>
+  </div>
 <% end %>

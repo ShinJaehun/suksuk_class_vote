@@ -3,7 +3,9 @@
 
   <% if contest.errors.any? %>
     <ul class="mt-4 list-disc pl-5 text-sm text-red-700">
-      <% contest.errors.full_messages.each do |message| %><li><%= message %></li><% end %>
+      <% contest.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
     </ul>
   <% end %>
 
