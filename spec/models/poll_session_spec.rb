@@ -172,6 +172,84 @@ RSpec.describe PollSession, type: :model do
     end
   end
 
+  describe "replacement relationship" do
+    def stopped_session(status: :stopped)
+      create(:poll_session, status: status, stopped_at: (Time.current if status == :stopped), closed_at: (Time.current if status == :closed))
+    end
+
+    it "links a replacement using a separate draft poll in the same classroom" do
+      source = stopped_session
+      replacement_poll = create(:poll, user: source.poll.user, school: source.poll.school,
+                                        participant_group: nil)
+      replacement = create(
+        :poll_session,
+        poll: replacement_poll,
+        classroom: source.classroom,
+        operator: source.operator,
+        replacement_of: source
+      )
+
+      expect(replacement).to be_replacement
+      expect(source.reload).to be_superseded
+      expect(source.replacement_session).to eq(replacement)
+      expect(replacement.poll).not_to eq(source.poll)
+    end
+
+    it "rejects a closed or non-stopped source, a different classroom, and self-reference" do
+      source = create(:poll_session)
+      expect(build(:poll_session, poll: source.poll, classroom: source.classroom,
+                                  operator: source.operator, replacement_of: source)).to be_invalid
+
+      closed_source = stopped_session(status: :closed)
+      closed_poll = create(:poll, user: closed_source.poll.user, school: closed_source.poll.school,
+                                  participant_group: nil)
+      expect(build(:poll_session, poll: closed_poll, classroom: closed_source.classroom,
+                                  operator: closed_source.operator, replacement_of: closed_source)).to be_invalid
+
+      source.update!(status: :stopped, stopped_at: Time.current)
+      different_classroom = create(:classroom, :with_teacher, school: source.poll.school)
+      expect(build(:poll_session, poll: source.poll, classroom: different_classroom,
+                                  operator: different_classroom.teacher, replacement_of: source)).to be_invalid
+
+      replacement = build(:poll_session, poll: source.poll, classroom: source.classroom, operator: source.operator)
+      replacement.replacement_of = replacement
+      expect(replacement).to be_invalid
+    end
+
+
+    it "rejects a school-managed source or replacement poll and a non-draft replacement poll" do
+      source = stopped_session
+      replacement_poll = create(:poll, user: source.poll.user, school: source.poll.school,
+                                        participant_group: nil)
+
+      source.poll.update!(school_managed: true)
+      expect(build(:poll_session, poll: replacement_poll, classroom: source.classroom,
+                                  operator: source.operator, replacement_of: source)).to be_invalid
+
+      source.poll.update!(school_managed: false)
+      replacement_poll.update!(status: :in_progress)
+      expect(build(:poll_session, poll: replacement_poll, classroom: source.classroom,
+                                  operator: source.operator, replacement_of: source)).to be_invalid
+    end
+
+    it "allows a chain but only one direct replacement and prevents changing the source" do
+      first = stopped_session
+      second = create(:poll_session, poll: first.poll, classroom: first.classroom,
+                                     operator: first.operator, replacement_of: first)
+      second.update!(status: :stopped, stopped_at: Time.current)
+      expect(build(:poll_session, poll: first.poll, classroom: first.classroom,
+                                  operator: first.operator, replacement_of: first)).to be_invalid
+
+      third = create(:poll_session, poll: second.poll, classroom: second.classroom,
+                                    operator: second.operator, replacement_of: second)
+      expect(third.replacement_of).to eq(second)
+
+      other_source = stopped_session
+      expect(third.update(replacement_of: other_source)).to be(false)
+    end
+
+  end
+
   describe "deletion restrictions" do
     let!(:poll_session) { create(:poll_session) }
 

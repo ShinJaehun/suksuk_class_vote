@@ -136,4 +136,17 @@ RSpec.describe Polls::MarkCurrentSessionParticipantAbsent do
     expect(other.reload.poll_participation).to be_nil
     expect(progress.reload.current_poll_participant).to eq(current)
   end
+
+
+  it "rejects absent processing for a stopped session" do
+    poll_session, progress, current, other, operator = create_execution
+    poll_session.update!(status: :stopped, stopped_at: Time.current)
+
+    result = described_class.new(actor: operator, poll_session: poll_session).call
+
+    expect(result).not_to be_success
+    expect(current.reload.poll_participation).to be_nil
+    expect(other.reload.poll_participation).to be_nil
+    expect(progress.reload.current_poll_participant).to eq(current)
+  end
 end

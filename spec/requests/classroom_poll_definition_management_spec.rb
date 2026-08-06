@@ -47,6 +47,77 @@ RSpec.describe "Classroom Poll definition management", type: :request do
     expect(contest.class.exists?(contest.id)).to be(false)
   end
 
+  it "edits a replacement draft definition without changing its source Poll" do
+    source_contest = poll.default_poll_contest
+    source_contest.update!(title: "원본 항목")
+    source_option = create(:poll_option, poll: poll, poll_contest: source_contest,
+                                         number: 1, name: "원본 후보")
+    poll_session.update!(status: :stopped, stopped_at: Time.current)
+    create(:poll_participant, poll: poll, poll_session: poll_session,
+                              source_participant_slot: nil, number: 1, name: "학생")
+    replacement = Polls::RevoteSession.new(actor: operator, poll_session: poll_session).call.poll_session
+    replacement_poll = replacement.poll
+    replacement_contest = replacement_poll.default_poll_contest
+    replacement_option = replacement_contest.poll_options.sole
+
+    patch definition_poll_poll_session_path(replacement_poll, replacement),
+          params: { poll: { title: "4학년 학급 임원 재선거", kind: "survey" } }
+    expect(replacement_poll.reload).to have_attributes(title: "4학년 학급 임원 재선거", kind: "survey")
+    expect(poll.reload).not_to have_attributes(title: "4학년 학급 임원 재선거", kind: "survey")
+
+    patch poll_poll_session_contest_path(replacement_poll, replacement, replacement_contest),
+          params: { poll_contest: { title: "수정 항목" } }
+    patch poll_poll_session_contest_option_path(replacement_poll, replacement, replacement_contest, replacement_option),
+          params: { poll_option: { number: 2, name: "수정 후보" } }
+    expect(replacement_contest.reload.title).to eq("수정 항목")
+    expect(replacement_option.reload).to have_attributes(number: 2, name: "수정 후보")
+    expect(source_contest.reload.title).to eq("원본 항목")
+    expect(source_option.reload).to have_attributes(number: 1, name: "원본 후보")
+
+    post poll_poll_session_contests_path(replacement_poll, replacement),
+         params: { poll_contest: { title: "추가 항목" } }
+    added_contest = replacement_poll.poll_contests.order(:position).last
+    post poll_poll_session_contest_options_path(replacement_poll, replacement, added_contest),
+         params: { poll_option: { number: 1, name: "추가 선택지" } }
+    added_option = added_contest.poll_options.sole
+    delete poll_poll_session_contest_option_path(replacement_poll, replacement, added_contest, added_option)
+    delete poll_poll_session_contest_path(replacement_poll, replacement, added_contest)
+    expect(added_option.class.exists?(added_option.id)).to be(false)
+    expect(added_contest.class.exists?(added_contest.id)).to be(false)
+  end
+
+  it "rejects replacement definition changes after starting or from an unrelated teacher" do
+    source_option = create(:poll_option, poll: poll, poll_contest: poll.default_poll_contest,
+                                         number: 1, name: "원본 후보")
+    poll_session.update!(status: :stopped, stopped_at: Time.current)
+    create(:poll_participant, poll: poll, poll_session: poll_session,
+                              source_participant_slot: nil)
+    replacement = Polls::RevoteSession.new(actor: operator, poll_session: poll_session).call.poll_session
+    replacement_poll = replacement.poll
+    replacement_contest = replacement_poll.default_poll_contest
+    replacement_option = replacement_contest.poll_options.sole
+    original_title = replacement_poll.title
+
+    unrelated = create(:user)
+    create(:school_membership, school: school, user: unrelated)
+    sign_in unrelated
+    patch definition_poll_poll_session_path(replacement_poll, replacement),
+          params: { poll: { title: "무단 수정" } }
+    patch poll_poll_session_contest_option_path(replacement_poll, replacement, replacement_contest, replacement_option),
+          params: { poll_option: { name: "무단 후보 수정" } }
+    expect(replacement_poll.reload.title).to eq(original_title)
+    expect(replacement_option.reload.name).to eq(source_option.name)
+
+    sign_in operator
+    replacement.update!(status: :in_progress, started_at: Time.current)
+    patch definition_poll_poll_session_path(replacement_poll, replacement),
+          params: { poll: { title: "시작 후 수정" } }
+    patch poll_poll_session_contest_option_path(replacement_poll, replacement, replacement_contest, replacement_option),
+          params: { poll_option: { name: "시작 후 후보 수정" } }
+    expect(replacement_poll.reload.title).to eq(original_title)
+    expect(replacement_option.reload.name).to eq(source_option.name)
+  end
+
   it "blocks changes after the Session starts" do
     poll_session
     poll_session.update!(status: :in_progress)
@@ -116,7 +187,7 @@ RSpec.describe "Classroom Poll definition management", type: :request do
       dom_id(option)
     ])
 
-    roster_link = page.css("[data-testid='poll-session-roster'] a").find { |link| link.text.include?("학생 명단 관리") }
+    roster_link = page.css("[data-testid='poll-session-roster'] a").find { |link| link.text.include?("투표자 명단 수정") }
     expect(roster_link).to be_present
     expect(roster_link["href"]).to include(
       classroom_students_path(classroom),
@@ -227,7 +298,7 @@ RSpec.describe "Classroom Poll definition management", type: :request do
     %i[in_progress closed stopped].each do |status|
       poll_session.update!(status: status)
       get poll_poll_session_path(poll, poll_session)
-      expect(response.body).not_to include("학생 명단 관리")
+      expect(response.body).not_to include("투표자 명단 수정")
     end
   end
 end

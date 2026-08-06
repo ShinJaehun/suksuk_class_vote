@@ -2,6 +2,15 @@ class PollSession < ApplicationRecord
   belongs_to :poll
   belongs_to :classroom
   belongs_to :operator, class_name: "User", inverse_of: :operated_poll_sessions
+  belongs_to :replacement_of,
+             class_name: "PollSession",
+             optional: true,
+             inverse_of: :replacement_session
+  has_one :replacement_session,
+          class_name: "PollSession",
+          foreign_key: :replacement_of_id,
+          inverse_of: :replacement_of,
+          dependent: :restrict_with_error
   has_many :poll_participants, dependent: :restrict_with_error, inverse_of: :poll_session
   has_one :poll_progress, dependent: :restrict_with_error, inverse_of: :poll_session
   has_many :poll_option_tallies, dependent: :restrict_with_error, inverse_of: :poll_session
@@ -17,6 +26,16 @@ class PollSession < ApplicationRecord
   validate :poll_and_classroom_must_share_school
   validate :active_session_must_be_unique
   validate :terminal_timestamps_must_not_conflict
+  validate :replacement_relationship_must_be_valid
+  validate :replacement_of_cannot_change, on: :update
+
+  def replacement?
+    replacement_of.present?
+  end
+
+  def superseded?
+    replacement_session.present?
+  end
 
   private
 
@@ -49,5 +68,54 @@ class PollSession < ApplicationRecord
     return unless closed_at.present? && stopped_at.present?
 
     errors.add(:base, "closed_at and stopped_at cannot both be present")
+  end
+
+  def replacement_relationship_must_be_valid
+    return if replacement_of.blank?
+
+    errors.add(:replacement_of, "cannot reference itself") if replacement_of == self
+    if classroom.present? && replacement_of.classroom != classroom
+      errors.add(:replacement_of, "must belong to the same classroom")
+    end
+    if poll.present?
+      errors.add(:poll, "must be a general classroom poll") if poll.school_managed?
+      errors.add(:poll, "must be draft for a replacement") unless poll.draft?
+    end
+    if replacement_of.poll&.school_managed?
+      errors.add(:replacement_of, "must be a general classroom poll")
+    end
+    unless replacement_of.stopped?
+      errors.add(:replacement_of, "must be stopped")
+    end
+    errors.add(:status, "must be draft for a replacement") if new_record? && !draft?
+    errors.add(:replacement_of, "already has a replacement") if replacement_taken?
+    errors.add(:replacement_of, "cannot create a cycle") if replacement_cycle?
+  end
+
+  def replacement_taken?
+    relation = self.class.where(replacement_of_id: replacement_of_id)
+    relation = relation.where.not(id: id) if persisted?
+    relation.exists?
+  end
+
+  def replacement_cycle?
+    source = replacement_of
+    visited_ids = []
+
+    while source
+      return true if source == self || (id.present? && source.id == id)
+      return true if source.id.present? && visited_ids.include?(source.id)
+
+      visited_ids << source.id if source.id.present?
+      source = source.replacement_of
+    end
+
+    false
+  end
+
+  def replacement_of_cannot_change
+    return unless will_save_change_to_replacement_of_id?
+
+    errors.add(:replacement_of, "cannot be changed after creation")
   end
 end

@@ -42,6 +42,11 @@ Rails.application.routes.draw do
       post :close_ballot_screen, on: :member
       post :submit_ballot, on: :member
       patch :close, on: :member
+      patch :stop, on: :member
+      post :revote, on: :member
+      resource :roster,
+               only: %i[edit update],
+               controller: "poll_session_rosters"
       resources :contests,
                 controller: "classroom_poll_contests",
                 only: %i[new create edit update destroy] do

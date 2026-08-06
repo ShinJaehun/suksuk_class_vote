@@ -93,6 +93,42 @@ RSpec.describe Polls::SessionStatusCheck do
     end
   end
 
+  it "uses copied participants instead of Classroom Students for a replacement draft" do
+    source, operator = build_draft
+    source.update!(status: :stopped, stopped_at: Time.current)
+    create(:poll_participant, poll: source.poll, poll_session: source,
+                              source_participant_slot: nil, number: 9, name: "재투표 학생")
+    replacement = Polls::RevoteSession.new(actor: operator, poll_session: source).call.poll_session
+    source.classroom.students.update_all(active: false)
+
+    result = described_class.new(poll_session: replacement).call
+
+    expect(result).to be_startable
+    expect(result.total_count).to eq(1)
+    expect(result.issues).not_to include("투표 대상 학생이 없습니다.", "이미 확정된 투표자 명단이 있습니다.")
+  end
+
+  it "rejects an empty replacement roster and pre-start execution records" do
+    source, operator = build_draft
+    source.update!(status: :stopped, stopped_at: Time.current)
+    create(
+      :poll_participant,
+      poll: source.poll,
+      poll_session: source,
+      source_participant_slot: nil,
+      number: 1,
+      name: "원본 학생"
+    )
+    replacement = Polls::RevoteSession.new(actor: operator, poll_session: source).call.poll_session
+    replacement.poll_participants.destroy_all
+    create(:poll_event, poll: replacement.poll, poll_session: replacement)
+
+    result = described_class.new(poll_session: replacement).call
+
+    expect(result).not_to be_startable
+    expect(result.issues).to include("투표자 명단이 없습니다.", "이미 생성된 실행 기록이 있습니다.")
+  end
+
   it "accepts each supported in-progress current and ballot combination" do
     poll_session, operator = build_draft
     start_session(poll_session, operator)

@@ -33,7 +33,10 @@ module PollSessionsHelper
       "poll_started" => "투표 시작",
       "vote_completed" => "투표 완료",
       "participant_marked_absent" => "미참여 처리",
-      "poll_closed" => "투표 종료"
+      "poll_closed" => "투표 종료",
+      "poll_stopped" => "투표 중단",
+      "replacement_created" => "재투표 실행 생성",
+      "replacement_roster_updated" => "투표자 명단 수정"
     }.fetch(event.event_type, event.event_type)
   end
 end

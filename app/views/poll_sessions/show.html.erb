@@ -12,7 +12,7 @@
                   end %>
 <%= turbo_frame_tag dom_id(@poll_session, :teacher_progress), data: polling_data do %>
   <div class="mx-auto max-w-5xl space-y-6">
-    <% visible_voter_count = @poll_session.draft? ? @active_students.size : @participants.size %>
+    <% visible_voter_count = @poll_session.draft? && !@poll_session.replacement? ? @active_students.size : @participants.size %>
     <section class="rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
              data-testid="poll-session-status-card">
       <div class="flex flex-wrap items-center gap-2">
@@ -38,6 +38,26 @@
         </div>
       </dl>
     </section>
+    <% if policy(@poll_session).stop? %>
+      <%= button_to "투표 중단",
+                    stop_poll_poll_session_path(@poll_session.poll, @poll_session),
+                    method: :patch,
+                    form: { data: { turbo_frame: "_top" } },
+                    data: {
+                      turbo_confirm: "현재 투표 실행을 중단할까요? 지금까지의 진행 기록은 보존되며 이 실행에서는 더 이상 투표를 계속할 수 없습니다."
+                    },
+                    class: "rounded-md border border-rose-300 px-4 py-2 text-sm font-medium text-rose-700" %>
+    <% end %>
+    <% if policy(@poll_session).revote? %>
+      <%= button_to "재투표 시작 준비",
+                    revote_poll_poll_session_path(@poll_session.poll, @poll_session),
+                    method: :post,
+                    form: { data: { turbo_frame: "_top" } },
+                    data: {
+                      turbo_confirm: "기존 진행 기록과 결과를 보존하고 같은 투표자 명단으로 새 재투표 실행을 만들까요?"
+                    },
+                    class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+    <% end %>
     <% if @poll_session.in_progress? %>
       <%= turbo_stream_from @poll_session, :operation_screen %>
       <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
@@ -135,12 +155,18 @@
 
       <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
                data-testid="poll-session-roster">
+        <% draft_roster = @poll_session.replacement? ? @participants : @active_students %>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h2 class="text-lg font-semibold">투표자 명단</h2>
           <div class="flex items-center gap-3">
-            <span class="text-sm text-stone-600">전체 <%= @active_students.size %>명</span>
-            <% if policy(@poll_session.classroom).manage_students? %>
-              <%= link_to "학생 명단 관리",
+            <span class="text-sm text-stone-600">전체 <%= draft_roster.size %>명</span>
+            <% if policy(@poll_session).edit_replacement_roster? %>
+              <%= link_to "투표자 명단 수정",
+                          edit_poll_poll_session_roster_path(@poll_session.poll, @poll_session),
+                          data: { turbo_frame: "_top" },
+                          class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium" %>
+            <% elsif !@poll_session.replacement? && policy(@poll_session.classroom).manage_students? %>
+              <%= link_to "투표자 명단 수정",
                           classroom_students_path(
                             @poll_session.classroom,
                             return_poll_id: @poll_session.poll_id,
@@ -151,10 +177,12 @@
             <% end %>
           </div>
         </div>
-        <p class="mt-2 text-sm text-stone-600">투표를 시작할 때 이 학급의 활성 학생 명단이 투표자로 확정됩니다.</p>
-        <% if @active_students.any? %>
+        <% unless @poll_session.replacement? %>
+          <p class="mt-2 text-sm text-stone-600">투표를 시작할 때 이 학급의 활성 학생 명단이 투표자로 확정됩니다.</p>
+        <% end %>
+        <% if draft_roster.any? %>
           <ul class="mt-4 divide-y divide-stone-200">
-            <% @active_students.each do |student| %>
+            <% draft_roster.each do |student| %>
               <li class="flex gap-4 py-3">
                 <span class="w-16 font-medium"><%= student.number %>번</span>
                 <span><%= student.name %></span>
@@ -188,6 +216,7 @@
         <p class="mt-1 text-lg font-medium"><%= @poll_session.poll.title %></p>
         <p class="mt-2 text-sm font-medium text-stone-600"><%= poll_session_status_label(@poll_session) %></p>
       </header>
+      <%= render "event_log", poll_events: @poll_events %>
     <% end %>
   </div>
 <% end %>

@@ -128,4 +128,15 @@ RSpec.describe Polls::AdvanceSessionParticipant do
     expect(admin_result).to be_success
     expect(progress.reload.current_poll_participant).to eq(next_participant)
   end
+
+
+  it "rejects participant advance for a stopped session" do
+    poll_session, progress, current, _next_participant, operator = create_execution
+    poll_session.update!(status: :stopped, stopped_at: Time.current)
+
+    result = advance(poll_session, current, operator)
+
+    expect(result).not_to be_success
+    expect(progress.reload.current_poll_participant).to eq(current)
+  end
 end

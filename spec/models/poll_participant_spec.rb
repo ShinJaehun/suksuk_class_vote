@@ -61,6 +61,21 @@ RSpec.describe PollParticipant, type: :model do
       expect(poll_participant).to be_valid
     end
 
+    it "allows the same number in different sessions of one poll but not in one session" do
+      source = create(:poll_session, status: :stopped, stopped_at: Time.current)
+      replacement = create(:poll_session, poll: source.poll, classroom: source.classroom,
+                                          operator: source.operator, replacement_of: source)
+      create(:poll_participant, poll: source.poll, poll_session: source,
+                                source_participant_slot: nil, number: 1)
+
+      expect(build(:poll_participant, poll: source.poll, poll_session: replacement,
+                                      source_participant_slot: nil, number: 1)).to be_valid
+      create(:poll_participant, poll: source.poll, poll_session: replacement,
+                                source_participant_slot: nil, number: 1)
+      expect(build(:poll_participant, poll: source.poll, poll_session: replacement,
+                                      source_participant_slot: nil, number: 1)).to be_invalid
+    end
+
     it "does not allow duplicate source participant slots in the same poll" do
       poll_participant = create(:poll_participant)
       duplicate = build(

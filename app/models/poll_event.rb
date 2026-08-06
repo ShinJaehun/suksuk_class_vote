@@ -8,6 +8,8 @@ class PollEvent < ApplicationRecord
     current_participant_resumed
     poll_closed
     poll_stopped
+    replacement_created
+    replacement_roster_updated
     schoolwide_poll_started
     schoolwide_poll_closed
   ].freeze
@@ -20,6 +22,8 @@ class PollEvent < ApplicationRecord
     "current_participant_resumed" => "첫 미처리 투표자로 재개",
     "poll_closed" => "투표 종료",
     "poll_stopped" => "투표 중단",
+    "replacement_created" => "재투표 실행 생성",
+    "replacement_roster_updated" => "투표자 명단 수정",
     "schoolwide_poll_started" => "전교투표 시작",
     "schoolwide_poll_closed" => "전교투표 종료"
   }.freeze
@@ -29,6 +33,8 @@ class PollEvent < ApplicationRecord
     poll_started
     poll_closed
     poll_stopped
+    replacement_created
+    replacement_roster_updated
     schoolwide_poll_started
     schoolwide_poll_closed
   ].freeze

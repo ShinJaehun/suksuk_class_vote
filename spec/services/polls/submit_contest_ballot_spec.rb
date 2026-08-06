@@ -189,4 +189,18 @@ RSpec.describe Polls::SubmitContestBallot do
     expect(progress.reload).to be_ballot_open
     expect(poll_session.poll_events.where(event_type: "vote_completed")).to be_empty
   end
+
+
+  it "rejects ballot submission for a stopped session" do
+    poll_session, progress, current, _waiting, operator, contests = create_execution
+    contest, option = contests.first
+    poll_session.update!(status: :stopped, stopped_at: Time.current)
+
+    result = submit(poll_session: poll_session, current: current, operator: operator,
+                    contest: contest, option: option)
+
+    expect(result).not_to be_success
+    expect(current.poll_contest_completions).to be_empty
+    expect(progress.reload).to be_ballot_open
+  end
 end

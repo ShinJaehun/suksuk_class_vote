@@ -93,14 +93,34 @@ module Polls
       end
       issues << "보관된 투표 실행은 시작할 수 없습니다." if poll_session.archived_at.present?
       issues << "활성 학급만 시작할 수 있습니다." unless classroom&.active?
-      issues << "투표 대상 학생이 없습니다." if active_students.empty?
+      if poll_session.replacement?
+        check_replacement_draft_roster
+      else
+        issues << "투표 대상 학생이 없습니다." if active_students.empty?
+        issues << "이미 확정된 투표자 명단이 있습니다." if participants.any?
+      end
       issues << "이미 진행 중인 학급 투표가 있습니다." if another_active_session_exists?
       issues << "이미 생성된 진행 정보가 있습니다." if poll_session.poll_progress.present?
-      issues << "이미 확정된 투표자 명단이 있습니다." if participants.any?
       issues << "이미 생성된 참여 기록이 있습니다." if participations.any?
+      issues << "이미 생성된 항목 완료 기록이 있습니다." if completions.any?
       issues << "이미 생성된 집계 정보가 있습니다." if session_tallies_exist?
+      issues << "이미 생성된 실행 기록이 있습니다." if poll_session.poll_events.any?
       issues << "시작 시각이 이미 기록되어 있습니다." if poll_session.started_at.present?
       issues << "종료 시각이 이미 기록되어 있습니다." if poll_session.closed_at.present?
+    end
+
+    def check_replacement_draft_roster
+      issues << "투표자 명단이 없습니다." if participants.empty?
+      if participants.any? { |participant| participant.number.blank? || participant.number <= 0 || participant.name.blank? }
+        issues << "투표자 명단의 번호와 이름을 확인해 주세요."
+      end
+      if participants.map(&:number).uniq.size != participants.size
+        issues << "투표자 명단의 번호가 중복되었습니다."
+      end
+      source = poll_session.replacement_of
+      if source.blank? || source.classroom != classroom || source.poll.school_managed? || poll.school_managed? || !poll.draft?
+        issues << "재투표 원본과 학급·투표 정보를 확인해 주세요."
+      end
     end
 
     def check_in_progress

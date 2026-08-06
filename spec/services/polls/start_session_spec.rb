@@ -43,6 +43,39 @@ RSpec.describe Polls::StartSession do
       expect(PollParticipation.where(poll_participant: poll_session.poll_participants)).to be_empty
     end
 
+    it "uses an edited replacement roster without resnapshotting current Classroom Students" do
+      source, actor = create_startable_session(students: [[1, "현재 학생"]])
+      source.update!(status: :stopped, stopped_at: Time.current)
+      create(:poll_participant, poll: source.poll, poll_session: source,
+                                source_participant_slot: nil, number: 1, name: "이전 학생")
+      replacement = Polls::RevoteSession.new(actor: actor, poll_session: source).call.poll_session
+      replacement.poll_participants.first.update!(number: 7, name: "편집 학생")
+      source_poll_attributes = source.poll.attributes.slice("title", "kind", "status", "started_at", "closed_at")
+      source.classroom.students.update_all(name: "변경된 Classroom 학생")
+
+      result = described_class.new(actor: actor, poll_session: replacement).call
+
+      expect(result).to be_success
+      expect(replacement.poll_participants.pluck(:number, :name)).to eq([[7, "편집 학생"]])
+      expect(replacement.poll_progress.current_poll_participant.name).to eq("편집 학생")
+      expect(replacement.poll).not_to eq(source.poll)
+      expect(source.poll.reload.attributes.slice("title", "kind", "status", "started_at", "closed_at")).to eq(source_poll_attributes)
+    end
+
+    it "rejects a replacement without a roster or with other execution records" do
+      source, actor = create_startable_session
+      source.update!(status: :stopped, stopped_at: Time.current)
+      replacement = create(:poll_session, poll: source.poll, classroom: source.classroom,
+                                          operator: actor, replacement_of: source)
+
+      expect(described_class.new(actor: actor, poll_session: replacement).call).not_to be_success
+
+      participant = create(:poll_participant, poll: source.poll, poll_session: replacement,
+                                              source_participant_slot: nil)
+      create(:poll_participation, poll_participant: participant)
+      expect(described_class.new(actor: actor, poll_session: replacement).call).not_to be_success
+    end
+
     it "snapshots active Students in number order and excludes inactive Students" do
       poll_session, actor = create_startable_session
       create(:student, classroom: poll_session.classroom, number: 4, name: "비활성", active: false)

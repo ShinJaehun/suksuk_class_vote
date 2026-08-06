@@ -12,7 +12,9 @@
                       }
                     },
                     data: {
-                      turbo_confirm: "현재 활성 학생 명단으로 투표를 시작할까요?"
+                      turbo_confirm: poll_session.replacement? ?
+                        "현재 투표자 명단으로 투표를 시작할까요?" :
+                        "현재 활성 학생 명단으로 투표를 시작할까요?"
                     },
                     class: "mt-5 rounded-md bg-stone-900 px-5 py-3 text-sm font-medium text-white" %>
     </section>

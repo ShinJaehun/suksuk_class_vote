@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_04_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_05_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -355,6 +355,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_04_010000) do
     t.bigint "operator_id", null: false
     t.string "operator_name_snapshot", null: false
     t.bigint "poll_id", null: false
+    t.bigint "replacement_of_id"
     t.datetime "started_at"
     t.integer "status", default: 0, null: false
     t.datetime "stopped_at"
@@ -363,6 +364,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_04_010000) do
     t.index ["operator_id"], name: "index_poll_sessions_on_operator_id"
     t.index ["poll_id", "classroom_id"], name: "idx_poll_sessions_active_poll_classroom", unique: true, where: "(status = ANY (ARRAY[0, 10]))"
     t.index ["poll_id"], name: "index_poll_sessions_on_poll_id"
+    t.index ["replacement_of_id"], name: "index_poll_sessions_on_replacement_of_id", unique: true
+    t.check_constraint "replacement_of_id IS NULL OR replacement_of_id <> id", name: "chk_poll_sessions_replacement_not_self"
     t.check_constraint "status = ANY (ARRAY[0, 10, 20, 30])", name: "chk_poll_sessions_status"
   end
 
@@ -479,6 +482,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_04_010000) do
   add_foreign_key "poll_progresses", "poll_sessions"
   add_foreign_key "poll_progresses", "polls"
   add_foreign_key "poll_sessions", "classrooms"
+  add_foreign_key "poll_sessions", "poll_sessions", column: "replacement_of_id"
   add_foreign_key "poll_sessions", "polls"
   add_foreign_key "poll_sessions", "users", column: "operator_id"
   add_foreign_key "polls", "participant_groups", on_delete: :nullify

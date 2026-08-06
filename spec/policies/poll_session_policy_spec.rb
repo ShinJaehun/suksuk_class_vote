@@ -62,4 +62,76 @@ RSpec.describe PollSessionPolicy do
     expect(described_class.new(other_manager, poll_session)).not_to be_operate
     expect(described_class.new(create(:user), poll_session)).not_to be_operate
   end
+
+  describe "classroom lifecycle permissions" do
+    it "allows the operator, classroom teacher, same-school manager, and admin" do
+      poll_session, teacher = create_poll_session
+      poll_session.update!(status: :in_progress, started_at: Time.current)
+      manager = create(:user)
+      create(:school_membership, :manager, school: poll_session.classroom.school, user: manager)
+
+      [teacher, manager, create(:user, :admin)].each do |actor|
+        expect(described_class.new(actor, poll_session)).to be_stop
+      end
+    end
+
+    it "rejects unrelated teachers and every school-managed session" do
+      poll_session, = create_poll_session
+      poll_session.update!(status: :in_progress, started_at: Time.current)
+      unrelated = create(:user)
+      create(:school_membership, school: poll_session.classroom.school, user: unrelated)
+      expect(described_class.new(unrelated, poll_session)).not_to be_stop
+
+      poll_session.poll.update!(school_managed: true)
+      expect(described_class.new(create(:user, :admin), poll_session)).not_to be_stop
+      poll_session.update!(status: :stopped, stopped_at: Time.current)
+      expect(described_class.new(create(:user, :admin), poll_session)).not_to be_revote
+    end
+
+    it "allows revote and replacement roster editing only in their matching states" do
+      source, teacher = create_poll_session
+      source.update!(status: :stopped, stopped_at: Time.current)
+      create(:poll_participant, poll: source.poll, poll_session: source,
+                                source_participant_slot: nil)
+      expect(described_class.new(teacher, source)).to be_revote
+
+      replacement = Polls::RevoteSession.new(actor: teacher, poll_session: source).call.poll_session
+      expect(described_class.new(teacher, source)).not_to be_revote
+      expect(described_class.new(teacher, replacement)).to be_edit_replacement_roster
+      replacement.update!(status: :in_progress, started_at: Time.current)
+      expect(described_class.new(teacher, replacement)).not_to be_edit_replacement_roster
+    end
+
+    it "allows safe replacement definition editing for authorized classroom actors only" do
+      source, teacher = create_poll_session
+      source.update!(status: :stopped, stopped_at: Time.current)
+      create(:poll_participant, poll: source.poll, poll_session: source,
+                                source_participant_slot: nil)
+      replacement = Polls::RevoteSession.new(actor: teacher, poll_session: source).call.poll_session
+      manager = create(:user)
+      create(:school_membership, :manager, school: source.classroom.school, user: manager)
+      unrelated = create(:user)
+      create(:school_membership, school: source.classroom.school, user: unrelated)
+
+      [teacher, manager, create(:user, :admin)].each do |actor|
+        expect(described_class.new(actor, replacement)).to be_edit_definition
+      end
+      expect(described_class.new(unrelated, replacement)).not_to be_edit_definition
+      expect(described_class.new(teacher, source)).not_to be_edit_definition
+
+      replacement.update!(status: :in_progress, started_at: Time.current)
+      expect(described_class.new(teacher, replacement)).not_to be_edit_definition
+    end
+
+    it "rejects revote for a closed source for every authorized actor" do
+      source, teacher = create_poll_session
+      source.update!(status: :closed, closed_at: Time.current)
+      manager = create(:user)
+      create(:school_membership, :manager, school: source.classroom.school, user: manager)
+
+      [teacher, manager, create(:user, :admin)].each do |actor|
+        expect(described_class.new(actor, source)).not_to be_revote
+      end
+    end
+  end
 end

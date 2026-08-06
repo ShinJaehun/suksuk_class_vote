@@ -101,7 +101,11 @@ module Polls
 
       errors << "활성 학급만 시작할 수 있습니다." unless classroom.active?
       errors << "투표와 학급의 학교가 일치해야 합니다." if poll.present? && poll.school != classroom.school
-      errors << "활성 학생이 1명 이상이어야 합니다." if active_students.empty?
+      if poll_session.replacement?
+        validate_replacement_roster
+      elsif active_students.empty?
+        errors << "활성 학생이 1명 이상이어야 합니다."
+      end
     end
 
     def authorized_actor?
@@ -116,16 +120,43 @@ module Polls
     end
 
     def execution_records_exist?
-      poll_session.poll_participants.exists? ||
+      participant_records_invalid = if poll_session.replacement?
+                                      replacement_participation_records_exist?
+                                    else
+                                      poll_session.poll_participants.exists?
+                                    end
+
+      participant_records_invalid ||
         poll_session.poll_progress.present? ||
         poll_session.poll_option_tallies.exists? ||
         poll_session.poll_contest_tallies.exists? ||
         poll_session.poll_events.exists?
     end
 
+    def replacement_participation_records_exist?
+      participant_ids = poll_session.poll_participant_ids
+      PollParticipation.where(poll_participant_id: participant_ids).exists? ||
+        PollContestCompletion.where(poll_participant_id: participant_ids).exists?
+    end
+
+    def validate_replacement_roster
+      participants = poll_session.poll_participants.to_a
+      errors << "투표자 명단이 1명 이상 필요합니다." if participants.empty?
+      if participants.any? { |participant| participant.number.blank? || participant.number <= 0 || participant.name.blank? }
+        errors << "투표자 명단의 번호와 이름을 확인해 주세요."
+      end
+      if participants.map(&:number).uniq.size != participants.size
+        errors << "투표자 명단의 번호가 중복되었습니다."
+      end
+      source = poll_session.replacement_of
+      if source.classroom != classroom || source.poll.school_managed? || poll.school_managed? || !poll.draft?
+        errors << "재투표 원본과 학급·투표 정보를 확인해 주세요."
+      end
+    end
+
     def start_locked_session
       started_at = Time.current
-      create_participant_snapshot
+      create_participant_snapshot unless poll_session.replacement?
       create_progress(started_at, first_participant)
       create_option_tallies
       create_contest_tallies

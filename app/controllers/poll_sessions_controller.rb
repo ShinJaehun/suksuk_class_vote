@@ -238,6 +238,36 @@ class PollSessionsController < ApplicationController
     )
   end
 
+  def stop
+    poll_session = find_poll_session
+    authorize poll_session, :stop?
+    result = Polls::StopSession.new(actor: current_user, poll_session: poll_session).call
+
+    if result.success?
+      broadcast_ballot_screen(poll_session)
+      broadcast_operation_screen(poll_session)
+    end
+    redirect_with_result(
+      result,
+      poll_poll_session_path(poll_session.poll, poll_session),
+      "투표 실행을 중단했습니다."
+    )
+  end
+
+  def revote
+    poll_session = find_poll_session
+    authorize poll_session, :revote?
+    result = Polls::RevoteSession.new(actor: current_user, poll_session: poll_session).call
+
+    if result.success?
+      redirect_to poll_poll_session_path(result.poll_session.poll, result.poll_session),
+                  notice: "재투표를 위한 새 투표 실행을 만들었습니다."
+    else
+      redirect_to poll_poll_session_path(poll_session.poll, poll_session),
+                  alert: result.error_message
+    end
+  end
+
   private
 
   def find_poll_session
@@ -369,6 +399,14 @@ class PollSessionsController < ApplicationController
   end
 
   def displayed_event_types
-    %w[poll_started vote_completed participant_marked_absent poll_closed]
+    %w[
+      poll_started
+      vote_completed
+      participant_marked_absent
+      poll_closed
+      poll_stopped
+      replacement_created
+      replacement_roster_updated
+    ]
   end
 end

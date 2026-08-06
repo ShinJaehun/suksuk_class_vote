@@ -79,6 +79,23 @@ RSpec.describe Polls::CloseSession do
     expect(poll_session.reload).to be_in_progress
   end
 
+
+  it "rejects closing a stopped session" do
+    poll_session, operator = create_started_poll_session
+    current = poll_session.poll_progress.current_poll_participant
+    poll_session.update!(status: :stopped, stopped_at: Time.current)
+
+    result = described_class.new(
+      actor: operator,
+      poll_session: poll_session,
+      expected_current_poll_participant_id: current.id
+    ).call
+
+    expect(result).not_to be_success
+    expect(poll_session.reload).to be_stopped
+    expect(poll_session.closed_at).to be_nil
+  end
+
   def create_started_poll_session
     school = create(:school)
     operator = create(:user)

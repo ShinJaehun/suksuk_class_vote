@@ -49,6 +49,19 @@ RSpec.describe PollEvent, type: :model do
       expect(event).to be_poll_level_event
     end
 
+    it "supports replacement lifecycle events without participant choice details" do
+      {
+        "replacement_created" => "재투표 실행 생성",
+        "replacement_roster_updated" => "투표자 명단 수정"
+      }.each do |event_type, label|
+        event = build(:poll_event, event_type: event_type)
+
+        expect(event).to be_valid
+        expect(event.display_label).to eq(label)
+        expect(event).to be_poll_level_event
+      end
+    end
+
     it "supports Schoolwide Poll-level lifecycle events" do
       %w[schoolwide_poll_started schoolwide_poll_closed].each do |event_type|
         event = build(:poll_event, event_type: event_type, poll_session: nil)
