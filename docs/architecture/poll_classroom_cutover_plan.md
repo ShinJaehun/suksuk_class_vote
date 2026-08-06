@@ -199,10 +199,24 @@ foundation rollback은 PollSession row가 있으면 기록 삭제 대신 명시�
 - active Classroom과 active Student를 확인하고 담임 teacher, 같은 학교 manager, global admin의
   운영 권한을 검증한다. operator와 Classroom teacher의 동일성은 강제하지 않는다.
 - 학급·운영자 이름 snapshot을 caller인 service가 명시적으로 저장한다.
-- `GET /polls/new`는 권한별 eligible Classroom과 단일 contest/option 입력을 제공하고,
-  `POST /polls`는 service만 호출한다. 신규 ParticipantGroup Poll 생성은 차단됐다.
-- 단계 3 당시 새 School 기반 draft는 목록에서 학급·operator snapshot과 “실행 준비 중”만 표시하며 legacy
-  시작·진행·결과 action을 제공하지 않는다. 기존 ParticipantGroup Poll 조회/runtime은 유지한다.
+- `GET /polls/new`는 투표 이름과 활동 유형만 입력받으며 Classroom을 선택받지 않는다.
+  `POST /polls`는 현재 사용자의 active Classroom으로 service를 호출한다. 신규 ParticipantGroup Poll 생성은 차단됐다.
+- 생성 transaction은 draft Poll, 기본 PollContest 1개, option 0개와 최초 draft PollSession을 만들고
+  해당 PollSession 초안 작업 화면으로 이동한다.
+- 초안 작업 화면은 투표 이름·활동 유형, Contest·Option, 학생 명단, 준비 상태와 시작을 관리한다.
+  학교 관리 전교투표 PollSession은 담당 교사에게 읽기 전용이다.
+- 학급투표 Contest·Option 생성·수정·삭제는 inline Turbo Frame을 사용한다. 변경 뒤 해당 영역과
+  `Polls::SessionStatusCheck` 기반 상태 점검·시작 영역만 갱신한다. 전교투표의 전체 페이지 편집과
+  후보 사진 흐름은 그대로 유지한다.
+- 활동 용어의 단일 출처는 `Poll#activity_label`, `#contest_label`, `#choice_label`,
+  `#choice_number_label`이다.
+- 학생 명단 관리는 기존 Classroom 학생 화면으로 연결하고 `return_poll_id`,
+  `return_poll_session_id`로 Poll·PollSession·Classroom과 사용자 권한을 검증해 복귀한다.
+  잘못된 context는 무시하며 raw `return_to` URL은 사용하지 않는다.
+- 시작·종료 form은 성공 응답이 제공하는 outer `teacher_progress` Turbo Frame을 target으로 한다.
+  이는 nested frame의 `Content missing` 방지이며 lifecycle, controller action, redirect, participant
+  snapshot, event와 권한 정책을 바꾸지 않는다.
+- 기존 ParticipantGroup Poll 조회/runtime은 유지한다.
 - 전교투표는 Poll 정의를 만든 뒤 같은 학교의 여러 Classroom을 draft PollSession으로 배정한다.
 
 ### 단계 4: PollSession 시작과 감독형 진행 (완료)
@@ -288,15 +302,17 @@ Classroom PollSession을 배정한다. 전교 Poll 전체 시작·종료와 clos
 
 ### 후속 runtime 작업
 
-1. PollSession 중단·stopped 이력·replacement session·재투표를 구현한다.
-2. historical/read_only 기반을 구현한다.
-3. Election ID 6을 historical Poll로 변환한다. Classroom 변환 도구는 구현됐지만 운영 데이터에는
-   적용하지 않았다.
-4. 운영 DB의 기존 Poll 보존 범위를 조사하고 필요한 Poll을 PollSession으로 backfill한다.
-5. 신규 Classroom/PollSession runtime과 legacy ParticipantGroup Poll runtime을 서버 측에서 분리한다.
-6. 신규 실행 기록의 `poll_session_id`를 필수화한다.
-7. 검증된 historical Poll 변환 뒤 Election runtime을 제거한다.
-8. 전환 검증 뒤 ParticipantGroup·ParticipantSlot을 제거한다.
+1. 운영 백업 복원본에서 Election ID 6 Classroom 변환 dry-run을 수행한다.
+2. `APPLY=1` 리허설과 invariant·화면 결과를 검산한다.
+3. PollSession 중단·stopped 이력·replacement session·재투표를 구현한다.
+4. historical/read_only 기반을 구현한다.
+5. Election ID 6을 historical Poll로 변환하고 후보 사진을 이관한다. Classroom 변환과는 별도 작업이다.
+6. 운영 DB의 기존 Poll 보존 범위를 조사한다.
+7. 필요한 legacy Poll을 PollSession으로 backfill한다.
+8. 신규 Classroom/PollSession runtime과 legacy ParticipantGroup Poll runtime을 서버 측에서 분리한다.
+9. 검증된 historical Poll 변환 뒤 Election runtime과 table을 제거한다.
+10. 전환 검증 뒤 ParticipantGroup·ParticipantSlot을 제거한다.
+11. 전체 데이터를 검산하고 운영 전환한다.
 
 전환기에는 `Poll#poll_progress`, `PollOption#poll_option_tally`,
 `PollContest#poll_contest_tally` 단수 association이 legacy Poll runtime을 위해 남아 있다.

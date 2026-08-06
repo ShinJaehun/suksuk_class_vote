@@ -169,6 +169,16 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - Student 단일·bulk 등록과 비활성화·복구 구현
 - PollSession foundation과 실행 기록의 nullable `poll_session_id` 연결 구현: 신규 기록은 `poll_id`와 `poll_session_id`를 함께, legacy 기록은 `poll_session_id = NULL`로 유지
 - 신규 Poll 정의와 최초 draft PollSession 동시 생성, 시작 시 active Student의 PollParticipant snapshot 생성 구현
+- `/polls/new`는 투표 이름과 활동 유형만 입력받고 현재 사용자의 active Classroom을 서버에서 사용한다.
+  생성 transaction은 draft Poll, 기본 PollContest 1개, option이 없는 draft PollSession을 만들고
+  해당 PollSession 초안 작업 화면으로 이동한다.
+- draft PollSession에서 투표 이름·활동 유형, Contest·Option, 학생 명단 연결, 준비 상태와 시작을 관리한다.
+  학급투표 Contest·Option은 inline Turbo Frame으로 편집하며 전교투표의 전체 페이지 편집과 후보 사진 흐름은 유지한다.
+- Poll 활동 용어는 `Poll#activity_label`, `#contest_label`, `#choice_label`, `#choice_number_label`을 단일 출처로 사용한다.
+- Contest·Option 변경 뒤 변경 영역과 상태 점검·시작 영역만 갱신하며 준비 상태는 `Polls::SessionStatusCheck`로 판정한다.
+- 초안 화면의 학생 명단 관리는 검증된 `return_poll_id`, `return_poll_session_id` context로 기존 Classroom 학생 화면과 왕복한다.
+- 시작·종료 form은 성공 응답의 outer `teacher_progress` Turbo Frame을 target으로 삼아 nested frame의
+  `Content missing`을 피하며 기존 lifecycle, action, redirect, snapshot, event와 권한 정책은 바꾸지 않는다.
 - PollSession의 고정 학생 투표 창, 교사 ballot open 승인, Contest별 단계 제출과 복구, count-only tally·완료 기록, 미참여 처리와 명시적 다음 학생 진행 구현
 - PollSession 명시적 종료와 현재 Session tally·시작 당시 snapshot 기반 결과/투표자 명단 구현
 - PollSession 교사 operation 화면 Turbo Stream 갱신과 polling fallback 구현
@@ -293,45 +303,20 @@ Session tally만 포함한다.
 
 ## 우선 개발 순서
 
-1. 프로젝트 문서 기반 정리
-2. 인증/역할 기본 구조
-   - 교사 계정은 공개 가입이 아니라 admin 관리 기능에서 생성하는 방향
-   - 로그인 후 teacher는 `/polls`, admin은 `/admin/teachers`로 진입
-   - root와 `/dashboard`는 역할별 기본 경로로 redirect하는 안전한 진입점으로 유지
-   - admin은 교사 계정 목록 조회와 생성 가능
-3. 참여자 그룹 등록
-   - 참여자 그룹 기본 CRUD 중 index/new/create/show/edit/update/destroy 구현
-   - 학생 1명 추가 구현
-   - 학생 이름 수정/삭제 구현
-   - 학생 수 입력 후 이름 입력칸을 만드는 bulk 추가 구현
-4. 학생 명단 bulk import
-   - HWP/Excel 붙여넣기 import는 후속 기능
-5. 학급 선거 생성
-   - 최소 draft 선거 생성 구현
-   - 투표 참여자 명단 snapshot은 투표 시작 시점에 생성
-6. 후보자 등록
-   - draft 선거에서 후보자 이름 등록/수정/삭제 구현
-   - 후보자 번호는 선거 안에서 자동 부여하며 삭제 후 재정렬하지 않음
-7. 선거 시작 조건과 투표 참여자 명단 snapshot 구현
-   - 구현됨: `Poll` enum을 `draft`, `in_progress`, `stopped`, `closed`로 확장
-   - 구현됨: `PollParticipant` 모델 추가
-   - 구현됨: `Polls::Start` service 추가
-   - 구현됨: 후보자 2명 이상 일반 경쟁 투표 start 조건 검증
-   - 구현됨: 선거 시작 시점에 snapshot 생성
-   - 구현됨: snapshot 생성, 상태 변경, `PollProgress` 생성을 transaction으로 처리
-   - 구현됨: 선거 시작 성공 시 첫 번째 `PollParticipant`를 `PollProgress.current_poll_participant_id`로 저장
-   - 후보자 1명 무투표 당선/찬반 투표 정책은 후속 결정
-8. 투표 진행 상태 모델링
-   - 문서화됨: `PollParticipant`는 고정 명단으로 유지
-   - 문서화됨: 진행 상태와 실제 투표 결과 분리
-   - 구현됨: `PollProgress`을 초기 MVP 진행 상태 모델명으로 사용
-   - 구현됨: `PollProgress.current_poll_participant_id`를 현재 위치 복구 기준으로 사용
-   - 문서화됨: `VoteSession`은 학생 화면/토큰/제출 세션이 복잡해질 때 후속 검토
-9. 교사용 진행 화면
-10. 학생 투표 화면
-11. 트랜잭션 기반 투표 제출
-12. 중단 복구/중복 제출 방지 테스트
-13. 결과 확인 화면
+현재 신규 Classroom/PollSession의 생성·초안 편집·감독형 진행·결과 흐름까지 구현됐다.
+남은 작업은 다음 순서로 진행한다.
+
+1. 운영 백업 복원본에서 Election ID 6 Classroom 변환 dry-run
+2. `APPLY=1` 리허설과 invariant·화면 결과 검산
+3. PollSession 중단·stopped·replacement·재투표
+4. historical/read_only 기반
+5. Election ID 6 historical Poll 변환과 후보 사진 이관
+6. 운영 DB의 기존 Poll 보존 범위 조사
+7. 필요한 legacy Poll의 PollSession backfill
+8. 신규 PollSession runtime과 legacy ParticipantGroup Poll runtime 분리
+9. Election runtime과 table 제거
+10. ParticipantGroup·ParticipantSlot 제거
+11. 전체 데이터 검산과 운영 전환
 
 현재 구현된 복구/무결성 화면:
 

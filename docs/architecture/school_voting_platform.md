@@ -411,7 +411,14 @@ PollParticipant를 통해 간접 연결한다. 신규 PollSession 실행 기록�
 분리와 data backfill은 후속 단계다.
 
 일반 학급투표는 `Polls::CreateDefinitionWithSession`이 Poll 정의와 최초 Classroom draft
-PollSession을 같은 transaction에서 만든다. 전교투표는 `/school_polls`에서 정의를 먼저 만들고
+PollSession을 같은 transaction에서 만든다. `/polls/new`에서는 투표 이름과 활동 유형만 입력하고
+대상은 서버가 현재 사용자의 active Classroom으로 정한다. 생성 시 draft Poll, 기본 PollContest 1개,
+option이 없는 draft PollSession을 만든 뒤 해당 Session의 초안 작업 화면으로 이동한다. 이 화면에서
+투표 기본 정보, Contest·Option, 기존 Classroom 학생 명단 연결, 준비 상태와 시작을 관리한다.
+Contest·Option은 inline Turbo Frame으로 편집하고 변경 영역과 상태 점검·시작 영역만 갱신한다.
+용어는 Poll의 label method를, 준비 판정은 `Polls::SessionStatusCheck`를 사용한다. 학생 명단 화면 왕복은
+검증된 Poll·PollSession 식별자 context를 사용하고, 시작·종료 form은 outer `teacher_progress` frame을
+target으로 한다. 전교투표는 `/school_polls`에서 정의를 먼저 만들고
 같은 School의 여러 Classroom을 draft PollSession으로 배정한다. 각 Session operator는 해당
 Classroom의 담임이며 담당 교사의 `/polls` 목록에 나타난다. 사용자 화면에서는 이 두 범위를
 각각 학급투표와 전교투표라고 부른다.
@@ -452,8 +459,9 @@ Classroom·Student 관리 UI는 role 기반 Classroom scope와 일반 페이지 
 학교, manager는 소속 학교, 일반 teacher는 자신이 담임인 Classroom과 학생 명단만 관리한다. Student는
 단일 또는 textarea bulk 방식으로 등록하고 hard delete 대신 비활성화·복구한다. 이 자료는 신규 Poll의
 Classroom 선택과 시작 snapshot에 사용하며 ParticipantGroup·ParticipantSlot 변환은 수행하지 않는다.
-다음 전환 작업은 legacy runtime 분리와 데이터 이관, PollSession 중단·replacement·재투표,
-Election ID 6 후보 사진 변환과 historical/read_only 정책을 순서대로 다루는 것이다.
+다음 전환 작업은 운영 백업 복원본에서 Election ID 6 Classroom 변환을 먼저 리허설한 뒤
+PollSession 중단·replacement·재투표, historical/read_only, Election ID 6 historical Poll과 후보 사진
+변환, legacy Poll 조사·backfill과 runtime 분리를 순서대로 다룬다.
 
 학교 교사 관리 UI는 기존 teacher 계정만 SchoolMembership의 `member`로 소속시키며 global admin만
 `manager` 지정·해제를 수행한다. 같은 학교 manager는 미소속 teacher 추가와 일반 member의 안전한
@@ -557,9 +565,7 @@ read_only: true
 5. 학교 조직 기반을 구현한다.
 6. ElectionSession을 전환 기간의 Classroom dual-source 구조로 정리한다.
 7. Poll 정의와 PollSession을 분리하고 전교투표 생명주기를 구현한다.
-8. Election ID 6을 historical Poll로 import하고 검증한다.
-9. Election runtime과 table을 제거한다.
-10. Poll 전환 완료 후 `ParticipantGroup`을 제거한다.
+8. 아래 후속 순서에 따라 실제 데이터 리허설과 legacy 제거를 진행한다.
 
 현재 1~7단계의 신규 구조와 PollSession runtime까지 완료되었다. legacy `SchoolElection`
 관리자 runtime, `SchoolElections::*` service, Poll 연결, legacy 모델과 DB table을 제거했고,
@@ -577,13 +583,17 @@ Election Classroom 변환 도구는 구현됐지만 실제 Election ID 6에는 �
 historical/read_only는 목표 설계이며 현재 runtime에는 아직 구현되지 않았다. 후속 작업 순서는
 다음과 같다.
 
-1. PollSession 중단·stopped·replacement·재투표
-2. historical/read_only 기반
-3. Election ID 6 historical Poll과 후보 사진 변환
-4. 운영 Poll 보존 범위 조사와 backfill
-5. 신규/legacy Poll runtime 분리
-6. Election runtime과 table 제거
-7. ParticipantGroup·ParticipantSlot 제거
+1. 운영 백업 복원본에서 Election ID 6 Classroom 변환 dry-run
+2. `APPLY=1` 리허설과 invariant·화면 결과 검산
+3. PollSession 중단·stopped·replacement·재투표
+4. historical/read_only 기반
+5. Election ID 6 historical Poll 변환과 후보 사진 이관
+6. 운영 DB의 기존 Poll 보존 범위 조사
+7. 필요한 legacy Poll의 PollSession backfill
+8. 신규 PollSession runtime과 legacy ParticipantGroup Poll runtime 분리
+9. Election runtime과 table 제거
+10. ParticipantGroup·ParticipantSlot 제거
+11. 전체 데이터 검산과 운영 전환
 
 따라서 실제 Election ID 6 운영 데이터 적용, legacy Poll backfill과 runtime 완전 분리도 미완료다.
 
