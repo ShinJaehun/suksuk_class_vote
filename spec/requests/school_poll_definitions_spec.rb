@@ -394,7 +394,10 @@ RSpec.describe "School Poll definition management", type: :request do
           classroom: classroom,
           operator: operator,
           operator_name_snapshot: operator.name,
-          status: status
+          status: status,
+          started_at: (1.hour.ago unless status == :draft),
+          closed_at: (Time.current if status == :closed),
+          stopped_at: (Time.current if status == :stopped)
         )
         expect(poll.reload).not_to be_definition_editable
         session.destroy!

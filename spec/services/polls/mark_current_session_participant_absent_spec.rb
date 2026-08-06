@@ -127,7 +127,7 @@ RSpec.describe Polls::MarkCurrentSessionParticipantAbsent do
       actor: other_teacher,
       poll_session: poll_session
     ).call
-    poll_session.update!(status: :closed)
+    poll_session.update!(status: :closed, closed_at: Time.current)
     closed_result = described_class.new(actor: operator, poll_session: poll_session).call
 
     expect(unauthorized_result).not_to be_success

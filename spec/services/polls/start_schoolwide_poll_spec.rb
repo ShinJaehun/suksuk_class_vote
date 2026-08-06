@@ -34,6 +34,7 @@ RSpec.describe Polls::StartSchoolwidePoll do
     expect(poll.closed_at).to be_nil
     expect(poll.stopped_at).to be_nil
     expect(poll_session.reload).to be_draft
+    expect(poll_session).to have_attributes(started_at: nil, closed_at: nil, stopped_at: nil)
     expect(poll_session.poll_participants).to be_empty
     expect(poll_session.poll_events).to be_empty
     expect(poll.poll_events.last).to have_attributes(
@@ -41,6 +42,7 @@ RSpec.describe Polls::StartSchoolwidePoll do
       poll_session: nil,
       event_type: "schoolwide_poll_started"
     )
+    expect(poll.poll_events.last.occurred_at).to eq(poll.started_at)
   end
 
   it "allows the same-School manager" do

@@ -52,7 +52,7 @@ RSpec.describe "Classroom Poll definition management", type: :request do
     source_contest.update!(title: "원본 항목")
     source_option = create(:poll_option, poll: poll, poll_contest: source_contest,
                                          number: 1, name: "원본 후보")
-    poll_session.update!(status: :stopped, stopped_at: Time.current)
+    poll_session.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
     create(:poll_participant, poll: poll, poll_session: poll_session,
                               source_participant_slot: nil, number: 1, name: "학생")
     replacement = Polls::RevoteSession.new(actor: operator, poll_session: poll_session).call.poll_session
@@ -89,7 +89,7 @@ RSpec.describe "Classroom Poll definition management", type: :request do
   it "rejects replacement definition changes after starting or from an unrelated teacher" do
     source_option = create(:poll_option, poll: poll, poll_contest: poll.default_poll_contest,
                                          number: 1, name: "원본 후보")
-    poll_session.update!(status: :stopped, stopped_at: Time.current)
+    poll_session.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
     create(:poll_participant, poll: poll, poll_session: poll_session,
                               source_participant_slot: nil)
     replacement = Polls::RevoteSession.new(actor: operator, poll_session: poll_session).call.poll_session
@@ -120,7 +120,7 @@ RSpec.describe "Classroom Poll definition management", type: :request do
 
   it "blocks changes after the Session starts" do
     poll_session
-    poll_session.update!(status: :in_progress)
+    poll_session.update!(status: :in_progress, started_at: Time.current)
     original_title = poll.title
 
     patch definition_poll_poll_session_path(poll, poll_session), params: { poll: { title: "차단" } }
@@ -296,7 +296,12 @@ RSpec.describe "Classroom Poll definition management", type: :request do
   it "does not show student management after the draft Session" do
     poll_session
     %i[in_progress closed stopped].each do |status|
-      poll_session.update!(status: status)
+      poll_session.update!(
+        status: status,
+        started_at: 1.hour.ago,
+        closed_at: (status == :closed ? Time.current : nil),
+        stopped_at: (status == :stopped ? Time.current : nil)
+      )
       get poll_poll_session_path(poll, poll_session)
       expect(response.body).not_to include("투표자 명단 수정")
     end

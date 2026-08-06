@@ -30,6 +30,9 @@ RSpec.describe "School Poll management", type: :request do
       classroom: classroom,
       operator: teacher,
       status: status,
+      started_at: (1.hour.ago unless status == :draft),
+      closed_at: (Time.current if status == :closed),
+      stopped_at: (Time.current if status == :stopped),
       classroom_name_snapshot: classroom_name,
       operator_name_snapshot: teacher.name
     )
@@ -57,6 +60,12 @@ RSpec.describe "School Poll management", type: :request do
       sign_in manager
       get school_poll_path(poll)
       expect(response.body).to include("전교투표 중단", "학급 재투표 준비")
+      expect(response.body).to include(
+        "전교투표 시작",
+        "투표 시작",
+        ApplicationController.helpers.kst_datetime(poll.started_at),
+        ApplicationController.helpers.kst_datetime(session.started_at)
+      )
 
       sign_in teacher
       get poll_poll_session_path(poll, session)
@@ -69,7 +78,11 @@ RSpec.describe "School Poll management", type: :request do
       expect(poll.reload).to be_stopped
       expect(session.reload).to be_stopped
       get school_poll_path(poll)
-      expect(response.body).to include("중단 시각", ApplicationController.helpers.kst_datetime(poll.stopped_at))
+      expect(response.body).to include(
+        "전교투표 중단",
+        "투표 중단",
+        ApplicationController.helpers.kst_datetime(poll.stopped_at)
+      )
     end
 
     it "shows Schoolwide classroom revote only on the School Poll page" do
@@ -91,7 +104,9 @@ RSpec.describe "School Poll management", type: :request do
 
       get school_poll_path(poll)
 
-      expect(response.body).not_to include("중단 시각")
+      lifecycle_times = Nokogiri::HTML(response.body).at_css("[data-testid='school-poll-lifecycle-times']").text
+      expect(lifecycle_times).to include("전교투표 시작")
+      expect(lifecycle_times).not_to include("전교투표 중단")
     end
 
     it "creates a full-page same-Poll classroom replacement and rejects it after Poll stop" do
@@ -127,10 +142,33 @@ RSpec.describe "School Poll management", type: :request do
       )
       expect(session.closed_at).to be_within(0.000001).of(closed_at)
       expect(replacement).to have_attributes(poll: poll, status: "draft")
+
+      get school_poll_path(poll)
+      history = Nokogiri::HTML(response.body).xpath("//h3[contains(., '재투표 학급 세션 이력')]/parent::div").text
+      expect(history).to include("투표 시작", "투표 종료")
+      expect(history).not_to include("투표 중단")
     end
   end
 
   describe "GET /school_polls" do
+    it "shows parent Poll lifecycle times" do
+      school = create(:school)
+      started_at = 2.hours.ago
+      running = create(:poll, school: school, school_managed: true, participant_group: nil,
+                              status: :in_progress, started_at: started_at)
+      closed = create(:poll, school: school, school_managed: true, participant_group: nil,
+                             status: :closed, started_at: started_at, closed_at: 1.hour.ago)
+      stopped = create(:poll, school: school, school_managed: true, participant_group: nil,
+                              status: :stopped, started_at: started_at, stopped_at: 30.minutes.ago)
+      sign_in create(:user, :admin)
+
+      get school_polls_path
+
+      expect(response.body).to include("전교투표 시작", ApplicationController.helpers.kst_datetime(running.started_at))
+      expect(response.body).to include("전교투표 종료", ApplicationController.helpers.kst_datetime(closed.closed_at))
+      expect(response.body).to include("전교투표 중단", ApplicationController.helpers.kst_datetime(stopped.stopped_at))
+    end
+
     it "shows every School Poll to global admin" do
       first = create(
         :poll,

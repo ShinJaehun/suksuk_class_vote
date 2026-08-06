@@ -21,6 +21,23 @@ module ApplicationHelper
     labels
   end
 
+  def poll_status_time_labels(poll)
+    labels = []
+    labels << "전교투표 시작 #{kst_datetime(poll.started_at)}" if poll.started_at.present?
+    labels << "전교투표 중단 #{kst_datetime(poll.stopped_at)}" if poll.stopped_at.present?
+    labels << "전교투표 종료 #{kst_datetime(poll.closed_at)}" if poll.closed_at.present?
+    labels
+  end
+
+  def poll_session_status_time_labels(poll_session)
+    prefix = poll_session.replacement? ? "재투표" : "투표"
+    labels = []
+    labels << "#{prefix} 시작 #{kst_datetime(poll_session.started_at)}" if poll_session.started_at.present?
+    labels << "#{prefix} 중단 #{kst_datetime(poll_session.stopped_at)}" if poll_session.stopped_at.present?
+    labels << "#{prefix} 종료 #{kst_datetime(poll_session.closed_at)}" if poll_session.closed_at.present?
+    labels
+  end
+
   def school_election_participant_group_context_label(participant_group, voter_count:)
     [
       participant_group&.school&.name,

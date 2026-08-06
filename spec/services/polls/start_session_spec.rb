@@ -45,7 +45,7 @@ RSpec.describe Polls::StartSession do
 
     it "uses an edited replacement roster without resnapshotting current Classroom Students" do
       source, actor = create_startable_session(students: [[1, "현재 학생"]])
-      source.update!(status: :stopped, stopped_at: Time.current)
+      source.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
       create(:poll_participant, poll: source.poll, poll_session: source,
                                 source_participant_slot: nil, number: 1, name: "이전 학생")
       replacement = Polls::RevoteSession.new(actor: actor, poll_session: source).call.poll_session
@@ -64,7 +64,7 @@ RSpec.describe Polls::StartSession do
 
     it "rejects a replacement without a roster or with other execution records" do
       source, actor = create_startable_session
-      source.update!(status: :stopped, stopped_at: Time.current)
+      source.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
       replacement = create(:poll_session, poll: source.poll, classroom: source.classroom,
                                           operator: actor, replacement_of: source)
 
@@ -294,8 +294,12 @@ RSpec.describe Polls::StartSession do
     it "rejects in_progress, closed, and stopped PollSessions without creating records" do
       %i[in_progress closed stopped].each do |status|
         poll_session, actor = create_startable_session
-        poll_session.update!(status: status)
-
+        poll_session.update!(
+          status: status,
+          started_at: 1.hour.ago,
+          closed_at: (Time.current if status == :closed),
+          stopped_at: (Time.current if status == :stopped)
+        )
         result = described_class.new(actor: actor, poll_session: poll_session).call
 
         expect(result).not_to be_success

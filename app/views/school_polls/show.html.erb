@@ -6,8 +6,11 @@
              back_path: school_polls_path,
              back_label: "전교투표 목록으로 돌아가기" %>
 
-  <% if @poll.stopped? && @poll.stopped_at.present? %>
-    <p class="text-sm text-stone-600">중단 시각 <%= kst_datetime(@poll.stopped_at) %></p>
+  <% poll_time_labels = poll_status_time_labels(@poll) %>
+  <% if poll_time_labels.any? %>
+    <p class="text-sm text-stone-600" data-testid="school-poll-lifecycle-times">
+      <%= poll_time_labels.join(" · ") %>
+    </p>
   <% end %>
 
   <% if policy(@poll).mock_candidates? &&

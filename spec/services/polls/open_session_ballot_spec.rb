@@ -91,10 +91,10 @@ RSpec.describe Polls::OpenSessionBallot do
       poll_session: poll_session
     ).call
 
-    poll_session.update!(status: :stopped)
+    poll_session.update!(status: :stopped, stopped_at: Time.current)
     stopped_result = described_class.new(actor: operator, poll_session: poll_session).call
 
-    poll_session.update!(status: :in_progress, archived_at: Time.current)
+    poll_session.update!(status: :in_progress, stopped_at: nil, archived_at: Time.current)
     archived_result = described_class.new(actor: operator, poll_session: poll_session).call
 
     expect(unauthorized_result).not_to be_success

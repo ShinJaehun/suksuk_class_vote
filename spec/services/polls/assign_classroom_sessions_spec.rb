@@ -102,7 +102,15 @@ RSpec.describe Polls::AssignClassroomSessions do
   it "rejects every previously assigned Classroom regardless of Session status" do
     %i[draft in_progress closed stopped].each do |status|
       classroom = create_classroom
-      create(:poll_session, poll: poll, classroom: classroom, status: status)
+      create(
+        :poll_session,
+        poll: poll,
+        classroom: classroom,
+        status: status,
+        started_at: (1.hour.ago unless status == :draft),
+        closed_at: (Time.current if status == :closed),
+        stopped_at: (Time.current if status == :stopped)
+      )
       fresh_classroom = create_classroom
 
       expect do

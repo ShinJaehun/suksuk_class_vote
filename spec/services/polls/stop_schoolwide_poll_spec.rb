@@ -20,14 +20,22 @@ RSpec.describe Polls::StopSchoolwidePoll do
 
   it "stops the Poll and every non-closed Session and records details" do
     poll, manager, sessions = setup_poll
+    closed_started_at = sessions[2].started_at
+    closed_at = sessions[2].closed_at
 
     result = described_class.new(poll: poll, actor: manager).call
 
     expect(result).to be_success
     expect(poll.reload).to be_stopped
     expect(sessions[0].reload).to be_stopped
+    expect(sessions[0].started_at).to be_nil
     expect(sessions[1].reload).to be_stopped
-    expect(sessions[2].reload).to be_closed
+    expect(sessions[2].reload).to have_attributes(
+      status: "closed",
+      started_at: closed_started_at,
+      closed_at: closed_at,
+      stopped_at: nil
+    )
     event = poll.poll_events.find_by!(event_type: "schoolwide_poll_stopped")
     expect(poll.stopped_at).to be_present
     expect(sessions[0].stopped_at).to eq(poll.stopped_at)

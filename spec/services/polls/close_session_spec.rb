@@ -24,12 +24,15 @@ RSpec.describe Polls::CloseSession do
     expect(result).to be_success
     expect(poll_session.reload).to be_closed
     expect(poll_session.closed_at).to be_present
+    expect(poll_session.started_at).to eq(progress.started_at)
+    expect(poll_session.stopped_at).to be_nil
     expect(progress.reload).to have_attributes(
       status: "closed",
       ballot_status: "ballot_locked",
       current_poll_participant: current
     )
     expect(progress.closed_at).to eq(poll_session.closed_at)
+    expect(poll_session.poll_events.last.occurred_at).to eq(poll_session.closed_at)
   end
 
   it "does not close when the common status check finds an aggregate mismatch" do

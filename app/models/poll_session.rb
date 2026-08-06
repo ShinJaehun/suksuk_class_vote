@@ -27,7 +27,7 @@ class PollSession < ApplicationRecord
 
   validate :poll_and_classroom_must_share_school
   validate :active_session_must_be_unique
-  validate :terminal_timestamps_must_not_conflict
+  validate :lifecycle_timestamps_match_status
   validate :replacement_relationship_must_be_valid
   validate :replacement_of_cannot_change, on: :update
 
@@ -66,10 +66,28 @@ class PollSession < ApplicationRecord
     errors.add(:classroom, "already has an active session for this poll")
   end
 
-  def terminal_timestamps_must_not_conflict
-    return unless closed_at.present? && stopped_at.present?
+  def lifecycle_timestamps_match_status
+    errors.add(:base, "closed_at and stopped_at cannot both be present") if closed_at.present? && stopped_at.present?
 
-    errors.add(:base, "closed_at and stopped_at cannot both be present")
+    case status
+    when "draft"
+      errors.add(:base, "draft session cannot have lifecycle timestamps") if started_at.present? || closed_at.present? || stopped_at.present?
+    when "in_progress"
+      errors.add(:started_at, "is required while in progress") if started_at.blank?
+      errors.add(:base, "in-progress session cannot have terminal timestamps") if closed_at.present? || stopped_at.present?
+    when "closed"
+      errors.add(:started_at, "is required when closed") if started_at.blank?
+      errors.add(:closed_at, "is required when closed") if closed_at.blank?
+      errors.add(:stopped_at, "must be blank when closed") if stopped_at.present?
+      errors.add(:closed_at, "cannot be earlier than started_at") if started_at.present? && closed_at.present? && closed_at < started_at
+    when "stopped"
+      errors.add(:stopped_at, "is required when stopped") if stopped_at.blank?
+      errors.add(:closed_at, "must be blank when stopped") if closed_at.present?
+      unless started_at.present? || (poll&.school_managed? && poll.stopped?)
+        errors.add(:started_at, "is required when stopped")
+      end
+      errors.add(:stopped_at, "cannot be earlier than started_at") if started_at.present? && stopped_at.present? && stopped_at < started_at
+    end
   end
 
   def replacement_relationship_must_be_valid
@@ -90,7 +108,11 @@ class PollSession < ApplicationRecord
 
     if poll.school_managed? || replacement_of.poll.school_managed?
       errors.add(:poll, "must match the schoolwide source poll") unless poll == replacement_of.poll
-      errors.add(:poll, "must be an in-progress schoolwide poll") unless poll.school_managed? && poll.in_progress?
+
+      valid_schoolwide_poll =
+        poll.school_managed? && (!new_record? || poll.in_progress?)
+      errors.add(:poll, "must be an in-progress schoolwide poll") unless valid_schoolwide_poll
+
       unless replacement_of.stopped? || replacement_of.closed?
         errors.add(:replacement_of, "must be stopped or closed")
       end

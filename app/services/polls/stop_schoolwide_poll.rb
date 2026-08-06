@@ -20,6 +20,11 @@ module Polls
           raise ActiveRecord::Rollback if errors.any?
           stopped_at = Time.current
           sessions = poll.current_poll_sessions.order(:id).to_a
+          poll.update!(
+            status: :stopped,
+            stopped_at: poll.stopped_at || stopped_at,
+            closed_at: nil
+          )
           newly_stopped = 0
           sessions.each do |session|
             next if session.closed? || session.stopped?
@@ -27,11 +32,6 @@ module Polls
             session.update!(status: :stopped, stopped_at: session.stopped_at || stopped_at, closed_at: nil)
             newly_stopped += 1
           end
-          poll.update!(
-            status: :stopped,
-            stopped_at: poll.stopped_at || stopped_at,
-            closed_at: nil
-          )
           poll.poll_events.create!(
             actor: actor,
             event_type: "schoolwide_poll_stopped",

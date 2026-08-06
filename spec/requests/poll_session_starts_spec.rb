@@ -101,7 +101,12 @@ RSpec.describe "PollSession starts", type: :request do
   it "redirects with an alert when the PollSession is not draft" do
     %i[in_progress closed stopped].each do |status|
       poll, poll_session, teacher = create_startable_poll_session
-      poll_session.update!(status: status)
+      poll_session.update!(
+        status: status,
+        started_at: 1.hour.ago,
+        closed_at: (Time.current if status == :closed),
+        stopped_at: (Time.current if status == :stopped)
+      )
       sign_in teacher
 
       expect do

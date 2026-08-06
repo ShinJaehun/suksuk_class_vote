@@ -56,6 +56,8 @@ RSpec.describe "Polls", type: :request do
         classroom: classroom,
         operator: teacher,
         status: :closed,
+        started_at: 1.hour.ago,
+        closed_at: Time.current,
         archived_at: Time.current
       )
       sign_in teacher
@@ -320,6 +322,8 @@ RSpec.describe "Polls", type: :request do
         classroom: first_classroom,
         operator: admin,
         status: :closed,
+        started_at: 1.hour.ago,
+        closed_at: Time.current,
         classroom_name_snapshot: "종료 학급"
       )
       active_session = create(
@@ -328,6 +332,7 @@ RSpec.describe "Polls", type: :request do
         classroom: second_classroom,
         operator: admin,
         status: :in_progress,
+        started_at: Time.current,
         classroom_name_snapshot: "진행 학급"
       )
       sign_in admin

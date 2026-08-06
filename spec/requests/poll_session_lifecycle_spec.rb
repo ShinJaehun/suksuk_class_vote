@@ -31,6 +31,34 @@ RSpec.describe "PollSession lifecycle", type: :request do
     replacement = session.reload.replacement_session
     expect(response).to redirect_to(poll_poll_session_path(replacement.poll, replacement))
     expect(replacement).to be_draft
+    expect(replacement).to have_attributes(started_at: nil, closed_at: nil, stopped_at: nil)
+  end
+
+  it "shows Session lifecycle times on its detail and teacher list" do
+    session, teacher = create_running_session
+    started_label = ApplicationController.helpers.kst_datetime(session.started_at)
+    sign_in teacher
+
+    get poll_poll_session_path(session.poll, session)
+    expect(response.body).to include("투표 시작", started_label)
+    get polls_path
+    expect(response.body).to include("투표 시작", started_label)
+
+    Polls::StopSession.new(actor: teacher, poll_session: session).call
+    stopped_label = ApplicationController.helpers.kst_datetime(session.reload.stopped_at)
+    get poll_poll_session_path(session.poll, session)
+    expect(response.body).to include("투표 시작", "투표 중단", started_label, stopped_label)
+    get polls_path
+    expect(response.body).to include("투표 시작", "투표 중단", started_label, stopped_label)
+
+    closed, closed_teacher = create_running_session
+    closed_at = Time.current
+    closed.update!(status: :closed, closed_at: closed_at, stopped_at: nil)
+    sign_in closed_teacher
+    get poll_poll_session_path(closed.poll, closed)
+    expect(response.body).to include("투표 시작", "투표 종료")
+    get polls_path
+    expect(response.body).to include("투표 시작", "투표 종료")
   end
 
   it "uses top-level navigation and omits lifecycle explanations" do

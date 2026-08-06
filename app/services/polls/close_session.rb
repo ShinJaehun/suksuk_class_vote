@@ -27,7 +27,7 @@ module Polls
 
         if errors.empty?
           closed_at = Time.current
-          poll_session.update!(status: :closed, closed_at: closed_at)
+          poll_session.update!(status: :closed, closed_at: closed_at, stopped_at: nil)
           progress.update!(status: :closed, closed_at: closed_at, ballot_status: :ballot_locked)
           record_event(current_participant, closed_at)
         end

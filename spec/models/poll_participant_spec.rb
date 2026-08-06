@@ -62,7 +62,7 @@ RSpec.describe PollParticipant, type: :model do
     end
 
     it "allows the same number in different sessions of one poll but not in one session" do
-      source = create(:poll_session, status: :stopped, stopped_at: Time.current)
+      source = create(:poll_session, status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
       replacement = create(:poll_session, poll: source.poll, classroom: source.classroom,
                                           operator: source.operator, replacement_of: source)
       create(:poll_participant, poll: source.poll, poll_session: source,

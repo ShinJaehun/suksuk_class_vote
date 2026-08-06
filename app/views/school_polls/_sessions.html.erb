@@ -44,7 +44,10 @@
                   <%= poll_session_status_badge(session) %>
                 </div>
                 <p class="text-sm text-stone-600">담당 교사 <%= session.operator_name_snapshot %> · 투표자 <%= voter_count %>명</p>
-                <p class="text-sm text-stone-600">시작 <%= kst_datetime(session.started_at) %> · 종료 <%= kst_datetime(session.closed_at) %></p>
+                <% session_time_labels = poll_session_status_time_labels(session) %>
+                <% if session_time_labels.any? %>
+                  <p class="text-sm text-stone-600"><%= session_time_labels.join(" · ") %></p>
+                <% end %>
               </div>
               <div class="flex items-center gap-3">
                 <% if policy(session).school_revote? %>
@@ -74,6 +77,10 @@
           <div>
             <span class="font-medium"><%= session.classroom_name_snapshot %></span> <%= poll_session_status_badge(session) %>
             <p class="mt-1 text-sm text-stone-600">담당 교사 <%= session.operator_name_snapshot %> · 투표자 <%= session.poll_participants.size %>명</p>
+            <% session_time_labels = poll_session_status_time_labels(session) %>
+            <% if session_time_labels.any? %>
+              <p class="mt-1 text-sm text-stone-600"><%= session_time_labels.join(" · ") %></p>
+            <% end %>
           </div>
           <%= link_to "상세", poll_poll_session_path(poll, session), class: "text-sm font-medium underline" %>
         </div>

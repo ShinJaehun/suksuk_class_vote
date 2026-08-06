@@ -11,13 +11,16 @@ RSpec.describe "PollSession operations", type: :request do
     teacher.reload
     classroom = create(:classroom, school: school, teacher: teacher)
     poll = create(:poll, user: teacher, school: school, participant_group: nil, title: "우리 반 의견 투표")
+    started_at = 1.hour.ago
     poll_session = create(
       :poll_session,
       poll: poll,
       classroom: classroom,
       operator: teacher,
       status: status,
-      started_at: (Time.current if status != :draft)
+      started_at: (started_at unless status == :draft),
+      closed_at: (Time.current if status == :closed),
+      stopped_at: (Time.current if status == :stopped)
     )
 
     [poll, poll_session, teacher]

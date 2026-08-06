@@ -121,9 +121,10 @@ RSpec.describe PollSession, type: :model do
       expect(build(:poll_session, poll: existing_session.poll, classroom: existing_session.classroom,
                                   operator: existing_session.operator, status: :draft)).to be_invalid
       expect(build(:poll_session, poll: existing_session.poll, classroom: existing_session.classroom,
-                                  operator: existing_session.operator, status: :in_progress)).to be_invalid
+                                   operator: existing_session.operator, status: :in_progress,
+                                   started_at: Time.current)).to be_invalid
 
-      existing_session.update!(status: :in_progress)
+      existing_session.update!(status: :in_progress, started_at: Time.current)
 
       expect(build(:poll_session, poll: existing_session.poll, classroom: existing_session.classroom,
                                   operator: existing_session.operator, status: :draft)).to be_invalid
@@ -131,8 +132,16 @@ RSpec.describe PollSession, type: :model do
 
     it "allows a draft after a closed or stopped session" do
       %i[closed stopped].each do |status|
-        previous = create(:poll_session, status: status)
-
+        timestamps = {
+          started_at: 1.hour.ago,
+          closed_at: (Time.current if status == :closed),
+          stopped_at: (Time.current if status == :stopped)
+        }
+        previous = create(
+          :poll_session,
+          status: status,
+          **timestamps
+        )
         expect(build(:poll_session, poll: previous.poll, classroom: previous.classroom,
                                     operator: previous.operator, status: :draft)).to be_valid
       end
@@ -140,10 +149,19 @@ RSpec.describe PollSession, type: :model do
 
     it "allows multiple closed or stopped sessions" do
       %i[closed stopped].each do |status|
-        previous = create(:poll_session, status: status)
-
+        timestamps = {
+          started_at: 1.hour.ago,
+          closed_at: (Time.current if status == :closed),
+          stopped_at: (Time.current if status == :stopped)
+        }
+        previous = create(
+          :poll_session,
+          status: status,
+          **timestamps
+        )
         expect(build(:poll_session, poll: previous.poll, classroom: previous.classroom,
-                                    operator: previous.operator, status: status)).to be_valid
+                                    operator: previous.operator, status: status,
+                                    **timestamps)).to be_valid
       end
     end
 
@@ -163,18 +181,61 @@ RSpec.describe PollSession, type: :model do
     end
   end
 
-  describe "terminal timestamps" do
-    it "rejects simultaneous closed and stopped timestamps" do
-      session = build(:poll_session, closed_at: Time.current, stopped_at: Time.current)
+  describe "lifecycle timestamps" do
+    it "rejects lifecycle timestamps on a draft" do
+      expect(build(:poll_session, started_at: Time.current)).to be_invalid
+      expect(build(:poll_session, closed_at: Time.current)).to be_invalid
+      expect(build(:poll_session, stopped_at: Time.current)).to be_invalid
+    end
 
-      expect(session).to be_invalid
-      expect(session.errors[:base]).to be_present
+    it "requires only started_at while in progress" do
+      expect(build(:poll_session, status: :in_progress)).to be_invalid
+      expect(build(:poll_session, status: :in_progress, started_at: Time.current)).to be_valid
+      expect(build(:poll_session, status: :in_progress, started_at: 1.hour.ago,
+                                  closed_at: Time.current)).to be_invalid
+      expect(build(:poll_session, status: :in_progress, started_at: 1.hour.ago,
+                                  stopped_at: Time.current)).to be_invalid
+    end
+
+    it "requires ordered started_at and closed_at when closed" do
+      expect(build(:poll_session, status: :closed)).to be_invalid
+      expect(build(:poll_session, status: :closed, started_at: 1.hour.ago,
+                                  closed_at: Time.current)).to be_valid
+      expect(build(:poll_session, status: :closed, started_at: Time.current,
+                                  closed_at: 1.hour.ago)).to be_invalid
+      expect(build(:poll_session, status: :closed, started_at: 1.hour.ago,
+                                  closed_at: Time.current, stopped_at: Time.current)).to be_invalid
+    end
+
+    it "requires ordered started_at and stopped_at for a regular Poll" do
+      expect(build(:poll_session, status: :stopped, stopped_at: Time.current)).to be_invalid
+      expect(build(:poll_session, status: :stopped, started_at: 1.hour.ago,
+                                  stopped_at: Time.current)).to be_valid
+      expect(build(:poll_session, status: :stopped, started_at: Time.current,
+                                  stopped_at: 1.hour.ago)).to be_invalid
+    end
+
+    it "allows an unstarted stopped Session only when its School Poll is stopped" do
+      school = create(:school)
+      teacher = create(:user)
+      create(:school_membership, school: school, user: teacher)
+      classroom = create(:classroom, school: school, teacher: teacher)
+      poll = create(:poll, school: school, school_managed: true, participant_group: nil,
+                           status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
+
+      expect(build(:poll_session, poll: poll, classroom: classroom, operator: teacher,
+                                  status: :stopped, stopped_at: poll.stopped_at)).to be_valid
+      poll.update_columns(status: Poll.statuses.fetch("in_progress"), stopped_at: nil)
+      expect(build(:poll_session, poll: poll.reload, classroom: classroom, operator: teacher,
+                                  status: :stopped, stopped_at: Time.current)).to be_invalid
     end
   end
 
   describe "replacement relationship" do
     def stopped_session(status: :stopped)
-      create(:poll_session, status: status, stopped_at: (Time.current if status == :stopped), closed_at: (Time.current if status == :closed))
+      create(:poll_session, status: status, started_at: 1.hour.ago,
+                            stopped_at: (Time.current if status == :stopped),
+                            closed_at: (Time.current if status == :closed))
     end
 
     it "links a replacement using a separate draft poll in the same classroom" do
@@ -206,7 +267,7 @@ RSpec.describe PollSession, type: :model do
       expect(build(:poll_session, poll: closed_poll, classroom: closed_source.classroom,
                                   operator: closed_source.operator, replacement_of: closed_source)).to be_invalid
 
-      source.update!(status: :stopped, stopped_at: Time.current)
+      source.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
       different_classroom = create(:classroom, :with_teacher, school: source.poll.school)
       expect(build(:poll_session, poll: source.poll, classroom: different_classroom,
                                   operator: different_classroom.teacher, replacement_of: source)).to be_invalid
@@ -240,7 +301,7 @@ RSpec.describe PollSession, type: :model do
       poll = create(:poll, school: school, school_managed: true, participant_group: nil,
                            status: :in_progress, started_at: Time.current)
       source = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
-                                     status: :stopped, stopped_at: Time.current)
+                                     status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
 
       replacement = build(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                                          replacement_of: source)
@@ -268,7 +329,7 @@ RSpec.describe PollSession, type: :model do
       first = stopped_session
       second = create(:poll_session, poll: first.poll, classroom: first.classroom,
                                      operator: first.operator, replacement_of: first)
-      second.update!(status: :stopped, stopped_at: Time.current)
+      second.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
       expect(build(:poll_session, poll: first.poll, classroom: first.classroom,
                                   operator: first.operator, replacement_of: first)).to be_invalid
 
@@ -279,7 +340,6 @@ RSpec.describe PollSession, type: :model do
       other_source = stopped_session
       expect(third.update(replacement_of: other_source)).to be(false)
     end
-
   end
 
   describe "deletion restrictions" do

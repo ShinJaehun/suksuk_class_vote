@@ -40,6 +40,7 @@ RSpec.describe Polls::StopSession do
     expect(option_tally.reload).to be_present
     expect(contest_tally.reload).to be_present
     expect(session.poll_events.last).to have_attributes(event_type: "poll_stopped", actor: teacher)
+    expect(session.poll_events.last.occurred_at).to eq(session.stopped_at)
     expect(session.poll_events.last.details).to eq("reason" => "manual_stop")
   end
 

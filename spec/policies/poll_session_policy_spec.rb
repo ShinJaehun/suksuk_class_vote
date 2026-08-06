@@ -90,7 +90,7 @@ RSpec.describe PollSessionPolicy do
 
     it "allows revote and replacement roster editing only in their matching states" do
       source, teacher = create_poll_session
-      source.update!(status: :stopped, stopped_at: Time.current)
+      source.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
       create(:poll_participant, poll: source.poll, poll_session: source,
                                 source_participant_slot: nil)
       expect(described_class.new(teacher, source)).to be_revote
@@ -104,7 +104,7 @@ RSpec.describe PollSessionPolicy do
 
     it "allows safe replacement definition editing for authorized classroom actors only" do
       source, teacher = create_poll_session
-      source.update!(status: :stopped, stopped_at: Time.current)
+      source.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
       create(:poll_participant, poll: source.poll, poll_session: source,
                                 source_participant_slot: nil)
       replacement = Polls::RevoteSession.new(actor: teacher, poll_session: source).call.poll_session
@@ -125,7 +125,11 @@ RSpec.describe PollSessionPolicy do
 
     it "rejects revote for a closed source for every authorized actor" do
       source, teacher = create_poll_session
-      source.update!(status: :closed, closed_at: Time.current)
+      source.update!(
+        status: :closed,
+        started_at: 1.hour.ago,
+        closed_at: Time.current
+      )
       manager = create(:user)
       create(:school_membership, :manager, school: source.classroom.school, user: manager)
 

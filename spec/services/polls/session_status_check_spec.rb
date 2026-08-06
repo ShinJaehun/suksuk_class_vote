@@ -95,7 +95,7 @@ RSpec.describe Polls::SessionStatusCheck do
 
   it "uses copied participants instead of Classroom Students for a replacement draft" do
     source, operator = build_draft
-    source.update!(status: :stopped, stopped_at: Time.current)
+    source.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
     create(:poll_participant, poll: source.poll, poll_session: source,
                               source_participant_slot: nil, number: 9, name: "재투표 학생")
     replacement = Polls::RevoteSession.new(actor: operator, poll_session: source).call.poll_session
@@ -110,7 +110,7 @@ RSpec.describe Polls::SessionStatusCheck do
 
   it "rejects an empty replacement roster and pre-start execution records" do
     source, operator = build_draft
-    source.update!(status: :stopped, stopped_at: Time.current)
+    source.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
     create(
       :poll_participant,
       poll: source.poll,
@@ -190,6 +190,7 @@ RSpec.describe Polls::SessionStatusCheck do
       classroom: other_classroom,
       operator: operator,
       status: :stopped,
+      started_at: 1.hour.ago,
       stopped_at: Time.current
     )
     foreign_participant = create(
@@ -328,6 +329,7 @@ RSpec.describe Polls::SessionStatusCheck do
       classroom: other_classroom,
       operator: other_teacher,
       status: :stopped,
+      started_at: 1.hour.ago,
       stopped_at: Time.current
     )
     other_participant = create(

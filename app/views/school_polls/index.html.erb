@@ -28,6 +28,10 @@
                 · 종료 <%= session_counts.fetch("closed", 0) %>
                 · 중단 <%= session_counts.fetch("stopped", 0) %>
               </p>
+              <% poll_time_labels = poll_status_time_labels(poll) %>
+              <% if poll_time_labels.any? %>
+                <p class="text-sm text-stone-600"><%= poll_time_labels.join(" · ") %></p>
+              <% end %>
             </div>
             <%= link_to "상세 관리",
                         school_poll_path(poll),

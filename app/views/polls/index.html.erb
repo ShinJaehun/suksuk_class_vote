@@ -25,7 +25,10 @@
             <p class="text-sm text-stone-600">
               <%= poll_session.classroom_name_snapshot %>
               · 실행 상태 <%= poll_session_status_label(poll_session) %>
-              · 최근 상태 <%= kst_datetime(poll_session.updated_at) %>
+              <% session_time_labels = poll_session_status_time_labels(poll_session) %>
+              <% if session_time_labels.any? %>
+                · <%= session_time_labels.join(" · ") %>
+              <% end %>
             </p>
           </div>
 

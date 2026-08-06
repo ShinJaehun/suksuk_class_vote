@@ -20,9 +20,9 @@ module Polls
             source.reload
             validate
             raise ActiveRecord::Rollback if errors.any?
+            operation_at = Time.current
             if source.in_progress?
-              stopped_at = Time.current
-              source.update!(status: :stopped, stopped_at: source.stopped_at || stopped_at, closed_at: nil)
+              source.update!(status: :stopped, stopped_at: source.stopped_at || operation_at, closed_at: nil)
             end
             @replacement = source.poll.poll_sessions.create!(
               classroom: source.classroom,
@@ -44,6 +44,7 @@ module Polls
               poll: source.poll,
               actor: actor,
               event_type: "replacement_created",
+              occurred_at: operation_at,
               details: { replacement_poll_session_id: replacement.id }
             )
           end
