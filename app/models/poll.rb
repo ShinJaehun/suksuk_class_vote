@@ -144,7 +144,7 @@ class Poll < ApplicationRecord
   def lifecycle_duration_minutes(now: Time.current)
     return if started_at.blank?
 
-    finish_at = closed_at || now
+    finish_at = closed_at || stopped_at || now
     [((finish_at - started_at) / 60).floor, 0].max
   end
 
@@ -180,13 +180,27 @@ class Poll < ApplicationRecord
     return unless school_managed?
 
     errors.add(:closed_at, "준비 상태에는 기록할 수 없습니다.") if draft? && closed_at.present?
-    errors.add(:started_at, "진행 상태에는 필요합니다.") if in_progress? && started_at.blank?
+    errors.add(:stopped_at, "준비 상태에는 기록할 수 없습니다.") if draft? && stopped_at.present?
+    if in_progress?
+      errors.add(:started_at, "진행 상태에는 필요합니다.") if started_at.blank?
+      errors.add(:closed_at, "진행 상태에는 기록할 수 없습니다.") if closed_at.present?
+      errors.add(:stopped_at, "진행 상태에는 기록할 수 없습니다.") if stopped_at.present?
+    end
     if closed?
       errors.add(:started_at, "종료 상태에는 필요합니다.") if started_at.blank?
       errors.add(:closed_at, "종료 상태에는 필요합니다.") if closed_at.blank?
+      errors.add(:stopped_at, "종료 상태에는 기록할 수 없습니다.") if stopped_at.present?
+    end
+    if stopped?
+      errors.add(:started_at, "중단 상태에는 필요합니다.") if started_at.blank?
+      errors.add(:stopped_at, "중단 상태에는 필요합니다.") if stopped_at.blank?
+      errors.add(:closed_at, "중단 상태에는 기록할 수 없습니다.") if closed_at.present?
     end
     if started_at.present? && closed_at.present? && closed_at < started_at
       errors.add(:closed_at, "시작 시각보다 빠를 수 없습니다.")
+    end
+    if started_at.present? && stopped_at.present? && stopped_at < started_at
+      errors.add(:stopped_at, "시작 시각보다 빠를 수 없습니다.")
     end
   end
 

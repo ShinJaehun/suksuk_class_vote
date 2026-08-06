@@ -35,6 +35,94 @@ RSpec.describe "School Poll management", type: :request do
     )
   end
 
+  def create_schoolwide_lifecycle
+    school = create(:school)
+    manager = create(:user)
+    create(:school_membership, :manager, school: school, user: manager)
+    teacher = create(:user)
+    create(:school_membership, school: school, user: teacher)
+    classroom = create(:classroom, school: school, teacher: teacher)
+    poll = create(:poll, school: school, school_managed: true, participant_group: nil,
+                         status: :in_progress, started_at: 1.hour.ago)
+    session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
+                                    status: :in_progress, started_at: 1.hour.ago)
+    create(:poll_participant, poll: poll, poll_session: session,
+                              source_participant_slot: nil, number: 1, name: "학생")
+    [poll, session, manager, teacher]
+  end
+
+  describe "Schoolwide recovery lifecycle" do
+    it "lets the manager stop the whole Poll while hiding central actions from the teacher" do
+      poll, session, manager, teacher = create_schoolwide_lifecycle
+      sign_in manager
+      get school_poll_path(poll)
+      expect(response.body).to include("전교투표 중단", "학급 재투표 준비")
+
+      sign_in teacher
+      get poll_poll_session_path(poll, session)
+      expect(response.body).not_to include("투표 중단", "재투표 시작 준비", "학급 재투표 준비")
+      expect { post stop_school_poll_path(poll) }.not_to change(PollEvent, :count)
+
+      sign_in manager
+      post stop_school_poll_path(poll)
+      expect(response).to redirect_to(school_poll_path(poll))
+      expect(poll.reload).to be_stopped
+      expect(session.reload).to be_stopped
+      get school_poll_path(poll)
+      expect(response.body).to include("중단 시각", ApplicationController.helpers.kst_datetime(poll.stopped_at))
+    end
+
+    it "shows Schoolwide classroom revote only on the School Poll page" do
+      poll, session, manager, = create_schoolwide_lifecycle
+      sign_in manager
+
+      get poll_poll_session_path(poll, session)
+
+      expect(response.body).not_to include("학급 재투표 준비")
+
+      get school_poll_path(poll)
+
+      expect(response.body).to include("학급 재투표 준비")
+    end
+
+    it "does not show a stopped timestamp for a running School Poll" do
+      poll, _session, manager, = create_schoolwide_lifecycle
+      sign_in manager
+
+      get school_poll_path(poll)
+
+      expect(response.body).not_to include("중단 시각")
+    end
+
+    it "creates a full-page same-Poll classroom replacement and rejects it after Poll stop" do
+      poll, session, manager, = create_schoolwide_lifecycle
+      sign_in manager
+
+      post revote_school_poll_poll_session_path(poll, session)
+      replacement = session.reload.replacement_session
+
+      expect(response).to redirect_to(poll_poll_session_path(poll, replacement))
+      expect(session).to be_stopped
+      expect(replacement).to have_attributes(poll: poll, status: "draft")
+
+      Polls::StopSchoolwidePoll.new(poll: poll, actor: manager).call
+      expect do
+        post revote_school_poll_poll_session_path(poll, replacement)
+      end.not_to change(PollSession, :count)
+    end
+
+    it "allows the manager to replace a closed classroom while the School Poll is running" do
+      poll, session, manager, = create_schoolwide_lifecycle
+      session.update!(status: :closed, closed_at: Time.current)
+      sign_in manager
+
+      post revote_school_poll_poll_session_path(poll, session)
+
+      expect(response).to redirect_to(poll_poll_session_path(poll, session.reload.replacement_session))
+      expect(session).to be_stopped
+    end
+  end
+
   describe "GET /school_polls" do
     it "shows every School Poll to global admin" do
       first = create(

@@ -118,7 +118,12 @@ module Polls
         issues << "투표자 명단의 번호가 중복되었습니다."
       end
       source = poll_session.replacement_of
-      if source.blank? || source.classroom != classroom || source.poll.school_managed? || poll.school_managed? || !poll.draft?
+      valid_replacement = if poll&.school_managed?
+                            source&.poll == poll && poll.in_progress?
+                          else
+                            source.present? && !source.poll.school_managed? && poll&.draft?
+                          end
+      if source.blank? || source.classroom != classroom || !valid_replacement
         issues << "재투표 원본과 학급·투표 정보를 확인해 주세요."
       end
     end

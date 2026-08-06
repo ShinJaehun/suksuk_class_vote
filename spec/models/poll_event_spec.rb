@@ -63,7 +63,7 @@ RSpec.describe PollEvent, type: :model do
     end
 
     it "supports Schoolwide Poll-level lifecycle events" do
-      %w[schoolwide_poll_started schoolwide_poll_closed].each do |event_type|
+      %w[schoolwide_poll_started schoolwide_poll_stopped schoolwide_poll_closed].each do |event_type|
         event = build(:poll_event, event_type: event_type, poll_session: nil)
 
         expect(event).to be_valid

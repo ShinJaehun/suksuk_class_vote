@@ -23,7 +23,7 @@ module Polls
           raise ActiveRecord::Rollback if errors.any?
 
           started_at = Time.current
-          poll.update!(status: :in_progress, started_at: started_at, closed_at: nil)
+          poll.update!(status: :in_progress, started_at: started_at, closed_at: nil, stopped_at: nil)
           poll.poll_events.create!(
             poll_session: nil,
             actor: actor,

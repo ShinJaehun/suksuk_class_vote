@@ -134,4 +134,33 @@ RSpec.describe PollSessionPolicy do
       end
     end
   end
+
+
+  describe "schoolwide revote permissions" do
+    it "allows only the School manager and admin for active in-progress or closed Sessions" do
+      school = create(:school)
+      teacher = create(:user)
+      create(:school_membership, school: school, user: teacher)
+      classroom = create(:classroom, school: school, teacher: teacher)
+      poll = create(:poll, school: school, school_managed: true, participant_group: nil,
+                           status: :in_progress, started_at: Time.current)
+      session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
+                                      status: :in_progress, started_at: Time.current)
+      manager = create(:user)
+      create(:school_membership, :manager, school: school, user: manager)
+      other_manager = create(:user)
+      create(:school_membership, :manager, school: create(:school), user: other_manager)
+
+      expect(described_class.new(teacher, session)).not_to be_stop
+      expect(described_class.new(teacher, session)).not_to be_school_revote
+      expect(described_class.new(manager, session)).to be_school_revote
+      expect(described_class.new(create(:user, :admin), session)).to be_school_revote
+      expect(described_class.new(other_manager, session)).not_to be_school_revote
+
+      session.update!(status: :closed, closed_at: Time.current)
+      expect(described_class.new(manager, session)).to be_school_revote
+      poll.update!(status: :stopped, stopped_at: Time.current)
+      expect(described_class.new(manager, session)).not_to be_school_revote
+    end
+  end
 end

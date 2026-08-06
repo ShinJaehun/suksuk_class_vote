@@ -4,6 +4,7 @@ Rails.application.routes.draw do
   resources :school_polls, only: %i[index new create show edit update] do
     get :results, on: :member
     post :start, on: :member
+    post :stop, on: :member
     post :close, on: :member
     post :mock_candidates, on: :member, action: :create_mock_candidates
     resources :contests,
@@ -15,7 +16,9 @@ Rails.application.routes.draw do
     end
     resources :poll_sessions,
               only: :create,
-              controller: "school_poll_sessions"
+              controller: "school_poll_sessions" do
+      post :revote, on: :member
+    end
   end
   resources :polls, only: %i[index show new create destroy] do
     get :archived, on: :collection

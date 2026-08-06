@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_06_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_06_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -380,6 +380,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_000000) do
     t.boolean "school_managed", default: false, null: false
     t.datetime "started_at"
     t.integer "status", default: 0, null: false
+    t.datetime "stopped_at"
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false

@@ -46,7 +46,17 @@
                 <p class="text-sm text-stone-600">담당 교사 <%= session.operator_name_snapshot %> · 투표자 <%= voter_count %>명</p>
                 <p class="text-sm text-stone-600">시작 <%= kst_datetime(session.started_at) %> · 종료 <%= kst_datetime(session.closed_at) %></p>
               </div>
-              <%= link_to "상세", poll_poll_session_path(poll, session), class: "text-sm font-medium underline" %>
+              <div class="flex items-center gap-3">
+                <% if policy(session).school_revote? %>
+                  <%= button_to "학급 재투표 준비",
+                                revote_school_poll_poll_session_path(poll, session),
+                                method: :post,
+                                form: { data: { turbo_frame: "_top" } },
+                                data: { turbo_confirm: "이 학급의 기존 기록을 보존하고 재투표를 준비할까요?" },
+                                class: "text-sm font-medium text-rose-700 underline" %>
+                <% end %>
+                <%= link_to "상세", poll_poll_session_path(poll, session), class: "text-sm font-medium underline" %>
+              </div>
             </div>
           <% end %>
         </section>

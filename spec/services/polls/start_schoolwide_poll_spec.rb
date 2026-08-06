@@ -32,6 +32,7 @@ RSpec.describe Polls::StartSchoolwidePoll do
     expect(poll.reload).to be_in_progress
     expect(poll.started_at).to be_present
     expect(poll.closed_at).to be_nil
+    expect(poll.stopped_at).to be_nil
     expect(poll_session.reload).to be_draft
     expect(poll_session.poll_participants).to be_empty
     expect(poll_session.poll_events).to be_empty

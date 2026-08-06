@@ -115,10 +115,18 @@ RSpec.describe PollPolicy do
       manager = create(:user)
       create(:school_membership, :manager, school: school, user: manager)
 
-      [create(:user, :admin), manager].each do |actor|
+      actors = [create(:user, :admin), manager]
+      actors.each do |actor|
         policy = described_class.new(actor, poll)
         expect(policy).to be_school_start
+        expect(policy).not_to be_school_close
+        expect(policy).not_to be_school_stop
+      end
+      poll.update!(status: :in_progress, started_at: Time.current)
+      actors.each do |actor|
+        policy = described_class.new(actor, poll)
         expect(policy).to be_school_close
+        expect(policy).to be_school_stop
       end
     end
 
@@ -136,6 +144,7 @@ RSpec.describe PollPolicy do
         policy = described_class.new(actor, poll)
         expect(policy).not_to be_school_start
         expect(policy).not_to be_school_close
+        expect(policy).not_to be_school_stop
       end
     end
   end

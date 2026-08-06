@@ -42,7 +42,11 @@ class PollPolicy < ApplicationPolicy
   end
 
   def school_close?
-    school_show?
+    school_show? && record.in_progress?
+  end
+
+  def school_stop?
+    school_show? && record.in_progress? && record.archived_at.blank?
   end
 
   def mock_candidates?

@@ -42,6 +42,18 @@ class PollSessionPolicy < ApplicationPolicy
       record.poll.archived_at.blank?
   end
 
+  def school_revote?
+    return false unless school_lifecycle_actor?
+    return false unless record.poll.school_managed? && record.poll.in_progress?
+    return false unless record.in_progress? || record.closed?
+    return false if record.archived_at.present? || record.replacement_session.present?
+
+    !record.poll.poll_sessions.where(
+      classroom: record.classroom,
+      status: %i[draft in_progress]
+    ).where.not(id: record.id).exists?
+  end
+
   def edit_replacement_roster?
     lifecycle_action_allowed? &&
       record.replacement? &&
@@ -78,5 +90,13 @@ class PollSessionPolicy < ApplicationPolicy
       record.poll_option_tallies.empty? &&
       record.poll_contest_tallies.empty? &&
       record.poll_events.empty?
+  end
+
+  def school_lifecycle_actor?
+    return false if user.blank?
+    return true if user.admin?
+
+    membership = user.school_membership
+    user.teacher? && membership&.manager? && membership.school == record.poll.school
   end
 end

@@ -77,19 +77,22 @@ class PollSession < ApplicationRecord
     if classroom.present? && replacement_of.classroom != classroom
       errors.add(:replacement_of, "must belong to the same classroom")
     end
-    if poll.present?
-      errors.add(:poll, "must be a general classroom poll") if poll.school_managed?
-      errors.add(:poll, "must be draft for a replacement") unless poll.draft?
-    end
-    if replacement_of.poll&.school_managed?
-      errors.add(:replacement_of, "must be a general classroom poll")
-    end
-    unless replacement_of.stopped?
-      errors.add(:replacement_of, "must be stopped")
-    end
+    validate_replacement_poll_relationship
     errors.add(:status, "must be draft for a replacement") if new_record? && !draft?
     errors.add(:replacement_of, "already has a replacement") if replacement_taken?
     errors.add(:replacement_of, "cannot create a cycle") if replacement_cycle?
+  end
+
+  def validate_replacement_poll_relationship
+    return if poll.blank? || replacement_of.poll.blank?
+
+    if poll.school_managed? || replacement_of.poll.school_managed?
+      errors.add(:poll, "must match the schoolwide source poll") unless poll == replacement_of.poll
+      errors.add(:poll, "must be an in-progress schoolwide poll") unless poll.school_managed? && poll.in_progress?
+    else
+      errors.add(:poll, "must be draft for a replacement") unless poll.draft?
+    end
+    errors.add(:replacement_of, "must be stopped") unless replacement_of.stopped?
   end
 
   def replacement_taken?

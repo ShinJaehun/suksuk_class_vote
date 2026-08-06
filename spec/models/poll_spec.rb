@@ -107,6 +107,34 @@ RSpec.describe Poll, type: :model do
       expect(Poll.statuses).to include("closed" => 20, "stopped" => 30)
     end
 
+    it "validates Schoolwide Poll lifecycle timestamps by status" do
+      started_at = 1.hour.ago
+      school = create(:school)
+      attributes = { school: school, school_managed: true, participant_group: nil }
+
+      expect(build(:poll, **attributes, status: :stopped,
+                                    started_at: started_at, stopped_at: Time.current)).to be_valid
+      expect(build(:poll, **attributes, status: :stopped,
+                                    started_at: nil, stopped_at: Time.current)).to be_invalid
+      expect(build(:poll, **attributes, status: :stopped,
+                                    started_at: started_at, stopped_at: nil)).to be_invalid
+      expect(build(:poll, **attributes, status: :stopped, started_at: started_at,
+                                    stopped_at: Time.current, closed_at: Time.current)).to be_invalid
+      expect(build(:poll, **attributes, status: :stopped, started_at: started_at,
+                                    stopped_at: 2.hours.ago)).to be_invalid
+      expect(build(:poll, **attributes, status: :in_progress, started_at: started_at,
+                                    stopped_at: Time.current)).to be_invalid
+      expect(build(:poll, **attributes, status: :closed, started_at: started_at,
+                                    closed_at: Time.current, stopped_at: Time.current)).to be_invalid
+    end
+
+    it "does not apply Schoolwide stopped timestamp rules to a Classroom Poll" do
+      poll = build(:poll, school: create(:school), participant_group: nil,
+                         school_managed: false, status: :stopped, stopped_at: nil)
+
+      expect(poll).to be_valid
+    end
+
     it "allows a stopped poll without a participant group" do
       poll = build(:poll, status: :stopped, participant_group: nil)
 
@@ -211,6 +239,23 @@ RSpec.describe Poll, type: :model do
 
       school_poll.closed_at = school_poll.started_at + 1.minute
       expect(school_poll).to be_valid
+    end
+
+    it "stops lifecycle duration at stopped_at" do
+      started_at = Time.zone.local(2026, 8, 6, 10, 0, 0)
+      stopped_at = Time.zone.local(2026, 8, 6, 10, 42, 0)
+      school_poll.assign_attributes(
+        status: :stopped,
+        started_at: started_at,
+        stopped_at: stopped_at
+      )
+
+      expect(school_poll).to be_valid
+      expect(
+        school_poll.lifecycle_duration_minutes(
+          now: Time.zone.local(2026, 8, 6, 14, 0, 0)
+        )
+      ).to eq(42)
     end
 
     it "does not apply the strict lifecycle contract to legacy Polls" do

@@ -115,6 +115,18 @@ class SchoolPollsController < ApplicationController
     end
   end
 
+  def stop
+    poll = school_poll_scope.find(params[:id])
+    authorize poll, :school_stop?
+    result = Polls::StopSchoolwidePoll.new(poll: poll, actor: current_user).call
+
+    if result.success?
+      redirect_to school_poll_path(poll), notice: "전교투표를 중단했습니다."
+    else
+      redirect_to school_poll_path(poll), alert: result.error_message
+    end
+  end
+
   def create_mock_candidates
     @poll = school_poll_scope.find(params[:id])
     authorize @poll, :mock_candidates?

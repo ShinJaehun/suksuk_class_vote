@@ -11,6 +11,7 @@ class PollEvent < ApplicationRecord
     replacement_created
     replacement_roster_updated
     schoolwide_poll_started
+    schoolwide_poll_stopped
     schoolwide_poll_closed
   ].freeze
 
@@ -25,6 +26,7 @@ class PollEvent < ApplicationRecord
     "replacement_created" => "재투표 실행 생성",
     "replacement_roster_updated" => "투표자 명단 수정",
     "schoolwide_poll_started" => "전교투표 시작",
+    "schoolwide_poll_stopped" => "전교투표 중단",
     "schoolwide_poll_closed" => "전교투표 종료"
   }.freeze
 
@@ -36,6 +38,7 @@ class PollEvent < ApplicationRecord
     replacement_created
     replacement_roster_updated
     schoolwide_poll_started
+    schoolwide_poll_stopped
     schoolwide_poll_closed
   ].freeze
   PARTICIPANT_LEVEL_EVENT_TYPES = %w[

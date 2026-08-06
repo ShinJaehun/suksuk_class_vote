@@ -45,6 +45,7 @@ RSpec.describe Polls::CloseSchoolwidePoll do
     expect(result).to be_success
     expect(poll.reload).to be_closed
     expect(poll.closed_at).to be_present
+    expect(poll.stopped_at).to be_nil
     expect(poll.poll_events.last).to have_attributes(
       actor: admin,
       poll_session: nil,

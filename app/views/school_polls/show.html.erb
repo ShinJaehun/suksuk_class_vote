@@ -6,6 +6,10 @@
              back_path: school_polls_path,
              back_label: "전교투표 목록으로 돌아가기" %>
 
+  <% if @poll.stopped? && @poll.stopped_at.present? %>
+    <p class="text-sm text-stone-600">중단 시각 <%= kst_datetime(@poll.stopped_at) %></p>
+  <% end %>
+
   <% if policy(@poll).mock_candidates? &&
         @poll.school_managed? &&
         @poll.election? &&
@@ -30,6 +34,15 @@
              status_check: @schoolwide_status_check,
              current_session_counts: @current_session_counts,
              stopped_history_count: @stopped_history_sessions.size %>
+
+  <% if policy(@poll).school_stop? %>
+    <%= button_to "전교투표 중단",
+                  stop_school_poll_path(@poll),
+                  method: :post,
+                  form: { data: { turbo_frame: "_top" } },
+                  data: { turbo_confirm: "전교투표를 중단할까요? 정상 종료되지 않은 학급 투표도 함께 중단됩니다." },
+                  class: "rounded-md bg-rose-700 px-4 py-2 text-sm font-semibold text-white" %>
+  <% end %>
 
   <%= render "contests", poll: @poll, poll_contests: @poll_contests %>
 
