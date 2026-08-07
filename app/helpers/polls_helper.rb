@@ -22,12 +22,24 @@ module PollsHelper
 
   def poll_badges(poll:, status_record:)
     content_tag(:span, class: "flex flex-wrap items-center gap-2", data: { testid: "poll-badges" }) do
-      safe_join([
-        poll_scope_badge(poll),
-        poll_activity_badge(poll),
-        status_badge(status_record)
-      ], " ")
+      badges = [poll_scope_badge(poll)]
+      badges << badge("테스트", "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700") if poll.test_run?
+      if status_record.respond_to?(:replacement?) && status_record.replacement?
+        badges << poll_replacement_badge
+      end
+      badges.concat([poll_activity_badge(poll), status_badge(status_record)])
+      safe_join(badges, " ")
     end
+  end
+
+  def poll_session_display_title(poll_session)
+    suffix = " (재투표)" if poll_session.replacement? &&
+                             !poll_session.poll.title.end_with?(" (재투표)")
+    "#{poll_session.poll.title}#{suffix}"
+  end
+
+  def poll_replacement_badge
+    badge("재투표", "border-rose-200 bg-rose-50 text-rose-700")
   end
 
   def poll_classroom_option_label(classroom, student_count:)

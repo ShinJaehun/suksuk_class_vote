@@ -26,11 +26,11 @@ class PollPolicy < ApplicationPolicy
   end
 
   def school_edit?
-    school_show?
+    school_show? && !record.test_run?
   end
 
   def school_update?
-    school_show? && record.draft?
+    school_edit? && record.draft?
   end
 
   def school_results?
@@ -47,6 +47,10 @@ class PollPolicy < ApplicationPolicy
 
   def school_stop?
     school_show? && record.in_progress? && record.archived_at.blank?
+  end
+
+  def school_test?
+    school_show? && record.draft? && record.archived_at.blank? && !record.test_run?
   end
 
   def reset_schoolwide?

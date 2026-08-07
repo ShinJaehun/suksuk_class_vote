@@ -1,7 +1,7 @@
 <section class="space-y-5 rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
   <h2 class="text-xl font-semibold">학급 Session</h2>
 
-  <% if poll.draft? %>
+  <% if poll.draft? && !poll.test_run? %>
     <div>
       <h3 class="font-semibold">학급 배정</h3>
       <% if assignable_classrooms.any? %>
@@ -25,6 +25,8 @@
         <p class="mt-2 text-sm text-stone-600">추가로 배정할 수 있는 학급이 없습니다.</p>
       <% end %>
     </div>
+  <% elsif poll.test_run? %>
+    <p class="rounded-md bg-stone-50 p-3 text-sm text-stone-600">테스트투표의 대상 학급은 생성 후 변경할 수 없습니다.</p>
   <% else %>
     <p class="rounded-md bg-stone-50 p-3 text-sm text-stone-600">선거 시작 후에는 구성을 변경할 수 없습니다.</p>
   <% end %>
@@ -41,6 +43,7 @@
               <div class="space-y-1">
                 <div class="flex flex-wrap items-center gap-2">
                   <h5 class="font-medium"><%= session.classroom_name_snapshot %></h5>
+                  <%= poll_replacement_badge if session.replacement? %>
                   <%= poll_session_status_badge(session) %>
                 </div>
                 <p class="text-sm text-stone-600">담당 교사 <%= session.operator_name_snapshot %> · 투표자 <%= voter_count %>명</p>

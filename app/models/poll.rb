@@ -2,6 +2,10 @@ class Poll < ApplicationRecord
   belongs_to :user
   belongs_to :school, optional: true
   belongs_to :participant_group, optional: true
+  belongs_to :test_source_poll, class_name: "Poll", optional: true,
+                                inverse_of: :test_polls
+  has_many :test_polls, class_name: "Poll", foreign_key: :test_source_poll_id,
+                        inverse_of: :test_source_poll, dependent: :restrict_with_error
   has_many :poll_sessions, dependent: :restrict_with_error
   has_many :poll_contests, dependent: :destroy
   has_many :poll_options, dependent: :destroy
@@ -75,6 +79,10 @@ class Poll < ApplicationRecord
 
   def current_poll_sessions
     poll_sessions.current_execution
+  end
+
+  def test_run?
+    test_source_poll_id.present?
   end
 
   before_destroy :prepare_for_destroy, prepend: true
@@ -171,7 +179,7 @@ class Poll < ApplicationRecord
   end
 
   def definition_editable?
-    draft? &&
+    !test_run? && draft? &&
       poll_sessions.where.not(status: :draft).none? &&
       poll_participants.none? &&
       PollParticipation.joins(:poll_participant)

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_06_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_07_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -381,12 +381,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_010000) do
     t.datetime "started_at"
     t.integer "status", default: 0, null: false
     t.datetime "stopped_at"
+    t.bigint "test_source_poll_id"
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["archived_at"], name: "index_polls_on_archived_at"
     t.index ["participant_group_id"], name: "index_polls_on_participant_group_id"
     t.index ["school_id"], name: "index_polls_on_school_id"
+    t.index ["test_source_poll_id"], name: "index_polls_on_test_source_poll_id"
     t.index ["user_id"], name: "index_polls_on_user_id"
   end
 
@@ -488,6 +490,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_010000) do
   add_foreign_key "poll_sessions", "polls"
   add_foreign_key "poll_sessions", "users", column: "operator_id"
   add_foreign_key "polls", "participant_groups", on_delete: :nullify
+  add_foreign_key "polls", "polls", column: "test_source_poll_id"
   add_foreign_key "polls", "schools"
   add_foreign_key "polls", "users"
   add_foreign_key "school_memberships", "schools"

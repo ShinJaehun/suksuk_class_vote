@@ -3,6 +3,10 @@
   <%= link_to local_assigns.fetch(:back_label, "내 투표 목록으로 돌아가기"),
               local_assigns.fetch(:back_path, polls_path),
               class: "text-sm font-medium text-stone-700 underline" %>
+  <% if poll.test_run? %>
+    <%= link_to "원본 전교투표로 돌아가기", school_poll_path(poll.test_source_poll),
+                class: "text-sm font-medium text-stone-700 underline" %>
+  <% end %>
 
   <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
     <div class="flex flex-wrap items-center gap-2">

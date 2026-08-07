@@ -1,0 +1,55 @@
+<section class="space-y-4 rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+  <h2 class="text-xl font-semibold">테스트투표</h2>
+
+  <% if policy(poll).school_test? %>
+    <p class="text-sm text-stone-600">
+      원본 전교투표는 준비 상태로 유지되며, 선택한 학급과 현재 투표 구성을 복제해 별도의 테스트투표를 만듭니다.
+    </p>
+    <% if current_sessions.any? %>
+      <%= form_with url: school_poll_test_polls_path(poll), class: "space-y-3" do %>
+        <% current_sessions.each do |session| %>
+          <label class="flex items-center gap-3 rounded-md border border-stone-200 p-3">
+            <%= check_box_tag "classroom_ids[]", session.classroom_id, false,
+                              class: "rounded border-stone-300" %>
+            <span><%= session.classroom_name_snapshot %> · 담임 <%= session.operator_name_snapshot %></span>
+          </label>
+        <% end %>
+        <%= submit_tag "선택한 학급으로 테스트투표 만들기",
+                       class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+      <% end %>
+    <% else %>
+      <p class="text-sm text-stone-600">먼저 원본 전교투표에 학급을 배정해 주세요.</p>
+    <% end %>
+  <% end %>
+
+  <div class="space-y-3">
+    <h3 class="font-semibold">테스트투표 이력</h3>
+    <% if test_polls.any? %>
+      <% test_polls.each do |test_poll| %>
+        <div class="rounded-md border border-stone-200 p-4">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="space-y-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="font-medium"><%= test_poll.title %></span>
+                <%= poll_badges(poll: test_poll, status_record: test_poll) %>
+              </div>
+              <p class="text-sm text-stone-600">
+                <%= test_poll.current_poll_sessions.count %>개 학급
+                <% labels = poll_status_time_labels(test_poll) %>
+                <% if labels.any? %>· <%= labels.join(" · ") %><% end %>
+              </p>
+            </div>
+            <div class="flex gap-3 text-sm font-medium">
+              <%= link_to "상세", school_poll_path(test_poll), class: "underline" %>
+              <% if test_poll.closed? && policy(test_poll).school_results? %>
+                <%= link_to "결과", results_school_poll_path(test_poll), class: "underline" %>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    <% else %>
+      <p class="text-sm text-stone-600">생성된 테스트투표가 없습니다.</p>
+    <% end %>
+  </div>
+</section>

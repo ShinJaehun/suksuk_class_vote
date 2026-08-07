@@ -149,6 +149,33 @@ RSpec.describe PollPolicy do
     end
   end
 
+  describe "Schoolwide test Poll permissions" do
+    it "allows manager/admin creation from a draft source and keeps test runtime lifecycle available" do
+      school = create(:school)
+      source = create(:poll, school: school, school_managed: true, participant_group: nil)
+      manager = create(:user)
+      create(:school_membership, :manager, school: school, user: manager)
+
+      [manager, create(:user, :admin)].each do |actor|
+        expect(described_class.new(actor, source)).to be_school_test
+      end
+      expect(described_class.new(create(:user), source)).not_to be_school_test
+
+      test_poll = create(:poll, school: school, school_managed: true,
+                                participant_group: nil, test_source_poll: source)
+      policy = described_class.new(manager, test_poll)
+      expect(policy).not_to be_school_test
+      expect(policy).not_to be_school_edit
+      expect(policy).not_to be_school_update
+      expect(policy).to be_school_start
+
+      test_poll.update!(status: :in_progress, started_at: Time.current)
+      expect(described_class.new(manager, test_poll)).to be_school_close
+      test_poll.update!(status: :closed, closed_at: Time.current, archived_at: Time.current)
+      expect(described_class.new(manager, test_poll)).to be_school_results
+    end
+  end
+
   describe "#mock_candidates?" do
     let(:school) { create(:school) }
     let(:poll) do

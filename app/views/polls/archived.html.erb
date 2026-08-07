@@ -14,7 +14,7 @@
           <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div class="space-y-1">
               <div class="flex flex-wrap items-center gap-2">
-                <h2 class="font-medium"><%= poll.title %></h2>
+                <h2 class="font-medium"><%= poll_session_display_title(poll_session) %></h2>
                 <%= poll_badges(poll: poll, status_record: poll_session) %>
               </div>
 

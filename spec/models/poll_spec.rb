@@ -93,6 +93,21 @@ RSpec.describe Poll, type: :model do
     end
   end
 
+  describe "Schoolwide test Poll relationship" do
+    it "tracks source and test Polls without inferring from title" do
+      source = create(:poll, school: create(:school), school_managed: true,
+                             participant_group: nil)
+      test_poll = create(:poll, title: "이름에 표시 없음", school: source.school,
+                                school_managed: true, participant_group: nil,
+                                test_source_poll: source)
+
+      expect(source).not_to be_test_run
+      expect(test_poll).to be_test_run
+      expect(test_poll.test_source_poll).to eq(source)
+      expect(source.test_polls).to contain_exactly(test_poll)
+    end
+  end
+
   describe "status" do
     it "defaults to draft" do
       poll = Poll.new

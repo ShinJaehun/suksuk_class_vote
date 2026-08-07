@@ -38,6 +38,11 @@
              current_session_counts: @current_session_counts,
              history_session_count: @history_poll_sessions.size %>
 
+  <% unless @poll.test_run? %>
+    <%= render "test_polls", poll: @poll, current_sessions: @current_poll_sessions,
+                             test_polls: @test_polls %>
+  <% end %>
+
   <% if policy(@poll).school_stop? %>
     <%= button_to "전교투표 중단",
                   stop_school_poll_path(@poll),

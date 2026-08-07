@@ -88,7 +88,7 @@
                       data: { turbo_frame: "_top" },
                       class: "text-sm font-medium text-stone-700 underline" %>
           <h1 class="mt-3 text-2xl font-semibold">투표 운영 현황</h1>
-          <p class="mt-1 text-lg font-medium"><%= @poll_session.poll.title %></p>
+          <p class="mt-1 text-lg font-medium"><%= poll_session_display_title(@poll_session) %></p>
           <p class="mt-2 text-sm text-stone-600">
             <%= @poll_session.classroom_name_snapshot %>
             · 담당 교사: <%= @poll_session.operator_name_snapshot %>
@@ -131,7 +131,7 @@
                     data: { turbo_frame: "_top" },
                     class: "text-sm font-medium text-stone-700 underline" %>
         <h1 class="mt-3 text-2xl font-semibold">투표 운영 현황</h1>
-        <p class="mt-1 text-lg font-medium"><%= @poll_session.poll.title %></p>
+        <p class="mt-1 text-lg font-medium"><%= poll_session_display_title(@poll_session) %></p>
         <% if @poll_session.poll.school_managed? %>
           <p class="mt-1 text-sm font-medium text-stone-600">전교투표 학급 운영</p>
         <% end %>
@@ -233,7 +233,7 @@
                     data: { turbo_frame: "_top" },
                     class: "text-sm font-medium text-stone-700 underline" %>
         <h1 class="mt-3 text-2xl font-semibold">투표 운영 현황</h1>
-        <p class="mt-1 text-lg font-medium"><%= @poll_session.poll.title %></p>
+        <p class="mt-1 text-lg font-medium"><%= poll_session_display_title(@poll_session) %></p>
         <p class="mt-2 text-sm font-medium text-stone-600"><%= poll_session_status_label(@poll_session) %></p>
       </header>
       <%= render "event_log", poll_events: @poll_events %>

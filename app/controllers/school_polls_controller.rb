@@ -13,6 +13,7 @@ class SchoolPollsController < ApplicationController
   def index
     authorize Poll, :school_index?
     @polls = school_poll_scope
+      .where(test_source_poll_id: nil)
       .includes(:school, :user, :poll_sessions)
       .order(created_at: :desc)
   end
@@ -203,6 +204,9 @@ class SchoolPollsController < ApplicationController
     assigned_classroom_ids = @poll.poll_sessions.select(:classroom_id)
     @assignable_classrooms = eligible_classrooms(@poll.school).where.not(id: assigned_classroom_ids)
     @assignable_classroom_student_counts = active_student_counts_for(@assignable_classrooms)
+    @test_polls = @poll.test_run? ? Poll.none : @poll.test_polls
+      .includes(:school, :user, :poll_sessions)
+      .order(created_at: :desc)
   end
 
   def prepare_edit
