@@ -8,6 +8,8 @@ class PollSessionPolicy < ApplicationPolicy
     return true if user.admin?
     return false unless user.teacher?
 
+    return classroom_lifecycle_actor? unless record.poll.school_managed?
+
     membership = user.school_membership
     return false if membership.blank? || membership.school != record.classroom.school
 
@@ -75,13 +77,11 @@ class PollSessionPolicy < ApplicationPolicy
   end
 
   def lifecycle_actor_allowed?
-    return true if user.admin? || record.operator == user
-    return false unless user.teacher?
+    user.admin? || classroom_lifecycle_actor?
+  end
 
-    membership = user.school_membership
-    return false if membership.blank? || membership.school != record.classroom.school
-
-    membership.manager? || record.classroom.teacher == user
+  def classroom_lifecycle_actor?
+    record.operator == user || record.classroom.teacher == user
   end
 
   def replacement_definition_editable?

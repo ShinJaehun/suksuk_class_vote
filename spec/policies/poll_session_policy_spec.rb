@@ -11,29 +11,48 @@ RSpec.describe PollSessionPolicy do
     [create(:poll_session, poll: poll, classroom: classroom, operator: teacher), teacher]
   end
 
-  it "allows a global admin" do
+  it "allows a global admin to manage and operate a classroom PollSession" do
     poll_session, = create_poll_session
+    admin = create(:user, :admin)
 
-    expect(described_class.new(create(:user, :admin), poll_session)).to be_start
-    expect(described_class.new(create(:user, :admin), poll_session)).to be_show
-    expect(described_class.new(create(:user, :admin), poll_session)).to be_operate
+    expect(described_class.new(admin, poll_session)).to be_start
+    expect(described_class.new(admin, poll_session)).to be_show
+    expect(described_class.new(admin, poll_session)).to be_edit_definition
+    expect(described_class.new(admin, poll_session)).to be_operate
   end
 
-  it "allows a same-school manager" do
+  it "rejects a same-school manager who is neither the operator nor classroom teacher" do
     poll_session, = create_poll_session
     manager = create(:user)
     create(:school_membership, :manager, school: poll_session.classroom.school, user: manager)
 
-    expect(described_class.new(manager, poll_session)).to be_start
-    expect(described_class.new(manager, poll_session)).to be_show
+    expect(described_class.new(manager, poll_session)).not_to be_start
+    expect(described_class.new(manager, poll_session)).not_to be_show
+    expect(described_class.new(manager, poll_session)).not_to be_edit_definition
   end
 
-  it "allows the Classroom teacher" do
+  it "allows the Classroom teacher to manage but not operate when another teacher is operator" do
     poll_session, teacher = create_poll_session
+    operator = create(:user)
+    create(:school_membership, school: poll_session.classroom.school, user: operator)
+    poll_session.update!(operator: operator)
 
     expect(described_class.new(teacher, poll_session)).to be_start
     expect(described_class.new(teacher, poll_session)).to be_show
-    expect(described_class.new(teacher, poll_session)).to be_operate
+    expect(described_class.new(teacher, poll_session)).to be_edit_definition
+    expect(described_class.new(teacher, poll_session)).not_to be_operate
+  end
+
+  it "allows the recorded operator to manage and operate without being the Classroom teacher" do
+    poll_session, = create_poll_session
+    operator = create(:user)
+    create(:school_membership, school: poll_session.classroom.school, user: operator)
+    poll_session.update!(operator: operator)
+
+    expect(described_class.new(operator, poll_session)).to be_start
+    expect(described_class.new(operator, poll_session)).to be_show
+    expect(described_class.new(operator, poll_session)).to be_edit_definition
+    expect(described_class.new(operator, poll_session)).to be_operate
   end
 
   it "allows only the recorded operator or a global admin to operate" do
@@ -64,15 +83,19 @@ RSpec.describe PollSessionPolicy do
   end
 
   describe "classroom lifecycle permissions" do
-    it "allows the operator, classroom teacher, same-school manager, and admin" do
+    it "allows the operator, classroom teacher, and admin to stop" do
       poll_session, teacher = create_poll_session
+      operator = create(:user)
+      create(:school_membership, school: poll_session.classroom.school, user: operator)
+      poll_session.update!(operator: operator)
       poll_session.update!(status: :in_progress, started_at: Time.current)
       manager = create(:user)
       create(:school_membership, :manager, school: poll_session.classroom.school, user: manager)
 
-      [teacher, manager, create(:user, :admin)].each do |actor|
+      [operator, teacher, create(:user, :admin)].each do |actor|
         expect(described_class.new(actor, poll_session)).to be_stop
       end
+      expect(described_class.new(manager, poll_session)).not_to be_stop
     end
 
     it "rejects unrelated teachers and every school-managed session" do
@@ -90,14 +113,25 @@ RSpec.describe PollSessionPolicy do
 
     it "allows revote and replacement roster editing only in their matching states" do
       source, teacher = create_poll_session
+      operator = create(:user)
+      create(:school_membership, school: source.classroom.school, user: operator)
+      source.update!(operator: operator)
+      manager = create(:user)
+      create(:school_membership, :manager, school: source.classroom.school, user: manager)
       source.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
       create(:poll_participant, poll: source.poll, poll_session: source,
                                 source_participant_slot: nil)
       expect(described_class.new(teacher, source)).to be_revote
+      expect(described_class.new(operator, source)).to be_revote
+      expect(described_class.new(create(:user, :admin), source)).to be_revote
+      expect(described_class.new(manager, source)).not_to be_revote
 
       replacement = Polls::RevoteSession.new(actor: teacher, poll_session: source).call.poll_session
+      replacement.update!(operator: operator)
       expect(described_class.new(teacher, source)).not_to be_revote
       expect(described_class.new(teacher, replacement)).to be_edit_replacement_roster
+      expect(described_class.new(operator, replacement)).to be_edit_replacement_roster
+      expect(described_class.new(create(:user, :admin), replacement)).to be_edit_replacement_roster
       replacement.update!(status: :in_progress, started_at: Time.current)
       expect(described_class.new(teacher, replacement)).not_to be_edit_replacement_roster
     end
@@ -113,10 +147,13 @@ RSpec.describe PollSessionPolicy do
       unrelated = create(:user)
       create(:school_membership, school: source.classroom.school, user: unrelated)
 
-      [teacher, manager, create(:user, :admin)].each do |actor|
+      [teacher, create(:user, :admin)].each do |actor|
         expect(described_class.new(actor, replacement)).to be_edit_definition
       end
-      expect(described_class.new(unrelated, replacement)).not_to be_edit_definition
+      replacement.update!(operator: unrelated)
+      expect(described_class.new(unrelated, replacement)).to be_edit_definition
+      expect(described_class.new(manager, replacement)).not_to be_edit_definition
+      expect(described_class.new(manager, replacement)).not_to be_edit_replacement_roster
       expect(described_class.new(teacher, source)).not_to be_edit_definition
 
       replacement.update!(status: :in_progress, started_at: Time.current)
@@ -133,9 +170,10 @@ RSpec.describe PollSessionPolicy do
       manager = create(:user)
       create(:school_membership, :manager, school: source.classroom.school, user: manager)
 
-      [teacher, manager, create(:user, :admin)].each do |actor|
+      [teacher, create(:user, :admin)].each do |actor|
         expect(described_class.new(actor, source)).not_to be_revote
       end
+      expect(described_class.new(manager, source)).not_to be_revote
     end
   end
 
@@ -156,6 +194,8 @@ RSpec.describe PollSessionPolicy do
       create(:school_membership, :manager, school: create(:school), user: other_manager)
 
       expect(described_class.new(teacher, session)).not_to be_stop
+      expect(described_class.new(manager, session)).to be_start
+      expect(described_class.new(manager, session)).to be_show
       expect(described_class.new(teacher, session)).not_to be_school_revote
       expect(described_class.new(manager, session)).to be_school_revote
       expect(described_class.new(create(:user, :admin), session)).to be_school_revote

@@ -70,17 +70,23 @@ RSpec.describe "PollSession operations", type: :request do
     )
   end
 
-  it "allows a same-school manager and global admin" do
+  it "rejects a same-school manager and allows a global admin" do
     poll, poll_session, = create_operations_session
     manager = create(:user)
     create(:school_membership, :manager, school: poll_session.classroom.school, user: manager)
 
-    [manager, create(:user, :admin)].each do |actor|
-      sign_in actor
-      get poll_poll_session_path(poll, poll_session)
-      expect(response).to have_http_status(:ok)
-      sign_out actor
-    end
+    sign_in manager
+    get poll_poll_session_path(poll, poll_session)
+
+    expect(response).to redirect_to(polls_path)
+    expect(flash[:alert]).to eq("접근 권한이 없습니다.")
+
+    sign_out manager
+    admin = create(:user, :admin)
+    sign_in admin
+    get poll_poll_session_path(poll, poll_session)
+
+    expect(response).to have_http_status(:ok)
   end
 
   it "rejects unauthorized teachers" do

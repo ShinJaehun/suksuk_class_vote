@@ -44,7 +44,7 @@ RSpec.describe "PollSession starts", type: :request do
     )
   end
 
-  it "allows a same-school manager and global admin to become the actual operator" do
+  it "rejects a same-school manager and allows a global admin to become the operator" do
     poll, poll_session, classroom_teacher = create_startable_poll_session
     manager = create(:user)
     create(:school_membership, :manager, school: poll_session.classroom.school, user: manager)
@@ -52,7 +52,10 @@ RSpec.describe "PollSession starts", type: :request do
 
     post start_poll_poll_session_path(poll, poll_session)
 
-    expect(poll_session.reload.operator).to eq(manager)
+    expect(response).to redirect_to(polls_path)
+    expect(flash[:alert]).to eq("접근 권한이 없습니다.")
+    expect(poll_session.reload).to be_draft
+    expect(poll_session.operator).to eq(classroom_teacher)
     expect(poll_session.classroom.reload.teacher).to eq(classroom_teacher)
 
     second_poll, second_session, second_teacher = create_startable_poll_session
@@ -61,7 +64,9 @@ RSpec.describe "PollSession starts", type: :request do
     sign_in admin
 
     post start_poll_poll_session_path(second_poll, second_session)
-
+    expect(response).to redirect_to(
+      poll_poll_session_path(second_poll, second_session)
+    )
     expect(second_session.reload.operator).to eq(admin)
     expect(second_session.classroom.reload.teacher).to eq(second_teacher)
   end

@@ -87,30 +87,46 @@ RSpec.describe "PollSession replacement rosters", type: :request do
     expect(replacement.reload.poll_participants.order(:number).pluck(:number, :name)).to eq(original)
   end
 
-  it "allows a same-school manager and admin to edit and update a replacement roster" do
-    [
-      ->(replacement) {
-        manager = create(:user)
-        create(:school_membership, :manager, school: replacement.classroom.school, user: manager)
-        manager
-      },
-      ->(_replacement) { create(:user, :admin) }
-    ].each do |actor_builder|
-      _, replacement, = create_replacement
-      actor = actor_builder.call(replacement)
-      sign_in actor
+  it "rejects a same-school manager from editing or updating a replacement roster" do
+    _, replacement, = create_replacement
+    original = replacement.poll_participants.order(:number).pluck(:number, :name)
+    manager = create(:user)
+    create(
+      :school_membership,
+      :manager,
+      school: replacement.classroom.school,
+      user: manager
+    )
+    sign_in manager
+    get edit_poll_poll_session_roster_path(replacement.poll, replacement)
 
-      get edit_poll_poll_session_roster_path(replacement.poll, replacement)
-      expect(response).to have_http_status(:ok)
+    expect(response).to redirect_to(polls_path)
+    expect(flash[:alert]).to eq("접근 권한이 없습니다.")
 
-      patch poll_poll_session_roster_path(replacement.poll, replacement), params: {
-        roster: { participants: { "0" => { number: "4", name: "권한 확인" } } }
-      }
-      expect(response).to redirect_to(poll_poll_session_path(replacement.poll, replacement))
-      expect(replacement.reload.poll_participants.pluck(:number, :name)).to eq([[4, "권한 확인"]])
-      sign_out actor
-    end
+    patch poll_poll_session_roster_path(replacement.poll, replacement), params: {
+      roster: { participants: { "0" => { number: "4", name: "권한 확인" } } }
+    }
+
+    expect(response).to redirect_to(polls_path)
+    expect(flash[:alert]).to eq("접근 권한이 없습니다.")
+    expect(replacement.reload.poll_participants.order(:number).pluck(:number, :name)).to eq(original)
   end
+
+  it "allows a global admin to edit and update a replacement roster" do
+    _, replacement, = create_replacement
+    admin = create(:user, :admin)
+    sign_in admin
+
+    get edit_poll_poll_session_roster_path(replacement.poll, replacement)
+    expect(response).to have_http_status(:ok)
+
+    patch poll_poll_session_roster_path(replacement.poll, replacement), params: {
+      roster: { participants: { "0" => { number: "4", name: "권한 확인" } } }
+    }
+
+    expect(response).to redirect_to(poll_poll_session_path(replacement.poll, replacement))
+    expect(replacement.reload.poll_participants.pluck(:number, :name)).to eq([[4, "권한 확인"]])
+   end
 
   it "rejects an initial draft, a started replacement, and an unrelated teacher" do
     _, replacement, teacher = create_replacement
