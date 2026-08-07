@@ -68,26 +68,7 @@
         </section>
       <% end %>
     </div>
-  <% elsif history_sessions.empty? %>
+  <% else %>
     <p class="text-sm text-stone-600">배정된 학급 투표가 없습니다.</p>
-  <% end %>
-
-  <% if history_sessions.any? %>
-    <div class="space-y-2">
-      <h3 class="font-semibold">재투표 학급 세션 이력</h3>
-      <% history_sessions.each do |session| %>
-        <div class="flex items-center justify-between gap-3 rounded-md border border-rose-100 bg-rose-50/40 p-3">
-          <div>
-            <span class="font-medium"><%= session.classroom_name_snapshot %></span> <%= poll_session_status_badge(session) %>
-            <p class="mt-1 text-sm text-stone-600">담당 교사 <%= session.operator_name_snapshot %> · 투표자 <%= session.poll_participants.size %>명</p>
-            <% session_time_labels = poll_session_status_time_labels(session) %>
-            <% if session_time_labels.any? %>
-              <p class="mt-1 text-sm text-stone-600"><%= session_time_labels.join(" · ") %></p>
-            <% end %>
-          </div>
-          <%= link_to "상세", poll_poll_session_path(poll, session), class: "text-sm font-medium underline" %>
-        </div>
-      <% end %>
-    </div>
   <% end %>
 </section>

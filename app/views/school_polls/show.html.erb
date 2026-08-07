@@ -37,18 +37,13 @@
              status_check: @schoolwide_status_check,
              current_session_counts: @current_session_counts,
              history_session_count: @history_poll_sessions.size %>
-
-  <% unless @poll.test_run? %>
-    <%= render "test_polls", poll: @poll, current_sessions: @current_poll_sessions,
-                             test_polls: @test_polls %>
-  <% end %>
-
+ 
   <% if policy(@poll).school_stop? %>
-    <%= button_to "전교투표 중단",
+    <%= button_to "#{poll_lifecycle_name(@poll)} 중단",
                   stop_school_poll_path(@poll),
                   method: :post,
                   form: { data: { turbo_frame: "_top" } },
-                  data: { turbo_confirm: "전교투표를 중단할까요? 정상 종료되지 않은 학급 투표도 함께 중단됩니다." },
+                  data: { turbo_confirm: "#{poll_lifecycle_name(@poll)}를 중단할까요? 정상 종료되지 않은 학급 투표도 함께 중단됩니다." },
                   class: "rounded-md bg-rose-700 px-4 py-2 text-sm font-semibold text-white" %>
   <% end %>
 
@@ -57,9 +52,16 @@
   <%= render "sessions",
              poll: @poll,
              current_sessions: @current_poll_sessions,
-             history_sessions: @history_poll_sessions,
              assignable_classrooms: @assignable_classrooms,
              assignable_classroom_student_counts: @assignable_classroom_student_counts %>
+
+  <% if @history_poll_sessions.any? %>
+    <%= render "revote_history", poll: @poll, history_sessions: @history_poll_sessions %>
+  <% end %>
+
+  <% if !@poll.test_run? && @test_polls.any? %>
+    <%= render "test_polls", test_polls: @test_polls %>
+  <% end %>
 
   <% if policy(@poll).reset_schoolwide? %>
     <section class="rounded-xl border border-rose-300 bg-rose-50 p-6 shadow-sm">

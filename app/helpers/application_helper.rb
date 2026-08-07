@@ -22,11 +22,16 @@ module ApplicationHelper
   end
 
   def poll_status_time_labels(poll)
+    lifecycle_name = poll_lifecycle_name(poll)
     labels = []
-    labels << "전교투표 시작 #{kst_datetime(poll.started_at)}" if poll.started_at.present?
-    labels << "전교투표 중단 #{kst_datetime(poll.stopped_at)}" if poll.stopped_at.present?
-    labels << "전교투표 종료 #{kst_datetime(poll.closed_at)}" if poll.closed_at.present?
+    labels << "#{lifecycle_name} 시작 #{kst_datetime(poll.started_at)}" if poll.started_at.present?
+    labels << "#{lifecycle_name} 중단 #{kst_datetime(poll.stopped_at)}" if poll.stopped_at.present?
+    labels << "#{lifecycle_name} 종료 #{kst_datetime(poll.closed_at)}" if poll.closed_at.present?
     labels
+  end
+
+  def poll_lifecycle_name(poll)
+    poll.test_run? ? "테스트투표" : "전교투표"
   end
 
   def poll_session_status_time_labels(poll_session)

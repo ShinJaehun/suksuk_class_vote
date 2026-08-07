@@ -144,7 +144,12 @@ RSpec.describe "School Poll management", type: :request do
       expect(replacement).to have_attributes(poll: poll, status: "draft")
 
       get school_poll_path(poll)
-      history = Nokogiri::HTML(response.body).xpath("//h3[contains(., '재투표 학급 세션 이력')]/parent::div").text
+      page = Nokogiri::HTML(response.body)
+      history_card = page.css("section").find do |section|
+        section.at_css("h2")&.text&.strip == "재투표 이력"
+      end
+      expect(history_card).to be_present
+      history = history_card.text
       expect(history).to include("투표 시작", "투표 종료")
       expect(history).not_to include("투표 중단")
     end
@@ -631,16 +636,31 @@ RSpec.describe "School Poll management", type: :request do
     it "separates the current leaf from its replacement history" do
       poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil,
                            status: :in_progress, started_at: Time.current)
+      sign_in create(:user, :admin)
+
+      get school_poll_path(poll)
+      page = Nokogiri::HTML(response.body)
+      expect(page.css("section").none? { |section| section.at_css("h2")&.text&.strip == "재투표 이력" }).to be(true)
+
       stopped = create_result_session(poll: poll, status: :stopped, classroom_name: "중단 1반")
       current = create(:poll_session, poll: poll, classroom: stopped.classroom,
                                       operator: stopped.operator, replacement_of: stopped)
-      sign_in create(:user, :admin)
 
       get school_poll_path(poll)
 
       page = Nokogiri::HTML(response.body)
-      expect(page.text.squish).to include("전체 학급 1", "준비 1", "재투표 이력 1", "재투표 학급 세션 이력")
-      expect(response.body).to include(poll_poll_session_path(poll, current), poll_poll_session_path(poll, stopped))
+      expect(page.text.squish).to include("전체 학급 1", "준비 1", "재투표 이력 1")
+      session_card = page.css("section").find { |section| section.at_css("h2")&.text&.strip == "학급 Session" }
+      history_card = page.css("section").find { |section| section.at_css("h2")&.text&.strip == "재투표 이력" }
+
+      current_path = poll_poll_session_path(poll, current)
+      stopped_path = poll_poll_session_path(poll, stopped)
+      session_links = session_card.css("a").map { |link| link["href"] }
+      history_links = history_card.css("a").map { |link| link["href"] }
+
+      expect(session_links).to include(current_path)
+      expect(session_links).not_to include(stopped_path)
+      expect(history_links).to include(stopped_path)
     end
   end
 

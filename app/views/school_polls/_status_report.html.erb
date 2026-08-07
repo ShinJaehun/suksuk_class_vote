@@ -1,5 +1,6 @@
 <section class="space-y-4 rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
          data-testid="schoolwide-status-check">
+  <% lifecycle_name = poll_lifecycle_name(poll) %>
   <% issues = poll.draft? ? status_check.start_issues : status_check.close_issues %>
   <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
     <div>
@@ -15,12 +16,18 @@
       </p>
     </div>
     <% if poll.draft? && status_check.startable? %>
-      <%= button_to "전교투표 시작", start_school_poll_path(poll), method: :post,
-                    data: { turbo_confirm: "전교투표를 시작할까요? 시작 후 항목과 학급 배정을 변경할 수 없습니다." },
-                    class: "rounded-md bg-emerald-600 px-5 py-3 text-sm font-semibold text-white" %>
+      <div class="flex flex-wrap items-center gap-3">
+        <% if poll.school_managed? && !poll.test_run? && poll.archived_at.blank? && policy(poll).school_test? %>
+          <%= link_to "테스트투표 만들기", new_school_poll_test_poll_path(poll),
+                      class: "rounded-md border border-stone-300 bg-white px-4 py-3 text-sm font-semibold text-stone-700" %>
+        <% end %>
+        <%= button_to "#{lifecycle_name} 시작", start_school_poll_path(poll), method: :post,
+                      data: { turbo_confirm: "#{lifecycle_name}를 시작할까요? 시작 후 항목과 학급 배정을 변경할 수 없습니다." },
+                      class: "rounded-md bg-emerald-600 px-5 py-3 text-sm font-semibold text-white" %>
+      </div>
     <% elsif poll.in_progress? && status_check.closable? %>
-      <%= button_to "전교투표 종료", close_school_poll_path(poll), method: :post,
-                    data: { turbo_confirm: "모든 학급 결과를 확인하고 전교투표를 종료할까요?" },
+      <%= button_to "#{lifecycle_name} 종료", close_school_poll_path(poll), method: :post,
+                    data: { turbo_confirm: "모든 학급 결과를 확인하고 #{lifecycle_name}를 종료할까요?" },
                     class: "rounded-md bg-stone-900 px-5 py-3 text-sm font-semibold text-white" %>
     <% end %>
   </div>
@@ -39,7 +46,9 @@
     <% end %>
   </dl>
 
-  <% if !poll.closed? && issues.any? %>
+  <% if poll.stopped? %>
+    <p class="font-medium text-rose-700"><%= lifecycle_name %>가 중단되었습니다.</p>
+  <% elsif !poll.closed? && issues.any? %>
     <div class="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
       <p class="font-medium"><%= poll.draft? ? "시작 전 확인이 필요합니다." : "종료 전 확인이 필요합니다." %></p>
       <ul class="mt-2 list-disc space-y-1 pl-5">
@@ -49,8 +58,8 @@
       </ul>
     </div>
   <% elsif poll.closed? %>
-    <p class="font-medium text-emerald-700">전교투표가 종료되었습니다.</p>
+    <p class="font-medium text-emerald-700"><%= lifecycle_name %>가 종료되었습니다.</p>
   <% else %>
-    <p class="font-medium text-emerald-700"><%= poll.draft? ? "전교투표를 시작할 수 있습니다." : "모든 학급 투표가 종료되었습니다." %></p>
+    <p class="font-medium text-emerald-700"><%= poll.draft? ? "#{lifecycle_name}를 시작할 수 있습니다." : "모든 학급 투표가 종료되었습니다." %></p>
   <% end %>
 </section>
