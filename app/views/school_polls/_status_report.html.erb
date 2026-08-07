@@ -1,5 +1,6 @@
-<section class="space-y-4 rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
-         data-testid="schoolwide-status-check">
+<%= tag.section id: dom_id(poll, :status_report),
+                class: "space-y-4 rounded-xl border border-stone-200 bg-white p-6 shadow-sm",
+                data: { testid: "schoolwide-status-check" } do %>
   <% lifecycle_name = poll_lifecycle_name(poll) %>
   <% issues = poll.draft? ? status_check.start_issues : status_check.close_issues %>
   <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -18,8 +19,8 @@
     <% if poll.draft? && status_check.startable? %>
       <div class="flex flex-wrap items-center gap-3">
         <% if poll.school_managed? && !poll.test_run? && poll.archived_at.blank? && policy(poll).school_test? %>
-          <%= link_to "테스트투표 만들기", new_school_poll_test_poll_path(poll),
-                      class: "rounded-md border border-stone-300 bg-white px-4 py-3 text-sm font-semibold text-stone-700" %>
+          <%= button_to "테스트투표 만들기", school_poll_test_polls_path(poll), method: :post,
+                        class: "rounded-md border border-stone-300 bg-white px-4 py-3 text-sm font-semibold text-stone-700" %>
         <% end %>
         <%= button_to "#{lifecycle_name} 시작", start_school_poll_path(poll), method: :post,
                       data: { turbo_confirm: "#{lifecycle_name}를 시작할까요? 시작 후 항목과 학급 배정을 변경할 수 없습니다." },
@@ -62,4 +63,4 @@
   <% else %>
     <p class="font-medium text-emerald-700"><%= poll.draft? ? "#{lifecycle_name}를 시작할 수 있습니다." : "모든 학급 투표가 종료되었습니다." %></p>
   <% end %>
-</section>
+<% end %>

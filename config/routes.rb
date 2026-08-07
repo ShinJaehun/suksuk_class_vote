@@ -2,7 +2,7 @@ Rails.application.routes.draw do
   devise_for :users
   resource :dashboard, only: :show
   resources :school_polls, only: %i[index new create show edit update] do
-    resources :test_polls, only: %i[new create], controller: "school_poll_test_polls"
+    resources :test_polls, only: :create, controller: "school_poll_test_polls"
     get :results, on: :member
     post :start, on: :member
     post :stop, on: :member
@@ -17,8 +17,9 @@ Rails.application.routes.draw do
                 controller: "school_poll_options"
     end
     resources :poll_sessions,
-              only: :create,
+              only: %i[create destroy],
               controller: "school_poll_sessions" do
+      delete :destroy_grade, on: :collection
       post :revote, on: :member
     end
   end

@@ -132,4 +132,21 @@ RSpec.describe Polls::AssignClassroomSessions do
     expect(call_service(classrooms: [classroom], target_poll: classroom_poll)).not_to be_success
     expect(call_service(classrooms: [])).not_to be_success
   end
+
+  it "allows a draft test Poll to use any eligible Classroom in its School" do
+    source_classroom = create_classroom
+    additional = create_classroom
+    source = create(:poll, school: school, school_managed: true, participant_group: nil)
+    create(:poll_session, poll: source, classroom: source_classroom, operator: source_classroom.teacher)
+    test_poll = create(:poll, school: school, school_managed: true, participant_group: nil,
+                              test_source_poll: source)
+
+    expect(call_service(classrooms: [additional], target_poll: test_poll)).to be_success
+    expect(test_poll.poll_sessions.sole.classroom).to eq(additional)
+    expect(source.poll_sessions.map(&:classroom)).to contain_exactly(source_classroom)
+
+    another_eligible = create_classroom
+    test_poll.update!(status: :in_progress, started_at: Time.current)
+    expect(call_service(classrooms: [another_eligible], target_poll: test_poll)).not_to be_success
+  end
 end

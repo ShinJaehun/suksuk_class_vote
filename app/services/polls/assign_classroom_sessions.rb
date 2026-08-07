@@ -6,13 +6,12 @@ module Polls
       end
     end
 
-    def initialize(poll:, classroom_ids:, actor:, allow_test_run: false)
+    def initialize(poll:, classroom_ids:, actor:)
       @poll = poll
       raw_classroom_ids = Array(classroom_ids).reject(&:blank?)
       @classroom_ids = normalize_ids(raw_classroom_ids)
       @invalid_classroom_ids = @classroom_ids.size != raw_classroom_ids.size
       @actor = actor
-      @allow_test_run = allow_test_run
       @errors = []
       @poll_sessions = []
     end
@@ -50,7 +49,6 @@ module Polls
                 :classroom_ids,
                 :invalid_classroom_ids,
                 :actor,
-                :allow_test_run,
                 :errors,
                 :classrooms,
                 :poll_sessions
@@ -60,7 +58,6 @@ module Polls
       errors << "학교가 지정된 전교투표가 필요합니다." if poll&.school.blank?
       errors << "전교투표를 관리할 권한이 없습니다." unless authorized_actor?
       errors << "준비 상태의 전교투표에만 학급을 배정할 수 있습니다." unless poll&.draft?
-      errors << "테스트투표의 학급 구성은 변경할 수 없습니다." if poll&.test_run? && !allow_test_run
       errors << "배정할 학급을 선택해 주세요." if classroom_ids.empty?
       errors << "선택한 학급을 찾을 수 없습니다." if invalid_classroom_ids
       return if errors.any?
@@ -70,7 +67,6 @@ module Polls
       errors << "다른 학교의 학급은 배정할 수 없습니다." if classrooms.any? { |classroom| classroom.school != poll.school }
       errors << "활성 학급만 배정할 수 있습니다." if classrooms.any? { |classroom| !classroom.active? }
       errors << "담임교사가 있는 학급만 배정할 수 있습니다." if classrooms.any? { |classroom| classroom.teacher.blank? }
-
       active_classroom_ids = Student
         .where(classroom_id: classroom_ids, active: true)
         .distinct

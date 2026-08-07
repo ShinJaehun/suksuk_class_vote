@@ -193,7 +193,16 @@ class SchoolPollsController < ApplicationController
     @poll_contests = @poll.poll_contests.includes(poll_options: { photo_attachment: :blob }).order(:position, :id)
     @has_poll_definition = @poll_contests.any? || PollOption.where(poll_id: @poll.id).exists?
     @poll_sessions = @poll.poll_sessions
-      .includes(:operator, classroom: :students, poll_participants: :poll_participation)
+      .includes(
+        :operator,
+        :poll_progress,
+        :poll_option_tallies,
+        :poll_contest_tallies,
+        :poll_events,
+        :replacement_session,
+        classroom: :students,
+        poll_participants: :poll_participation
+      )
       .order(:created_at, :id)
       .select { |poll_session| policy(poll_session).show? }
     @current_poll_sessions = @poll_sessions.reject(&:superseded?)
@@ -202,7 +211,8 @@ class SchoolPollsController < ApplicationController
       @current_poll_sessions.count { |session| session.status == status }
     end
     assigned_classroom_ids = @poll.poll_sessions.select(:classroom_id)
-    @assignable_classrooms = eligible_classrooms(@poll.school).where.not(id: assigned_classroom_ids)
+    @assignable_classrooms = eligible_classrooms(@poll.school)
+    @assignable_classrooms = @assignable_classrooms.where.not(id: assigned_classroom_ids)
     @assignable_classroom_student_counts = active_student_counts_for(@assignable_classrooms)
     @test_polls = @poll.test_run? ? Poll.none : @poll.test_polls
       .includes(:school, :user, :poll_sessions)

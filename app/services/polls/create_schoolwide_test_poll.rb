@@ -4,11 +4,8 @@ module Polls
       def error_message = errors.join("\n")
     end
 
-    def initialize(source_poll:, classroom_ids:, actor:)
+    def initialize(source_poll:, actor:)
       @source_poll = source_poll
-      raw_ids = Array(classroom_ids).reject(&:blank?)
-      @classroom_ids = raw_ids.filter_map { |id| Integer(id, exception: false) }.uniq
-      @invalid_ids = raw_ids.size != classroom_ids_normalized_size(raw_ids)
       @actor = actor
       @errors = []
       @poll = nil
@@ -21,31 +18,11 @@ module Polls
       Poll.transaction do
         source_poll.lock!
         validate_source
-        selected_sessions = source_poll.current_poll_sessions
-          .where(classroom_id: classroom_ids)
-          .includes(classroom: :teacher)
-          .to_a
-        if selected_sessions.size != classroom_ids.size
-          errors << "원본 전교투표에 현재 배정된 학급만 선택할 수 있습니다."
-        end
+        validate_source_readiness
         raise ActiveRecord::Rollback if errors.any?
 
         @poll = clone_poll_definition!
-        assignment = Polls::AssignClassroomSessions.new(
-          poll: poll,
-          classroom_ids: classroom_ids,
-          actor: actor,
-          allow_test_run: true
-        ).call
-        unless assignment.success?
-          errors.concat(assignment.errors)
-          raise ActiveRecord::Rollback
-        end
-        status_check = Polls::SchoolwideStatusCheck.new(poll: poll)
-        unless status_check.startable?
-          errors.concat(status_check.start_issues)
-          raise ActiveRecord::Rollback
-        end
+        clone_current_sessions!
       end
 
       errors.empty? ? success : failure
@@ -56,12 +33,10 @@ module Polls
 
     private
 
-    attr_reader :source_poll, :classroom_ids, :invalid_ids, :actor, :errors, :poll
+    attr_reader :source_poll, :actor, :errors, :poll
 
     def validate_inputs
       errors << "전교투표가 필요합니다." unless source_poll&.persisted?
-      errors << "테스트할 학급을 선택해 주세요." if classroom_ids.empty?
-      errors << "선택한 학급을 확인해 주세요." if invalid_ids
       errors << "전교투표 테스트를 만들 권한이 없습니다." unless authorized_actor?
       validate_source if source_poll&.persisted?
     end
@@ -71,6 +46,13 @@ module Polls
              source_poll.archived_at.blank? && !source_poll.test_run?
         errors << "준비 상태의 원본 전교투표만 테스트할 수 있습니다."
       end
+    end
+
+    def validate_source_readiness
+      return unless errors.empty?
+
+      check = Polls::SchoolwideStatusCheck.new(poll: source_poll)
+      errors.concat(check.start_issues) unless check.startable?
     end
 
     def authorized_actor?
@@ -124,8 +106,21 @@ module Polls
       )
     end
 
-    def classroom_ids_normalized_size(raw_ids)
-      raw_ids.filter_map { |id| Integer(id, exception: false) }.size
+    def clone_current_sessions!
+      source_poll.current_poll_sessions.includes(:classroom, :operator).find_each do |source_session|
+        poll.poll_sessions.create!(
+          classroom: source_session.classroom,
+          operator: source_session.operator,
+          status: :draft,
+          classroom_name_snapshot: source_session.classroom_name_snapshot,
+          operator_name_snapshot: source_session.operator_name_snapshot,
+          started_at: nil,
+          closed_at: nil,
+          stopped_at: nil,
+          archived_at: nil,
+          replacement_of: nil
+        )
+      end
     end
 
     def success = Result.new(success?: true, poll: poll, errors: [])

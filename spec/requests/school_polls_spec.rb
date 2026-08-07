@@ -362,7 +362,7 @@ RSpec.describe "School Poll management", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("등록된 투표 항목이 없습니다.")
       expect(response.body).to include("배정된 학급 투표가 없습니다.")
-      expect(response.body).to include("학급 배정", classroom.formatted_class_label)
+      expect(response.body).to include("배정 가능 학급", classroom.formatted_class_label)
       expect(response.body).to include("상태점검")
       expect(response.body).not_to include("종료된 학급 투표 결과가 없습니다.")
       badges = Nokogiri::HTML(response.body).at_css('[data-testid="poll-badges"]')
@@ -382,7 +382,7 @@ RSpec.describe "School Poll management", type: :request do
         get school_poll_path(poll)
         expect(response.body).to include(poll.title, "전교투표 목록으로 돌아가기")
         expect(response.body).to include(poll_poll_session_path(poll, poll_session))
-        expect(response.body).to include("학급 배정")
+        expect(response.body).to include("배정 가능 학급")
         sign_out actor
       end
     end
@@ -737,7 +737,7 @@ RSpec.describe "School Poll management", type: :request do
       expect(response.body).not_to include(
         start_school_poll_path(poll),
         close_school_poll_path(poll),
-        "학급 배정"
+        "배정 가능 학급"
       )
     end
 

@@ -39,6 +39,12 @@ class PollSession < ApplicationRecord
     replacement_session.present?
   end
 
+  def unassignable_from_draft_poll?
+    poll.draft? && draft? && !replacement? && !superseded? &&
+      poll_participants.empty? && poll_progress.blank? &&
+      poll_option_tallies.empty? && poll_contest_tallies.empty? && poll_events.empty?
+  end
+
   private
 
   def poll_and_classroom_must_share_school

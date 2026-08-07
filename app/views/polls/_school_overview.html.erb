@@ -1,4 +1,5 @@
-<section class="space-y-4 rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+<%= tag.section id: dom_id(poll, :school_overview),
+                class: "space-y-4 rounded-xl border border-stone-200 bg-white p-6 shadow-sm" do %>
   <% overview_sessions = local_assigns[:current_sessions] || local_assigns.fetch(:poll_sessions, []).reject(&:stopped?) %>
   <%= link_to local_assigns.fetch(:back_label, "내 투표 목록으로 돌아가기"),
               local_assigns.fetch(:back_path, polls_path),
@@ -46,4 +47,4 @@
       </div>
     </div>
   </dl>
-</section>
+<% end %>

@@ -38,78 +38,48 @@ RSpec.describe "Schoolwide test Polls", type: :request do
       sign_in actor
 
       expect do
-        post school_poll_test_polls_path(source), params: { classroom_ids: [classrooms.first.id] }
+        post school_poll_test_polls_path(source)
       end.to change(source.test_polls, :count).by(1)
-      expect(response).to redirect_to(school_poll_path(source.test_polls.order(:created_at).last))
+      test_poll = source.test_polls.order(:created_at).last
+      expect(response).to redirect_to(school_poll_path(test_poll))
+      expect(test_poll.current_poll_sessions.count).to eq(source.current_poll_sessions.count)
+      expect(test_poll.current_poll_sessions.map(&:classroom)).to match_array(source.current_poll_sessions.map(&:classroom))
+      expect(source.reload).to be_draft
       sign_out actor
     end
 
     source, classrooms = create_source
     sign_in create(:user)
     expect do
-      post school_poll_test_polls_path(source), params: { classroom_ids: [classrooms.first.id] }
+      post school_poll_test_polls_path(source)
     end.not_to change(Poll, :count)
   end
 
-  it "opens the separate creation page only for authorized actors and an eligible source" do
-    source, classrooms = create_source
-    manager = create(:user)
-    create(:school_membership, :manager, school: source.school, user: manager)
-
-    [manager, create(:user, :admin)].each do |actor|
-      sign_in actor
-      get new_school_poll_test_poll_path(source)
-      expect(response).to have_http_status(:ok)
-      expect(response.body).to include(classrooms.first.name, classrooms.second.name)
-      sign_out actor
-    end
-
-    sign_in create(:user)
-    get new_school_poll_test_poll_path(source)
-    expect(response).not_to have_http_status(:ok)
-
-    sign_in create(:user, :admin)
-    test_poll = Polls::CreateSchoolwideTestPoll.new(
-      source_poll: source, classroom_ids: [classrooms.first.id], actor: create(:user, :admin)
-    ).call.poll
-    get new_school_poll_test_poll_path(test_poll)
-    expect(response).not_to have_http_status(:ok)
-
-    source.update!(status: :in_progress, started_at: Time.current)
-    get new_school_poll_test_poll_path(source)
-    expect(response).not_to have_http_status(:ok)
-  end
-
-  it "rejects an unstartable source and shows only current assigned Classrooms" do
-    source, classrooms = create_source
+  it "posts creation from status check and rejects an unstartable source" do
+    source, = create_source
     admin = create(:user, :admin)
     sign_in admin
-    source.poll_contests.first.poll_options.delete_all
-
-    get new_school_poll_test_poll_path(source)
-    expect(response).to redirect_to(school_poll_path(source))
     get school_poll_path(source)
-    expect(response.body).not_to include(new_school_poll_test_poll_path(source))
+    create_form = Nokogiri::HTML(response.body).at_css("form[action='#{school_poll_test_polls_path(source)}']")
+    expect(create_form).to be_present
+    expect(create_form["method"]).to eq("post")
 
-    source.poll_contests.first.tap do |contest|
-      create(:poll_option, poll: source, poll_contest: contest, number: 1)
-      create(:poll_option, poll: source, poll_contest: contest, number: 2)
-    end
-    get new_school_poll_test_poll_path(source)
+    source.poll_contests.first.poll_options.delete_all
+    get school_poll_path(source)
+    expect(response.body).not_to include(school_poll_test_polls_path(source))
 
-    source.current_poll_sessions.each do |session|
-      expect(response.body.scan(session.classroom_name_snapshot).size).to eq(1)
-    end
+    expect { post school_poll_test_polls_path(source) }.not_to change(source.test_polls, :count)
+    expect(response).to redirect_to(school_poll_path(source))
   end
 
   it "hides test Polls from the index and shows them as newest-first Poll history" do
     source, classrooms = create_source
     admin = create(:user, :admin)
     test_poll = Polls::CreateSchoolwideTestPoll.new(
-      source_poll: source, classroom_ids: [classrooms.first.id], actor: admin
+      source_poll: source, actor: admin
     ).call.poll
     second_test_poll = Polls::CreateSchoolwideTestPoll.new(
-      source_poll: source, classroom_ids: [classrooms.second.id], actor: admin
+      source_poll: source, actor: admin
     ).call.poll
     test_poll.update_column(:created_at, 1.hour.ago)
     sign_in admin
@@ -119,8 +89,7 @@ RSpec.describe "Schoolwide test Polls", type: :request do
     expect(response.body).not_to include(test_poll.title)
 
     get school_poll_path(source)
-    expect(response.body).to include("테스트투표 만들기", new_school_poll_test_poll_path(source))
-    expect(response.body).not_to include("classroom_ids[]")
+    expect(response.body).to include("테스트투표 만들기", school_poll_test_polls_path(source))
     page = Nokogiri::HTML(response.body)
     status_check = page.at_css("[data-testid='schoolwide-status-check']").text.squish
     expect(status_check).to include("전교투표 시작", "전교투표를 시작할 수 있습니다.")
@@ -129,6 +98,7 @@ RSpec.describe "Schoolwide test Polls", type: :request do
       ["test-poll-history-#{second_test_poll.id}", "test-poll-history-#{test_poll.id}"]
     )
     expect(history_rows).to all(satisfy { |row| row.text.squish.include?("전교 테스트 선거 준비") })
+    expect(history_rows).to all(satisfy { |row| row.text.squish.include?("2개 학급") })
     expect(page.at_css("[data-testid='test-poll-history-#{test_poll.id}']").to_html)
       .to include(test_poll.title, school_poll_path(test_poll))
 
@@ -171,7 +141,7 @@ RSpec.describe "Schoolwide test Polls", type: :request do
     expect(response.body).not_to include("테스트투표 이력")
 
     test_poll = Polls::CreateSchoolwideTestPoll.new(
-      source_poll: source, classroom_ids: [classrooms.first.id], actor: admin
+      source_poll: source, actor: admin
     ).call.poll
     test_poll.update!(status: :closed, started_at: 1.hour.ago, closed_at: Time.current)
     get school_poll_path(source)
@@ -179,16 +149,28 @@ RSpec.describe "Schoolwide test Polls", type: :request do
     expect(history_row.to_html).to include(results_school_poll_path(test_poll), "테스트투표 시작", "테스트투표 종료")
   end
 
-  it "blocks every definition mutation and Classroom assignment on a test Poll" do
+  it "keeps definition immutable while allowing independent same-School assignment" do
     source, classrooms = create_source
     admin = create(:user, :admin)
     test_poll = Polls::CreateSchoolwideTestPoll.new(
-      source_poll: source, classroom_ids: [classrooms.first.id], actor: admin
+      source_poll: source, actor: admin
     ).call.poll
     contest = test_poll.poll_contests.sole
     option = contest.poll_options.first
-    unassigned = create_classroom(source.school)
+    additional = create_classroom(source.school)
+    other_school_classroom = create_classroom(create(:school))
     sign_in admin
+
+    get school_poll_path(test_poll)
+    page = Nokogiri::HTML(response.body)
+    expect(response.body).to include("배정 가능 학급", "4학년 전체", "배정 현황", "배정 학급", "배정 투표 인원")
+    sessions_workspace = page.at_css("##{ActionView::RecordIdentifier.dom_id(test_poll, :sessions)}")
+    expect(sessions_workspace.text.squish).to include("배정 학급 2", "배정 투표 인원 2", "이미 배정된 학급 Session")
+    expect(classrooms).to all(satisfy { |classroom| sessions_workspace.text.include?(classroom.name) })
+    classroom_checkboxes = page.css("input[name='classroom_ids[]']")
+    expect(classroom_checkboxes.map { |checkbox| checkbox["value"].to_i }).to contain_exactly(additional.id)
+    expect(classroom_checkboxes).to all(satisfy { |checkbox| checkbox["checked"].nil? })
+    expect(response.body).not_to include(other_school_classroom.name)
 
     patch school_poll_path(test_poll), params: { poll: { title: "변조" } }
     expect(test_poll.reload.title).not_to eq("변조")
@@ -198,16 +180,113 @@ RSpec.describe "Schoolwide test Polls", type: :request do
     patch school_poll_contest_option_path(test_poll, contest, option),
           params: { poll_option: { name: "변조", number: option.number } }
     expect(option.reload.name).not_to eq("변조")
+
     expect do
-      post school_poll_poll_sessions_path(test_poll), params: { classroom_ids: [unassigned.id] }
+      post school_poll_poll_sessions_path(test_poll), params: { classroom_ids: [additional.id] }
+    end.to change(test_poll.poll_sessions, :count).by(1)
+    expect(test_poll.current_poll_sessions.map(&:classroom)).to include(additional)
+    get school_poll_path(test_poll)
+    page = Nokogiri::HTML(response.body)
+    expect(response.body).to include(
+      test_poll.current_poll_sessions.find_by!(classroom: additional).classroom_name_snapshot,
+      "이미 배정된 학급 Session",
+      "4학년 배정 해제",
+      "배정 해제"
+    )
+    expect(page.css("input[name='classroom_ids[]']").map { |checkbox| checkbox["value"].to_i })
+      .to be_empty
+
+    expect do
+      post school_poll_poll_sessions_path(test_poll),
+           params: { classroom_ids: [other_school_classroom.id] },
+           as: :turbo_stream
     end.not_to change(test_poll.poll_sessions, :count)
+    expect(response).to have_http_status(:unprocessable_content)
+    expect(response.body).to include(
+      %(target="#{ActionView::RecordIdentifier.dom_id(test_poll, :sessions)}"),
+      "다른 학교의 학급은 배정할 수 없습니다."
+    )
+    expect do
+      post school_poll_poll_sessions_path(test_poll), params: { classroom_ids: [classrooms.first.id] }
+    end.not_to change(test_poll.poll_sessions, :count)
+
+    another_eligible = create_classroom(source.school)
+    test_poll.update!(status: :in_progress, started_at: Time.current)
+    expect do
+      post school_poll_poll_sessions_path(test_poll), params: { classroom_ids: [another_eligible.id] }
+    end.not_to change(test_poll.poll_sessions, :count)
+  end
+
+  it "updates overview, status, and Session workspace through Turbo assignment and unassignment" do
+    source, classrooms = create_source
+    admin = create(:user, :admin)
+    test_poll = Polls::CreateSchoolwideTestPoll.new(source_poll: source, actor: admin).call.poll
+    additional = create_classroom(source.school)
+    sign_in admin
+    targets = %i[school_overview status_report sessions].map do |prefix|
+      ActionView::RecordIdentifier.dom_id(test_poll, prefix)
+    end
+
+    post school_poll_poll_sessions_path(test_poll),
+         params: { classroom_ids: [additional.id] },
+         as: :turbo_stream
+    targets.each { |target| expect(response.body).to include(%(target="#{target}")) }
+    session = test_poll.poll_sessions.find_by!(classroom: additional)
+
+    delete school_poll_poll_session_path(test_poll, session), as: :turbo_stream
+    expect(test_poll.poll_sessions.reload.count).to eq(classrooms.size)
+    targets.each { |target| expect(response.body).to include(%(target="#{target}")) }
+
+    post school_poll_poll_sessions_path(test_poll),
+         params: { classroom_ids: [additional.id] }
+    delete destroy_grade_school_poll_poll_sessions_path(test_poll, grade: classrooms.first.grade),
+           as: :turbo_stream
+    expect(test_poll.poll_sessions.reload).to be_empty
+    targets.each { |target| expect(response.body).to include(%(target="#{target}")) }
+
+    other_poll = Polls::CreateSchoolwideTestPoll.new(source_poll: source, actor: admin).call.poll
+    other_session = other_poll.poll_sessions.first
+    expect do
+      delete school_poll_poll_session_path(test_poll, other_session)
+    end.not_to change(other_poll.poll_sessions, :count)
+
+    post school_poll_poll_sessions_path(test_poll), params: { classroom_ids: [classrooms.first.id] }
+    assigned = test_poll.poll_sessions.reload.sole
+    test_poll.update!(status: :in_progress, started_at: Time.current)
+    expect do
+      delete school_poll_poll_session_path(test_poll, assigned)
+    end.not_to change(test_poll.poll_sessions, :count)
+  end
+
+  it "keeps source and test Session composition independent after cloning" do
+    source, classrooms = create_source
+    admin = create(:user, :admin)
+    test_poll = Polls::CreateSchoolwideTestPoll.new(source_poll: source, actor: admin).call.poll
+    additional = create_classroom(source.school)
+    sign_in admin
+
+    source_session = source.poll_sessions.find_by!(classroom: classrooms.first)
+    test_session = test_poll.poll_sessions.find_by!(classroom: classrooms.first)
+    delete school_poll_poll_session_path(source, source_session)
+    expect(test_poll.poll_sessions.where(id: test_session.id)).to exist
+
+    source_session_ids = source.poll_session_ids
+    delete school_poll_poll_session_path(test_poll, test_session)
+    expect(source.reload.poll_session_ids).to match_array(source_session_ids)
+
+    post school_poll_poll_sessions_path(test_poll), params: { classroom_ids: [additional.id] }
+    expect(test_poll.poll_sessions.find_by(classroom: additional)).to be_present
+    expect(source.poll_sessions.find_by(classroom: additional)).to be_nil
+
+    get school_poll_path(test_poll)
+    expect(response.body).to include(classrooms.second.name, additional.name)
   end
 
   it "starts, closes, archives, and shows results through the existing lifecycle without changing source" do
     source, classrooms = create_source
     admin = create(:user, :admin)
     test_poll = Polls::CreateSchoolwideTestPoll.new(
-      source_poll: source, classroom_ids: [classrooms.first.id], actor: admin
+      source_poll: source, actor: admin
     ).call.poll
     sign_in admin
 
@@ -216,6 +295,9 @@ RSpec.describe "Schoolwide test Polls", type: :request do
     expect(status_check).to include("테스트투표 시작", "테스트투표를 시작할 수 있습니다.")
     expect(status_check).not_to include("전교투표 시작")
     expect(response.body).to include("테스트투표를 시작할까요?")
+
+    extra_session = test_poll.poll_sessions.find_by!(classroom: classrooms.second)
+    delete school_poll_poll_session_path(test_poll, extra_session)
 
     post start_school_poll_path(test_poll)
 
@@ -258,7 +340,7 @@ RSpec.describe "Schoolwide test Polls", type: :request do
     source, classrooms = create_source
     admin = create(:user, :admin)
     test_poll = Polls::CreateSchoolwideTestPoll.new(
-      source_poll: source, classroom_ids: [classrooms.first.id], actor: admin
+      source_poll: source, actor: admin
     ).call.poll
     sign_in admin
 
