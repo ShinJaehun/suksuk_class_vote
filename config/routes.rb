@@ -6,6 +6,7 @@ Rails.application.routes.draw do
     post :start, on: :member
     post :stop, on: :member
     post :close, on: :member
+    post :reset, on: :member
     post :mock_candidates, on: :member, action: :create_mock_candidates
     resources :contests,
               only: %i[new create edit update destroy],

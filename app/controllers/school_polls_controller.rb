@@ -127,6 +127,31 @@ class SchoolPollsController < ApplicationController
     end
   end
 
+  def reset
+    poll = school_poll_scope.find(params[:id])
+    authorize poll, :reset_schoolwide?
+
+    unless params[:confirmation_title] == poll.title
+      redirect_to school_poll_path(poll), alert: "전교투표 이름이 일치하지 않아 초기화를 실행하지 않았습니다."
+      return
+    end
+
+    begin
+      result = Polls::ResetSchoolwidePoll.new(poll: poll, actor: current_user).call
+    rescue StandardError => e
+      Rails.logger.error("[schoolwide_poll_reset] poll_id=#{poll.id} #{e.class}: #{e.message}")
+      redirect_to school_poll_path(poll), alert: "전교투표를 초기화하지 못했습니다. 다시 시도해 주세요."
+      return
+    end
+
+    if result.success?
+      redirect_to school_poll_path(poll),
+                  notice: "전교투표를 초기화했습니다. 학급 투표 #{result.created_session_count}개를 새로 준비했습니다."
+    else
+      redirect_to school_poll_path(poll), alert: result.error_message
+    end
+  end
+
   def create_mock_candidates
     @poll = school_poll_scope.find(params[:id])
     authorize @poll, :mock_candidates?

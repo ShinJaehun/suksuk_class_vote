@@ -179,6 +179,24 @@ RSpec.describe PollPolicy do
     end
   end
 
+  describe "#reset_schoolwide?" do
+    it "allows only global admin for a Schoolwide Poll" do
+      school = create(:school)
+      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      manager = create(:user)
+      create(:school_membership, :manager, school: school, user: manager)
+
+      expect(described_class.new(create(:user, :admin), poll)).to be_reset_schoolwide
+      expect(described_class.new(manager, poll)).not_to be_reset_schoolwide
+      expect(described_class.new(create(:user), poll)).not_to be_reset_schoolwide
+      expect(described_class.new(nil, poll)).not_to be_reset_schoolwide
+    end
+
+    it "rejects a regular classroom Poll even for global admin" do
+      expect(described_class.new(create(:user, :admin), create(:poll))).not_to be_reset_schoolwide
+    end
+  end
+
   describe "#open_current_participant_ballot?" do
     it "allows admins to open another teacher's current participant ballot" do
       admin = create(:user, :admin)

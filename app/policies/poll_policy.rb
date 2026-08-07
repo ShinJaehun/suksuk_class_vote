@@ -49,6 +49,10 @@ class PollPolicy < ApplicationPolicy
     school_show? && record.in_progress? && record.archived_at.blank?
   end
 
+  def reset_schoolwide?
+    admin? && record.school_managed?
+  end
+
   def mock_candidates?
     user&.admin?
   end
