@@ -23,7 +23,7 @@ module Polls
 
       Poll.transaction do
         poll.lock!
-        unless poll.schoolwide_resettable?
+        unless poll.schoolwide_resettable? && poll.schoolwide_runtime_available?
           errors << "종료되었거나 보관된 전교투표는 초기화할 수 없습니다."
           raise ActiveRecord::Rollback
         end
@@ -53,10 +53,19 @@ module Polls
 
     def validate_inputs
       errors << "전교투표가 필요합니다." unless poll&.persisted? && poll.school_managed?
-      errors << "global admin만 전교투표를 초기화할 수 있습니다." unless actor&.admin?
-      if poll&.persisted? && poll.school_managed? && !poll.schoolwide_resettable?
+      errors << "전교투표를 초기화할 권한이 없습니다." unless authorized_actor?
+      if poll&.persisted? && poll.school_managed? &&
+         (!poll.schoolwide_resettable? || !poll.schoolwide_runtime_available?)
         errors << "종료되었거나 보관된 전교투표는 초기화할 수 없습니다."
       end
+    end
+
+    def authorized_actor?
+      return false if actor.blank? || poll&.school.blank?
+      return true if actor.admin?
+
+      membership = actor.school_membership
+      actor.teacher? && membership&.manager? && membership.school == poll.school
     end
 
     def locked_classrooms(sessions)

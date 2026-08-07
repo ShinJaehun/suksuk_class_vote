@@ -79,7 +79,7 @@ class SchoolPollsController < ApplicationController
   def results
     @poll = school_poll_scope.find(params[:id])
     authorize @poll, :school_show?
-    unless @poll.closed?
+    unless @poll.closed? || policy(@poll).school_results?
       redirect_to school_poll_path(@poll), alert: "전교투표 종료 후 결과를 확인할 수 있습니다."
       return
     end
@@ -148,6 +148,26 @@ class SchoolPollsController < ApplicationController
     if result.success?
       redirect_to school_poll_path(poll),
                   notice: "전교투표를 초기화했습니다. 학급 투표 #{result.created_session_count}개를 새로 준비했습니다."
+    else
+      redirect_to school_poll_path(poll), alert: result.error_message
+    end
+  end
+
+  def destroy
+    poll = school_poll_scope.find(params[:id])
+    authorize poll, :destroy_schoolwide?
+    policy = PollPolicy.new(current_user, poll)
+
+    if policy.force_schoolwide_destroy_confirmation? && params[:confirmation_title] != poll.title
+      redirect_to school_poll_path(poll), alert: "전교투표 이름이 일치하지 않아 영구 삭제하지 않았습니다."
+      return
+    end
+
+    source_poll = poll.test_source_poll
+    result = Polls::DestroySchoolwidePoll.new(poll: poll, actor: current_user).call
+    if result.success?
+      redirect_to(source_poll ? school_poll_path(source_poll) : school_polls_path,
+                  notice: poll.test_run? ? "테스트투표를 삭제했습니다." : "전교투표를 삭제했습니다.")
     else
       redirect_to school_poll_path(poll), alert: result.error_message
     end

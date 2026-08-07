@@ -3,8 +3,25 @@ class PollsController < ApplicationController
   before_action :set_poll, only: %i[show ballot start open_current_participant_ballot submit_vote record_participation_outcome record_next_participant_absent advance_current_participant resume_current_participant close stop archive destroy]
 
   def index
-    @poll_sessions = PollSession
+    base_poll_sessions = PollSession
       .where(operator: current_user, archived_at: nil)
+    school_session_ids = base_poll_sessions.joins(:poll)
+      .where(polls: { school_managed: true })
+      .select(:id)
+    visible_source_session_ids = base_poll_sessions.current_execution.joins(:poll)
+      .where(polls: { school_managed: true, test_source_poll_id: nil,
+                      status: %i[draft in_progress] })
+      .where.not(status: :stopped)
+      .select(:id)
+    visible_test_session_ids = base_poll_sessions.current_execution.joins(:poll)
+      .where(status: %i[draft in_progress])
+      .where(polls: { school_managed: true, status: :in_progress, archived_at: nil })
+      .where.not(polls: { test_source_poll_id: nil })
+      .select(:id)
+    @poll_sessions = base_poll_sessions
+      .where.not(id: school_session_ids)
+      .or(base_poll_sessions.where(id: visible_source_session_ids))
+      .or(base_poll_sessions.where(id: visible_test_session_ids))
       .includes(:classroom, :operator, :poll)
       .order(
         Arel.sql(
@@ -20,10 +37,21 @@ class PollsController < ApplicationController
   end
 
   def archived
-    @archived_poll_sessions = PollSession
+    base_archived_sessions = PollSession
       .current_execution
       .where(operator: current_user)
       .where.not(archived_at: nil)
+    school_session_ids = base_archived_sessions.joins(:poll)
+      .where(polls: { school_managed: true })
+      .select(:id)
+    visible_school_session_ids = base_archived_sessions.joins(:poll)
+      .where(status: :closed)
+      .where(polls: { school_managed: true, test_source_poll_id: nil, status: :closed })
+      .where.not(polls: { archived_at: nil })
+      .select(:id)
+    @archived_poll_sessions = base_archived_sessions
+      .where.not(id: school_session_ids)
+      .or(base_archived_sessions.where(id: visible_school_session_ids))
       .includes(:classroom, :operator, :poll)
       .order(archived_at: :desc, created_at: :desc)
 

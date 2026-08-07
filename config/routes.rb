@@ -1,7 +1,7 @@
 Rails.application.routes.draw do
   devise_for :users
   resource :dashboard, only: :show
-  resources :school_polls, only: %i[index new create show edit update] do
+  resources :school_polls, only: %i[index new create show edit update destroy] do
     resources :test_polls, only: :create, controller: "school_poll_test_polls"
     get :results, on: :member
     post :start, on: :member

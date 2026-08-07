@@ -42,6 +42,7 @@ module Polls
               included_session_count: check.session_counts.fetch("closed", 0)
             }
           )
+          archive_child_test_polls!(closed_at) unless poll.test_run?
         end
       end
 
@@ -54,6 +55,27 @@ module Polls
     private
 
     attr_reader :poll, :actor, :errors
+
+    def archive_child_test_polls!(operation_at)
+      poll.test_polls.where.not(status: :closed).lock.find_each do |test_poll|
+        archive_at = test_poll.archived_at || operation_at
+        unless test_poll.stopped?
+          test_poll.update!(status: :stopped, stopped_at: operation_at,
+                            closed_at: nil, archived_at: archive_at)
+        else
+          test_poll.update!(archived_at: archive_at)
+        end
+
+        current_session_ids = test_poll.current_poll_sessions.pluck(:id)
+        test_poll.poll_sessions.lock.find_each do |session|
+          attributes = { archived_at: session.archived_at || archive_at }
+          if current_session_ids.include?(session.id) && !session.closed? && !session.stopped?
+            attributes.merge!(status: :stopped, stopped_at: operation_at, closed_at: nil)
+          end
+          session.update!(attributes)
+        end
+      end
+    end
 
     def validate_actor
       errors << "저장된 전교투표가 필요합니다." unless poll&.persisted?

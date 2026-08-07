@@ -86,4 +86,17 @@ RSpec.describe Polls::RevoteSchoolSession do
     expect(source.replacement_session).to be_nil
     expect(source.poll_events.where(event_type: "replacement_created")).to be_empty
   end
+
+  it "rejects a child test Session after its source Poll is closed" do
+    session, manager, = setup_source
+    source_poll = create(:poll, school: session.poll.school, school_managed: true,
+                                participant_group: nil, status: :closed,
+                                started_at: 2.hours.ago, closed_at: 1.hour.ago,
+                                archived_at: 1.hour.ago)
+    session.poll.update!(test_source_poll: source_poll)
+
+    expect(described_class.new(poll_session: session, actor: manager).call).not_to be_success
+    expect(session.reload).to be_in_progress
+    expect(session.replacement_session).to be_nil
+  end
 end

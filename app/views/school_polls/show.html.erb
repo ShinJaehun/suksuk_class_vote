@@ -82,4 +82,41 @@
       <% end %>
     </section>
   <% end %>
+
+  <% if policy(@poll).destroy_schoolwide? %>
+    <section class="rounded-xl border border-rose-300 bg-rose-50 p-6 shadow-sm">
+      <h2 class="text-xl font-semibold text-rose-900">
+        <%= @poll.test_run? ? "테스트투표 삭제" : "전교투표 삭제" %>
+      </h2>
+      <p class="mt-2 text-sm text-rose-800">
+        <% if @poll.test_run? %>
+          이 테스트투표의 학급 Session, 재투표 이력, 실행 기록, 결과와 후보 사진을 모두 영구 삭제합니다. 원본 전교투표에는 영향을 주지 않습니다.
+        <% else %>
+          이 전교투표의 학급 Session, 재투표 이력, 실행 기록, 결과와 모든 테스트투표를 함께 영구 삭제합니다.
+        <% end %>
+      </p>
+
+      <% if policy(@poll).force_schoolwide_destroy_confirmation? %>
+        <%= form_with url: school_poll_path(@poll), method: :delete,
+                      data: { turbo_frame: "_top" }, class: "mt-4 space-y-3" do |form| %>
+          <div>
+            <%= form.label :confirmation_title, "확인을 위해 전교투표 이름을 입력하세요.",
+                           class: "block text-sm font-medium text-rose-900" %>
+            <%= form.text_field :confirmation_title, autocomplete: "off",
+                                class: "mt-1 block w-full rounded-md border-rose-300" %>
+          </div>
+          <%= form.submit "영구 삭제",
+                          class: "rounded-md bg-rose-800 px-4 py-2 text-sm font-semibold text-white" %>
+        <% end %>
+      <% else %>
+        <%= button_to(@poll.test_run? ? "테스트투표 삭제" : "전교투표 삭제",
+                      school_poll_path(@poll), method: :delete,
+                      form: { data: { turbo_frame: "_top" } },
+                      data: { turbo_confirm: "관련 학급 Session, 재투표와 결과를 모두 영구 삭제할까요?" },
+                      class: "mt-4 rounded-md bg-rose-700 px-4 py-2 text-sm font-semibold text-white") %>
+      <% end %>
+    </section>
+  <% elsif !@poll.test_run? && (@poll.closed? || @poll.archived?) %>
+    <p class="text-sm text-stone-600">정상 종료된 전교투표는 보존되며 초기화하거나 삭제할 수 없습니다.</p>
+  <% end %>
 </div>

@@ -91,4 +91,16 @@ RSpec.describe Polls::StartSchoolwidePoll do
     expect(poll.reload).to be_draft
     expect(poll.started_at).to be_nil
   end
+
+  it "rejects a child test Poll after its source is closed" do
+    admin = create(:user, :admin)
+    test_poll, = create_startable_poll(actor: admin)
+    source = create(:poll, user: admin, school: test_poll.school, school_managed: true,
+                           participant_group: nil, status: :closed, started_at: 1.hour.ago,
+                           closed_at: Time.current, archived_at: Time.current)
+    test_poll.update!(test_source_poll: source)
+
+    expect(described_class.new(poll: test_poll, actor: admin).call).not_to be_success
+    expect(test_poll.reload).to be_draft
+  end
 end

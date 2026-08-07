@@ -167,6 +167,10 @@ class Poll < ApplicationRecord
     school_managed? && archived_at.blank? && (draft? || in_progress? || stopped?)
   end
 
+  def schoolwide_runtime_available?
+    !test_run? || (test_source_poll.present? && !test_source_poll.closed? && !test_source_poll.archived?)
+  end
+
   def archived?
     archived_at.present?
   end
@@ -222,7 +226,10 @@ class Poll < ApplicationRecord
       errors.add(:stopped_at, "종료 상태에는 기록할 수 없습니다.") if stopped_at.present?
     end
     if stopped?
-      errors.add(:started_at, "중단 상태에는 필요합니다.") if started_at.blank?
+      unless started_at.present? ||
+             (test_run? && (test_source_poll&.closed? || test_source_poll&.archived?))
+        errors.add(:started_at, "중단 상태에는 필요합니다.")
+      end
       errors.add(:stopped_at, "중단 상태에는 필요합니다.") if stopped_at.blank?
       errors.add(:closed_at, "중단 상태에는 기록할 수 없습니다.") if closed_at.present?
     end

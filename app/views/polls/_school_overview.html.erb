@@ -19,7 +19,7 @@
         <%= link_to "선거 설정", edit_school_poll_path(poll),
                     class: "rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700" %>
       <% end %>
-      <% if poll.school_managed? && poll.closed? && policy(poll).school_results? %>
+      <% if poll.school_managed? && policy(poll).school_results? %>
         <%= link_to "결과 집계 보기", results_school_poll_path(poll),
                     class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
       <% end %>

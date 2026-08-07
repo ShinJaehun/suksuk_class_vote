@@ -189,7 +189,25 @@ global admin도 시작 후 불변조건과 역사 자료의 읽기 전용 제한
 - 학교 단위 Election·Poll 생성
 - 세션 진행 확인
 - 중단·재투표 관리
+- 자기 학교 전교투표의 draft/in_progress/stopped 실행 초기화
+- draft 실제 전교투표와 진행 중이 아닌 테스트투표 영구 삭제
 - 학교 전체 결과 확인
+
+정상 종료되어 보관된 실제 전교투표는 학교 기록으로 유지하며 manager가 초기화하거나
+삭제하지 않는다. global admin은 상태와 관계없이 전교투표를 영구 삭제할 수 있다.
+실제 전교투표 삭제는 모든 학급 Session·재투표 이력·runtime과 child 테스트투표를
+함께 삭제하고, 테스트투표 삭제는 원본과 sibling 테스트투표에 영향을 주지 않는다.
+실제 전교투표를 정상 종료할 때 draft/in_progress child 테스트투표는 stopped로 정리하고
+기존 stopped child는 상태를 유지한다. source stop/reset은 child 상태를 바꾸지 않는다.
+종료·보관된 source의 child 테스트투표는 다시 시작하거나 초기화할 수 없다.
+
+`/polls`는 교사가 운영할 일반 학급투표와 실제 전교투표의 current Session, 그리고
+정상 종료된 실제 전교투표의 current closed 기록만 표시한다. stopped 전교투표 Session과
+superseded 재투표 이력은 `/school_polls`에서만 확인한다. 테스트투표는 in_progress 동안
+교사가 처리할 current draft/in_progress Session만 `/polls`에 표시하고 나머지 Session과
+모든 보관 이력은 `/school_polls`에서 확인한다.
+실제 전교투표가 정상 종료되면 미완료 child 테스트투표는 stopped로 유지하면서 Poll과
+전체 Session 이력에 `archived_at`을 기록해 읽기 전용 보존 상태로 확정한다.
 
 다른 학교의 데이터에는 접근할 수 없다.
 

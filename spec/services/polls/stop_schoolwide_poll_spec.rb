@@ -65,6 +65,15 @@ RSpec.describe Polls::StopSchoolwidePoll do
     expect(poll.poll_sessions.where(id: [source.id, replacement.id]).count).to eq(2)
   end
 
+  it "does not change child test Polls" do
+    poll, manager, = setup_poll
+    child = create(:poll, school: poll.school, school_managed: true,
+                          participant_group: nil, test_source_poll: poll)
+
+    expect(described_class.new(poll: poll, actor: manager).call).to be_success
+    expect(child.reload).to have_attributes(status: "draft", archived_at: nil)
+  end
+
   it "allows admin and rejects regular teachers, other managers, and non-progress Polls" do
     poll, _manager, = setup_poll
     regular = create(:user)

@@ -67,6 +67,9 @@ module Polls
         return
       end
       errors << "진행 또는 종료된 학급 실행만 재투표할 수 있습니다." unless source.in_progress? || source.closed?
+      unless source.poll.schoolwide_runtime_available?
+        errors << "원본 전교투표가 종료되어 테스트투표를 재투표할 수 없습니다."
+      end
       errors << "보관된 학급 실행은 재투표할 수 없습니다." if source.archived_at.present?
       errors << "이미 이 실행을 대체한 재투표가 있습니다." if source.replacement_session.present?
       errors << "복사할 확정 투표자 명단이 없습니다." if source.poll_participants.empty?

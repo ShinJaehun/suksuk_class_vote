@@ -128,6 +128,7 @@ RSpec.describe PollPolicy do
         expect(policy).to be_school_close
         expect(policy).to be_school_stop
       end
+
     end
 
     it "rejects a regular teacher and another School manager" do
@@ -174,6 +175,24 @@ RSpec.describe PollPolicy do
       test_poll.update!(status: :closed, closed_at: Time.current, archived_at: Time.current)
       expect(described_class.new(manager, test_poll)).to be_school_results
     end
+
+    it "keeps stopped child results readable after the source closes" do
+      school = create(:school)
+      manager = create(:user)
+      create(:school_membership, :manager, school: school, user: manager)
+      source = create(:poll, school: school, school_managed: true, participant_group: nil,
+                             status: :closed, started_at: 1.hour.ago,
+                             closed_at: Time.current, archived_at: Time.current)
+      test_poll = create(:poll, school: school, school_managed: true,
+                                participant_group: nil, test_source_poll: source,
+                                status: :stopped, started_at: 1.hour.ago,
+                                stopped_at: Time.current)
+
+      expect(described_class.new(manager, test_poll)).to be_school_show
+      expect(described_class.new(manager, test_poll)).to be_school_results
+      expect(described_class.new(manager, test_poll)).not_to be_school_start
+      expect(described_class.new(manager, test_poll)).not_to be_reset_schoolwide
+    end
   end
 
   describe "#mock_candidates?" do
@@ -207,14 +226,14 @@ RSpec.describe PollPolicy do
   end
 
   describe "#reset_schoolwide?" do
-    it "allows only global admin for a Schoolwide Poll" do
+    it "allows global admin and the same-School manager for a resettable Schoolwide Poll" do
       school = create(:school)
       poll = create(:poll, school: school, school_managed: true, participant_group: nil)
       manager = create(:user)
       create(:school_membership, :manager, school: school, user: manager)
 
       expect(described_class.new(create(:user, :admin), poll)).to be_reset_schoolwide
-      expect(described_class.new(manager, poll)).not_to be_reset_schoolwide
+      expect(described_class.new(manager, poll)).to be_reset_schoolwide
       expect(described_class.new(create(:user), poll)).not_to be_reset_schoolwide
       expect(described_class.new(nil, poll)).not_to be_reset_schoolwide
 
@@ -225,6 +244,50 @@ RSpec.describe PollPolicy do
 
     it "rejects a regular classroom Poll even for global admin" do
       expect(described_class.new(create(:user, :admin), create(:poll))).not_to be_reset_schoolwide
+    end
+  end
+
+  describe "#destroy_schoolwide?" do
+    it "applies manager preservation rules and allows global admin in every state" do
+      school = create(:school)
+      manager = create(:user)
+      create(:school_membership, :manager, school: school, user: manager)
+      admin = create(:user, :admin)
+
+      %i[draft in_progress stopped closed].each do |status|
+        attributes = {
+          status: status,
+          started_at: (1.hour.ago unless status == :draft),
+          stopped_at: (Time.current if status == :stopped),
+          closed_at: (Time.current if status == :closed),
+          archived_at: (Time.current if status == :closed)
+        }
+        source = create(:poll, school: school, school_managed: true,
+                               participant_group: nil, **attributes)
+        test_poll = create(:poll, school: school, school_managed: true,
+                                  participant_group: nil, test_source_poll: source, **attributes)
+
+        expect(described_class.new(manager, source).destroy_schoolwide?).to eq(status == :draft)
+        expect(described_class.new(manager, test_poll).destroy_schoolwide?).to eq(status != :in_progress)
+        expect(described_class.new(admin, source)).to be_destroy_schoolwide
+        expect(described_class.new(admin, test_poll)).to be_destroy_schoolwide
+      end
+
+      source = create(:poll, school: school, school_managed: true, participant_group: nil)
+      archived_test = create(:poll, school: school, school_managed: true,
+                                    participant_group: nil, test_source_poll: source,
+                                    status: :stopped, started_at: 1.hour.ago,
+                                    stopped_at: Time.current, archived_at: Time.current)
+      expect(described_class.new(manager, archived_test)).to be_destroy_schoolwide
+    end
+
+    it "rejects another-School manager" do
+      poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil)
+      manager = create(:user)
+      create(:school_membership, :manager, school: create(:school), user: manager)
+
+      expect(described_class.new(manager, poll)).not_to be_destroy_schoolwide
+      expect(described_class.new(manager, poll)).not_to be_reset_schoolwide
     end
   end
 

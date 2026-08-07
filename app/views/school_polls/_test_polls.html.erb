@@ -17,7 +17,7 @@
           </div>
           <div class="flex gap-3 text-sm font-medium">
             <%= link_to "상세", school_poll_path(test_poll), class: "underline" %>
-            <% if test_poll.closed? && policy(test_poll).school_results? %>
+            <% if policy(test_poll).school_results? %>
               <%= link_to "결과", results_school_poll_path(test_poll), class: "underline" %>
             <% end %>
           </div>

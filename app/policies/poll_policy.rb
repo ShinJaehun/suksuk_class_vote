@@ -34,11 +34,14 @@ class PollPolicy < ApplicationPolicy
   end
 
   def school_results?
-    school_show? && record.closed?
+    school_show? && (
+      record.closed? ||
+      (record.test_run? && record.stopped? && !record.schoolwide_runtime_available?)
+    )
   end
 
   def school_start?
-    school_show?
+    school_show? && record.schoolwide_runtime_available?
   end
 
   def school_close?
@@ -54,7 +57,18 @@ class PollPolicy < ApplicationPolicy
   end
 
   def reset_schoolwide?
-    admin? && record.schoolwide_resettable?
+    school_show? && record.schoolwide_resettable? && record.schoolwide_runtime_available?
+  end
+
+  def destroy_schoolwide?
+    return false unless school_show?
+    return true if admin?
+
+    record.test_run? ? !record.in_progress? : record.draft?
+  end
+
+  def force_schoolwide_destroy_confirmation?
+    admin? && (!record.draft? || record.archived?)
   end
 
   def mock_candidates?

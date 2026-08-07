@@ -69,6 +69,153 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include(archived_polls_path)
     end
 
+    it "hides stopped source School Sessions while preserving them on the School Poll detail" do
+      manager = create(:user)
+      school = create(:school)
+      create(:school_membership, :manager, school: school, user: manager)
+      classroom = create(:classroom, school: school, teacher: manager)
+      poll = create(:poll, user: manager, school: school, school_managed: true,
+                           participant_group: nil, title: "중단된 실제 전교투표",
+                           status: :stopped, started_at: 1.hour.ago,
+                           stopped_at: Time.current)
+      session = create(:poll_session, poll: poll, classroom: classroom, operator: manager,
+                                      status: :stopped, started_at: 1.hour.ago,
+                                      stopped_at: Time.current)
+      sign_in manager
+
+      get polls_path
+      expect(response.body).not_to include(poll.title)
+
+      get school_poll_path(poll)
+      expect(response.body).to include(poll.title, session.classroom_name_snapshot)
+    end
+
+    it "shows only current unfinished Sessions from an in-progress test Poll" do
+      teacher = create(:user)
+      school = create(:school)
+      create(:school_membership, school: school, user: teacher)
+      source = create(:poll, school: school, school_managed: true, participant_group: nil)
+      classroom = create(:classroom, school: school, teacher: teacher)
+
+      draft_test = create(:poll, school: school, school_managed: true,
+                                 participant_group: nil, test_source_poll: source,
+                                 title: "준비 테스트")
+      draft_session = create(:poll_session, poll: draft_test, classroom: classroom,
+                                            operator: teacher)
+
+      running_draft_test = create(:poll, school: school, school_managed: true,
+                                         participant_group: nil, test_source_poll: source,
+                                         title: "진행 테스트 준비 학급", status: :in_progress,
+                                         started_at: 1.hour.ago)
+      current_draft = create(:poll_session, poll: running_draft_test, classroom: classroom,
+                                            operator: teacher)
+      running_active_test = create(:poll, school: school, school_managed: true,
+                                          participant_group: nil, test_source_poll: source,
+                                          title: "진행 테스트 진행 학급", status: :in_progress,
+                                          started_at: 1.hour.ago)
+      current_running = create(:poll_session, poll: running_active_test, classroom: classroom,
+                                              operator: teacher, status: :in_progress,
+                                              started_at: 30.minutes.ago)
+      running_closed_test = create(:poll, school: school, school_managed: true,
+                                          participant_group: nil, test_source_poll: source,
+                                          title: "진행 테스트 종료 학급", status: :in_progress,
+                                          started_at: 1.hour.ago)
+      current_closed = create(:poll_session, poll: running_closed_test, classroom: classroom,
+                                             operator: teacher, status: :closed,
+                                             started_at: 40.minutes.ago,
+                                             closed_at: 10.minutes.ago)
+      running_stopped_test = create(:poll, school: school, school_managed: true,
+                                           participant_group: nil, test_source_poll: source,
+                                           title: "진행 테스트 중단 학급", status: :in_progress,
+                                           started_at: 1.hour.ago)
+      current_stopped = create(:poll_session, poll: running_stopped_test, classroom: classroom,
+                                              operator: teacher, status: :stopped,
+                                              started_at: 40.minutes.ago,
+                                              stopped_at: 10.minutes.ago)
+      running_revote_test = create(:poll, school: school, school_managed: true,
+                                          participant_group: nil, test_source_poll: source,
+                                          title: "진행 테스트 재투표", status: :in_progress,
+                                          started_at: 1.hour.ago)
+      superseded = create(:poll_session, poll: running_revote_test, classroom: classroom,
+                                         operator: teacher, status: :closed,
+                                         started_at: 50.minutes.ago,
+                                         closed_at: 20.minutes.ago)
+      replacement = create(:poll_session, poll: running_revote_test, classroom: classroom,
+                                          operator: teacher, replacement_of: superseded)
+
+      stopped_test = create(:poll, school: school, school_managed: true,
+                                   participant_group: nil, test_source_poll: source,
+                                   title: "중단 테스트", status: :stopped,
+                                   started_at: 1.hour.ago, stopped_at: Time.current)
+      stopped_parent_session = create(:poll_session, poll: stopped_test,
+                                                     classroom: classroom, operator: teacher,
+                                                     status: :stopped, started_at: 1.hour.ago,
+                                                     stopped_at: Time.current)
+      closed_at = Time.current
+      closed_test = create(:poll, school: school, school_managed: true,
+                                  participant_group: nil, test_source_poll: source,
+                                  title: "종료 테스트", status: :closed,
+                                  started_at: 1.hour.ago, closed_at: closed_at,
+                                  archived_at: closed_at)
+      closed_parent_session = create(:poll_session, poll: closed_test,
+                                                    classroom: classroom, operator: teacher,
+                                                    status: :closed, started_at: 1.hour.ago,
+                                                    closed_at: closed_at, archived_at: closed_at)
+      archived_test = create(:poll, school: school, school_managed: true,
+                                    participant_group: nil, test_source_poll: source,
+                                    title: "보관 테스트", status: :stopped,
+                                    started_at: 1.hour.ago, stopped_at: closed_at,
+                                    archived_at: closed_at)
+      archived_session = create(:poll_session, poll: archived_test,
+                                               classroom: classroom, operator: teacher,
+                                               status: :stopped, started_at: 1.hour.ago,
+                                               stopped_at: closed_at, archived_at: closed_at)
+      sign_in teacher
+
+      get polls_path
+      expect(response.body).to include(
+        poll_poll_session_path(current_draft.poll, current_draft),
+        poll_poll_session_path(current_running.poll, current_running),
+        poll_poll_session_path(replacement.poll, replacement)
+      )
+      [draft_session, current_closed, current_stopped, superseded,
+       stopped_parent_session, closed_parent_session, archived_session].each do |session|
+        expect(response.body).not_to include(poll_poll_session_path(session.poll, session))
+      end
+
+      get archived_polls_path
+      [draft_session, current_draft, current_running, current_closed, current_stopped,
+       superseded, replacement, stopped_parent_session, closed_parent_session,
+       archived_session].each do |session|
+        expect(response.body).not_to include(poll_poll_session_path(session.poll, session))
+      end
+    end
+
+    it "keeps ordinary stopped Classroom Sessions in the current teacher flow" do
+      teacher = create(:user)
+      school = create(:school)
+      create(:school_membership, school: school, user: teacher)
+      classroom = create(:classroom, school: school, teacher: teacher)
+      poll = create(:poll, user: teacher, school: school, participant_group: nil,
+                           title: "중단된 일반 학급투표", status: :stopped)
+      create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
+                            status: :stopped, started_at: 1.hour.ago,
+                            stopped_at: Time.current)
+      archived_at = Time.current
+      archived_poll = create(:poll, user: teacher, school: school, participant_group: nil,
+                                    title: "보관된 일반 학급투표", status: :closed,
+                                    archived_at: archived_at)
+      create(:poll_session, poll: archived_poll, classroom: classroom, operator: teacher,
+                            status: :closed, started_at: 2.hours.ago,
+                            closed_at: 1.hour.ago, archived_at: archived_at)
+      sign_in teacher
+
+      get polls_path
+      expect(response.body).to include(poll.title)
+      get archived_polls_path
+      expect(response.body).to include(archived_poll.title)
+    end
+
     it "shows assigned election sessions as vote list items for teachers" do
       teacher = create(:user)
       other_teacher = create(:user)
@@ -424,6 +571,31 @@ RSpec.describe "Polls", type: :request do
       expect(visible_text).not_to include("담당 교사")
       expect(visible_text).not_to include("담당 학급")
       expect(response.body).to match(/#{archived_poll.title}.*투표자 2명/m)
+    end
+
+    it "shows only the current closed Session from an archived source School Poll" do
+      teacher = create(:user)
+      school = create(:school)
+      create(:school_membership, school: school, user: teacher)
+      classroom = create(:classroom, school: school, teacher: teacher)
+      poll = create(:poll, school: school, school_managed: true, participant_group: nil,
+                           title: "공식 전교투표 기록", status: :in_progress,
+                           started_at: 2.hours.ago)
+      superseded = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
+                                         status: :closed, started_at: 2.hours.ago,
+                                         closed_at: 90.minutes.ago)
+      replacement = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
+                                          replacement_of: superseded)
+      replacement.update!(status: :closed, started_at: 1.hour.ago, closed_at: 30.minutes.ago)
+      archived_at = Time.current
+      poll.update!(status: :closed, closed_at: archived_at, archived_at: archived_at)
+      poll.poll_sessions.update_all(archived_at: archived_at)
+      sign_in teacher
+
+      get archived_polls_path
+
+      expect(response.body).to include(poll.title, poll_poll_session_path(poll, replacement))
+      expect(response.body).not_to include(poll_poll_session_path(poll, superseded))
     end
 
     it "shows closed election sessions as archived vote results" do

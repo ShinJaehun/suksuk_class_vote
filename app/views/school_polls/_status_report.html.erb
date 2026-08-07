@@ -16,7 +16,7 @@
         <% end %>
       </p>
     </div>
-    <% if poll.draft? && status_check.startable? %>
+    <% if poll.draft? && status_check.startable? && policy(poll).school_start? %>
       <div class="flex flex-wrap items-center gap-3">
         <% if poll.school_managed? && !poll.test_run? && poll.archived_at.blank? && policy(poll).school_test? %>
           <%= button_to "테스트투표 만들기", school_poll_test_polls_path(poll), method: :post,

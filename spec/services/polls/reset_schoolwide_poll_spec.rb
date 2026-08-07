@@ -24,6 +24,16 @@ RSpec.describe Polls::ResetSchoolwidePoll do
 
   let(:admin) { create(:user, :admin) }
 
+  it "allows the same-School manager to reset draft, in-progress, and stopped Polls" do
+    %i[draft in_progress stopped].each do |status|
+      poll, = create_target(status: status)
+      manager = create(:user)
+      create(:school_membership, :manager, school: poll.school, user: manager)
+
+      expect(described_class.new(poll: poll, actor: manager).call).to be_success
+    end
+  end
+
   it "resets draft, in-progress, and stopped Schoolwide Polls" do
     %i[draft in_progress stopped].each do |status|
       poll, old_session, classroom = create_target(status: status)
@@ -101,12 +111,28 @@ RSpec.describe Polls::ResetSchoolwidePoll do
     expect(other_event.reload).to be_persisted
   end
 
-  it "rejects non-admin actors and regular classroom Polls" do
+  it "rejects unauthorized actors and regular classroom Polls" do
     poll, session, = create_target
 
     expect(described_class.new(poll: poll, actor: create(:user)).call).not_to be_success
     expect(PollSession.exists?(session.id)).to be(true)
     expect(described_class.new(poll: create(:poll), actor: admin).call).not_to be_success
+  end
+
+  it "rejects a child test Poll after its source is closed" do
+    source, source_session, classroom = create_target(status: :closed)
+    test_poll = create(:poll, school: source.school, school_managed: true,
+                              participant_group: nil, test_source_poll: source,
+                              **lifecycle_attributes(:stopped))
+    test_session = create(:poll_session, poll: test_poll, classroom: classroom,
+                                         operator: classroom.teacher,
+                                         **lifecycle_attributes(:stopped))
+    manager = create(:user)
+    create(:school_membership, :manager, school: source.school, user: manager)
+
+    expect(described_class.new(poll: test_poll, actor: manager).call).not_to be_success
+    expect(source_session.reload).to be_persisted
+    expect(test_session.reload).to be_persisted
   end
 
   it "rejects closed and archived Schoolwide Polls without changing runtime" do

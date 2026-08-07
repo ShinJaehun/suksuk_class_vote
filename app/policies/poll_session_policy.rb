@@ -47,6 +47,7 @@ class PollSessionPolicy < ApplicationPolicy
   def school_revote?
     return false unless school_lifecycle_actor?
     return false unless record.poll.school_managed? && record.poll.in_progress?
+    return false unless record.poll.schoolwide_runtime_available?
     return false unless record.in_progress? || record.closed?
     return false if record.archived_at.present? || record.replacement_session.present?
 

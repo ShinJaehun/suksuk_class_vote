@@ -52,6 +52,9 @@ module Polls
     def validate_actor
       errors << "저장된 전교투표가 필요합니다." unless poll&.persisted?
       errors << "전교투표를 시작할 권한이 없습니다." unless authorized_actor?
+      if poll&.persisted? && !poll.schoolwide_runtime_available?
+        errors << "원본 전교투표가 종료되어 테스트투표를 시작할 수 없습니다."
+      end
     end
 
     def authorized_actor?

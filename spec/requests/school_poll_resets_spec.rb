@@ -13,7 +13,7 @@ RSpec.describe "School Poll reset", type: :request do
     [poll, session, school]
   end
 
-  it "shows the danger area only to global admin" do
+  it "shows the danger area to global admin and the same-School manager" do
     poll, _, school = create_target
     admin = create(:user, :admin)
     manager = create(:user)
@@ -26,20 +26,23 @@ RSpec.describe "School Poll reset", type: :request do
     sign_out admin
     sign_in manager
     get school_poll_path(poll)
-    expect(response.body).not_to include("전교투표 초기화", "confirmation_title")
+    expect(response.body).to include("전교투표 초기화", "confirmation_title")
   end
 
-  it "rejects direct requests from a manager and regular teacher" do
+  it "allows a same-School manager and rejects a regular teacher" do
     poll, session, school = create_target
     manager = create(:user)
     create(:school_membership, :manager, school: school, user: manager)
 
-    [manager, create(:user)].each do |actor|
-      sign_in actor
-      post reset_school_poll_path(poll), params: { confirmation_title: poll.title }
-      expect(PollSession.exists?(session.id)).to be(true)
-      sign_out actor
-    end
+    sign_in manager
+    post reset_school_poll_path(poll), params: { confirmation_title: poll.title }
+    expect(PollSession.exists?(session.id)).to be(false)
+
+    poll, session, = create_target
+    sign_out manager
+    sign_in create(:user)
+    post reset_school_poll_path(poll), params: { confirmation_title: poll.title }
+    expect(PollSession.exists?(session.id)).to be(true)
   end
 
   it "does nothing when confirmation title differs" do
@@ -85,7 +88,10 @@ RSpec.describe "School Poll reset", type: :request do
       sign_in create(:user, :admin)
 
       get school_poll_path(poll)
-      expect(response.body).not_to include("전교투표 초기화", "confirmation_title")
+      expect(response.body).not_to include("전교투표 초기화")
+      expect(response.body).not_to include(%(action="#{reset_school_poll_path(poll)}"))
+      expect(response.body).to include("영구 삭제", "confirmation_title")
+
       post reset_school_poll_path(poll), params: { confirmation_title: poll.title }
       expect(session.reload).to be_persisted
       sign_out :user
