@@ -141,6 +141,24 @@ class Poll < ApplicationRecord
     draft? || stopped? || (closed? && archived_at.blank?)
   end
 
+  def classroom_based?
+    !school_managed? && school_id.present? && participant_group_id.nil? && poll_sessions.exists?
+  end
+
+  def classroom_destroyable?
+    classroom_based? && archived_at.blank? &&
+      poll_sessions.where.not(status: %i[draft stopped closed]).none?
+  end
+
+  def classroom_archivable?
+    classroom_based? && archived_at.blank? &&
+      poll_sessions.where.not(status: :closed).none?
+  end
+
+  def schoolwide_resettable?
+    school_managed? && archived_at.blank? && (draft? || in_progress? || stopped?)
+  end
+
   def archived?
     archived_at.present?
   end

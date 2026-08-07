@@ -27,6 +27,8 @@ RSpec.describe Polls::StopSchoolwidePoll do
 
     expect(result).to be_success
     expect(poll.reload).to be_stopped
+    expect(poll.archived_at).to be_nil
+    expect(sessions.map { |session| session.reload.archived_at }).to all(be_nil)
     expect(sessions[0].reload).to be_stopped
     expect(sessions[0].started_at).to be_nil
     expect(sessions[1].reload).to be_stopped

@@ -62,6 +62,22 @@
                     },
                     class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
     <% end %>
+    <% if policy(@poll_session).archive_poll? %>
+      <%= button_to "보관",
+                    archive_poll_path(@poll_session.poll),
+                    method: :post,
+                    form: { data: { turbo_frame: "_top" } },
+                    data: { turbo_confirm: "종료된 투표와 모든 실행 이력을 보관할까요?" },
+                    class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+    <% end %>
+    <% if policy(@poll_session).destroy_poll? %>
+      <%= button_to "투표 삭제",
+                    poll_path(@poll_session.poll),
+                    method: :delete,
+                    form: { data: { turbo_frame: "_top" } },
+                    data: { turbo_confirm: "투표 정의와 모든 실행 기록을 삭제할까요?" },
+                    class: "rounded-md border border-rose-300 px-4 py-2 text-sm font-medium text-rose-700" %>
+    <% end %>
     <% if @poll_session.in_progress? %>
       <%= turbo_stream_from @poll_session, :operation_screen %>
       <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"

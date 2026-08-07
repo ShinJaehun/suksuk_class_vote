@@ -190,6 +190,10 @@ RSpec.describe PollPolicy do
       expect(described_class.new(manager, poll)).not_to be_reset_schoolwide
       expect(described_class.new(create(:user), poll)).not_to be_reset_schoolwide
       expect(described_class.new(nil, poll)).not_to be_reset_schoolwide
+
+      poll.update!(status: :closed, started_at: 1.hour.ago, closed_at: Time.current,
+                   archived_at: Time.current)
+      expect(described_class.new(create(:user, :admin), poll)).not_to be_reset_schoolwide
     end
 
     it "rejects a regular classroom Poll even for global admin" do

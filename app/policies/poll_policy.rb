@@ -50,7 +50,7 @@ class PollPolicy < ApplicationPolicy
   end
 
   def reset_schoolwide?
-    admin? && record.school_managed?
+    admin? && record.schoolwide_resettable?
   end
 
   def mock_candidates?
@@ -98,10 +98,16 @@ class PollPolicy < ApplicationPolicy
   end
 
   def archive?
+    return false if record.school_managed?
+    return classroom_session_policy_allows?(:archive_poll?) if record.classroom_based?
+
     (admin? || owner?) && record.closed? && record.archived_at.blank?
   end
 
   def destroy?
+    return false if record.school_managed?
+    return classroom_session_policy_allows?(:destroy_poll?) if record.classroom_based?
+
     (admin? || owner?) && record.destroyable_by_status?
   end
 
@@ -145,5 +151,9 @@ class PollPolicy < ApplicationPolicy
 
   def owner?
     record.user == user
+  end
+
+  def classroom_session_policy_allows?(query)
+    record.poll_sessions.any? { |session| PollSessionPolicy.new(user, session).public_send(query) }
   end
 end

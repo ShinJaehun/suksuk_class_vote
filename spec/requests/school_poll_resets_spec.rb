@@ -74,4 +74,21 @@ RSpec.describe "School Poll reset", type: :request do
     end.not_to change(PollSession, :count)
     expect(response).to have_http_status(:not_found)
   end
+
+  it "hides and rejects reset for closed or archived Schoolwide Polls" do
+    [ :closed, :archived ].each do |state|
+      poll, session, = create_target
+      poll.update!(status: :closed, started_at: 1.hour.ago, closed_at: Time.current,
+                   archived_at: (Time.current if state == :archived))
+      session.update!(status: :closed, started_at: 1.hour.ago, closed_at: Time.current,
+                      archived_at: poll.archived_at)
+      sign_in create(:user, :admin)
+
+      get school_poll_path(poll)
+      expect(response.body).not_to include("전교투표 초기화", "confirmation_title")
+      post reset_school_poll_path(poll), params: { confirmation_title: poll.title }
+      expect(session.reload).to be_persisted
+      sign_out :user
+    end
+  end
 end

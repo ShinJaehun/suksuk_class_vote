@@ -38,7 +38,7 @@ RSpec.describe Polls::CloseSchoolwidePoll do
 
   it "closes the Poll and records a Poll-level event" do
     admin = create(:user, :admin)
-    poll, = create_closable_poll(actor: admin)
+    poll, poll_session = create_closable_poll(actor: admin)
 
     result = described_class.new(poll: poll, actor: admin).call
 
@@ -46,6 +46,8 @@ RSpec.describe Polls::CloseSchoolwidePoll do
     expect(poll.reload).to be_closed
     expect(poll.closed_at).to be_present
     expect(poll.stopped_at).to be_nil
+    expect(poll.archived_at).to eq(poll.closed_at)
+    expect(poll_session.reload.archived_at).to eq(poll.closed_at)
     expect(poll.poll_events.last).to have_attributes(
       actor: admin,
       poll_session: nil,
@@ -60,11 +62,12 @@ RSpec.describe Polls::CloseSchoolwidePoll do
     expect(described_class.new(poll: poll, actor: manager).call).to be_success
   end
 
-  it "closes after a closed source is replaced and the replacement is closed" do
+  it "archives stopped superseded history and its closed replacement without changing lifecycle" do
     poll, source = create_closable_poll
     original_started_at = source.started_at
-    original_closed_at = source.closed_at
     replacement = Polls::RevoteSchoolSession.new(poll_session: source, actor: poll.user).call.poll_session
+    source.update!(status: :stopped, closed_at: nil, stopped_at: Time.current)
+    original_stopped_at = source.stopped_at
     expect(Polls::StartSession.new(actor: replacement.operator, poll_session: replacement).call).to be_success
     replacement.poll_participants.each do |participant|
       create(:poll_participation, poll_participant: participant, status: :absent)
@@ -80,11 +83,13 @@ RSpec.describe Polls::CloseSchoolwidePoll do
 
     expect(described_class.new(poll: poll.reload, actor: poll.user).call).to be_success
     expect(source.reload).to have_attributes(
-      status: "closed",
+      status: "stopped",
       started_at: original_started_at,
-      closed_at: original_closed_at,
-      stopped_at: nil
+      closed_at: nil,
+      stopped_at: original_stopped_at,
+      archived_at: poll.reload.closed_at
     )
+    expect(replacement.reload).to have_attributes(status: "closed", archived_at: poll.closed_at)
     expect(poll.poll_sessions).to contain_exactly(source, replacement)
   end
 
@@ -96,8 +101,21 @@ RSpec.describe Polls::CloseSchoolwidePoll do
       expect do
         result = described_class.new(poll: poll, actor: poll.user).call
         expect(result).not_to be_success
-      end.not_to change { [poll.reload.status, poll.closed_at, poll.poll_events.count] }
+      end.not_to change { [poll.reload.status, poll.closed_at, poll.archived_at, poll.poll_events.count] }
+      expect(poll_session.reload.archived_at).to be_nil
     end
+  end
+
+  it "rolls back Poll and Session archives when event recording fails" do
+    poll, poll_session = create_closable_poll
+    events = poll.poll_events
+    allow(poll).to receive(:poll_events).and_return(events)
+    allow(events).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new(poll))
+
+    expect(described_class.new(poll: poll, actor: poll.user).call).not_to be_success
+    expect(poll.reload).to be_in_progress
+    expect(poll.archived_at).to be_nil
+    expect(poll_session.reload.archived_at).to be_nil
   end
 
   it "rejects duplicate close requests" do

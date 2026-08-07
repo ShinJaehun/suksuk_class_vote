@@ -26,7 +26,9 @@ module Polls
           participant_count = poll.poll_participants
             .where(poll_session_id: poll.current_poll_sessions.closed.select(:id))
             .count
-          poll.update!(status: :closed, closed_at: closed_at, stopped_at: nil)
+          poll.update!(status: :closed, closed_at: closed_at, stopped_at: nil,
+                       archived_at: closed_at)
+          poll.poll_sessions.update_all(archived_at: closed_at)
           poll.poll_events.create!(
             poll_session: nil,
             actor: actor,

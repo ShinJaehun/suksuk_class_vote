@@ -69,6 +69,14 @@ class PollSessionPolicy < ApplicationPolicy
       record.poll_events.empty?
   end
 
+  def destroy_poll?
+    lifecycle_action_allowed? && record.poll.classroom_destroyable?
+  end
+
+  def archive_poll?
+    lifecycle_action_allowed? && record.poll.classroom_archivable?
+  end
+
   private
 
   def lifecycle_action_allowed?

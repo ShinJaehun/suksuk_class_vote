@@ -47,9 +47,11 @@ RSpec.describe Polls::RevoteSchoolSession do
       status: "closed",
       started_at: started_at,
       closed_at: closed_at,
-      stopped_at: nil
+      stopped_at: nil,
+      archived_at: nil
     )
     expect(source.replacement_session).to be_draft
+    expect(source.replacement_session.archived_at).to be_nil
 
     other, manager, = setup_source
     other.poll.update!(status: :stopped, stopped_at: Time.current)

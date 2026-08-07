@@ -24,8 +24,8 @@ RSpec.describe Polls::ResetSchoolwidePoll do
 
   let(:admin) { create(:user, :admin) }
 
-  it "resets draft, in-progress, stopped, and closed Schoolwide Polls" do
-    %i[draft in_progress stopped closed].each do |status|
+  it "resets draft, in-progress, and stopped Schoolwide Polls" do
+    %i[draft in_progress stopped].each do |status|
       poll, old_session, classroom = create_target(status: status)
 
       result = described_class.new(poll: poll, actor: admin).call
@@ -45,8 +45,6 @@ RSpec.describe Polls::ResetSchoolwidePoll do
   it "removes the replacement chain and all runtime while preserving definition and identity" do
     poll, source, classroom = create_target(status: :in_progress)
     original_attributes = poll.attributes.slice("id", "title", "kind", "school_id", "user_id")
-    archived_at = 1.day.ago
-    poll.update_column(:archived_at, archived_at)
     contest = create(:poll_contest, poll: poll)
     option = create(:poll_option, poll: poll, poll_contest: contest)
     option.photo.attach(io: StringIO.new("image"), filename: "candidate.jpg", content_type: "image/jpeg")
@@ -78,7 +76,7 @@ RSpec.describe Polls::ResetSchoolwidePoll do
     expect(PollContestTally.where(poll: poll)).to be_empty
     expect(PollEvent.where(poll: poll)).to be_empty
     expect(poll.reload.attributes.slice(*original_attributes.keys)).to eq(original_attributes)
-    expect(poll.archived_at).to be_within(0.000001).of(archived_at)
+    expect(poll.archived_at).to be_nil
     expect(poll.poll_contests).to contain_exactly(contest)
     expect(poll.poll_options).to contain_exactly(option)
     expect(option.reload.photo).to be_attached
@@ -111,6 +109,17 @@ RSpec.describe Polls::ResetSchoolwidePoll do
     expect(described_class.new(poll: create(:poll), actor: admin).call).not_to be_success
   end
 
+  it "rejects closed and archived Schoolwide Polls without changing runtime" do
+    closed, closed_session, = create_target(status: :closed)
+    expect(described_class.new(poll: closed, actor: admin).call).not_to be_success
+    expect(closed_session.reload).to be_persisted
+
+    archived, archived_session, = create_target(status: :stopped)
+    archived.update!(archived_at: Time.current)
+    expect(described_class.new(poll: archived, actor: admin).call).not_to be_success
+    expect(archived_session.reload).to be_persisted
+  end
+
   it "rolls back all changes when a target Classroom has no teacher" do
     poll, session, classroom = create_target(status: :in_progress)
     participant = create(:poll_participant, poll: poll, poll_session: session,
@@ -126,12 +135,12 @@ RSpec.describe Polls::ResetSchoolwidePoll do
   end
 
   it "is repeatable without duplicating target Classroom sessions" do
-    poll, = create_target(status: :closed)
+    poll, = create_target(status: :stopped)
     teacher = create(:user)
     create(:school_membership, school: poll.school, user: teacher)
     classroom = create(:classroom, school: poll.school, teacher: teacher)
     create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
-                          **lifecycle_attributes(:closed))
+                          **lifecycle_attributes(:stopped))
 
     2.times { expect(described_class.new(poll: poll, actor: admin).call).to be_success }
 

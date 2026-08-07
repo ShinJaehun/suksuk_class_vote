@@ -83,6 +83,26 @@ RSpec.describe PollSessionPolicy do
   end
 
   describe "classroom lifecycle permissions" do
+    it "uses the lifecycle actor boundary for delete and archive" do
+      session, teacher = create_poll_session
+      operator = create(:user)
+      create(:school_membership, school: session.classroom.school, user: operator)
+      session.update!(operator: operator)
+      manager = create(:user)
+      create(:school_membership, :manager, school: session.classroom.school, user: manager)
+
+      [operator, teacher, create(:user, :admin)].each do |actor|
+        expect(described_class.new(actor, session)).to be_destroy_poll
+      end
+      expect(described_class.new(manager, session)).not_to be_destroy_poll
+
+      session.update!(status: :closed, started_at: 1.hour.ago, closed_at: Time.current)
+      [operator, teacher, create(:user, :admin)].each do |actor|
+        expect(described_class.new(actor, session)).to be_archive_poll
+      end
+      expect(described_class.new(manager, session)).not_to be_archive_poll
+    end
+
     it "allows the operator, classroom teacher, and admin to stop" do
       poll_session, teacher = create_poll_session
       operator = create(:user)

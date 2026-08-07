@@ -20,7 +20,21 @@ class PollsController < ApplicationController
   end
 
   def archived
-    @polls = policy_scope(Poll).archived.includes(:participant_group).order(archived_at: :desc)
+    @archived_poll_sessions = PollSession
+      .current_execution
+      .where(operator: current_user)
+      .where.not(archived_at: nil)
+      .includes(:classroom, :operator, :poll)
+      .order(archived_at: :desc, created_at: :desc)
+
+    # 새 Classroom/PollSession 기반 투표는 위 Session 목록에서 표시한다.
+    # 여기에는 기존 participant_group 기반 Poll만 남겨 중복 표시를 피한다.
+    @polls = policy_scope(Poll)
+      .archived
+      .where.not(participant_group_id: nil)
+      .includes(:participant_group)
+      .order(archived_at: :desc)
+
     @poll_voter_counts = voter_counts_for(@polls)
     @closed_election_sessions = closed_election_sessions
     @election_session_voter_counts = election_session_voter_counts_for(@closed_election_sessions)
@@ -215,21 +229,37 @@ class PollsController < ApplicationController
 
   def archive
     authorize @poll
+    classroom_session = @poll.current_poll_sessions.first if @poll.classroom_based?
 
-    if @poll.update(archived_at: Time.current)
-      redirect_to @poll, notice: "투표를 보관했습니다."
+    result = if @poll.classroom_based?
+      Polls::ArchiveClassroomPoll.new(poll: @poll, actor: current_user).call
     else
-      redirect_to @poll, alert: "투표를 보관할 수 없습니다."
+      @poll.update(archived_at: Time.current)
+    end
+    redirect_target = classroom_session ? poll_poll_session_path(@poll, classroom_session) : @poll
+
+    if result.respond_to?(:success?) ? result.success? : result
+      redirect_to redirect_target, notice: "투표를 보관했습니다."
+    else
+      message = result.respond_to?(:error_message) ? result.error_message : "투표를 보관할 수 없습니다."
+      redirect_to redirect_target, alert: message
     end
   end
 
   def destroy
     authorize @poll
 
-    if @poll.destroy
+    result = if @poll.classroom_based?
+      Polls::DestroyClassroomPoll.new(poll: @poll, actor: current_user).call
+    else
+      @poll.destroy
+    end
+
+    if result.respond_to?(:success?) ? result.success? : result
       redirect_to polls_path, notice: "투표를 삭제했습니다."
     else
-      redirect_to @poll, alert: @poll.errors.full_messages.to_sentence
+      message = result.respond_to?(:error_message) ? result.error_message : @poll.errors.full_messages.to_sentence
+      redirect_to @poll, alert: message
     end
   end
 
@@ -341,16 +371,16 @@ class PollsController < ApplicationController
 
     scope = if current_user.admin?
               scope
-            elsif current_user.teacher? && current_user.school_membership&.manager?
+    elsif current_user.teacher? && current_user.school_membership&.manager?
               scope.where(school_id: current_user.school_membership.school_id)
-            elsif current_user.teacher? && current_user.school_membership.present?
+    elsif current_user.teacher? && current_user.school_membership.present?
               scope.where(
                 school_id: current_user.school_membership.school_id,
                 teacher_id: current_user.id
               )
-            else
+    else
               scope.none
-            end
+    end
 
     scope.order("schools.name ASC").merge(Classroom.in_school_order)
   end

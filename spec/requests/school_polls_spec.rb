@@ -708,6 +708,8 @@ RSpec.describe "School Poll management", type: :request do
       post close_school_poll_path(poll)
       expect(response).to redirect_to(school_poll_path(poll))
       expect(poll.reload).to be_closed
+      expect(poll.archived_at).to eq(poll.closed_at)
+      expect(poll_session.reload.archived_at).to eq(poll.archived_at)
 
       get school_poll_path(poll)
       expect(response.body).to include("결과 집계 보기", results_school_poll_path(poll))
