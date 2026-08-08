@@ -163,11 +163,17 @@ RSpec.describe "PollSession starts", type: :request do
     expect(flash[:alert]).to include("아직 전교투표가 시작되지 않았습니다")
     expect(poll_session.reload).to be_draft
 
+    post start_poll_poll_session_path(poll, poll_session), params: { from: "school_poll" }
+    expect(response).to redirect_to(school_poll_path(poll))
+
     poll.update!(status: :in_progress, started_at: Time.current)
     get poll_poll_session_path(poll, poll_session)
     expect(response.body).to include(start_poll_poll_session_path(poll, poll_session))
 
-    post start_poll_poll_session_path(poll, poll_session)
+    post start_poll_poll_session_path(poll, poll_session), params: { from: "school_poll" }
+    expect(response).to redirect_to(
+      poll_poll_session_path(poll, poll_session, from: "school_poll")
+    )
     expect(poll_session.reload).to be_in_progress
   end
 

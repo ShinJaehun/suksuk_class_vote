@@ -30,14 +30,20 @@ RSpec.describe ApplicationHelper, type: :helper do
       expect(first).to match(%r{\Aavatars/(boy|girl)(0[1-9]|1[0-5])\.png\z})
     end
 
-    it "uses the PollOption IDs and number in the legacy fallback calculation" do
+    it "uses definition positions so cloned options keep the same fallback avatar" do
       option = create(:poll_option, number: 7)
-      avatar_index = ((option.poll_contest_id * 7) + (option.id * 11) + option.number) % 30
+      cloned_poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil)
+      cloned_contest = create(:poll_contest, poll: cloned_poll, position: option.poll_contest.position)
+      cloned_option = create(:poll_option, poll: cloned_poll, poll_contest: cloned_contest, number: option.number)
+      avatar_index = ((option.poll_contest.position * 7) + (option.number * 11)) % 30
       prefix = avatar_index.even? ? "boy" : "girl"
       number = ((avatar_index / 2) % 15) + 1
 
       expect(helper.poll_option_photo_source(option, variant: :thumbnail)).to eq(
         "avatars/#{prefix}#{number.to_s.rjust(2, "0")}.png"
+      )
+      expect(helper.poll_option_photo_source(cloned_option, variant: :thumbnail)).to eq(
+        helper.poll_option_photo_source(option, variant: :thumbnail)
       )
     end
   end

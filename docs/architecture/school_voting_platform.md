@@ -201,8 +201,9 @@ global admin도 시작 후 불변조건과 역사 자료의 읽기 전용 제한
 기존 stopped child는 상태를 유지한다. source stop/reset은 child 상태를 바꾸지 않는다.
 종료·보관된 source의 child 테스트투표는 다시 시작하거나 초기화할 수 없다.
 
-`/polls`는 교사가 운영할 일반 학급투표와 실제 전교투표의 current Session, 그리고
-정상 종료된 실제 전교투표의 current closed 기록만 표시한다. stopped 전교투표 Session과
+`/polls`는 교사가 운영할 일반 학급투표와 parent Poll이 in_progress인 실제 전교투표의
+current Session, 그리고 정상 종료된 실제 전교투표의 current closed 기록만 표시한다.
+source/Test 모두 parent Poll이 draft인 동안에는 학급 Session을 표시하지 않는다. stopped 전교투표 Session과
 superseded 재투표 이력은 `/school_polls`에서만 확인한다. 테스트투표는 in_progress 동안
 교사가 처리할 current draft/in_progress Session만 `/polls`에 표시하고 나머지 Session과
 모든 보관 이력은 `/school_polls`에서 확인한다.

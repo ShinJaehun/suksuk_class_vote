@@ -31,8 +31,9 @@ module Polls
 
     FINAL_STATUSES = %w[completed absent abstained].freeze
 
-    def initialize(poll_session:)
+    def initialize(poll_session:, include_poll_definition: true)
       @poll_session = poll_session
+      @include_poll_definition = include_poll_definition
       @issues = []
     end
 
@@ -55,7 +56,8 @@ module Polls
 
     private
 
-    attr_reader :poll_session, :issues, :participants, :participations, :completions
+    attr_reader :poll_session, :issues, :participants, :participations, :completions,
+                :include_poll_definition
 
     def phase
       poll_session&.status&.to_sym
@@ -83,13 +85,15 @@ module Polls
 
     def check_draft
       check_common_definition
-      contests = poll&.poll_contests&.to_a || []
-      issues << "투표 항목이 없습니다." if contests.empty?
-      if contests.any? { |contest| contest.poll_options.size < 2 }
-        issues << "등록된 #{poll.choice_label} 수가 2개 이상이어야 합니다."
-      end
-      if contests.any? { |contest| contest.poll_options.map(&:number).compact.uniq.size != contest.poll_options.size }
-        issues << "후보 번호가 중복된 항목이 있습니다."
+      if include_poll_definition
+        contests = poll&.poll_contests&.to_a || []
+        issues << "투표 항목이 없습니다." if contests.empty?
+        if contests.any? { |contest| contest.poll_options.size < 2 }
+          issues << "등록된 #{poll.choice_label} 수가 2개 이상이어야 합니다."
+        end
+        if contests.any? { |contest| contest.poll_options.map(&:number).compact.uniq.size != contest.poll_options.size }
+          issues << "후보 번호가 중복된 항목이 있습니다."
+        end
       end
       issues << "보관된 투표 실행은 시작할 수 없습니다." if poll_session.archived_at.present?
       issues << "활성 학급만 시작할 수 있습니다." unless classroom&.active?

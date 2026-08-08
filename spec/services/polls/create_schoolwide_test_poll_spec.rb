@@ -70,7 +70,9 @@ RSpec.describe Polls::CreateSchoolwideTestPoll do
     expect(cloned_options.pluck(:number, :name)).to eq([[1, "사진 후보"], [2, "사진 없음"]])
     expect(cloned_options.first).not_to eq(source.poll_options.order(:number).first)
     expect(cloned_options.first.photo).to be_attached
-    expect(cloned_options.first.photo.blob.id).not_to eq(source.poll_options.order(:number).first.photo.blob.id)
+    source_photo = source.poll_options.order(:number).first.photo
+    expect(cloned_options.first.photo.blob.id).not_to eq(source_photo.blob.id)
+    expect(cloned_options.first.photo.blob.checksum).to eq(source_photo.blob.checksum)
     expect(cloned_options.second.photo).not_to be_attached
     source.poll_contests.sole.update!(title: "원본 수정")
     source.poll_options.order(:number).first.update!(name: "원본 후보 수정")

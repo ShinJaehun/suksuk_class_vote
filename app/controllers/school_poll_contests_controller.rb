@@ -14,9 +14,25 @@ class SchoolPollContestsController < ApplicationController
     @contest.position = @poll.poll_contests.maximum(:position).to_i + 1
 
     if @contest.save
-      redirect_to school_poll_path(@poll), notice: "투표 항목을 추가했습니다."
+      broadcast_schoolwide_status
+      respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: [
+            turbo_stream.replace(
+              ActionView::RecordIdentifier.dom_id(@poll, :contests),
+              partial: "school_polls/contests",
+              locals: { poll: @poll, poll_contests: @poll.poll_contests.includes(:poll_options).order(:position, :id) }
+            ),
+            turbo_stream.update("school_poll_modal", "")
+          ]
+        end
+        format.html { redirect_to school_poll_path(@poll), notice: "투표 항목을 추가했습니다." }
+      end
     else
-      render :new, status: :unprocessable_entity
+      respond_to do |format|
+        format.turbo_stream { render :new, formats: :html, status: :unprocessable_entity }
+        format.html { render :new, status: :unprocessable_entity }
+      end
     end
   end
 
@@ -24,18 +40,42 @@ class SchoolPollContestsController < ApplicationController
 
   def update
     if @contest.update(contest_params)
-      redirect_to school_poll_path(@poll), notice: "투표 항목을 수정했습니다."
+      broadcast_schoolwide_status
+      respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: [
+            turbo_stream.replace(
+              @contest,
+              partial: "school_polls/contest",
+              locals: { poll: @poll, contest: @contest }
+            ),
+            turbo_stream.update("school_poll_modal", "")
+          ]
+        end
+        format.html { redirect_to school_poll_path(@poll), notice: "투표 항목을 수정했습니다." }
+      end
     else
-      render :edit, status: :unprocessable_entity
+      respond_to do |format|
+        format.turbo_stream { render :edit, formats: :html, status: :unprocessable_entity }
+        format.html { render :edit, status: :unprocessable_entity }
+      end
     end
   end
 
   def destroy
     @contest.destroy!
-    redirect_to school_poll_path(@poll), notice: "투표 항목을 삭제했습니다."
+    broadcast_schoolwide_status
+    respond_to do |format|
+      format.turbo_stream { render turbo_stream: turbo_stream.remove(@contest) }
+      format.html { redirect_to school_poll_path(@poll), notice: "투표 항목을 삭제했습니다." }
+    end
   end
 
   private
+
+  def broadcast_schoolwide_status
+    Polls::BroadcastSchoolwideSessionState.for_poll(poll: @poll)
+  end
 
   def set_poll
     @poll = PollPolicy::SchoolScope.new(current_user, Poll)

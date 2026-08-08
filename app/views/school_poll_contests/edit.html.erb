@@ -1,7 +1,8 @@
-<%= render "poll_definitions/contest_form",
-           poll: @poll,
-           contest: @contest,
-           form_url: school_poll_contest_path(@poll, @contest),
-           heading_action: "수정",
-           submit_label: "저장",
-           cancel_path: school_poll_path(@poll) %>
+<%= turbo_frame_tag "school_poll_modal" do %>
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/40 p-4">
+    <%= render "poll_definitions/contest_form",
+               poll: @poll, contest: @contest,
+               form_url: school_poll_contest_path(@poll, @contest), heading_action: "수정",
+               submit_label: "저장", cancel_path: school_poll_path(@poll) %>
+  </div>
+<% end %>

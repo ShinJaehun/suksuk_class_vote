@@ -28,6 +28,7 @@ class ClassroomStudentsController < ApplicationController
     @student.active = true
 
     if @student.save
+      broadcast_schoolwide_runtime
       redirect_to classroom_students_path(@classroom, **student_return_context_params), notice: "학생을 등록했습니다."
     else
       render :new, status: :unprocessable_entity
@@ -51,6 +52,7 @@ class ClassroomStudentsController < ApplicationController
     end
 
     Student.transaction { rows.each { |row| @classroom.students.create!(number: row[:number], name: row[:name], active: true) } }
+    broadcast_schoolwide_runtime
     redirect_to classroom_students_path(@classroom, **student_return_context_params), notice: "#{rows.size}명의 학생을 등록했습니다."
   rescue ActiveRecord::RecordInvalid => e
     @bulk_errors << e.record.errors.full_messages.to_sentence
@@ -68,16 +70,24 @@ class ClassroomStudentsController < ApplicationController
   end
 
   def deactivate
+    roster_changed = @student.active?
     @student.update!(active: false)
+    broadcast_schoolwide_runtime if roster_changed
     redirect_to classroom_students_path(@classroom, status: return_status, **student_return_context_params), notice: "학생을 비활성화했습니다."
   end
 
   def reactivate
+    roster_changed = !@student.active?
     @student.update!(active: true)
+    broadcast_schoolwide_runtime if roster_changed
     redirect_to classroom_students_path(@classroom, status: return_status, **student_return_context_params), notice: "학생을 활성 명단으로 복구했습니다."
   end
 
   private
+
+  def broadcast_schoolwide_runtime
+    Polls::BroadcastSchoolwideSessionState.for_classroom(classroom: @classroom)
+  end
 
   def set_classroom
     @classroom = policy_scope(Classroom).find(params[:classroom_id])

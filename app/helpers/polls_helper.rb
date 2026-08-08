@@ -22,14 +22,30 @@ module PollsHelper
 
   def poll_badges(poll:, status_record:)
     content_tag(:span, class: "flex flex-wrap items-center gap-2", data: { testid: "poll-badges" }) do
-      badges = [poll_scope_badge(poll)]
+      badges = [poll_scope_badge(poll), poll_activity_badge(poll)]
       badges << badge("테스트", "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700") if poll.test_run?
       if status_record.respond_to?(:replacement?) && status_record.replacement?
         badges << poll_replacement_badge
       end
-      badges.concat([poll_activity_badge(poll), status_badge(status_record)])
+      badges << status_badge(status_record)
       safe_join(badges, " ")
     end
+  end
+
+  def poll_session_back_path(poll_session, from: nil)
+    school_poll_session_context?(poll_session, from: from) ? school_poll_path(poll_session.poll) : polls_path
+  end
+
+  def poll_session_back_label(poll_session, from: nil)
+    school_poll_session_context?(poll_session, from: from) ? "전교투표 상세로 돌아가기" : "내 투표 목록으로 돌아가기"
+  end
+
+  def poll_session_context_params(poll_session, from: nil)
+    school_poll_session_context?(poll_session, from: from) ? { from: "school_poll" } : {}
+  end
+
+  def school_poll_session_context?(poll_session, from: nil)
+    poll_session.poll.school_managed? && from.to_s == "school_poll"
   end
 
   def poll_session_display_title(poll_session)

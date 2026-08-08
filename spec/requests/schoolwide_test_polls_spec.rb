@@ -55,14 +55,40 @@ RSpec.describe "Schoolwide test Polls", type: :request do
     end.not_to change(Poll, :count)
   end
 
+  it "renders the independently cloned candidate photo instead of a fallback avatar" do
+    source, = create_source
+    source_option = source.poll_options.order(:number).first
+    source_option.update!(name: "사진 후보")
+    source_option.photo.attach(
+      io: StringIO.new("same candidate image"),
+      filename: "candidate.jpg",
+      content_type: "image/jpeg"
+    )
+    admin = create(:user, :admin)
+    sign_in admin
+
+    post school_poll_test_polls_path(source)
+    test_poll = source.test_polls.order(:created_at).last
+    test_option = test_poll.poll_options.find_by!(number: source_option.number)
+
+    expect(test_option.photo).to be_attached
+    expect(test_option.photo.blob_id).not_to eq(source_option.photo.blob_id)
+    expect(test_option.photo.blob.checksum).to eq(source_option.photo.blob.checksum)
+
+    get school_poll_path(test_poll)
+    image = Nokogiri::HTML(response.body).at_css("img[alt='사진 후보 후보 사진']")
+    expect(image).to be_present
+    expect(image["src"]).not_to include("avatars/")
+  end
+
   it "posts creation from status check and rejects an unstartable source" do
     source, = create_source
     admin = create(:user, :admin)
     sign_in admin
     get school_poll_path(source)
-    create_form = Nokogiri::HTML(response.body).at_css("form[action='#{school_poll_test_polls_path(source)}']")
-    expect(create_form).to be_present
-    expect(create_form["method"]).to eq("post")
+    create_link = Nokogiri::HTML(response.body).at_css("a[href='#{school_poll_test_polls_path(source)}']")
+    expect(create_link).to be_present
+    expect(create_link["data-turbo-method"]).to eq("post")
 
     source.poll_contests.first.poll_options.delete_all
     get school_poll_path(source)
@@ -97,7 +123,7 @@ RSpec.describe "Schoolwide test Polls", type: :request do
     expect(history_rows.map { |row| row["data-testid"] }).to eq(
       ["test-poll-history-#{second_test_poll.id}", "test-poll-history-#{test_poll.id}"]
     )
-    expect(history_rows).to all(satisfy { |row| row.text.squish.include?("전교 테스트 선거 준비") })
+    expect(history_rows).to all(satisfy { |row| row.text.squish.include?("전교 선거 테스트 준비") })
     expect(history_rows).to all(satisfy { |row| row.text.squish.include?("2개 학급") })
     expect(page.at_css("[data-testid='test-poll-history-#{test_poll.id}']").to_html)
       .to include(test_poll.title, school_poll_path(test_poll))
@@ -124,12 +150,26 @@ RSpec.describe "Schoolwide test Polls", type: :request do
 
     page = Nokogiri::HTML(response.body)
     headings = page.css("section h2").map { |heading| heading.text.strip }
-    expect(headings.index("학급 Session")).to be < headings.index("재투표 이력")
+    expect(headings.index("학급 세션")).to be < headings.index("재투표 이력")
     expect(headings.index("재투표 이력")).to be < headings.index("테스트투표 이력")
 
     get school_poll_path(test_poll)
     expect(response.body).not_to include("테스트투표 만들기")
-    expect(response.body).to include("원본 전교투표로 돌아가기", school_poll_path(source))
+    expect(response.body).to include(
+      "원본 전교투표로 돌아가기",
+      school_poll_path(source),
+      "테스트투표 삭제",
+      "원본 전교투표에는 영향을 주지 않습니다."
+    )
+    page = Nokogiri::HTML(response.body)
+    overview = page.at_css("##{ActionView::RecordIdentifier.dom_id(test_poll, :school_overview)}")
+    expect(overview.text).not_to include("전교투표 목록으로 돌아가기", "원본 전교투표로 돌아가기")
+    expect(page.text.scan("원본 전교투표로 돌아가기").size).to eq(1)
+    delete_button = page.at_css(
+      "form[action='#{school_poll_path(test_poll)}'] button[data-turbo-confirm]"
+    )
+    expect(delete_button).to be_present
+    expect(delete_button["data-turbo-confirm"]).to include("영구 삭제할까요?")
   end
 
   it "hides an empty source history and links a closed test Poll result from its history" do
@@ -165,7 +205,7 @@ RSpec.describe "Schoolwide test Polls", type: :request do
     page = Nokogiri::HTML(response.body)
     expect(response.body).to include("배정 가능 학급", "4학년 전체", "배정 현황", "배정 학급", "배정 투표 인원")
     sessions_workspace = page.at_css("##{ActionView::RecordIdentifier.dom_id(test_poll, :sessions)}")
-    expect(sessions_workspace.text.squish).to include("배정 학급 2", "배정 투표 인원 2", "이미 배정된 학급 Session")
+    expect(sessions_workspace.text.squish).to include("배정 학급 2", "배정 투표 인원 2", "배정된 학급 세션")
     expect(classrooms).to all(satisfy { |classroom| sessions_workspace.text.include?(classroom.name) })
     classroom_checkboxes = page.css("input[name='classroom_ids[]']")
     expect(classroom_checkboxes.map { |checkbox| checkbox["value"].to_i }).to contain_exactly(additional.id)
@@ -189,10 +229,17 @@ RSpec.describe "Schoolwide test Polls", type: :request do
     page = Nokogiri::HTML(response.body)
     expect(response.body).to include(
       test_poll.current_poll_sessions.find_by!(classroom: additional).classroom_name_snapshot,
-      "이미 배정된 학급 Session",
+      "배정된 학급 세션",
       "4학년 배정 해제",
       "배정 해제"
     )
+    assigned_session = test_poll.current_poll_sessions.find_by!(classroom: classrooms.first)
+    grade_form = page.at_css(
+      "form[action='#{destroy_grade_school_poll_poll_sessions_path(test_poll, grade: assigned_session.classroom.grade)}']"
+    )
+    session_form = page.at_css("form[action='#{school_poll_poll_session_path(test_poll, assigned_session)}']")
+    expect(grade_form["data-turbo-confirm"]).to be_nil
+    expect(session_form["data-turbo-confirm"]).to be_nil
     expect(page.css("input[name='classroom_ids[]']").map { |checkbox| checkbox["value"].to_i })
       .to be_empty
 
@@ -314,19 +361,26 @@ RSpec.describe "Schoolwide test Polls", type: :request do
       expected_current_poll_participant_id: current.id
     ).call
     get school_poll_path(test_poll)
+    page = Nokogiri::HTML(response.body)
+    status_report = page.at_css("[data-testid='schoolwide-status-check']")
+    status_actions = status_report.at_css("[data-testid='schoolwide-status-actions']")
+    expect(status_actions.at_css("a[href='#{close_school_poll_path(test_poll)}']")).to be_present
+    expect(status_actions.at_css("a[href='#{stop_school_poll_path(test_poll)}']")).to be_nil
     expect(response.body).to include(
-      "테스트투표 중단",
-      "테스트투표를 중단할까요?",
       "테스트투표 종료",
       "테스트투표를 종료할까요?"
     )
+    expect(response.body).not_to include("테스트투표 중단", "테스트투표를 중단할까요?")
     post close_school_poll_path(test_poll)
 
     expect(test_poll.reload).to be_closed
     expect(test_poll.archived_at).to be_present
     expect(session.reload.archived_at).to eq(test_poll.archived_at)
     get school_poll_path(test_poll)
-    expect(response.body).to include("테스트투표가 종료되었습니다.", "테스트투표 시작", "테스트투표 종료")
+    lifecycle_times = Nokogiri::HTML(response.body).at_css("[data-testid='school-poll-lifecycle-times']").text
+    expect(response.body).to include("테스트투표가 종료되었습니다.")
+    expect(lifecycle_times).to include("시작", "종료")
+    expect(lifecycle_times).not_to include("테스트투표")
     get results_school_poll_path(test_poll)
     expect(response).to have_http_status(:ok)
     get poll_poll_session_path(test_poll, session)
@@ -348,7 +402,9 @@ RSpec.describe "Schoolwide test Polls", type: :request do
     post stop_school_poll_path(test_poll)
     get school_poll_path(test_poll)
 
-    expect(response.body).to include("테스트투표가 중단되었습니다.", "테스트투표 시작", "테스트투표 중단")
-    expect(response.body).not_to include("전교투표 중단")
+    lifecycle_times = Nokogiri::HTML(response.body).at_css("[data-testid='school-poll-lifecycle-times']").text
+    expect(response.body).to include("테스트투표가 중단되었습니다.")
+    expect(lifecycle_times).to include("시작", "중단")
+    expect(lifecycle_times).not_to include("테스트투표", "전교투표")
   end
 end

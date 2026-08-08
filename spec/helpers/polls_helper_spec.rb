@@ -26,7 +26,7 @@ RSpec.describe PollsHelper, type: :helper do
     ).text.squish
 
     expect(test_badges)
-      .to eq("전교 테스트 재투표 선거 준비")
+      .to eq("전교 선거 테스트 재투표 준비")
     expect(source_badges).to eq("전교 선거 준비")
   end
 

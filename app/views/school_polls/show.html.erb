@@ -1,52 +1,29 @@
 <div class="mx-auto max-w-5xl space-y-6">
+  <%= turbo_stream_from @poll, :schoolwide_runtime %>
+  <%= turbo_frame_tag "school_poll_modal" %>
+
+  <div class="flex flex-wrap gap-4">
+    <%= link_to "전교투표 목록으로 돌아가기", school_polls_path,
+                class: "text-sm font-medium text-stone-700 underline" %>
+    <% if @poll.test_run? %>
+      <%= link_to "원본 전교투표로 돌아가기", school_poll_path(@poll.test_source_poll),
+                  class: "text-sm font-medium text-stone-700 underline" %>
+    <% end %>
+  </div>
+
   <%= render "polls/school_overview",
              poll: @poll,
              poll_contests: @poll_contests,
              current_sessions: @current_poll_sessions,
-             back_path: school_polls_path,
-             back_label: "전교투표 목록으로 돌아가기" %>
-
-  <% poll_time_labels = poll_status_time_labels(@poll) %>
-  <% if poll_time_labels.any? %>
-    <p class="text-sm text-stone-600" data-testid="school-poll-lifecycle-times">
-      <%= poll_time_labels.join(" · ") %>
-    </p>
-  <% end %>
-
-  <% if policy(@poll).mock_candidates? &&
-        @poll.school_managed? &&
-        @poll.election? &&
-        @poll.draft? &&
-        @poll.definition_editable? &&
-        !@has_poll_definition %>
-    <section class="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
-      <h2 class="text-xl font-semibold text-amber-900">테스트 도구</h2>
-      <p class="mt-2 text-sm text-amber-800">
-        회장 4명, 부회장 8명, 5학년 부회장 15명, 4학년 부회장 23명을 사진 없이 생성합니다.
-      </p>
-      <%= button_to "테스트 후보 50명 만들기",
-                    mock_candidates_school_poll_path(@poll),
-                    method: :post,
-                    data: { turbo_confirm: "테스트용 선거 항목 4개와 후보 50명을 만들까요?" },
-                    class: "mt-4 rounded-md bg-amber-700 px-4 py-2 text-sm font-semibold text-white" %>
-    </section>
-  <% end %>
+             show_back_links: false %>
 
   <%= render "status_report",
              poll: @poll,
              status_check: @schoolwide_status_check,
              current_session_counts: @current_session_counts,
+             current_session_total: @current_poll_sessions.size,
              history_session_count: @history_poll_sessions.size %>
  
-  <% if policy(@poll).school_stop? %>
-    <%= button_to "#{poll_lifecycle_name(@poll)} 중단",
-                  stop_school_poll_path(@poll),
-                  method: :post,
-                  form: { data: { turbo_frame: "_top" } },
-                  data: { turbo_confirm: "#{poll_lifecycle_name(@poll)}를 중단할까요? 정상 종료되지 않은 학급 투표도 함께 중단됩니다." },
-                  class: "rounded-md bg-rose-700 px-4 py-2 text-sm font-semibold text-white" %>
-  <% end %>
-
   <%= render "contests", poll: @poll, poll_contests: @poll_contests %>
 
   <%= render "sessions",
@@ -55,45 +32,17 @@
              assignable_classrooms: @assignable_classrooms,
              assignable_classroom_student_counts: @assignable_classroom_student_counts %>
 
-  <% if @history_poll_sessions.any? %>
-    <%= render "revote_history", poll: @poll, history_sessions: @history_poll_sessions %>
-  <% end %>
+  <%= render "revote_history", poll: @poll, history_sessions: @history_poll_sessions %>
 
   <% if !@poll.test_run? && @test_polls.any? %>
     <%= render "test_polls", test_polls: @test_polls %>
   <% end %>
 
-  <% if policy(@poll).reset_schoolwide? %>
+  <% if @poll.test_run? && policy(@poll).destroy_schoolwide? %>
     <section class="rounded-xl border border-rose-300 bg-rose-50 p-6 shadow-sm">
-      <h2 class="text-xl font-semibold text-rose-900">전교투표 초기화</h2>
+      <h2 class="text-xl font-semibold text-rose-900">테스트투표 삭제</h2>
       <p class="mt-2 text-sm text-rose-800">
-        모든 실행 기록, 결과, 재투표 이력을 삭제합니다. Poll 정의, 후보, 사진, 대상 학급은 보존됩니다.
-      </p>
-      <%= form_with url: reset_school_poll_path(@poll), method: :post,
-                    data: { turbo_frame: "_top" }, class: "mt-4 space-y-3" do |form| %>
-        <div>
-          <%= form.label :confirmation_title, "확인을 위해 전교투표 이름을 입력하세요.",
-                         class: "block text-sm font-medium text-rose-900" %>
-          <%= form.text_field :confirmation_title, autocomplete: "off",
-                              class: "mt-1 block w-full rounded-md border-rose-300" %>
-        </div>
-        <%= form.submit "전교투표 전체 초기화",
-                        class: "rounded-md bg-rose-700 px-4 py-2 text-sm font-semibold text-white" %>
-      <% end %>
-    </section>
-  <% end %>
-
-  <% if policy(@poll).destroy_schoolwide? %>
-    <section class="rounded-xl border border-rose-300 bg-rose-50 p-6 shadow-sm">
-      <h2 class="text-xl font-semibold text-rose-900">
-        <%= @poll.test_run? ? "테스트투표 삭제" : "전교투표 삭제" %>
-      </h2>
-      <p class="mt-2 text-sm text-rose-800">
-        <% if @poll.test_run? %>
-          이 테스트투표의 학급 Session, 재투표 이력, 실행 기록, 결과와 후보 사진을 모두 영구 삭제합니다. 원본 전교투표에는 영향을 주지 않습니다.
-        <% else %>
-          이 전교투표의 학급 Session, 재투표 이력, 실행 기록, 결과와 모든 테스트투표를 함께 영구 삭제합니다.
-        <% end %>
+        이 테스트투표의 학급 Session, 재투표 이력, 실행 기록, 결과와 후보 사진을 모두 영구 삭제합니다. 원본 전교투표에는 영향을 주지 않습니다.
       </p>
 
       <% if policy(@poll).force_schoolwide_destroy_confirmation? %>
@@ -109,14 +58,12 @@
                           class: "rounded-md bg-rose-800 px-4 py-2 text-sm font-semibold text-white" %>
         <% end %>
       <% else %>
-        <%= button_to(@poll.test_run? ? "테스트투표 삭제" : "전교투표 삭제",
-                      school_poll_path(@poll), method: :delete,
+        <%= button_to "테스트투표 삭제", school_poll_path(@poll), method: :delete,
                       form: { data: { turbo_frame: "_top" } },
                       data: { turbo_confirm: "관련 학급 Session, 재투표와 결과를 모두 영구 삭제할까요?" },
-                      class: "mt-4 rounded-md bg-rose-700 px-4 py-2 text-sm font-semibold text-white") %>
+                      class: "mt-4 rounded-md bg-rose-700 px-4 py-2 text-sm font-semibold text-white" %>
       <% end %>
     </section>
-  <% elsif !@poll.test_run? && (@poll.closed? || @poll.archived?) %>
-    <p class="text-sm text-stone-600">정상 종료된 전교투표는 보존되며 초기화하거나 삭제할 수 없습니다.</p>
   <% end %>
+
 </div>

@@ -17,13 +17,23 @@ class SchoolPollOptionsController < ApplicationController
     @option.poll = @poll
 
     if @option.save
+      broadcast_schoolwide_status
       if photo_uploaded && !process_photo_variants(@option)
-        redirect_to school_poll_path(@poll), alert: "#{option_label}는 추가했지만 사진 변환에 실패했습니다. 사진을 다시 확인해 주세요."
+        respond_to do |format|
+          format.turbo_stream { render_updated_contest }
+          format.html { redirect_to school_poll_path(@poll), alert: "#{option_label}는 추가했지만 사진 변환에 실패했습니다. 사진을 다시 확인해 주세요." }
+        end
       else
-        redirect_to school_poll_path(@poll), notice: "#{option_label}를 추가했습니다."
+        respond_to do |format|
+          format.turbo_stream { render_updated_contest }
+          format.html { redirect_to school_poll_path(@poll), notice: "#{option_label}를 추가했습니다." }
+        end
       end
     else
-      render :new, status: :unprocessable_entity
+      respond_to do |format|
+        format.turbo_stream { render :new, formats: :html, status: :unprocessable_entity }
+        format.html { render :new, status: :unprocessable_entity }
+      end
     end
   end
 
@@ -36,22 +46,40 @@ class SchoolPollOptionsController < ApplicationController
 
     if @option.update(attributes)
       @option.photo.purge if remove_photo && @option.photo.attached?
+      broadcast_schoolwide_status
       if photo_uploaded && !process_photo_variants(@option)
-        redirect_to school_poll_path(@poll), alert: "#{option_label}는 수정했지만 사진 변환에 실패했습니다. 사진을 다시 확인해 주세요."
+        respond_to do |format|
+          format.turbo_stream { render_updated_option }
+          format.html { redirect_to school_poll_path(@poll), alert: "#{option_label}는 수정했지만 사진 변환에 실패했습니다. 사진을 다시 확인해 주세요." }
+        end
       else
-        redirect_to school_poll_path(@poll), notice: "#{option_label}를 수정했습니다."
+        respond_to do |format|
+          format.turbo_stream { render_updated_option }
+          format.html { redirect_to school_poll_path(@poll), notice: "#{option_label}를 수정했습니다." }
+        end
       end
     else
-      render :edit, status: :unprocessable_entity
+      respond_to do |format|
+        format.turbo_stream { render :edit, formats: :html, status: :unprocessable_entity }
+        format.html { render :edit, status: :unprocessable_entity }
+      end
     end
   end
 
   def destroy
     @option.destroy!
-    redirect_to school_poll_path(@poll), notice: "#{option_label}를 삭제했습니다."
+    broadcast_schoolwide_status
+    respond_to do |format|
+      format.turbo_stream { render turbo_stream: turbo_stream.remove(@option) }
+      format.html { redirect_to school_poll_path(@poll), notice: "#{option_label}를 삭제했습니다." }
+    end
   end
 
   private
+
+  def broadcast_schoolwide_status
+    Polls::BroadcastSchoolwideSessionState.for_poll(poll: @poll)
+  end
 
   def set_poll
     @poll = PollPolicy::SchoolScope.new(current_user, Poll)
@@ -106,5 +134,27 @@ class SchoolPollOptionsController < ApplicationController
       "option_id=#{option.id} error=#{error.class}: #{error.message}"
     )
     false
+  end
+
+  def render_updated_option
+    render turbo_stream: [
+      turbo_stream.replace(
+        @option,
+        partial: "school_polls/option",
+        locals: { poll: @poll, contest: @contest, option: @option }
+      ),
+      turbo_stream.update("school_poll_modal", "")
+    ]
+  end
+
+  def render_updated_contest
+    render turbo_stream: [
+      turbo_stream.replace(
+        @contest,
+        partial: "school_polls/contest",
+        locals: { poll: @poll, contest: @contest.reload }
+      ),
+      turbo_stream.update("school_poll_modal", "")
+    ]
   end
 end

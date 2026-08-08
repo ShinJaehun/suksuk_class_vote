@@ -34,11 +34,12 @@ RSpec.describe "School Poll lifecycle controls", type: :request do
                             status: :stopped)
     sign_in manager
 
-    get school_poll_path(draft_source)
+    get edit_school_poll_path(draft_source)
     expect(response.body).to include("전교투표 삭제", school_poll_path(draft_source))
-    get school_poll_path(closed_source)
+    get edit_school_poll_path(closed_source)
     expect(response.body).not_to include("전교투표 삭제", "전교투표 전체 초기화")
     expect(response.body).to include("정상 종료된 전교투표는 보존")
+    # Test Poll은 별도 설정 페이지가 없으므로 삭제 action은 상세 화면에 남는다.
     get school_poll_path(test_poll)
     expect(response.body).to include("테스트투표 삭제", school_poll_path(test_poll))
   end
@@ -81,7 +82,7 @@ RSpec.describe "School Poll lifecycle controls", type: :request do
     poll = create_poll(school: create(:school), actor: admin, status: :in_progress)
     sign_in admin
 
-    get school_poll_path(poll)
+    get edit_school_poll_path(poll)
     expect(response.body).to include("영구 삭제", "확인을 위해 전교투표 이름을 입력하세요.")
     delete school_poll_path(poll), params: { confirmation_title: "wrong" }
     expect(poll.reload).to be_persisted
@@ -153,6 +154,10 @@ RSpec.describe "School Poll lifecycle controls", type: :request do
                                                          archived_at: source.closed_at)
     get school_poll_path(child)
     expect(response.body).to include("테스트투표가 중단되었습니다.")
+    status_counts = Nokogiri::HTML(response.body).at_css(
+      "##{ActionView::RecordIdentifier.dom_id(child, :schoolwide_status_counts)}"
+    )
+    expect(status_counts.css("dt").map { |label| label.text.strip }).not_to include("중단")
     expect(response.body).to include(results_school_poll_path(child))
     expect(response.body).not_to include("테스트투표 시작", "전교투표 전체 초기화")
     get results_school_poll_path(child)

@@ -95,6 +95,9 @@ module Polls
       if contests.any? { |contest| contest.poll_options.size < 2 }
         issues << "각 투표 항목에 선택지가 2개 이상 필요합니다."
       end
+      if contests.any? { |contest| contest.poll_options.map(&:number).compact.uniq.size != contest.poll_options.size }
+        issues << "같은 투표 항목에 중복된 번호가 있습니다."
+      end
       issues << "배정된 학급 투표가 1개 이상 필요합니다." if sessions.empty?
       issues << "모든 학급 투표가 준비 상태여야 합니다." if sessions.any? { |session| !session.draft? }
       if sessions.any? { |session| session.classroom&.teacher.blank? }
@@ -102,7 +105,10 @@ module Polls
       end
 
       sessions.each do |poll_session|
-        check = Polls::SessionStatusCheck.new(poll_session: poll_session).call
+        check = Polls::SessionStatusCheck.new(
+          poll_session: poll_session,
+          include_poll_definition: false
+        ).call
         check.issues.each do |issue|
           issues << "#{poll_session.classroom_name_snapshot}: #{issue}"
         end

@@ -2,6 +2,7 @@ require "rails_helper"
 
 RSpec.describe "School Poll definition management", type: :request do
   include Devise::Test::IntegrationHelpers
+  include ActionCable::TestHelper
 
   def school_poll(school: create(:school), kind: :election)
     create(
@@ -119,6 +120,66 @@ RSpec.describe "School Poll definition management", type: :request do
              params: { poll_contest: { title: "" } }
       end.not_to change(PollContest, :count)
       expect(response).to have_http_status(:unprocessable_content)
+
+      post school_poll_contests_path(poll),
+           params: { poll_contest: { title: "" } }, as: :turbo_stream
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include(%(id="school_poll_modal"), "poll_contest[title]")
+    end
+
+    it "broadcasts the Poll status runtime after every successful Contest change" do
+      stream = Turbo::StreamsChannel.send(:stream_name_from, [poll, :schoolwide_runtime])
+
+      expect do
+        post school_poll_contests_path(poll), params: { poll_contest: { title: "방송 항목" } }
+      end.to change { broadcasts(stream).size }.by(1)
+      contest = poll.poll_contests.find_by!(title: "방송 항목")
+
+      expect do
+        patch school_poll_contest_path(poll, contest), params: { poll_contest: { title: "수정 항목" } }
+      end.to change { broadcasts(stream).size }.by(1)
+      expect do
+        delete school_poll_contest_path(poll, contest)
+      end.to change { broadcasts(stream).size }.by(1)
+
+      expect(broadcasts(stream).join).to include(
+        ActionView::RecordIdentifier.dom_id(poll, :schoolwide_status_runtime)
+      )
+    end
+
+    it "updates and removes a Contest with Turbo Stream while keeping HTML fallback" do
+      post school_poll_contests_path(poll),
+           params: { poll_contest: { title: "새 항목" } }, as: :turbo_stream
+      contest = poll.poll_contests.find_by!(title: "새 항목")
+      expect(response.body).to include(
+        %(action="replace" target="contests_poll_#{poll.id}"),
+        %(action="update" target="school_poll_modal")
+      )
+
+      patch school_poll_contest_path(poll, contest),
+            params: { poll_contest: { title: "수정한 항목" } }, as: :turbo_stream
+      expect(response).to have_http_status(:ok)
+      expect(response.media_type).to eq("text/vnd.turbo-stream.html")
+      expect(response.body).to include(
+        %(action="replace" target="poll_contest_#{contest.id}"),
+        %(action="update" target="school_poll_modal"),
+        "수정한 항목"
+      )
+
+      patch school_poll_contest_path(poll, contest),
+            params: { poll_contest: { title: "" } }, as: :turbo_stream
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include(%(id="school_poll_modal"), "poll_contest[title]")
+      expect(Nokogiri::HTML(response.body).at_css("a[href='#{school_poll_path(poll)}']")["data-turbo-frame"]).to be_nil
+
+      delete school_poll_contest_path(poll, contest), as: :turbo_stream
+      expect(response.body).to include(%(action="remove" target="poll_contest_#{contest.id}"))
+
+      html_contest = create(:poll_contest, poll: poll, position: 2)
+      patch school_poll_contest_path(poll, html_contest), params: { poll_contest: { title: "HTML 수정" } }
+      expect(response).to redirect_to(school_poll_path(poll))
+      delete school_poll_contest_path(poll, html_contest)
+      expect(response).to redirect_to(school_poll_path(poll))
     end
   end
 
@@ -152,11 +213,81 @@ RSpec.describe "School Poll definition management", type: :request do
       end.not_to change(PollOption, :count)
       expect(response).to have_http_status(:unprocessable_content)
 
+      post school_poll_contest_options_path(poll, contest),
+           params: { poll_option: { number: 1, name: "중복" } }, as: :turbo_stream
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include(%(id="school_poll_modal"), "poll_option[number]")
+
       other_contest = create(:poll_contest, poll: poll, position: 2)
       expect do
         post school_poll_contest_options_path(poll, other_contest),
              params: { poll_option: { number: 1, name: "다른 항목" } }
       end.to change(PollOption, :count).by(1)
+    end
+
+    it "updates start issues and actions through Poll-level Option broadcasts" do
+      teacher = create(:user)
+      create(:school_membership, school: poll.school, user: teacher)
+      classroom = create(:classroom, school: poll.school, teacher: teacher)
+      create(:student, classroom: classroom)
+      create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
+      first = create(:poll_option, poll: poll, poll_contest: contest, number: 1)
+      stream = Turbo::StreamsChannel.send(:stream_name_from, [poll, :schoolwide_runtime])
+      target = ActionView::RecordIdentifier.dom_id(poll, :schoolwide_status_runtime)
+
+      expect do
+        post school_poll_contest_options_path(poll, contest),
+             params: { poll_option: { number: 2, name: "두 번째 후보" } }
+      end.to change { broadcasts(stream).size }.by(1)
+      second = contest.poll_options.find_by!(number: 2)
+      payload = broadcasts(stream).reverse.find { |broadcast| broadcast.include?(target) }
+      expect(payload).to include("전교투표를 시작할 수 있습니다.", "테스트투표 만들기", "전교투표 시작")
+      expect(payload).not_to include("각 투표 항목에 선택지가 2개 이상 필요합니다.")
+
+      expect do
+        delete school_poll_contest_option_path(poll, contest, second)
+      end.to change { broadcasts(stream).size }.by(1)
+      payload = broadcasts(stream).reverse.find { |broadcast| broadcast.include?(target) }
+      expect(payload).to include("각 투표 항목에 선택지가 2개 이상 필요합니다.")
+      expect(payload).not_to include(start_school_poll_path(poll), school_poll_test_polls_path(poll))
+      expect(first.reload).to be_present
+    end
+
+    it "updates and removes an Option with Turbo Stream while keeping HTML fallback" do
+      post school_poll_contest_options_path(poll, contest),
+           params: { poll_option: { number: 1, name: "새 후보" } }, as: :turbo_stream
+      expect(response.body).to include(
+        %(action="replace" target="poll_contest_#{contest.id}"),
+        %(action="update" target="school_poll_modal"),
+        "새 후보"
+      )
+
+      option = contest.poll_options.find_by!(name: "새 후보")
+
+      patch school_poll_contest_option_path(poll, contest, option),
+            params: { poll_option: { number: 2, name: "수정한 후보" } }, as: :turbo_stream
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include(
+        %(action="replace" target="poll_option_#{option.id}"),
+        %(action="update" target="school_poll_modal"),
+        "수정한 후보"
+      )
+
+      patch school_poll_contest_option_path(poll, contest, option),
+            params: { poll_option: { number: nil, name: "" } }, as: :turbo_stream
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include(%(id="school_poll_modal"), "poll_option[name]")
+      expect(Nokogiri::HTML(response.body).at_css("a[href='#{school_poll_path(poll)}']")["data-turbo-frame"]).to be_nil
+
+      delete school_poll_contest_option_path(poll, contest, option), as: :turbo_stream
+      expect(response.body).to include(%(action="remove" target="poll_option_#{option.id}"))
+
+      html_option = create(:poll_option, poll: poll, poll_contest: contest, number: 3)
+      patch school_poll_contest_option_path(poll, contest, html_option),
+            params: { poll_option: { number: 4, name: "HTML 후보" } }
+      expect(response).to redirect_to(school_poll_path(poll))
+      delete school_poll_contest_option_path(poll, contest, html_option)
+      expect(response).to redirect_to(school_poll_path(poll))
     end
   end
 
@@ -557,12 +688,12 @@ RSpec.describe "School Poll definition management", type: :request do
 
     it "shows the test tool only to admins with an empty editable Election" do
       sign_in admin
-      get school_poll_path(poll)
+      get edit_school_poll_path(poll)
 
       expect(response.body).to include(
-        "테스트 도구",
+        "관리 편의",
         "테스트 후보 50명 만들기",
-        "회장 4명, 부회장 8명, 5학년 부회장 15명, 4학년 부회장 23명을 사진 없이 생성합니다.",
+        "테스트용 선거 항목 4개와 후보 50명을 사진 없이 생성합니다.",
         "테스트용 선거 항목 4개와 후보 50명을 만들까요?"
       )
 
@@ -601,16 +732,32 @@ RSpec.describe "School Poll definition management", type: :request do
 
       get school_poll_path(election)
       expect(election.poll_contests).to be_empty
-      expect(response.body).to include("선거 항목 관리", "선거 항목 추가")
+      expect(response.body).to include("투표 항목 관리", "투표 항목 추가", "투표 설정")
+      expect(response.body).not_to include("선거 항목 관리", "선거 항목 추가", "선거 설정")
       expect(response.body).not_to include("후보자 추가")
 
-      create(:poll_contest, poll: election, title: "회장 선거", position: 1)
+      contest = create(:poll_contest, poll: election, title: "회장 선거", position: 1)
+      option = create(:poll_option, poll: election, poll_contest: contest)
       get school_poll_path(election)
       expect(response.body).to include("후보자 추가")
+      page = Nokogiri::HTML(response.body)
+      contest_section = page.css("section").find do |section|
+        section.at_css("h2")&.text&.strip == "투표 항목 관리"
+      end
+      expect(contest_section.to_html).not_to include("선거 항목과 후보자를 관리합니다.", "turbo-confirm")
+      modal_paths = [
+        new_school_poll_contest_path(election),
+        edit_school_poll_contest_path(election, contest),
+        new_school_poll_contest_option_path(election, contest),
+        edit_school_poll_contest_option_path(election, contest, option)
+      ]
+      modal_paths.each do |path|
+        expect(page.at_css("a[href='#{path}']")["data-turbo-frame"]).to eq("school_poll_modal")
+      end
 
       create(:poll_contest, poll: discussion, title: "급식 의견", position: 1)
       get school_poll_path(discussion)
-      expect(response.body).to include("토의 주제 관리", "의견 추가")
+      expect(response.body).to include("투표 항목 관리", "의견 추가")
 
       expect(election.reload.poll_contests).to be_present
       regular_poll = create(:poll, participant_group: create(:participant_group, :with_participant_slot))

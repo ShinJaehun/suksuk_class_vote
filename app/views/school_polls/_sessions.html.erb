@@ -1,6 +1,6 @@
 <%= tag.section id: dom_id(poll, :sessions),
                 class: "space-y-5 rounded-xl border border-stone-200 bg-white p-6 shadow-sm" do %>
-  <h2 class="text-xl font-semibold">학급 Session</h2>
+  <h2 class="text-xl font-semibold">학급 세션</h2>
 
   <% if local_assigns[:message].present? %>
     <p class="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800"><%= message %></p>
@@ -15,17 +15,16 @@
         <h3 class="font-semibold">배정 가능 학급</h3>
         <% if assignable_classrooms.any? %>
               <% assignable_classrooms.group_by(&:grade).sort_by { |grade, _| grade }.each do |grade, classrooms| %>
-                <fieldset class="space-y-2 rounded-md border border-stone-200 bg-stone-50 p-3"
-                          data-controller="classroom-group-picker">
-                  <legend class="px-1 font-medium"><%= grade %>학년</legend>
-                  <label class="flex items-center gap-3 rounded-md border border-stone-200 bg-white p-3 font-medium">
+                <section class="space-y-3 rounded-lg border border-stone-300 bg-stone-50 p-4"
+                         data-controller="classroom-group-picker">
+                  <label class="flex items-center gap-3 font-semibold">
                     <input type="checkbox" class="rounded border-stone-300"
                            data-classroom-group-picker-target="all"
                            data-action="classroom-group-picker#toggleAll">
                     <span><%= grade %>학년 전체</span>
                   </label>
                   <% classrooms.each do |classroom| %>
-                    <label class="flex items-center gap-3 rounded-md bg-white p-3">
+                    <label class="flex items-center gap-3 rounded-md border border-stone-200 bg-white p-3 shadow-sm">
                       <%= check_box_tag "classroom_ids[]", classroom.id, false,
                                         class: "rounded border-stone-300",
                                         data: { classroom_group_picker_target: "item",
@@ -35,7 +34,7 @@
                         · 학생 <%= assignable_classroom_student_counts.fetch(classroom.id, 0) %>명</span>
                     </label>
                   <% end %>
-                </fieldset>
+                </section>
               <% end %>
         <% else %>
           <p class="rounded-md border border-dashed border-stone-300 bg-stone-50 p-3 text-sm text-stone-600">추가로 배정할 수 있는 학급이 없습니다.</p>
@@ -64,60 +63,27 @@
   <% end %>
 
   <% if current_sessions.any? %>
-    <div class="space-y-3">
-      <h3 class="font-semibold">이미 배정된 학급 Session</h3>
+    <div class="space-y-4">
+      <h3 class="font-semibold">배정된 학급 세션</h3>
       <% current_sessions.group_by { |session| session.classroom.grade }.sort_by { |grade, _| grade }.each do |grade, sessions| %>
-        <section class="space-y-2 rounded-md border border-stone-200 p-3">
+        <section class="space-y-3 rounded-lg border border-stone-300 bg-stone-50 p-4">
           <% grade_unassignable = sessions.all?(&:unassignable_from_draft_poll?) %>
           <div class="flex items-center justify-between gap-3">
-            <h4 class="font-medium"><%= grade %>학년</h4>
+            <h4 class="text-lg font-semibold"><%= grade %>학년 전체</h4>
             <% if grade_unassignable %>
               <%= button_to "#{grade}학년 배정 해제",
                             destroy_grade_school_poll_poll_sessions_path(poll, grade: grade),
                             method: :delete,
-                            data: { turbo_confirm: "#{grade}학년 학급 세션 #{sessions.size}개의 배정을 해제할까요?" },
                             class: "text-sm font-medium text-rose-700 underline" %>
             <% end %>
           </div>
           <% sessions.each do |session| %>
-            <% voter_count = session.draft? && !session.replacement? ? session.classroom.students.count(&:active?) : session.poll_participants.size %>
-            <div class="flex flex-col gap-3 rounded-md bg-stone-50 p-3 sm:flex-row sm:items-center sm:justify-between">
-              <div class="space-y-1">
-                <div class="flex flex-wrap items-center gap-2">
-                  <h5 class="font-medium"><%= session.classroom_name_snapshot %></h5>
-                  <%= poll_replacement_badge if session.replacement? %>
-                  <%= poll_session_status_badge(session) %>
-                </div>
-                <p class="text-sm text-stone-600">담당 교사 <%= session.operator_name_snapshot %> · 투표자 <%= voter_count %>명</p>
-                <% session_time_labels = poll_session_status_time_labels(session) %>
-                <% if session_time_labels.any? %>
-                  <p class="text-sm text-stone-600"><%= session_time_labels.join(" · ") %></p>
-                <% end %>
-              </div>
-              <div class="flex items-center gap-3">
-                <% if policy(session).school_revote? %>
-                  <%= button_to "학급 재투표 준비",
-                                revote_school_poll_poll_session_path(poll, session),
-                                method: :post,
-                                form: { data: { turbo_frame: "_top" } },
-                                data: { turbo_confirm: "이 학급의 기존 기록을 보존하고 재투표를 준비할까요?" },
-                                class: "text-sm font-medium text-rose-700 underline" %>
-                <% end %>
-                <%= link_to "상세", poll_poll_session_path(poll, session), class: "text-sm font-medium underline" %>
-                <% if session.unassignable_from_draft_poll? %>
-                  <%= button_to "배정 해제",
-                                school_poll_poll_session_path(poll, session),
-                                method: :delete,
-                                data: { turbo_confirm: "이 학급 세션의 배정을 해제할까요?" },
-                                class: "text-sm font-medium text-rose-700 underline" %>
-                <% end %>
-              </div>
-            </div>
+            <%= render "school_polls/session_runtime", poll: poll, session: session %>
           <% end %>
         </section>
       <% end %>
     </div>
   <% else %>
-    <p class="text-sm text-stone-600">배정된 학급 투표가 없습니다.</p>
+    <p class="rounded-md border border-dashed border-stone-300 bg-stone-50 p-4 text-sm text-stone-600">아직 배정된 학급 세션이 없습니다.</p>
   <% end %>
 <% end %>

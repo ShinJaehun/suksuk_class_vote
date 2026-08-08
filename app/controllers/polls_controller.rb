@@ -10,7 +10,7 @@ class PollsController < ApplicationController
       .select(:id)
     visible_source_session_ids = base_poll_sessions.current_execution.joins(:poll)
       .where(polls: { school_managed: true, test_source_poll_id: nil,
-                      status: %i[draft in_progress] })
+                      status: :in_progress })
       .where.not(status: :stopped)
       .select(:id)
     visible_test_session_ids = base_poll_sessions.current_execution.joins(:poll)

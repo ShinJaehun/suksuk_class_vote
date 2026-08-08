@@ -19,6 +19,10 @@ class PollSession < ApplicationRecord
 
   enum :status, { draft: 0, in_progress: 10, closed: 20, stopped: 30 }
 
+  after_create_commit :broadcast_schoolwide_runtime, if: :school_managed_poll?
+  after_update_commit :broadcast_schoolwide_runtime,
+                      if: -> { school_managed_poll? && saved_change_to_status? }
+
   scope :current_execution, -> { where.missing(:replacement_session) }
 
   validates :status, presence: true
@@ -45,7 +49,31 @@ class PollSession < ApplicationRecord
       poll_option_tallies.empty? && poll_contest_tallies.empty? && poll_events.empty?
   end
 
+  def readiness_voter_count
+    draft? && !replacement? ? classroom.students.where(active: true).count : poll_participants.count
+  end
+
+  def schoolwide_revote_available?
+    return false unless poll.school_managed? && poll.in_progress?
+    return false unless poll.schoolwide_runtime_available?
+    return false unless in_progress? || closed?
+    return false if archived_at.present? || replacement_session.present?
+
+    !poll.poll_sessions.where(
+      classroom: classroom,
+      status: %i[draft in_progress]
+    ).where.not(id: id).exists?
+  end
+
   private
+
+  def school_managed_poll?
+    poll&.school_managed?
+  end
+
+  def broadcast_schoolwide_runtime
+    Polls::BroadcastSchoolwideSessionState.new(poll: poll, classroom: classroom).call
+  end
 
   def poll_and_classroom_must_share_school
     return if poll.blank? || classroom.blank?

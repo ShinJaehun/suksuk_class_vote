@@ -1,0 +1,64 @@
+<%= tag.div id: dom_id(poll, :schoolwide_status_runtime), class: "space-y-4" do %>
+  <% lifecycle_name = poll_lifecycle_name(poll) %>
+  <% issues = poll.draft? ? status_check.start_issues : status_check.close_issues %>
+
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div>
+      <div class="flex flex-wrap items-center gap-2">
+        <h2 class="text-xl font-semibold">상태점검</h2>
+        <%= poll_status_badge(poll) %>
+      </div>
+      <% poll_time_labels = poll_status_time_labels(poll).map { |label| label.sub(/\A(?:전교투표|테스트투표) /, "") } %>
+      <% if poll_time_labels.any? %>
+        <p class="mt-2 text-sm text-stone-600" data-testid="school-poll-lifecycle-times">
+          <%= poll_time_labels.join(" · ") %>
+        </p>
+      <% end %>
+    </div>
+    <div class="flex flex-wrap items-center gap-3" data-testid="schoolwide-status-actions">
+      <% if poll.draft? && status_check.startable? && poll.schoolwide_runtime_available? %>
+        <% if !poll.test_run? && poll.archived_at.blank? %>
+          <%= link_to "테스트투표 만들기", school_poll_test_polls_path(poll),
+                      data: { turbo_method: :post },
+                      class: "rounded-md border border-stone-300 bg-white px-4 py-3 text-sm font-semibold text-stone-700" %>
+        <% end %>
+        <%= link_to "#{lifecycle_name} 시작", start_school_poll_path(poll),
+                    data: { turbo_method: :post, turbo_confirm: "#{lifecycle_name}를 시작할까요? 시작 후 항목과 학급 배정을 변경할 수 없습니다." },
+                    class: "rounded-md bg-emerald-600 px-5 py-3 text-sm font-semibold text-white" %>
+      <% elsif poll.in_progress? %>
+        <% if status_check.closable? %>
+          <%= link_to "#{lifecycle_name} 종료", close_school_poll_path(poll),
+                      data: { turbo_method: :post, turbo_confirm: "모든 학급 결과를 확인하고 #{lifecycle_name}를 종료할까요?" },
+                      class: "rounded-md bg-stone-900 px-5 py-3 text-sm font-semibold text-white" %>
+        <% elsif poll.archived_at.blank? %>
+          <%= link_to "#{lifecycle_name} 중단", stop_school_poll_path(poll),
+                      data: { turbo_method: :post, turbo_frame: "_top", turbo_confirm: "#{lifecycle_name}를 중단할까요? 정상 종료되지 않은 학급 투표도 함께 중단됩니다." },
+                      class: "rounded-md bg-rose-700 px-4 py-2 text-sm font-semibold text-white" %>
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+
+  <%= render "school_polls/status_counts",
+             poll: poll,
+             current_session_counts: current_session_counts,
+             current_session_total: current_session_total,
+             history_session_count: history_session_count %>
+
+  <% if poll.stopped? %>
+    <p class="font-medium text-rose-700"><%= lifecycle_name %>가 중단되었습니다.</p>
+  <% elsif !poll.closed? && issues.any? %>
+    <div class="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+      <p class="font-medium"><%= poll.draft? ? "시작 전 확인이 필요합니다." : "종료 전 확인이 필요합니다." %></p>
+      <ul class="mt-2 list-disc space-y-1 pl-5">
+        <% issues.each do |issue| %>
+          <li><%= issue %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% elsif poll.closed? %>
+    <p class="font-medium text-emerald-700"><%= lifecycle_name %>가 종료되었습니다.</p>
+  <% else %>
+    <p class="font-medium text-emerald-700"><%= poll.draft? ? "#{lifecycle_name}를 시작할 수 있습니다." : "모든 학급 투표가 종료되었습니다." %></p>
+  <% end %>
+<% end %>

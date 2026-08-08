@@ -1,9 +1,9 @@
-<%= render "poll_definitions/option_form",
-           poll: @poll,
-           contest: @contest,
-           option: @option,
-           form_url: school_poll_contest_option_path(@poll, @contest, @option),
-           heading_action: "수정",
-           submit_label: "저장",
-           cancel_path: school_poll_path(@poll),
-           photo_management_allowed: @poll.school_managed? && @poll.election? %>
+<%= turbo_frame_tag "school_poll_modal" do %>
+  <div class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-stone-950/40 p-4">
+    <%= render "poll_definitions/option_form",
+               poll: @poll, contest: @contest, option: @option,
+               form_url: school_poll_contest_option_path(@poll, @contest, @option), heading_action: "수정",
+               submit_label: "저장", cancel_path: school_poll_path(@poll),
+               photo_management_allowed: @poll.school_managed? && @poll.election? %>
+  </div>
+<% end %>

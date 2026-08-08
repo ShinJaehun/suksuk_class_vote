@@ -2,6 +2,11 @@ require "rails_helper"
 
 RSpec.describe "School Poll management", type: :request do
   include Devise::Test::IntegrationHelpers
+  include ActionCable::TestHelper
+
+  def turbo_stream_fragment(payload)
+    Nokogiri::HTML.fragment(ActiveSupport::JSON.decode(payload))
+  end
 
   def create_eligible_classroom(school:, teacher:, active_student: true)
     create(:school_membership, school: school, user: teacher) unless teacher.school_membership
@@ -59,17 +64,16 @@ RSpec.describe "School Poll management", type: :request do
       poll, session, manager, teacher = create_schoolwide_lifecycle
       sign_in manager
       get school_poll_path(poll)
-      expect(response.body).to include("전교투표 중단", "학급 재투표 준비")
-      expect(response.body).to include(
-        "전교투표 시작",
-        "투표 시작",
-        ApplicationController.helpers.kst_datetime(poll.started_at),
-        ApplicationController.helpers.kst_datetime(session.started_at)
-      )
+      expect(response.body).to include("전교투표 중단", "학급 재투표")
+      expect(response.body).not_to include("학급 재투표 준비")
+      lifecycle_times = Nokogiri::HTML(response.body).at_css("[data-testid='school-poll-lifecycle-times']").text
+      expect(lifecycle_times).to include("시작", ApplicationController.helpers.kst_datetime(poll.started_at))
+      expect(lifecycle_times).not_to include("전교투표")
+      expect(response.body).to include("투표 시작", ApplicationController.helpers.kst_datetime(session.started_at))
 
       sign_in teacher
       get poll_poll_session_path(poll, session)
-      expect(response.body).not_to include("투표 중단", "재투표 시작 준비", "학급 재투표 준비")
+      expect(response.body).not_to include("투표 중단", "재투표 시작 준비", "학급 재투표")
       expect { post stop_school_poll_path(poll) }.not_to change(PollEvent, :count)
 
       sign_in manager
@@ -78,24 +82,37 @@ RSpec.describe "School Poll management", type: :request do
       expect(poll.reload).to be_stopped
       expect(session.reload).to be_stopped
       get school_poll_path(poll)
-      expect(response.body).to include(
-        "전교투표 중단",
-        "투표 중단",
-        ApplicationController.helpers.kst_datetime(poll.stopped_at)
-      )
+      lifecycle_times = Nokogiri::HTML(response.body).at_css("[data-testid='school-poll-lifecycle-times']").text
+      expect(lifecycle_times).to include("중단", ApplicationController.helpers.kst_datetime(poll.stopped_at))
+      expect(lifecycle_times).not_to include("전교투표")
+      expect(response.body).to include("투표 중단")
     end
 
     it "shows Schoolwide classroom revote only on the School Poll page" do
       poll, session, manager, = create_schoolwide_lifecycle
+      draft_teacher = create(:user)
+      create(:school_membership, school: poll.school, user: draft_teacher)
+      draft_classroom = create(:classroom, school: poll.school, teacher: draft_teacher)
+      draft_session = create(:poll_session, poll: poll, classroom: draft_classroom, operator: draft_teacher)
+      closed_teacher = create(:user)
+      create(:school_membership, school: poll.school, user: closed_teacher)
+      closed_classroom = create(:classroom, school: poll.school, teacher: closed_teacher)
+      closed_session = create(:poll_session, poll: poll, classroom: closed_classroom, operator: closed_teacher,
+                                             status: :closed, started_at: 1.hour.ago, closed_at: Time.current)
       sign_in manager
 
       get poll_poll_session_path(poll, session)
 
-      expect(response.body).not_to include("학급 재투표 준비")
+      expect(response.body).not_to include("학급 재투표")
 
       get school_poll_path(poll)
 
-      expect(response.body).to include("학급 재투표 준비")
+      page = Nokogiri::HTML(response.body)
+      session_row = ->(target) { page.at_css("#school_poll_#{poll.id}_classroom_#{target.classroom_id}_runtime") }
+      expect(session_row.call(draft_session).text).not_to include("학급 재투표")
+      expect(session_row.call(session).text).to include("학급 재투표")
+      expect(session_row.call(closed_session).text).to include("학급 재투표")
+      expect(response.body).not_to include("학급 재투표 준비")
     end
 
     it "does not show a stopped timestamp for a running School Poll" do
@@ -105,8 +122,8 @@ RSpec.describe "School Poll management", type: :request do
       get school_poll_path(poll)
 
       lifecycle_times = Nokogiri::HTML(response.body).at_css("[data-testid='school-poll-lifecycle-times']").text
-      expect(lifecycle_times).to include("전교투표 시작")
-      expect(lifecycle_times).not_to include("전교투표 중단")
+      expect(lifecycle_times).to include("시작")
+      expect(lifecycle_times).not_to include("전교투표 시작", "중단")
     end
 
     it "creates a full-page same-Poll classroom replacement and rejects it after Poll stop" do
@@ -116,7 +133,9 @@ RSpec.describe "School Poll management", type: :request do
       post revote_school_poll_poll_session_path(poll, session)
       replacement = session.reload.replacement_session
 
-      expect(response).to redirect_to(poll_poll_session_path(poll, replacement))
+      expect(response).to redirect_to(
+        poll_poll_session_path(poll, replacement, from: "school_poll")
+      )
       expect(session).to be_stopped
       expect(replacement).to have_attributes(poll: poll, status: "draft")
 
@@ -124,6 +143,76 @@ RSpec.describe "School Poll management", type: :request do
       expect do
         post revote_school_poll_poll_session_path(poll, replacement)
       end.not_to change(PollSession, :count)
+    end
+
+    it "keeps the School Poll workspace open for a Turbo revote" do
+      poll, session, manager, = create_schoolwide_lifecycle
+      second_teacher = create(:user)
+      create(:school_membership, school: poll.school, user: second_teacher)
+      second_classroom = create(:classroom, school: poll.school, teacher: second_teacher)
+      second_session = create(:poll_session, poll: poll, classroom: second_classroom, operator: second_teacher,
+                                             status: :closed, started_at: 1.hour.ago, closed_at: 10.minutes.ago)
+      create(:poll_participant, poll: poll, poll_session: second_session, number: 1, name: "학생")
+      stream = Turbo::StreamsChannel.send(:stream_name_from, [poll, :schoolwide_runtime])
+      sign_in manager
+
+      post revote_school_poll_poll_session_path(poll, session),
+           headers: { "ACCEPT" => "text/vnd.turbo-stream.html" }
+
+      replacement = session.reload.replacement_session
+      expect(response).to have_http_status(:ok)
+      target = "school_poll_#{poll.id}_classroom_#{session.classroom_id}_runtime"
+      payload = broadcasts(stream).reverse.find { |broadcast| broadcast.include?(target) }
+      expect(payload).to include("재투표", "준비", poll_poll_session_path(poll, replacement))
+      expect(payload).not_to include("학급 재투표")
+
+      history_target = ActionView::RecordIdentifier.dom_id(poll, :revote_history)
+      history_payload = broadcasts(stream).reverse.find { |broadcast| broadcast.include?(history_target) }
+      expect(history_payload).to include(
+        "재투표 이력",
+        session.classroom_name_snapshot,
+        poll_poll_session_path(poll, session)
+      )
+      history_links = turbo_stream_fragment(history_payload).css("a").map { |link| link["href"] }
+      expect(history_links).to include(poll_poll_session_path(poll, session, from: "school_poll"))
+      expect(history_links).not_to include(poll_poll_session_path(poll, replacement, from: "school_poll"))
+
+      post revote_school_poll_poll_session_path(poll, second_session),
+           headers: { "ACCEPT" => "text/vnd.turbo-stream.html" }
+
+      second_replacement = second_session.reload.replacement_session
+      expect(second_session).to be_closed
+      expect(second_replacement).to be_draft
+
+      second_target = "school_poll_#{poll.id}_classroom_#{second_session.classroom_id}_runtime"
+      second_payload = broadcasts(stream).reverse.find { |broadcast| broadcast.include?(second_target) }
+      second_fragment = turbo_stream_fragment(second_payload)
+      expect(second_fragment.text.squish).to include("재투표", "준비")
+      expect(second_fragment.text.squish).not_to include("종료")
+      expect(second_fragment.text.squish).not_to include("학급 재투표")
+      second_links = second_fragment.css("a").map { |link| link["href"] }
+      expect(second_links).to include(poll_poll_session_path(poll, second_replacement, from: "school_poll"))
+      expect(second_links).not_to include(poll_poll_session_path(poll, second_session, from: "school_poll"))
+
+      status_target = ActionView::RecordIdentifier.dom_id(poll, :schoolwide_status_runtime)
+      status_payload = broadcasts(stream).reverse.find { |broadcast| broadcast.include?(status_target) }
+      expect(turbo_stream_fragment(status_payload).text.squish).to include(
+        "전체 학급 2", "준비 2", "진행 중 0", "종료 0", "재투표 이력 2"
+      )
+
+      history_payload = broadcasts(stream).reverse.find { |broadcast| broadcast.include?(history_target) }
+      history_fragment = turbo_stream_fragment(history_payload)
+      history_links = history_fragment.css("a").map { |link| link["href"] }
+      expect(history_links).to include(
+        poll_poll_session_path(poll, session, from: "school_poll"),
+        poll_poll_session_path(poll, second_session, from: "school_poll")
+      )
+      expect(history_links).not_to include(poll_poll_session_path(poll, replacement, from: "school_poll"))
+      expect(history_links).not_to include(poll_poll_session_path(poll, second_replacement, from: "school_poll"))
+      closed_history_link = history_fragment.at_css(
+        "a[href='#{poll_poll_session_path(poll, second_session, from: "school_poll")}']"
+      )
+      expect(closed_history_link.ancestors("div").first.text.squish).to include("종료")
     end
 
     it "allows the manager to replace a closed classroom while the School Poll is running" do
@@ -135,7 +224,9 @@ RSpec.describe "School Poll management", type: :request do
       post revote_school_poll_poll_session_path(poll, session)
       replacement = session.reload.replacement_session
 
-      expect(response).to redirect_to(poll_poll_session_path(poll, replacement))
+      expect(response).to redirect_to(
+        poll_poll_session_path(poll, replacement, from: "school_poll")
+      )
       expect(session).to have_attributes(
         status: "closed",
         stopped_at: nil
@@ -351,6 +442,74 @@ RSpec.describe "School Poll management", type: :request do
   end
 
   describe "GET /school_polls/:id" do
+    it "lists every unassigned active teacher-led Classroom even with no active Students" do
+      school = create(:school)
+      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      eligible = create_eligible_classroom(school: school, teacher: create(:user), active_student: false)
+      teacherless = create(:classroom, school: school, teacher: nil)
+      inactive = create_eligible_classroom(school: school, teacher: create(:user), active_student: false)
+      inactive.update!(active: false)
+      other_school = create_eligible_classroom(school: create(:school), teacher: create(:user), active_student: false)
+      assigned = create_eligible_classroom(school: school, teacher: create(:user), active_student: false)
+      create(:poll_session, poll: poll, classroom: assigned, operator: assigned.teacher)
+      sign_in create(:user, :admin)
+
+      get school_poll_path(poll)
+
+      page = Nokogiri::HTML(response.body)
+      assignable_ids = page.css("input[name='classroom_ids[]']").map { |input| input["value"].to_i }
+      expect(assignable_ids).to include(eligible.id)
+      expect(assignable_ids).not_to include(teacherless.id, inactive.id, other_school.id, assigned.id)
+      eligible_label = page.at_css("input[value='#{eligible.id}']").parent.text.squish
+      expect(eligible_label).to include("학생 0명")
+    end
+
+    it "shows voter-aware draft badges and every runtime Session status" do
+      school = create(:school)
+      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      sessions = {}
+      %i[empty ready in_progress closed stopped].each do |key|
+        teacher = create(:user)
+        create(:school_membership, school: school, user: teacher)
+        classroom = create(:classroom, school: school, teacher: teacher)
+        create(:student, classroom: classroom) if key == :ready
+        status = key.in?(%i[empty ready]) ? :draft : key
+        sessions[key] = create(
+          :poll_session,
+          poll: poll,
+          classroom: classroom,
+          operator: teacher,
+          status: status,
+          started_at: (1.hour.ago unless status == :draft),
+          closed_at: (Time.current if status == :closed),
+          stopped_at: (Time.current if status == :stopped)
+        )
+        if status != :draft
+          create(:poll_participant, poll: poll, poll_session: sessions[key], number: 1, name: "학생")
+        end
+      end
+      sign_in create(:user, :admin)
+
+      get school_poll_path(poll)
+      page = Nokogiri::HTML(response.body)
+      expect(page.at_css("turbo-cable-stream-source")).to be_present
+      runtime = sessions.transform_values do |session|
+        page.at_css("#school_poll_#{poll.id}_classroom_#{session.classroom_id}_runtime").text.squish
+      end
+
+      expect(runtime[:empty]).to include("투표자 0명")
+      expect(runtime[:empty]).not_to include("준비")
+      expect(runtime[:ready]).to include("준비", "투표자 1명")
+      expect(runtime[:in_progress]).to include("진행 중", "투표자 1명")
+      expect(runtime[:closed]).to include("종료", "투표자 1명")
+      expect(runtime[:stopped]).to include("중단", "투표자 1명")
+
+      status_counts = page.at_css("##{ActionView::RecordIdentifier.dom_id(poll, :schoolwide_status_counts)}")
+      expect(status_counts.css("dt").map { |label| label.text.strip }).to eq(
+        ["전체 학급", "준비", "진행 중", "종료", "재투표 이력"]
+      )
+    end
+
     it "renders a definition with no contests or Sessions and keeps Classroom assignment" do
       school = create(:school)
       classroom = create_eligible_classroom(school: school, teacher: create(:user))
@@ -361,7 +520,9 @@ RSpec.describe "School Poll management", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("등록된 투표 항목이 없습니다.")
-      expect(response.body).to include("배정된 학급 투표가 없습니다.")
+      expect(response.body).to include("아직 배정된 학급 세션이 없습니다.")
+      empty_state = Nokogiri::HTML(response.body).xpath("//p[contains(., '아직 배정된 학급 세션이 없습니다.')]").first
+      expect(empty_state["class"]).to include("border-dashed", "bg-stone-50", "text-stone-600")
       expect(response.body).to include("배정 가능 학급", classroom.formatted_class_label)
       expect(response.body).to include("상태점검")
       expect(response.body).not_to include("종료된 학급 투표 결과가 없습니다.")
@@ -385,6 +546,47 @@ RSpec.describe "School Poll management", type: :request do
         expect(response.body).to include("배정 가능 학급")
         sign_out actor
       end
+    end
+
+    it "keeps navigation outside the overview and shows lifecycle times only in status report" do
+      school = create(:school)
+      started_at = 2.hours.ago
+      polls = {
+        draft: create(:poll, school: school, school_managed: true, participant_group: nil),
+        running: create(:poll, school: school, school_managed: true, participant_group: nil,
+                              status: :in_progress, started_at: started_at),
+        stopped: create(:poll, school: school, school_managed: true, participant_group: nil,
+                              status: :stopped, started_at: started_at, stopped_at: 1.hour.ago),
+        closed: create(:poll, school: school, school_managed: true, participant_group: nil,
+                             status: :closed, started_at: started_at, closed_at: 30.minutes.ago)
+      }
+      sign_in create(:user, :admin)
+
+      get school_poll_path(polls[:draft])
+      page = Nokogiri::HTML(response.body)
+      overview = page.at_css("#school_overview_poll_#{polls[:draft].id}")
+      expect(overview.text).not_to include("전교투표 목록으로 돌아가기")
+      expect(page.text.scan("전교투표 목록으로 돌아가기").size).to eq(1)
+      expect(page.at_css("[data-testid='school-poll-lifecycle-times']")).to be_nil
+      expect(page.text).not_to include("진행 시간")
+
+      { running: ["시작"], stopped: ["시작", "중단"], closed: ["시작", "종료"] }.each do |state, labels|
+        get school_poll_path(polls.fetch(state))
+        page = Nokogiri::HTML(response.body)
+        lifecycle = page.at_css("#status_report_poll_#{polls.fetch(state).id} [data-testid='school-poll-lifecycle-times']")
+        expect(lifecycle.text).to include(*labels)
+        expect(lifecycle.text).not_to include("전교투표", "테스트투표")
+        expect(lifecycle.text).not_to include("진행 시간")
+      end
+    end
+
+    it "does not expose settings and destructive management tools on the operation page" do
+      poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil)
+      sign_in create(:user, :admin)
+
+      get school_poll_path(poll)
+
+      expect(response.body).not_to include("테스트 후보 50명 만들기", "전교투표 전체 초기화", "전교투표 삭제")
     end
 
     it "rejects another School manager" do
@@ -582,8 +784,8 @@ RSpec.describe "School Poll management", type: :request do
       get edit_school_poll_path(poll)
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("테스트 후보 50명 만들기")
-      expect(response.body).not_to include("선거 초기화", "후보 사진 전체 삭제", "학급 Session 일괄 삭제")
+      expect(response.body).to include("투표 설정", "테스트 후보 50명 만들기", "전교투표 전체 초기화", "전교투표 삭제")
+      expect(response.body).not_to include("후보 사진 전체 삭제", "학급 Session 일괄 삭제")
       badges = Nokogiri::HTML(response.body).at_css('[data-testid="poll-badges"]')
       expect(badges.text.squish).to eq("전교 선거 준비")
     end
@@ -597,7 +799,8 @@ RSpec.describe "School Poll management", type: :request do
 
       get edit_school_poll_path(poll)
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("전교투표 정보 수정", "선거 이름")
+      expect(response.body).to include("투표 설정", "투표 이름", "전교투표 전체 초기화", "전교투표 삭제")
+      expect(response.body).not_to include("선거 설정", "선거 이름")
 
       patch school_poll_path(poll), params: { poll: { title: "수정한 전교선거", school_id: create(:school).id } }
       expect(response).to redirect_to(school_poll_path(poll))
@@ -640,6 +843,9 @@ RSpec.describe "School Poll management", type: :request do
 
       get school_poll_path(poll)
       page = Nokogiri::HTML(response.body)
+      history_target = ActionView::RecordIdentifier.dom_id(poll, :revote_history)
+      expect(page.at_css("##{history_target}")).to be_present
+      expect(page.at_css("##{history_target} h2")).to be_nil
       expect(page.css("section").none? { |section| section.at_css("h2")&.text&.strip == "재투표 이력" }).to be(true)
 
       stopped = create_result_session(poll: poll, status: :stopped, classroom_name: "중단 1반")
@@ -649,12 +855,12 @@ RSpec.describe "School Poll management", type: :request do
       get school_poll_path(poll)
 
       page = Nokogiri::HTML(response.body)
-      expect(page.text.squish).to include("전체 학급 1", "준비 1", "재투표 이력 1")
-      session_card = page.css("section").find { |section| section.at_css("h2")&.text&.strip == "학급 Session" }
+      expect(page.text.squish).to include("전체 학급 1", "준비 0", "재투표 이력 1")
+      session_card = page.css("section").find { |section| section.at_css("h2")&.text&.strip == "학급 세션" }
       history_card = page.css("section").find { |section| section.at_css("h2")&.text&.strip == "재투표 이력" }
 
-      current_path = poll_poll_session_path(poll, current)
-      stopped_path = poll_poll_session_path(poll, stopped)
+      current_path = poll_poll_session_path(poll, current, from: "school_poll")
+      stopped_path = poll_poll_session_path(poll, stopped, from: "school_poll")
       session_links = session_card.css("a").map { |link| link["href"] }
       history_links = history_card.css("a").map { |link| link["href"] }
 
@@ -775,7 +981,15 @@ RSpec.describe "School Poll management", type: :request do
       poll = Poll.order(:created_at).last
       expect(poll).to be_survey
       get school_poll_path(poll)
-      expect(response.body).to include("설문조사", "설문 문항", "선택지")
+      expect(response.body).to include(
+        "설문조사",
+        "투표 항목 관리",
+        "투표 항목 추가"
+      )
+
+      create(:poll_contest, poll: poll, title: "만족도", position: 1)
+      get school_poll_path(poll)
+      expect(response.body).to include("선택지 추가")
     end
   end
 

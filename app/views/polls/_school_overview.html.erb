@@ -1,12 +1,14 @@
 <%= tag.section id: dom_id(poll, :school_overview),
                 class: "space-y-4 rounded-xl border border-stone-200 bg-white p-6 shadow-sm" do %>
   <% overview_sessions = local_assigns[:current_sessions] || local_assigns.fetch(:poll_sessions, []).reject(&:stopped?) %>
-  <%= link_to local_assigns.fetch(:back_label, "내 투표 목록으로 돌아가기"),
-              local_assigns.fetch(:back_path, polls_path),
-              class: "text-sm font-medium text-stone-700 underline" %>
-  <% if poll.test_run? %>
-    <%= link_to "원본 전교투표로 돌아가기", school_poll_path(poll.test_source_poll),
+  <% if local_assigns.fetch(:show_back_links, true) %>
+    <%= link_to local_assigns.fetch(:back_label, "내 투표 목록으로 돌아가기"),
+                local_assigns.fetch(:back_path, polls_path),
                 class: "text-sm font-medium text-stone-700 underline" %>
+    <% if poll.test_run? %>
+      <%= link_to "원본 전교투표로 돌아가기", school_poll_path(poll.test_source_poll),
+                  class: "text-sm font-medium text-stone-700 underline" %>
+    <% end %>
   <% end %>
 
   <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -16,7 +18,7 @@
     </div>
     <div class="flex flex-wrap gap-2">
       <% if poll.school_managed? && policy(poll).school_edit? %>
-        <%= link_to "선거 설정", edit_school_poll_path(poll),
+        <%= link_to "투표 설정", edit_school_poll_path(poll),
                     class: "rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700" %>
       <% end %>
       <% if poll.school_managed? && policy(poll).school_results? %>
@@ -26,15 +28,16 @@
     </div>
   </div>
 
-  <% candidate_summary = poll_contests.map { |contest| "#{contest.title} #{contest.poll_options.size}명" }.join(" · ") %>
+  <% choice_unit = poll.election? ? "명" : "개" %>
+  <% choice_summary = poll_contests.map { |contest| "#{contest.title} #{contest.poll_options.size}#{choice_unit}" }.join(" · ") %>
   <dl class="grid gap-3 sm:grid-cols-4">
     <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
       <dt class="text-xs font-medium text-stone-500">대상 학교</dt>
       <dd class="mt-1 font-semibold"><%= poll.school.name %></dd>
     </div>
     <div class="rounded-md border border-stone-200 bg-stone-50 p-3 sm:col-span-2">
-      <dt class="text-xs font-medium text-stone-500">후보 구성</dt>
-      <dd class="mt-1 font-semibold"><%= candidate_summary.presence || "등록된 투표 항목 없음" %></dd>
+      <dt class="text-xs font-medium text-stone-500"><%= poll.election? ? "후보 구성" : "#{poll.choice_label} 구성" %></dt>
+      <dd class="mt-1 font-semibold"><%= choice_summary.presence || "등록된 투표 항목 없음" %></dd>
     </div>
     <div class="grid grid-cols-2 gap-2">
       <div class="rounded-md border border-stone-200 bg-stone-50 p-3">

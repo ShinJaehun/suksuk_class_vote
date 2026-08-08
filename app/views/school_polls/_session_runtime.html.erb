@@ -1,0 +1,32 @@
+<%= tag.div id: "school_poll_#{poll.id}_classroom_#{session.classroom_id}_runtime",
+            class: "flex flex-col gap-3 rounded-md border border-stone-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between" do %>
+  <div class="space-y-1">
+    <% voter_count = session.readiness_voter_count %>
+    <div class="flex flex-wrap items-center gap-2">
+      <h5 class="font-medium"><%= session.classroom_name_snapshot %></h5>
+      <%= poll_replacement_badge if session.replacement? %>
+      <%= poll_session_status_badge(session) unless session.draft? && voter_count.zero? %>
+    </div>
+    <p class="text-sm text-stone-600">담당 교사 <%= session.operator_name_snapshot %> · 투표자 <%= voter_count %>명</p>
+    <% session_time_labels = poll_session_status_time_labels(session) %>
+    <% if session_time_labels.any? %>
+      <p class="text-sm text-stone-600"><%= session_time_labels.join(" · ") %></p>
+    <% end %>
+  </div>
+  <div class="flex items-center gap-3">
+    <% if session.schoolwide_revote_available? %>
+      <%= button_to "학급 재투표",
+                    revote_school_poll_poll_session_path(poll, session),
+                    method: :post,
+                    data: { turbo_confirm: "이 학급의 기존 기록을 보존하고 재투표를 준비할까요?" },
+                    class: "text-sm font-medium text-rose-700 underline" %>
+    <% end %>
+    <%= link_to "상세", poll_poll_session_path(poll, session, from: "school_poll"), class: "text-sm font-medium underline" %>
+    <% if session.unassignable_from_draft_poll? %>
+      <%= button_to "배정 해제",
+                    school_poll_poll_session_path(poll, session),
+                    method: :delete,
+                    class: "text-sm font-medium text-rose-700 underline" %>
+    <% end %>
+  </div>
+<% end %>

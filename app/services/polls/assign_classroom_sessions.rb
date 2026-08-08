@@ -67,13 +67,6 @@ module Polls
       errors << "다른 학교의 학급은 배정할 수 없습니다." if classrooms.any? { |classroom| classroom.school != poll.school }
       errors << "활성 학급만 배정할 수 있습니다." if classrooms.any? { |classroom| !classroom.active? }
       errors << "담임교사가 있는 학급만 배정할 수 있습니다." if classrooms.any? { |classroom| classroom.teacher.blank? }
-      active_classroom_ids = Student
-        .where(classroom_id: classroom_ids, active: true)
-        .distinct
-        .pluck(:classroom_id)
-      if classrooms.any? { |classroom| !active_classroom_ids.include?(classroom.id) }
-        errors << "활성 학생이 있는 학급만 배정할 수 있습니다."
-      end
       if poll.poll_sessions.where(classroom_id: classroom_ids).exists?
         errors << "이미 배정된 학급이 포함되어 있습니다."
       end

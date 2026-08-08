@@ -4,7 +4,8 @@
                       poll_session_progress_interval_value: 2500,
                       poll_session_progress_url_value: poll_poll_session_path(
                         @poll_session.poll,
-                        @poll_session
+                        @poll_session,
+                        poll_session_context_params(@poll_session, from: params[:from])
                       )
                     }
                   else
@@ -83,8 +84,8 @@
       <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
               data-testid="poll-session-header">
         <div>
-          <%= link_to "내 투표 목록으로 돌아가기",
-                      polls_path,
+          <%= link_to poll_session_back_label(@poll_session, from: params[:from]),
+                      poll_session_back_path(@poll_session, from: params[:from]),
                       data: { turbo_frame: "_top" },
                       class: "text-sm font-medium text-stone-700 underline" %>
           <h1 class="mt-3 text-2xl font-semibold">투표 운영 현황</h1>
@@ -126,8 +127,8 @@
                  status_check: @status_check %>
     <% elsif @poll_session.draft? %>
       <header data-testid="poll-session-header">
-        <%= link_to "내 투표 목록으로 돌아가기",
-                    polls_path,
+        <%= link_to poll_session_back_label(@poll_session, from: params[:from]),
+                    poll_session_back_path(@poll_session, from: params[:from]),
                     data: { turbo_frame: "_top" },
                     class: "text-sm font-medium text-stone-700 underline" %>
         <h1 class="mt-3 text-2xl font-semibold">투표 운영 현황</h1>
@@ -222,14 +223,17 @@
       <% else %>
         <%= render "poll_sessions/status_check_frame", poll_session: @poll_session, status_check: @status_check %>
       <% end %>
-      <%= render "poll_sessions/start_action_frame", poll_session: @poll_session, status_check: @status_check %>
+      <%= render "poll_sessions/start_action_frame",
+                 poll_session: @poll_session,
+                 status_check: @status_check,
+                 navigation_context: params[:from] %>
       <%= render "event_log", poll_events: @poll_events %>
     <% elsif @poll_session.closed? %>
       <%= render "poll_sessions/closed_summary" %>
     <% else %>
       <header>
-        <%= link_to "내 투표 목록으로 돌아가기",
-                    polls_path,
+        <%= link_to poll_session_back_label(@poll_session, from: params[:from]),
+                    poll_session_back_path(@poll_session, from: params[:from]),
                     data: { turbo_frame: "_top" },
                     class: "text-sm font-medium text-stone-700 underline" %>
         <h1 class="mt-3 text-2xl font-semibold">투표 운영 현황</h1>

@@ -221,8 +221,24 @@ RSpec.describe PollSessionPolicy do
       expect(described_class.new(create(:user, :admin), session)).to be_school_revote
       expect(described_class.new(other_manager, session)).not_to be_school_revote
 
+      draft_teacher = create(:user)
+      create(:school_membership, school: school, user: draft_teacher)
+      draft_classroom = create(:classroom, school: school, teacher: draft_teacher)
+      draft_session = create(:poll_session, poll: poll, classroom: draft_classroom, operator: draft_teacher)
+      expect(described_class.new(manager, draft_session)).not_to be_school_revote
+
       session.update!(status: :closed, closed_at: Time.current)
       expect(described_class.new(manager, session)).to be_school_revote
+
+      session.update!(status: :stopped, closed_at: nil, stopped_at: Time.current)
+      expect(described_class.new(manager, session)).not_to be_school_revote
+      session.update!(status: :closed, closed_at: Time.current, stopped_at: nil)
+      session.update_column(:archived_at, Time.current)
+      expect(described_class.new(manager, session.reload)).not_to be_school_revote
+      session.update_column(:archived_at, nil)
+      create(:poll_session, poll: poll, classroom: classroom, operator: teacher, replacement_of: session)
+      expect(described_class.new(manager, session.reload)).not_to be_school_revote
+
       poll.update!(status: :stopped, stopped_at: Time.current)
       expect(described_class.new(manager, session)).not_to be_school_revote
     end

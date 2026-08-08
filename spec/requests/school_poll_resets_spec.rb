@@ -20,12 +20,12 @@ RSpec.describe "School Poll reset", type: :request do
     create(:school_membership, :manager, school: school, user: manager)
 
     sign_in admin
-    get school_poll_path(poll)
+    get edit_school_poll_path(poll)
     expect(response.body).to include("전교투표 초기화", "confirmation_title")
 
     sign_out admin
     sign_in manager
-    get school_poll_path(poll)
+    get edit_school_poll_path(poll)
     expect(response.body).to include("전교투표 초기화", "confirmation_title")
   end
 
@@ -87,7 +87,7 @@ RSpec.describe "School Poll reset", type: :request do
                       archived_at: poll.archived_at)
       sign_in create(:user, :admin)
 
-      get school_poll_path(poll)
+      get edit_school_poll_path(poll)
       expect(response.body).not_to include("전교투표 초기화")
       expect(response.body).not_to include(%(action="#{reset_school_poll_path(poll)}"))
       expect(response.body).to include("영구 삭제", "confirmation_title")

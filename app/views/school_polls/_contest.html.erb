@@ -1,0 +1,29 @@
+<%= turbo_frame_tag dom_id(contest), class: "block" do %>
+  <article class="rounded-md border border-stone-200 p-4">
+    <div class="flex items-start justify-between gap-4">
+      <h3 class="font-semibold"><%= contest.position %>. <%= contest.title %></h3>
+      <% if poll.definition_editable? %>
+        <div class="flex gap-3 text-sm">
+          <%= link_to "수정", edit_school_poll_contest_path(poll, contest),
+                      data: { turbo_frame: "school_poll_modal" } %>
+          <%= button_to "삭제", school_poll_contest_path(poll, contest), method: :delete,
+                        class: "text-rose-700" %>
+        </div>
+      <% end %>
+    </div>
+    <% if contest.poll_options.any? %>
+      <div class="mt-3 grid gap-3 sm:grid-cols-2">
+        <% contest.poll_options.sort_by { |option| [option.number, option.id] }.each do |option| %>
+          <%= render "school_polls/option", poll: poll, contest: contest, option: option %>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="mt-3 text-sm text-stone-600">등록된 <%= poll.choice_label %>가 없습니다.</p>
+    <% end %>
+    <% if poll.definition_editable? %>
+      <%= link_to "#{poll.choice_label} 추가", new_school_poll_contest_option_path(poll, contest),
+                  class: "mt-3 inline-block text-sm font-medium underline",
+                  data: { turbo_frame: "school_poll_modal" } %>
+    <% end %>
+  </article>
+<% end %>

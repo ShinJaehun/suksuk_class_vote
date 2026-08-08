@@ -129,6 +129,18 @@ RSpec.describe Polls::SchoolwideStatusCheck do
     expect(described_class.new(poll: poll).start_issues.join).to include("학급 투표가 1개")
   end
 
+  it "reports Poll-wide definition issues once while keeping Classroom issues scoped" do
+    poll, poll_session, = create_startable_schoolwide_poll
+    poll.poll_options.order(:id).last.destroy!
+    poll_session.classroom.students.update_all(active: false)
+
+    issues = described_class.new(poll: poll.reload).start_issues
+
+    expect(issues.count("각 투표 항목에 선택지가 2개 이상 필요합니다.")).to eq(1)
+    expect(issues.join).not_to include("#{poll_session.classroom_name_snapshot}: 등록된 후보자 수")
+    expect(issues).to include("#{poll_session.classroom_name_snapshot}: 투표 대상 학생이 없습니다.")
+  end
+
   it "rejects non-draft Sessions and invalid Classroom readiness" do
     poll, poll_session, = create_startable_schoolwide_poll
     poll_session.update_column(:status, PollSession.statuses[:in_progress])

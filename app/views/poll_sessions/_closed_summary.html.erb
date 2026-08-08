@@ -1,6 +1,6 @@
 <header data-testid="poll-session-header">
-  <%= link_to "내 투표 목록으로 돌아가기",
-              polls_path,
+  <%= link_to poll_session_back_label(@poll_session, from: params[:from]),
+              poll_session_back_path(@poll_session, from: params[:from]),
               data: { turbo_frame: "_top" },
               class: "text-sm font-medium text-stone-700 underline" %>
   <h1 class="mt-3 text-2xl font-semibold">투표 결과</h1>

@@ -49,10 +49,14 @@ class PollSessionsController < ApplicationController
 
     if result.success?
       broadcast_operation_screen(poll_session)
-      redirect_to poll_poll_session_path(poll_session.poll, poll_session),
+      redirect_to poll_poll_session_path(
+        poll_session.poll,
+        poll_session,
+        helpers.poll_session_context_params(poll_session, from: params[:from])
+      ),
                   notice: "투표 실행을 시작했습니다."
     else
-      redirect_to polls_path, alert: result.error_message
+      redirect_to helpers.poll_session_back_path(poll_session, from: params[:from]), alert: result.error_message
     end
   end
 

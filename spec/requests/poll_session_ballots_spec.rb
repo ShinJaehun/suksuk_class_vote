@@ -2,6 +2,7 @@ require "rails_helper"
 
 RSpec.describe "PollSession ballots", type: :request do
   include Devise::Test::IntegrationHelpers
+  include ActionCable::TestHelper
 
   def create_execution
     school = create(:school)
@@ -65,6 +66,43 @@ RSpec.describe "PollSession ballots", type: :request do
   def create_contest_completions(participant)
     participant.poll.poll_contests.each do |contest|
       create(:poll_contest_completion, poll_participant: participant, poll_contest: contest)
+    end
+  end
+
+  it "uses the owning School Poll as the source and Test Session back destination" do
+    ordinary_poll, ordinary_session, _progress, _current, _waiting, _option, _tally, operator = create_execution
+    source = create(:poll, school: ordinary_poll.school, school_managed: true, participant_group: nil,
+                           status: :in_progress, started_at: 1.hour.ago)
+    source_session = create(:poll_session, poll: source, classroom: ordinary_session.classroom,
+                                           operator: operator)
+    test_poll = create(:poll, school: ordinary_poll.school, school_managed: true, participant_group: nil,
+                              test_source_poll: source, status: :in_progress, started_at: 1.hour.ago)
+    test_session = create(:poll_session, poll: test_poll, classroom: ordinary_session.classroom,
+                                         operator: operator)
+    sign_in operator
+
+    {
+      ordinary_session => ["내 투표 목록으로 돌아가기", polls_path],
+      source_session => ["내 투표 목록으로 돌아가기", polls_path],
+      test_session => ["내 투표 목록으로 돌아가기", polls_path]
+    }.each do |session, (label, path)|
+      get poll_poll_session_path(session.poll, session)
+      back_link = Nokogiri::HTML(response.body).at_css("[data-testid='poll-session-header'] a")
+      expect(back_link.text.strip).to eq(label)
+      expect(back_link["href"]).to eq(path)
+    end
+
+    sign_out operator
+    sign_in create(:user, :admin)
+    { source => source_session, test_poll => test_session }.each do |poll, session|
+      get school_poll_path(poll)
+      detail_path = poll_poll_session_path(poll, session, from: "school_poll")
+      expect(Nokogiri::HTML(response.body).at_css("a[href='#{detail_path}']")).to be_present
+
+      get detail_path
+      back_link = Nokogiri::HTML(response.body).at_css("[data-testid='poll-session-header'] a")
+      expect(back_link.text.strip).to eq("전교투표 상세로 돌아가기")
+      expect(back_link["href"]).to eq(school_poll_path(poll))
     end
   end
 
@@ -353,6 +391,40 @@ RSpec.describe "PollSession ballots", type: :request do
       ballot_status: "ballot_open",
       current_poll_participant: waiting
     )
+  end
+
+  it "broadcasts the fresh Schoolwide current participant inside the ballot target" do
+    poll, poll_session, progress, current, waiting, option, _tally, operator = create_execution
+    poll.update!(school_managed: true, status: :in_progress, started_at: Time.current)
+    progress.update!(ballot_status: :ballot_open)
+    stream = Turbo::StreamsChannel.send(:stream_name_from, [poll_session, :ballot_screen])
+    sign_in operator
+
+    post submit_ballot_poll_poll_session_path(poll, poll_session), params: {
+      ballot: {
+        expected_current_poll_participant_id: current.id,
+        poll_contest_id: option.poll_contest_id,
+        poll_option_id: option.id
+      }
+    }
+
+    expect(current.reload.poll_participation).to be_completed
+    expect(progress.reload).to have_attributes(
+      ballot_status: "ballot_locked",
+      current_poll_participant: current
+    )
+
+    patch advance_participant_poll_poll_session_path(poll, poll_session), params: {
+      expected_current_poll_participant_id: current.id
+    }
+
+    expect(progress.reload.current_poll_participant).to eq(waiting)
+    target = ActionView::RecordIdentifier.dom_id(poll_session, :ballot)
+    payload = broadcasts(stream).reverse.find { |broadcast| broadcast.include?(target) }
+    fragment = Nokogiri::HTML.fragment(ActiveSupport::JSON.decode(payload))
+    current_voter = fragment.at_css("[data-testid='poll-session-current-participant']")
+    expect(current_voter.text.squish).to include("#{waiting.number}번 #{waiting.name}")
+    expect(current_voter.text.squish).not_to include("#{current.number}번 #{current.name}")
   end
 
   it "submits one Contest at a time and resumes from the first incomplete Contest" do

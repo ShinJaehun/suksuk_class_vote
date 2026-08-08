@@ -89,14 +89,24 @@ RSpec.describe Polls::AssignClassroomSessions do
     inactive = create_classroom(active: false)
     teacherless = create(:classroom, school: school, teacher: nil)
     create(:student, classroom: teacherless, active: true)
-    empty = create_classroom(active_student: false)
 
-    [other_school, inactive, teacherless, empty].each do |invalid_classroom|
+    [other_school, inactive, teacherless].each do |invalid_classroom|
       expect do
         result = call_service(classrooms: [eligible, invalid_classroom])
         expect(result).not_to be_success
       end.not_to change(PollSession, :count)
     end
+  end
+
+  it "assigns an active teacher-led Classroom before any Students are registered" do
+    classroom = create_classroom(active_student: false)
+
+    expect do
+      result = call_service(classrooms: [classroom])
+      expect(result).to be_success
+    end.to change(PollSession, :count).by(1)
+
+    expect(poll.poll_sessions.sole).to have_attributes(classroom: classroom, status: "draft")
   end
 
   it "rejects every previously assigned Classroom regardless of Session status" do

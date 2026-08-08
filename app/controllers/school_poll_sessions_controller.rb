@@ -64,9 +64,22 @@ class SchoolPollSessionsController < ApplicationController
     result = Polls::RevoteSchoolSession.new(poll_session: poll_session, actor: current_user).call
 
     if result.success?
-      redirect_to poll_poll_session_path(poll, result.poll_session), notice: "학급 재투표를 준비했습니다."
+      Polls::BroadcastSchoolwideSessionState.for_revote(
+        poll: poll,
+        classroom: result.poll_session.classroom
+      )
+      respond_to do |format|
+        format.html do
+          redirect_to poll_poll_session_path(poll, result.poll_session, from: "school_poll"),
+                      notice: "학급 재투표를 준비했습니다."
+        end
+        format.turbo_stream { head :ok }
+      end
     else
-      redirect_to school_poll_path(poll), alert: result.error_message
+      respond_to do |format|
+        format.html { redirect_to school_poll_path(poll), alert: result.error_message }
+        format.turbo_stream { head :unprocessable_content }
+      end
     end
   end
 
@@ -96,8 +109,7 @@ class SchoolPollSessionsController < ApplicationController
           poll: @poll,
           poll_contests: @poll_contests,
           current_sessions: @current_poll_sessions,
-          back_path: school_polls_path,
-          back_label: "전교투표 목록으로 돌아가기"
+          show_back_links: false
         }
       ),
       turbo_stream.replace(
@@ -107,6 +119,7 @@ class SchoolPollSessionsController < ApplicationController
           poll: @poll,
           status_check: @schoolwide_status_check,
           current_session_counts: @current_session_counts,
+          current_session_total: @current_poll_sessions.size,
           history_session_count: @history_poll_sessions.size
         }
       ),
@@ -143,7 +156,9 @@ class SchoolPollSessionsController < ApplicationController
     @current_poll_sessions = sessions.reject(&:superseded?)
     @history_poll_sessions = sessions.select(&:superseded?)
     @current_session_counts = PollSession.statuses.keys.index_with do |poll_status|
-      @current_poll_sessions.count { |session| session.status == poll_status }
+      @current_poll_sessions.count do |session|
+        session.status == poll_status && (poll_status != "draft" || session.readiness_voter_count.positive?)
+      end
     end
     @schoolwide_status_check = Polls::SchoolwideStatusCheck.new(poll: @poll)
 
@@ -159,7 +174,6 @@ class SchoolPollSessionsController < ApplicationController
     scope = Classroom
       .where(school: @poll.school, active: true)
       .where.not(teacher_id: nil)
-      .where(id: Student.where(active: true).select(:classroom_id))
       .includes(:school, :teacher)
       .in_school_order
     scope

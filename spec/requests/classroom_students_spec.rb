@@ -2,6 +2,7 @@ require "rails_helper"
 
 RSpec.describe "Classroom students", type: :request do
   include Devise::Test::IntegrationHelpers
+  include ActionCable::TestHelper
 
   def classroom_with_teacher
     school = create(:school)
@@ -68,6 +69,71 @@ RSpec.describe "Classroom students", type: :request do
       classroom: classroom,
       active: true
     )
+  end
+
+  it "broadcasts active roster count changes through the actual Student routes" do
+    classroom, teacher = classroom_with_teacher
+    teacher.school_membership.update!(role: :manager)
+    poll = create(:poll, school: classroom.school, school_managed: true, participant_group: nil)
+    contest = create(:poll_contest, poll: poll)
+    create(:poll_option, poll: poll, poll_contest: contest, number: 1)
+    create(:poll_option, poll: poll, poll_contest: contest, number: 2)
+    create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
+    stream = Turbo::StreamsChannel.send(:stream_name_from, [poll, :schoolwide_runtime])
+    runtime_target = "school_poll_#{poll.id}_classroom_#{classroom.id}_runtime"
+    status_target = ActionView::RecordIdentifier.dom_id(poll, :schoolwide_status_runtime)
+    sign_in teacher
+
+    get school_poll_path(poll)
+    page = Nokogiri::HTML(response.body)
+    expect(page.at_css("##{runtime_target}").text.squish).to include("투표자 0명")
+    expect(page.at_css("##{runtime_target}").text).not_to include("준비")
+    status_runtime = page.at_css("##{status_target}")
+    expect(status_runtime.text.squish).to include("시작 전 확인이 필요합니다.", "투표 대상 학생이 없습니다.")
+    expect(status_runtime.at_css("a[href='#{start_school_poll_path(poll)}']")).to be_nil
+
+    expect do
+      post classroom_students_path(classroom), params: { student: { number: 1, name: "학생" } }
+    end.to change { broadcasts(stream).size }.by(2)
+    student = classroom.students.sole
+    runtime_payload = broadcasts(stream).reverse.find { |payload| payload.include?(runtime_target) }
+    expect(runtime_payload).to include("투표자 1명", "준비")
+    status_payload = broadcasts(stream).reverse.find { |payload| payload.include?(status_target) }
+    expect(status_payload).to include("전교투표를 시작할 수 있습니다.", "테스트투표 만들기", "전교투표 시작")
+    expect(status_payload).not_to include("투표 대상 학생이 없습니다.")
+    expect(status_payload).to include("준비", "1")
+
+    expect do
+      patch classroom_student_path(classroom, student), params: { student: { number: 1, name: "이름 수정" } }
+    end.not_to change { broadcasts(stream).size }
+
+    expect do
+      patch deactivate_classroom_student_path(classroom, student)
+    end.to change { broadcasts(stream).size }.by(2)
+    runtime_payload = broadcasts(stream).reverse.find { |payload| payload.include?(runtime_target) }
+    expect(runtime_payload).to include("투표자 0명")
+    expect(runtime_payload).not_to include(">준비<")
+    status_payload = broadcasts(stream).reverse.find { |payload| payload.include?(status_target) }
+    expect(status_payload).to include("시작 전 확인이 필요합니다.", "투표 대상 학생이 없습니다.")
+    expect(status_payload).not_to include(start_school_poll_path(poll), school_poll_test_polls_path(poll))
+    expect(status_payload).to include("준비", "0")
+
+    expect do
+      patch reactivate_classroom_student_path(classroom, student)
+    end.to change { broadcasts(stream).size }.by(2)
+    runtime_payload = broadcasts(stream).reverse.find { |payload| payload.include?(runtime_target) }
+    expect(runtime_payload).to include("투표자 1명", "준비")
+
+    other_teacher = create(:user)
+    create(:school_membership, school: classroom.school, user: other_teacher)
+    other_classroom = create(
+      :classroom,
+      school: classroom.school,
+      teacher: other_teacher
+    )
+    expect do
+      post classroom_students_path(other_classroom), params: { student: { number: 1, name: "다른 학급" } }
+    end.not_to change { broadcasts(stream).size }
   end
 
   it "returns 422 for invalid single input" do

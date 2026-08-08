@@ -228,7 +228,9 @@ class SchoolPollsController < ApplicationController
     @current_poll_sessions = @poll_sessions.reject(&:superseded?)
     @history_poll_sessions = @poll_sessions.select(&:superseded?)
     @current_session_counts = PollSession.statuses.keys.index_with do |status|
-      @current_poll_sessions.count { |session| session.status == status }
+      @current_poll_sessions.count do |session|
+        session.status == status && (status != "draft" || session.readiness_voter_count.positive?)
+      end
     end
     assigned_classroom_ids = @poll.poll_sessions.select(:classroom_id)
     @assignable_classrooms = eligible_classrooms(@poll.school)
@@ -277,7 +279,6 @@ class SchoolPollsController < ApplicationController
       .joins(:school)
       .where(active: true)
       .where.not(teacher_id: nil)
-      .where(id: Student.where(active: true).select(:classroom_id))
       .includes(:school, :teacher)
     scope = scope.where(school: school) if school
     scope.order("schools.name ASC").merge(Classroom.in_school_order)

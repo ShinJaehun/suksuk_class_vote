@@ -370,7 +370,7 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include("집계된 선거")
     end
 
-    it "shows only Sessions operated by the current user, including School Poll Sessions" do
+    it "shows only the teacher's source School Poll Session after the parent starts" do
       school = create(:school)
       teacher = create(:user)
       other_teacher = create(:user)
@@ -403,10 +403,19 @@ RSpec.describe "Polls", type: :request do
 
       get polls_path
 
+      expect(response.body).not_to include(school_poll.title)
+      expect(response.body).not_to include(own_session.classroom_name_snapshot)
+      expect(response.body).not_to include(poll_poll_session_path(school_poll, own_session))
+
+      school_poll.update!(status: :in_progress, started_at: Time.current)
+      get polls_path
+
       expect(response.body).to include(school_poll.title)
       expect(response.body).to include(own_session.classroom_name_snapshot)
       expect(response.body).to include(poll_poll_session_path(school_poll, own_session))
       expect(response.body).not_to include(other_session.classroom_name_snapshot)
+      expect(own_session.reload).to be_draft
+      expect(own_session.poll_participants).to be_empty
       badges = Nokogiri::HTML(response.body).at_css('[data-testid="poll-badges"]')
       expect(badges.text.squish).to eq("전교 선거 준비")
     end
