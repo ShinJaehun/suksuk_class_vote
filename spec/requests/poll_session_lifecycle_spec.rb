@@ -40,14 +40,14 @@ RSpec.describe "PollSession lifecycle", type: :request do
     sign_in teacher
 
     get poll_poll_session_path(session.poll, session)
-    expect(response.body).to include("투표 시작", started_label)
+    expect(response.body).to include("시작 #{started_label}")
     get polls_path
     expect(response.body).to include("투표 시작", started_label)
 
     Polls::StopSession.new(actor: teacher, poll_session: session).call
     stopped_label = ApplicationController.helpers.kst_datetime(session.reload.stopped_at)
     get poll_poll_session_path(session.poll, session)
-    expect(response.body).to include("투표 시작", "투표 중단", started_label, stopped_label)
+    expect(response.body).to include("시작 #{started_label}", "중단 #{stopped_label}")
     get polls_path
     expect(response.body).to include("투표 시작", "투표 중단", started_label, stopped_label)
 
@@ -56,7 +56,8 @@ RSpec.describe "PollSession lifecycle", type: :request do
     closed.update!(status: :closed, closed_at: closed_at, stopped_at: nil)
     sign_in closed_teacher
     get poll_poll_session_path(closed.poll, closed)
-    expect(response.body).to include("투표 시작", "투표 종료")
+    closed.reload
+    expect(response.body).to include("시작 #{ApplicationController.helpers.kst_datetime(closed.started_at)}", "종료 #{ApplicationController.helpers.kst_datetime(closed.closed_at)}")
     get polls_path
     expect(response.body).to include("투표 시작", "투표 종료")
   end

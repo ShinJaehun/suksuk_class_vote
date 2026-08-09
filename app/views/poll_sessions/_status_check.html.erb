@@ -3,10 +3,16 @@
   <% parent_allows_start = !poll_session.poll.school_managed? || poll_session.poll.in_progress? %>
   <% start_action_available = parent_allows_start && status_check.startable? && policy(poll_session).operate? %>
   <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-    <div class="flex flex-wrap items-center gap-2">
-      <h2 class="text-xl font-semibold">상태점검</h2>
-      <% if !poll_session.draft? || start_action_available %>
-        <%= poll_session_status_badge(poll_session) %>
+    <div>
+      <div class="flex flex-wrap items-center gap-2">
+        <h2 class="text-xl font-semibold">상태점검</h2>
+        <% if !poll_session.draft? || start_action_available %>
+          <%= poll_session_status_badge(poll_session) %>
+        <% end %>
+      </div>
+      <% session_time_labels = poll_session_status_time_labels(poll_session).map { |label| label.sub(/\A(?:재투표|투표) /, "") } %>
+      <% if session_time_labels.any? %>
+        <p class="mt-2 text-sm text-stone-600"><%= session_time_labels.join(" · ") %></p>
       <% end %>
     </div>
     <div class="flex flex-wrap items-center gap-3">
@@ -63,17 +69,27 @@
   <% end %>
 
   <% unless status_check.phase == :draft %>
-    <dl class="mt-5 grid gap-3 sm:grid-cols-5">
-      <% {
-           "전체 투표자" => status_check.total_count,
-           "투표 완료" => status_check.completed_count,
-           "미참여" => status_check.absent_count,
-           "기권" => status_check.abstained_count,
-           "대기" => status_check.pending_count
-         }.each do |label, count| %>
-        <div class="rounded-md bg-stone-50 p-3 text-center">
-          <dt class="text-sm text-stone-500"><%= label %></dt>
-          <dd class="mt-1 font-semibold"><%= count %>명</dd>
+    <% counts = if status_check.phase == :in_progress
+                  {
+                    "전체 투표자" => status_check.total_count,
+                    "투표 완료" => status_check.completed_count,
+                    "미참여" => status_check.absent_count,
+                    "대기" => status_check.pending_count
+                  }
+                else
+                  {
+                    "전체 투표자" => status_check.total_count,
+                    "투표 완료" => status_check.completed_count,
+                    "미참여" => status_check.absent_count,
+                    "기권" => status_check.abstained_count,
+                    "대기" => status_check.pending_count
+                  }
+                end %>
+    <dl class="mt-5 grid gap-3 text-sm <%= status_check.phase == :in_progress ? "sm:grid-cols-4" : "sm:grid-cols-5" %>">
+      <% counts.each do |label, count| %>
+        <div class="rounded-md bg-stone-50 p-3">
+          <dt class="text-stone-500"><%= label %></dt>
+          <dd class="mt-1 text-xl font-semibold"><%= count %>명</dd>
         </div>
       <% end %>
     </dl>

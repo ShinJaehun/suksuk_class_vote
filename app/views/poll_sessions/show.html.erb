@@ -15,10 +15,23 @@
   <div class="mx-auto max-w-5xl space-y-6">
     <% visible_voters = @poll_session.draft? && !@poll_session.replacement? ? @active_students : @participants %>
 
-    <%= link_to poll_session_back_label(@poll_session, from: params[:from]),
-                poll_session_back_path(@poll_session, from: params[:from]),
-                data: { turbo_frame: "_top" },
-                class: "inline-block text-sm font-medium text-stone-700 underline" %>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <%= link_to poll_session_back_label(@poll_session, from: params[:from]),
+                  poll_session_back_path(@poll_session, from: params[:from]),
+                  data: { turbo_frame: "_top" },
+                  class: "text-sm font-medium text-stone-700 underline" %>
+      <% if @poll_session.in_progress? && @current_participant.present? &&
+            @status_check.progress_valid? && policy(@poll_session).operate? %>
+        <div data-controller="ballot-window"
+             data-testid="poll-session-ballot-window"
+             data-ballot-window-name-value="poll_session_<%= @poll_session.id %>_ballot">
+          <%= link_to "학생 투표 화면 열기", ballot_poll_poll_session_path(@poll_session.poll, @poll_session),
+                      target: "poll_session_#{@poll_session.id}_ballot",
+                      data: { turbo: false, action: "click->ballot-window#open" },
+                      class: "inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" %>
+        </div>
+      <% end %>
+    </div>
 
     <section class="space-y-4 rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
              data-testid="poll-session-header">
@@ -45,10 +58,6 @@
           </div>
         <% end %>
       </dl>
-      <% session_time_labels = poll_session_status_time_labels(@poll_session) %>
-      <% if session_time_labels.any? %>
-        <p class="text-sm text-stone-600"><%= session_time_labels.join(" · ") %></p>
-      <% end %>
     </section>
 
     <%= render "poll_sessions/status_check_frame",
@@ -135,16 +144,6 @@
     <% if @poll_session.started_at.present? %>
       <% if @poll_session.in_progress? %>
         <%= turbo_stream_from @poll_session, :operation_screen %>
-        <% if @current_participant.present? && @status_check.progress_valid? && policy(@poll_session).operate? %>
-          <div class="flex justify-end" data-controller="ballot-window"
-               data-testid="poll-session-ballot-window"
-               data-ballot-window-name-value="poll_session_<%= @poll_session.id %>_ballot">
-            <%= link_to "학생 투표 화면 열기", ballot_poll_poll_session_path(@poll_session.poll, @poll_session),
-                        target: "poll_session_#{@poll_session.id}_ballot",
-                        data: { turbo: false, action: "click->ballot-window#open" },
-                        class: "inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" %>
-          </div>
-        <% end %>
         <%= render "operation",
                    poll_session: @poll_session,
                    current_participant: @current_participant,

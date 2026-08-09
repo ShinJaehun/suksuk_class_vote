@@ -554,6 +554,7 @@ RSpec.describe "PollSession ballots", type: :request do
       "상태점검 진행 중",
       "투표가 정상적으로 진행 중입니다."
     )
+    expect(status_check.text).not_to include("기권")
     expect(response.body).to include(
       "학생 투표 화면 열기",
       "다음 투표자는 #{current.number}번 #{current.name} 학생입니다.",
@@ -563,6 +564,7 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(ballot_link["data-turbo"]).to eq("false")
     expect(ballot_link["class"]).to include("bg-blue-600", "text-white", "hover:bg-blue-700")
     expect(current_card.text).to include("#{current.number}번 #{current.name}")
+    expect(current_card.at_css("[data-testid='poll-session-operation-actions']")).to be_present
     expect(current_name["class"]).to include("sm:text-6xl", "font-bold", "tracking-tight")
     expect(progress_frame["data-poll-session-progress-url-value"]).to eq(
       poll_poll_session_path(poll, poll_session)

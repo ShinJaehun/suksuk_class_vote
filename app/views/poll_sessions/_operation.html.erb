@@ -1,11 +1,9 @@
-<%= turbo_frame_tag dom_id(poll_session, :operation) do %>
+<%= turbo_frame_tag dom_id(poll_session, :operation), class: "block" do %>
   <div class="space-y-6">
     <% if poll_session.in_progress? %>
       <section class="rounded-xl border border-stone-200 bg-white px-6 py-10 text-center shadow-sm"
                data-testid="poll-session-current-participant">
-        <p class="text-sm font-semibold uppercase tracking-wide text-stone-500">
-          <%= current_participation.present? ? "현재 처리 학생" : "현재 투표자" %>
-        </p>
+        <p class="text-base font-semibold uppercase tracking-wide text-stone-500">현재 투표자</p>
         <% if current_participant.present? %>
           <p class="mt-5 break-words text-5xl font-bold tracking-tight text-stone-900 sm:text-6xl">
             <%= current_participant.number %>번 <%= current_participant.name %>
@@ -13,14 +11,11 @@
         <% else %>
           <p class="mt-5 text-xl font-medium text-stone-600">현재 투표자가 지정되지 않았습니다.</p>
         <% end %>
-      </section>
-
       <% if current_participant.present? %>
         <% partial_ballot = current_participant.partial_ballot? %>
         <% completed_contest_count = current_participant.completed_contest_count %>
         <% total_contest_count = poll_session.poll.poll_contests.size %>
-        <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
-                 data-testid="poll-session-operation-actions">
+        <div class="mt-8" data-testid="poll-session-operation-actions">
           <% if current_participation.blank? && poll_session.poll_progress&.ballot_locked? %>
             <% if status_check.progress_valid? && poll_session.archived_at.blank? && can_operate %>
               <% if partial_ballot %>
@@ -127,8 +122,9 @@
               </p>
             <% end %>
           <% end %>
-        </section>
+        </div>
       <% end %>
+      </section>
     <% end %>
 
   </div>
