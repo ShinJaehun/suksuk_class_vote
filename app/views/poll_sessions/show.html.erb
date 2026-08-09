@@ -30,6 +30,11 @@
                       data: { turbo: false, action: "click->ballot-window#open" },
                       class: "inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" %>
         </div>
+      <% elsif @poll_session.closed? && policy(@poll_session).archive_poll? %>
+        <%= button_to "보관", archive_poll_path(@poll_session.poll), method: :post,
+                      form: { data: { turbo_frame: "_top" } },
+                      data: { turbo_confirm: "종료된 투표와 모든 실행 이력을 보관할까요?" },
+                      class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-semibold text-white" %>
       <% end %>
     </div>
 
@@ -41,9 +46,16 @@
           <%= poll_badges(poll: @poll_session.poll, status_record: @poll_session) %>
         </div>
         <% if !@poll_session.poll.school_managed? && policy(@poll_session).show? %>
-          <%= link_to "투표 설정", edit_poll_path(@poll_session.poll),
-                      data: { turbo_frame: "_top" },
-                      class: "rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700" %>
+          <div class="flex flex-wrap gap-2">
+            <%= link_to "투표 설정", edit_poll_path(@poll_session.poll),
+                        data: { turbo_frame: "_top" },
+                        class: "rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700" %>
+            <% if @poll_session.closed? %>
+              <%= link_to "결과 집계 보기", results_poll_poll_session_path(@poll_session.poll, @poll_session),
+                          data: { turbo_frame: "_top" },
+                          class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+            <% end %>
+          </div>
         <% end %>
       </div>
       <dl class="grid gap-3 sm:grid-cols-3">
@@ -153,7 +165,7 @@
                    poll_events: @poll_events,
                    can_operate: policy(@poll_session).operate?,
                    status_check: @status_check %>
-      <% elsif @poll_session.closed? %>
+      <% elsif @poll_session.closed? && @poll_session.poll.school_managed? %>
         <%= render "poll_sessions/closed_summary" %>
       <% end %>
       <%= render "event_log", poll_events: @poll_events %>

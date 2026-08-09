@@ -38,12 +38,6 @@
                       data: { turbo_confirm: "기존 진행 기록과 결과를 보존하고 같은 투표자 명단으로 새 재투표 실행을 만들까요?" },
                       class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-semibold text-white" %>
       <% end %>
-      <% if policy(poll_session).archive_poll? %>
-        <%= button_to "보관", archive_poll_path(poll_session.poll), method: :post,
-                      form: { data: { turbo_frame: "_top" } },
-                      data: { turbo_confirm: "종료된 투표와 모든 실행 이력을 보관할까요?" },
-                      class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-semibold text-white" %>
-      <% end %>
     </div>
   </div>
 
@@ -69,23 +63,13 @@
   <% end %>
 
   <% unless status_check.phase == :draft %>
-    <% counts = if status_check.phase == :in_progress
-                  {
-                    "전체 투표자" => status_check.total_count,
-                    "투표 완료" => status_check.completed_count,
-                    "미참여" => status_check.absent_count,
-                    "대기" => status_check.pending_count
-                  }
-                else
-                  {
-                    "전체 투표자" => status_check.total_count,
-                    "투표 완료" => status_check.completed_count,
-                    "미참여" => status_check.absent_count,
-                    "기권" => status_check.abstained_count,
-                    "대기" => status_check.pending_count
-                  }
-                end %>
-    <dl class="mt-5 grid gap-3 text-sm <%= status_check.phase == :in_progress ? "sm:grid-cols-4" : "sm:grid-cols-5" %>">
+    <% counts = {
+         "전체 투표자" => status_check.total_count,
+         "투표 완료" => status_check.completed_count,
+         "미참여" => status_check.absent_count,
+         "대기" => status_check.pending_count
+       } %>
+    <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-4">
       <% counts.each do |label, count| %>
         <div class="rounded-md bg-stone-50 p-3">
           <dt class="text-stone-500"><%= label %></dt>

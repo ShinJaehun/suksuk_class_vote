@@ -40,6 +40,8 @@ RSpec.describe "Classroom Poll retention", type: :request do
     sign_in teacher
     get poll_poll_session_path(poll, session)
     expect(response.body).not_to include(archive_poll_path(poll))
+    get results_poll_poll_session_path(poll, session)
+    expect(response).to have_http_status(:ok)
     get edit_poll_path(poll)
     expect(response.body).not_to include("학급투표 삭제")
   end

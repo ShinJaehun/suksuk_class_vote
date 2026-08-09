@@ -1,0 +1,69 @@
+<style>
+  @media print {
+    body * { visibility: hidden; }
+    .poll-session-result-print-area,
+    .poll-session-result-print-area * { visibility: visible; }
+    .poll-session-result-print-area {
+      background: #fff !important;
+      border-color: #000 !important;
+      font-size: 12px !important;
+      left: 0;
+      padding: 10mm !important;
+      position: absolute;
+      top: 0;
+      width: 100%;
+    }
+    .poll-session-result-print-contests {
+      display: grid !important;
+      gap: 8px !important;
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+    .poll-session-result-print-options {
+      column-gap: 8px !important;
+      display: grid !important;
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      row-gap: 3px !important;
+    }
+    .poll-session-result-print-button { display: none !important; }
+  }
+</style>
+
+<% vote_date = @poll_session.closed_at&.in_time_zone("Asia/Seoul")&.strftime("%-m/%-d") || "-" %>
+<section class="poll-session-result-print-area space-y-5 rounded-md border border-stone-200 bg-white p-4"
+         data-testid="poll-session-printable-results">
+  <header class="space-y-2">
+    <h2 class="text-2xl font-semibold text-stone-900"><%= @poll_session.poll.title %> 투표 결과</h2>
+    <p class="text-lg font-semibold text-stone-700"><%= @poll_session.classroom_name_snapshot %> · <%= vote_date %> 시행</p>
+  </header>
+
+  <dl class="grid gap-2 text-sm sm:grid-cols-3">
+    <% { "전체 투표자" => @total_count, "투표 완료" => @completed_count, "미참여" => @absent_count }.each do |label, count| %>
+      <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+        <dt class="text-stone-500"><%= label %></dt>
+        <dd class="mt-1 font-semibold text-stone-900"><%= count %>명</dd>
+      </div>
+    <% end %>
+  </dl>
+
+  <div class="poll-session-result-print-contests grid gap-3 lg:grid-cols-2">
+    <% @contest_results.each do |result| %>
+      <article class="rounded-md border border-stone-200 p-3">
+        <h3 class="font-semibold"><%= result[:contest].title %></h3>
+        <% if result[:tally_complete] %>
+          <div class="poll-session-result-print-options mt-3 grid gap-2 sm:grid-cols-2">
+            <% result[:option_results].each do |option_result| %>
+              <div class="grid grid-cols-[max-content_minmax(0,1fr)_max-content] gap-2 rounded-md bg-stone-50 px-2 py-1 text-sm">
+                <span><%= @poll_session.poll.choice_number_label %> <%= option_result[:option].number %>번</span>
+                <span class="break-words"><%= option_result[:option].name %></span>
+                <strong><%= option_result[:tally].votes_count %>표</strong>
+              </div>
+            <% end %>
+          </div>
+          <p class="mt-2 text-sm">기권 <%= result[:contest_tally].abstentions_count %>표</p>
+        <% else %>
+          <p class="mt-2 text-sm">이 투표 세션의 집계 정보를 확인할 수 없습니다.</p>
+        <% end %>
+      </article>
+    <% end %>
+  </div>
+</section>

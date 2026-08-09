@@ -35,7 +35,26 @@ class PollSessionsController < ApplicationController
       .sort_by { |event| [event.occurred_at, event.id] }
       .reverse
 
-    prepare_closed_summary if @poll_session.closed?
+    prepare_closed_summary if @poll_session.closed? && @poll_session.poll.school_managed?
+  end
+
+  def results
+    @poll_session = PollSession
+      .includes(
+        poll: { poll_contests: :poll_options },
+        poll_participants: :poll_participation,
+        poll_option_tallies: :poll_option,
+        poll_contest_tallies: :poll_contest
+      )
+      .find_by!(id: params[:id], poll_id: params[:poll_id])
+    raise ActiveRecord::RecordNotFound if @poll_session.poll.school_managed? || !@poll_session.closed?
+    authorize @poll_session, :show?
+
+    @status_check = Polls::SessionStatusCheck.new(poll_session: @poll_session).call
+    @total_count = @status_check.total_count
+    @completed_count = @status_check.completed_count
+    @absent_count = @status_check.absent_count
+    prepare_closed_summary
   end
 
   def start
@@ -200,9 +219,9 @@ class PollSessionsController < ApplicationController
     broadcast_operation_screen(poll_session) if result.success?
     success_message = if result.completed?
                         "투표가 완료되었습니다. 선생님의 안내를 기다려 주세요."
-                      else
+    else
                         "다음 투표 항목으로 이동합니다."
-                      end
+    end
     redirect_with_result(
       result,
       ballot_poll_poll_session_path(poll_session.poll, poll_session),
@@ -313,9 +332,9 @@ class PollSessionsController < ApplicationController
                 option_results.select do |result|
                   result[:tally]&.votes_count == highest_vote_count
                 end.map { |result| result[:option] }
-              else
+    else
                 []
-              end
+    end
     contest_tallies = @session_contest_tallies_by_contest_id.fetch(contest.id, [])
 
     {

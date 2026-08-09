@@ -175,6 +175,7 @@ RSpec.describe "PollSession operations", type: :request do
       status_card = Nokogiri::HTML(response.body).at_css('[data-testid="poll-session-header"]')
       expect(status_card.text.squish).to include(label, poll_session.classroom_name_snapshot, poll_session.operator_name_snapshot)
       expect(status_card.at_css('[data-testid="poll-badges"]').text.squish).to eq("학급 선거 #{label}")
+      expect(response.body.include?("결과 집계 보기")).to eq(status == :closed)
       expect(response.body).to include("투표 대상 학생이 없습니다.") if status == :closed
       sign_out teacher
     end

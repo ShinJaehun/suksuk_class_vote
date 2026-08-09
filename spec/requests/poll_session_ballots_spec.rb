@@ -749,7 +749,7 @@ RSpec.describe "PollSession ballots", type: :request do
     )
   end
 
-  it "renders a closed summary without operation actions or ballot internals" do
+  it "links a closed detail to its Session result page without rendering results inline" do
     poll, poll_session, progress, current, waiting, option, tally, operator = create_execution
     second_option = create(
       :poll_option,
@@ -783,9 +783,6 @@ RSpec.describe "PollSession ballots", type: :request do
     get poll_poll_session_path(poll, poll_session)
 
     page = Nokogiri::HTML(response.body)
-    summary = page.at_css("[data-testid='poll-session-closed-summary']")
-
-    results = page.at_css("[data-testid='poll-session-results']")
     status_check = page.at_css(
       "[data-testid='poll-session-status-check']"
     )
@@ -793,29 +790,13 @@ RSpec.describe "PollSession ballots", type: :request do
       "[data-testid='poll-session-roster'] li"
     ).map { |row| row.text.squish }
 
-    expect(summary.text).to include(
-      "투표 결과",
-      "전체 인원",
-      "투표 완료",
-      "미참여",
-      "기권",
-      "대기"
-    )
-    expect(response.body).to include(
-      "투표 결과",
-      "학급 선거 결과",
-      "1표",
-      "0표",
-      "투표자 명단",
-      "투표자 명단"
-    )
-    expect(results.text.squish).to include(
-      "최다 득표 후보: 1번 김후보"
-    )
+    expect(response.body).to include("결과 집계 보기", "투표자 명단", "보관")
+    expect(response.body).not_to include("학급 선거 결과", "data-testid=\"poll-session-results\"")
     expect(status_check.text.squish).to include(
       "상태점검 종료",
       "이 학급 투표는 완료되었습니다."
     )
+    expect(status_check.text).not_to include("기권", "보관")
     expect(roster_rows).to include(
       "#{current.number}번 #{current.name} · 투표 완료",
       "#{waiting.number}번 #{waiting.name} · 미참여"
@@ -830,6 +811,19 @@ RSpec.describe "PollSession ballots", type: :request do
       "ballot " + "상태",
       "투표 화면 " + "잠김"
     )
+
+    get results_poll_poll_session_path(poll, poll_session)
+
+    expect(response).to have_http_status(:ok)
+    results_page = Nokogiri::HTML(response.body)
+    expect(results_page.at_css("[data-testid='poll-session-results']").text.squish).to include(
+      "최다 득표 후보: 기호 1번 김후보",
+      "기호 1번 김후보",
+      "1표",
+      "기권 0표"
+    )
+    expect(response.body).to include("투표 결과 인쇄", "data-testid=\"poll-session-printable-results\"")
+    expect(response.body).not_to include("99표", "종료 학급 집계", "집계 포함")
   end
 
   it "shows tied winners and reports missing session tallies" do
@@ -858,13 +852,13 @@ RSpec.describe "PollSession ballots", type: :request do
     progress.update!(status: :closed, closed_at: closed_at, ballot_status: :ballot_locked)
     sign_in operator
 
-    get poll_poll_session_path(poll, poll_session)
+    get results_poll_poll_session_path(poll, poll_session)
 
     page = Nokogiri::HTML(response.body)
     results = page.at_css("[data-testid='poll-session-results']")
 
     expect(results.text.squish).to include(
-      "공동 최다 득표 후보: 1번 김후보, 2번 이후보"
+      "공동 최다 득표 후보: 기호 1번 김후보, 기호 2번 이후보"
     )
 
     tally.update!(votes_count: 0)
@@ -873,25 +867,46 @@ RSpec.describe "PollSession ballots", type: :request do
       .find_by!(poll_option: second_option)
       .update!(votes_count: 0)
 
-    get poll_poll_session_path(poll, poll_session)
+    get results_poll_poll_session_path(poll, poll_session)
 
     expect(response.body).to include("집계 기록이 없습니다.")
 
     tally.destroy!
-    get poll_poll_session_path(poll, poll_session)
+    get results_poll_poll_session_path(poll, poll_session)
 
     page = Nokogiri::HTML(response.body)
     results = page.at_css("[data-testid='poll-session-results']")
-    status_check = page.at_css(
-      "[data-testid='poll-session-status-check']"
-    )
-
     expect(results.text.squish).to include(
       "이 투표 세션의 집계 정보를 확인할 수 없습니다."
     )
+
+    get poll_poll_session_path(poll, poll_session)
+    status_check = Nokogiri::HTML(response.body).at_css("[data-testid='poll-session-status-check']")
     expect(status_check.text.squish).to include(
       "상태점검 종료",
       "회장 항목의 #{poll.choice_label} 집계 정보를 확인해 주세요."
     )
+  end
+
+  it "rejects a non-closed Session result URL" do
+    poll, poll_session, = create_execution
+    operator = poll_session.operator
+    sign_in operator
+
+    get results_poll_poll_session_path(poll, poll_session)
+    expect(response).to have_http_status(:not_found)
+  end
+
+  it "rejects a school-managed Session result URL" do
+    poll, poll_session, progress, = create_execution
+    operator = poll_session.operator
+    closed_at = Time.current
+    poll_session.update!(status: :closed, closed_at: closed_at)
+    progress.update!(status: :closed, closed_at: closed_at, ballot_status: :ballot_locked)
+    poll.update!(school_managed: true)
+    sign_in operator
+
+    get results_poll_poll_session_path(poll, poll_session)
+    expect(response).to have_http_status(:not_found)
   end
 end
