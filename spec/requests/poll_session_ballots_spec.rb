@@ -87,7 +87,8 @@ RSpec.describe "PollSession ballots", type: :request do
       test_session => ["내 투표 목록으로 돌아가기", polls_path]
     }.each do |session, (label, path)|
       get poll_poll_session_path(session.poll, session)
-      back_link = Nokogiri::HTML(response.body).at_css("[data-testid='poll-session-header'] a")
+      back_link = Nokogiri::HTML(response.body)
+        .at_css("a[href='#{path}'][data-turbo-frame='_top']")
       expect(back_link.text.strip).to eq(label)
       expect(back_link["href"]).to eq(path)
     end
@@ -100,7 +101,10 @@ RSpec.describe "PollSession ballots", type: :request do
       expect(Nokogiri::HTML(response.body).at_css("a[href='#{detail_path}']")).to be_present
 
       get detail_path
-      back_link = Nokogiri::HTML(response.body).at_css("[data-testid='poll-session-header'] a")
+      back_link = Nokogiri::HTML(response.body)
+        .at_css(
+          "a[href='#{school_poll_path(poll)}'][data-turbo-frame='_top']"
+        )
       expect(back_link.text.strip).to eq("전교투표 상세로 돌아가기")
       expect(back_link["href"]).to eq(school_poll_path(poll))
     end
@@ -378,10 +382,9 @@ RSpec.describe "PollSession ballots", type: :request do
       "#{current.number}번 #{current.name} 학생이",
       "투표를 완료했습니다.",
       "다음 투표자는 #{waiting.number}번 #{waiting.name} 학생입니다.",
-      "미참여 처리",
-      "투표 진행 상황",
-      "투표 완료"
+      "미참여 처리"
     )
+    expect(response.body).to include("투표 진행 상황", "투표 완료")
 
     patch advance_participant_poll_poll_session_path(poll, poll_session), params: {
       expected_current_poll_participant_id: current.id
@@ -543,10 +546,15 @@ RSpec.describe "PollSession ballots", type: :request do
     current_card = page.at_css("[data-testid='poll-session-current-participant']")
     current_name = current_card.at_css("p.text-5xl")
     progress_frame = page.at_css("turbo-frame[data-controller='poll-session-progress']")
+    status_check = page.at_css(
+      "[data-testid='poll-session-status-check']"
+    )
 
+    expect(status_check.text.squish).to include(
+      "상태점검 진행 중",
+      "투표가 정상적으로 진행 중입니다."
+    )
     expect(response.body).to include(
-      "상태 점검: 이상 없음",
-      "진행 상태가 정상입니다.",
       "학생 투표 화면 열기",
       "다음 투표자는 #{current.number}번 #{current.name} 학생입니다.",
       "미참여 처리"
@@ -595,7 +603,7 @@ RSpec.describe "PollSession ballots", type: :request do
       "[data-testid='poll-session-status-check']"
     )
     expect(status_check.text.squish).to include(
-      "상태 점검: 확인 필요",
+      "상태점검 진행 중",
       "#{poll.choice_label} 집계 정보를 확인해 주세요."
     )
     expect(response.body).not_to include(
@@ -780,15 +788,11 @@ RSpec.describe "PollSession ballots", type: :request do
       "[data-testid='poll-session-status-check']"
     )
     roster_rows = page.css(
-      "[data-testid='poll-session-roster'] tbody tr"
+      "[data-testid='poll-session-roster'] li"
     ).map { |row| row.text.squish }
 
     expect(summary.text).to include(
-      poll_session.classroom_name_snapshot,
-      poll_session.operator_name_snapshot,
-      "종료",
-      "시작 시각",
-      "종료 시각",
+      "투표 결과",
       "전체 인원",
       "투표 완료",
       "미참여",
@@ -801,18 +805,18 @@ RSpec.describe "PollSession ballots", type: :request do
       "1표",
       "0표",
       "투표자 명단",
-      "투표 시작 당시 확정된 투표자 명단입니다."
+      "투표자 명단"
     )
     expect(results.text.squish).to include(
       "최다 득표 후보: 1번 김후보"
     )
     expect(status_check.text.squish).to include(
-      "상태 점검: 종료됨",
+      "상태점검 종료",
       "이 학급 투표는 완료되었습니다."
     )
     expect(roster_rows).to include(
-      "#{current.number}번 #{current.name} 투표 완료",
-      "#{waiting.number}번 #{waiting.name} 미참여"
+      "#{current.number}번 #{current.name} · 투표 완료",
+      "#{waiting.number}번 #{waiting.name} · 미참여"
     )
     expect(response.body).not_to include("99표", "전체 snapshot " + "명단")
     expect(response.body).not_to include(
@@ -884,7 +888,7 @@ RSpec.describe "PollSession ballots", type: :request do
       "이 투표 세션의 집계 정보를 확인할 수 없습니다."
     )
     expect(status_check.text.squish).to include(
-      "상태 점검: 확인 필요",
+      "상태점검 종료",
       "회장 항목의 #{poll.choice_label} 집계 정보를 확인해 주세요."
     )
   end

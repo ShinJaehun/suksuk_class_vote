@@ -24,9 +24,12 @@ RSpec.describe "Classroom Poll retention", type: :request do
       poll, session, teacher = create_target(status: status)
       sign_in teacher
       get poll_poll_session_path(poll, session)
-
-      expect(response.body.include?("투표 삭제")).to eq(status != :in_progress)
+      expect(response.body).not_to include("투표 삭제")
       expect(response.body.include?("보관")).to eq(status == :closed)
+      get edit_poll_path(poll)
+      expect(response).to have_http_status(:ok)
+      expect(response.body.include?("학급투표 삭제")).to eq(status != :in_progress)
+
       sign_out teacher
     end
 
@@ -36,7 +39,9 @@ RSpec.describe "Classroom Poll retention", type: :request do
     session.update!(archived_at: archive_time)
     sign_in teacher
     get poll_poll_session_path(poll, session)
-    expect(response.body).not_to include("투표 삭제", archive_poll_path(poll))
+    expect(response.body).not_to include(archive_poll_path(poll))
+    get edit_poll_path(poll)
+    expect(response.body).not_to include("학급투표 삭제")
   end
 
   it "archives Poll and Session, removes it from active list, and keeps it in archive" do

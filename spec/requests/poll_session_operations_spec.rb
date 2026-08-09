@@ -58,7 +58,7 @@ RSpec.describe "PollSession operations", type: :request do
     get poll_poll_session_path(poll, poll_session)
 
     expect(response).to have_http_status(:ok)
-    expect(response.body).to include("투표 운영 현황", poll.title, poll_session.classroom_name_snapshot, poll_session.operator_name_snapshot)
+    expect(response.body).to include(poll.title, poll_session.classroom_name_snapshot, poll_session.operator_name_snapshot)
     expect(response.body).to include("진행 중", "현재 투표자", "#{waiting.number}번 #{waiting.name}")
     expect(response.body).not_to include(
       "#{completed.number}번 #{completed.name}",
@@ -128,8 +128,10 @@ RSpec.describe "PollSession operations", type: :request do
 
     page = Nokogiri::HTML(response.body)
 
-    expect(page.at_css("[data-testid='poll-session-status-check']").text).to include(
-      "상태 점검: 이상 없음",
+    expect(
+      page.at_css("[data-testid='poll-session-status-check']").text.squish
+    ).to include(
+      "상태점검 준비",
       "투표를 시작할 수 있습니다."
     )
     expect(response.body).to include("투표 시작")
@@ -141,8 +143,8 @@ RSpec.describe "PollSession operations", type: :request do
     candidate_text = page.at_css("[data-testid='poll-session-candidates']").text.squish
     expect(candidate_text).to include(
       poll.default_poll_contest.title,
-      "#{poll.choice_number_label} 1 · 조현",
-      "#{poll.choice_number_label} 2 · 서코"
+      "#{poll.choice_number_label} 1번 · 조현",
+      "#{poll.choice_number_label} 2번 · 서코"
     )
     expect(page.at_css("[data-testid='poll-session-roster']").text).to include(
       "전체 2명",
@@ -170,10 +172,10 @@ RSpec.describe "PollSession operations", type: :request do
       get poll_poll_session_path(poll, poll_session)
 
       expect(response).to have_http_status(:ok)
-      status_card = Nokogiri::HTML(response.body).at_css('[data-testid="poll-session-status-card"]')
+      status_card = Nokogiri::HTML(response.body).at_css('[data-testid="poll-session-header"]')
       expect(status_card.text.squish).to include(label, poll_session.classroom_name_snapshot, poll_session.operator_name_snapshot)
       expect(status_card.at_css('[data-testid="poll-badges"]').text.squish).to eq("학급 선거 #{label}")
-      expect(response.body).to include("투표자 명단이 없습니다.") if status == :closed
+      expect(response.body).to include("투표 대상 학생이 없습니다.") if status == :closed
       sign_out teacher
     end
   end

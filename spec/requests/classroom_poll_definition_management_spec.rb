@@ -15,24 +15,51 @@ RSpec.describe "Classroom Poll definition management", type: :request do
 
   before { sign_in operator }
 
-  it "edits basic information without removing existing definition records" do
+  it "edits the title without removing existing definition records and blocks a kind change" do
     contest = poll.default_poll_contest
     option = create(:poll_option, poll: poll, poll_contest: contest)
     poll_session
 
-    patch definition_poll_poll_session_path(poll, poll_session), params: { poll: { title: "토론 이름", kind: "debate" } }
+    patch poll_path(poll), params: { poll: { title: "토론 이름" } }
 
     expect(response).to redirect_to(poll_poll_session_path(poll, poll_session))
-    expect(poll.reload).to have_attributes(title: "토론 이름", kind: "debate")
+    expect(poll.reload.title).to eq("토론 이름")
+    patch poll_path(poll), params: { poll: { kind: "debate" } }
+    expect(response).to have_http_status(:unprocessable_content)
+    expect(poll.reload.kind).not_to eq("debate")
     expect(contest.reload).to be_persisted
     expect(option.reload).to be_persisted
   end
 
+  it "allows a kind change with only the automatic empty default Contest" do
+    poll_session
+
+    patch poll_path(poll), params: { poll: { kind: "debate" } }
+
+    expect(response).to redirect_to(poll_poll_session_path(poll, poll_session))
+    expect(poll.reload).to be_debate
+
+    poll.default_poll_contest.update!(title: "토론 주제")
+    patch poll_path(poll), params: { poll: { kind: "survey" } }
+    expect(response).to have_http_status(:unprocessable_content)
+    expect(poll.reload).to be_debate
+  end
+
   it "creates, updates, and deletes nested contests and options" do
     poll_session
+    get poll_poll_session_path(poll, poll_session)
+    expect(response.body).not_to include("1. 기본")
+    expect(response.body).to include("투표 항목이 없습니다.")
+    expect(response.body).not_to include(">투표 시작<")
+
     post poll_poll_session_contests_path(poll, poll_session), params: { poll_contest: { title: "새 문항" } }
     contest = poll.poll_contests.order(:position).last
-    expect(contest.position).to eq(2)
+    expect(poll.poll_contests.count).to eq(1)
+    expect(contest).to have_attributes(title: "새 문항", position: 1)
+
+    post poll_poll_session_contests_path(poll, poll_session), params: { poll_contest: { title: "둘째 문항" } }
+    expect(poll.poll_contests.count).to eq(2)
+    expect(poll.poll_contests.order(:position).last).to have_attributes(title: "둘째 문항", position: 2)
 
     patch poll_poll_session_contest_path(poll, poll_session, contest), params: { poll_contest: { title: "수정 문항" } }
     post poll_poll_session_contest_options_path(poll, poll_session, contest), params: { poll_option: { number: 3, name: "선택" } }
@@ -60,10 +87,9 @@ RSpec.describe "Classroom Poll definition management", type: :request do
     replacement_contest = replacement_poll.default_poll_contest
     replacement_option = replacement_contest.poll_options.sole
 
-    patch definition_poll_poll_session_path(replacement_poll, replacement),
-          params: { poll: { title: "4학년 학급 임원 재선거", kind: "survey" } }
-    expect(replacement_poll.reload).to have_attributes(title: "4학년 학급 임원 재선거", kind: "survey")
-    expect(poll.reload).not_to have_attributes(title: "4학년 학급 임원 재선거", kind: "survey")
+    patch poll_path(replacement_poll), params: { poll: { title: "4학년 학급 임원 재선거" } }
+    expect(replacement_poll.reload.title).to eq("4학년 학급 임원 재선거")
+    expect(poll.reload.title).not_to eq("4학년 학급 임원 재선거")
 
     patch poll_poll_session_contest_path(replacement_poll, replacement, replacement_contest),
           params: { poll_contest: { title: "수정 항목" } }
@@ -101,8 +127,7 @@ RSpec.describe "Classroom Poll definition management", type: :request do
     unrelated = create(:user)
     create(:school_membership, school: school, user: unrelated)
     sign_in unrelated
-    patch definition_poll_poll_session_path(replacement_poll, replacement),
-          params: { poll: { title: "무단 수정" } }
+    patch poll_path(replacement_poll), params: { poll: { title: "무단 수정" } }
     patch poll_poll_session_contest_option_path(replacement_poll, replacement, replacement_contest, replacement_option),
           params: { poll_option: { name: "무단 후보 수정" } }
     expect(replacement_poll.reload.title).to eq(original_title)
@@ -110,8 +135,7 @@ RSpec.describe "Classroom Poll definition management", type: :request do
 
     sign_in operator
     replacement.update!(status: :in_progress, started_at: Time.current)
-    patch definition_poll_poll_session_path(replacement_poll, replacement),
-          params: { poll: { title: "시작 후 수정" } }
+    patch poll_path(replacement_poll), params: { poll: { title: "시작 후 수정" } }
     patch poll_poll_session_contest_option_path(replacement_poll, replacement, replacement_contest, replacement_option),
           params: { poll_option: { name: "시작 후 후보 수정" } }
     expect(replacement_poll.reload.title).to eq(original_title)
@@ -123,9 +147,9 @@ RSpec.describe "Classroom Poll definition management", type: :request do
     poll_session.update!(status: :in_progress, started_at: Time.current)
     original_title = poll.title
 
-    patch definition_poll_poll_session_path(poll, poll_session), params: { poll: { title: "차단" } }
+    patch poll_path(poll), params: { poll: { title: "차단" } }
 
-    expect(response).to redirect_to(polls_path)
+    expect(response).to redirect_to(poll_poll_session_path(poll, poll_session))
     expect(poll.reload.title).to eq(original_title)
   end
 
@@ -147,8 +171,7 @@ RSpec.describe "Classroom Poll definition management", type: :request do
     original_title = poll.title
     sign_in create(:user)
 
-    patch definition_poll_poll_session_path(poll, poll_session), params: { poll: { title: "위조" } }
-
+    patch poll_path(poll), params: { poll: { title: "위조" } }
     expect(response).to redirect_to(polls_path)
     expect(poll.reload.title).to eq(original_title)
   end
@@ -158,9 +181,8 @@ RSpec.describe "Classroom Poll definition management", type: :request do
     poll.update!(school_managed: true)
     original_title = poll.title
 
-    patch definition_poll_poll_session_path(poll, poll_session), params: { poll: { title: "위조" } }
-
-    expect(response).to redirect_to(polls_path)
+    patch poll_path(poll), params: { poll: { title: "위조" } }
+    expect(response).to have_http_status(:not_found)
     expect(poll.reload.title).to eq(original_title)
   end
 
@@ -168,10 +190,10 @@ RSpec.describe "Classroom Poll definition management", type: :request do
     poll_session
     option = create(:poll_option, poll: poll, poll_contest: poll.default_poll_contest)
     get poll_poll_session_path(poll, poll_session)
-    expect(response.body).to include("투표 기본 정보", "#{poll.contest_label} 추가", "#{poll.choice_label} 추가", "투표자 명단", "상태 점검")
+    expect(response.body).to include("투표 설정", "#{poll.contest_label} 추가", "#{poll.choice_label} 추가", "투표자 명단", "상태점검")
     page = Nokogiri::HTML(response.body)
     expect(page.at_css(%(turbo-frame##{dom_id(poll_session, :contest_list)}))).to be_present
-    expect(page.at_css(%(turbo-frame##{dom_id(poll_session, :new_contest)}))).to be_present
+    expect(page.at_css("turbo-frame#school_poll_modal")).to be_present
     expect(page.at_css("dialog")).to be_nil
     workspace_links = [
       page.at_css(%(a[href="#{new_poll_poll_session_contest_path(poll, poll_session)}"])),
@@ -180,12 +202,7 @@ RSpec.describe "Classroom Poll definition management", type: :request do
       page.at_css(%(a[href="#{edit_poll_poll_session_contest_option_path(poll, poll_session, poll.default_poll_contest, option)}"]))
     ]
     expect(workspace_links).to all(be_present)
-    expect(workspace_links.map { |link| link["data-turbo-frame"] }).to eq([
-      dom_id(poll_session, :new_contest),
-      dom_id(poll.default_poll_contest),
-      dom_id(poll.default_poll_contest, :new_option),
-      dom_id(option)
-    ])
+    expect(workspace_links.map { |link| link["data-turbo-frame"] }).to all(eq("school_poll_modal"))
 
     roster_link = page.css("[data-testid='poll-session-roster'] a").find { |link| link.text.include?("투표자 명단 수정") }
     expect(roster_link).to be_present
@@ -203,21 +220,21 @@ RSpec.describe "Classroom Poll definition management", type: :request do
   end
 
 
-  it "renders Contest and Option inline frames with direct HTML fallbacks" do
+  it "renders Contest and Option forms in the existing modal frame with direct HTML fallbacks" do
     poll_session
     contest = poll.default_poll_contest
     option = create(:poll_option, poll: poll, poll_contest: contest, number: 1)
 
-    get new_poll_poll_session_contest_path(poll, poll_session), headers: { "Turbo-Frame" => dom_id(poll_session, :new_contest) }
+    get new_poll_poll_session_contest_path(poll, poll_session), headers: { "Turbo-Frame" => "school_poll_modal" }
     expect(response).to have_http_status(:ok)
-    expect(response.body).to include(%(id="#{dom_id(poll_session, :new_contest)}"), poll.contest_label, "취소")
+    expect(response.body).to include(%(id="school_poll_modal"), poll.contest_label, "취소")
 
-    get edit_poll_poll_session_contest_path(poll, poll_session, contest), headers: { "Turbo-Frame" => dom_id(contest) }
-    expect(response.body).to include(%(id="#{dom_id(contest)}"), contest.title, "취소")
+    get edit_poll_poll_session_contest_path(poll, poll_session, contest), headers: { "Turbo-Frame" => "school_poll_modal" }
+    expect(response.body).to include(%(id="school_poll_modal"), contest.title, "취소")
 
-    get new_poll_poll_session_contest_option_path(poll, poll_session, contest), headers: { "Turbo-Frame" => dom_id(contest, :new_option) }
+    get new_poll_poll_session_contest_option_path(poll, poll_session, contest), headers: { "Turbo-Frame" => "school_poll_modal" }
     page = Nokogiri::HTML(response.body)
-    frame = page.at_css("turbo-frame##{dom_id(contest, :new_option)}")
+    frame = page.at_css("turbo-frame#school_poll_modal")
     expect(frame).to be_present
     expect(frame.text.squish).to include(poll.choice_number_label, "이름", "취소")
     expect(frame.at_css('input[name="poll_option[number]"]')).to be_present
@@ -226,12 +243,12 @@ RSpec.describe "Classroom Poll definition management", type: :request do
     expect(submit).to be_present
     expect(submit["value"]).to eq("추가")
 
-    get edit_poll_poll_session_contest_option_path(poll, poll_session, contest, option), headers: { "Turbo-Frame" => dom_id(option) }
-    expect(response.body).to include(%(id="#{dom_id(option)}"), option.name, option.number.to_s, "취소")
+    get edit_poll_poll_session_contest_option_path(poll, poll_session, contest, option), headers: { "Turbo-Frame" => "school_poll_modal" }
+    expect(response.body).to include(%(id="school_poll_modal"), option.name, option.number.to_s, "취소")
 
     get new_poll_poll_session_contest_path(poll, poll_session)
     expect(response).to have_http_status(:ok)
-    expect(response.body).not_to include(%(id="#{dom_id(poll_session, :new_contest)}"))
+    expect(response.body).not_to include(%(id="school_poll_modal"))
   end
 
   it "streams Contest create, update, destroy, and inline validation errors" do
@@ -239,26 +256,25 @@ RSpec.describe "Classroom Poll definition management", type: :request do
 
     post poll_poll_session_contests_path(poll, poll_session),
          params: { poll_contest: { title: "" } },
-         headers: { "Turbo-Frame" => dom_id(poll_session, :new_contest) },
+         headers: { "Turbo-Frame" => "school_poll_modal" },
          as: :turbo_stream
     expect(response).to have_http_status(:unprocessable_content)
-    expect(response.body).to include(%(id="#{dom_id(poll_session, :new_contest)}"))
+    expect(response.body).to include(%(id="school_poll_modal"))
 
     post poll_poll_session_contests_path(poll, poll_session), params: { poll_contest: { title: "새 항목" } }, as: :turbo_stream
     contest = poll.poll_contests.order(:position).last
     expect(response.body).to include(
       %(action="append" target="#{dom_id(poll_session, :contest_list)}"),
-      %(action="update" target="#{dom_id(poll_session, :new_contest)}"),
-      %(target="#{dom_id(poll_session, :status_check)}"),
-      %(target="#{dom_id(poll_session, :start_action)}")
+      %(action="update" target="school_poll_modal"),
+      %(target="#{dom_id(poll_session, :status_check)}")
     )
 
     patch poll_poll_session_contest_path(poll, poll_session, contest), params: { poll_contest: { title: "수정 항목" } }, as: :turbo_stream
     expect(contest.reload.title).to eq("수정 항목")
-    expect(response.body).to include(%(action="replace" target="#{dom_id(contest)}"), %(target="#{dom_id(poll_session, :status_check)}"), %(target="#{dom_id(poll_session, :start_action)}"))
+    expect(response.body).to include(%(action="replace" target="#{dom_id(contest)}"), %(target="#{dom_id(poll_session, :status_check)}"))
 
     delete poll_poll_session_contest_path(poll, poll_session, contest), as: :turbo_stream
-    expect(response.body).to include(%(action="remove" target="#{dom_id(contest)}"), %(target="#{dom_id(poll_session, :status_check)}"), %(target="#{dom_id(poll_session, :start_action)}"))
+    expect(response.body).to include(%(action="remove" target="#{dom_id(contest)}"), %(target="#{dom_id(poll_session, :status_check)}"))
   end
 
   it "streams Option CRUD and immediately refreshes readiness" do
@@ -268,18 +284,17 @@ RSpec.describe "Classroom Poll definition management", type: :request do
 
     post poll_poll_session_contest_options_path(poll, poll_session, contest),
          params: { poll_option: { number: 2, name: "" } },
-         headers: { "Turbo-Frame" => dom_id(contest, :new_option) },
+         headers: { "Turbo-Frame" => "school_poll_modal" },
          as: :turbo_stream
     expect(response).to have_http_status(:unprocessable_content)
-    expect(response.body).to include(%(id="#{dom_id(contest, :new_option)}"))
+    expect(response.body).to include(%(id="school_poll_modal"))
 
     post poll_poll_session_contest_options_path(poll, poll_session, contest), params: { poll_option: { number: 2, name: "둘째 후보" } }, as: :turbo_stream
     second = contest.poll_options.find_by!(number: 2)
     expect(response.body).to include(
       %(action="append" target="#{dom_id(contest, :option_list)}"),
-      %(action="update" target="#{dom_id(contest, :new_option)}"),
+      %(action="update" target="school_poll_modal"),
       %(target="#{dom_id(poll_session, :status_check)}"),
-      %(target="#{dom_id(poll_session, :start_action)}"),
       "투표 시작"
     )
 
@@ -288,7 +303,7 @@ RSpec.describe "Classroom Poll definition management", type: :request do
     expect(response.body).to include(%(action="replace" target="#{dom_id(second)}"))
 
     delete poll_poll_session_contest_option_path(poll, poll_session, contest, second), as: :turbo_stream
-    expect(response.body).to include(%(action="remove" target="#{dom_id(second)}"), %(target="#{dom_id(poll_session, :start_action)}"))
+    expect(response.body).to include(%(action="remove" target="#{dom_id(second)}"), %(target="#{dom_id(poll_session, :status_check)}"))
     expect(response.body).not_to include("투표 시작")
     expect(first.reload).to be_persisted
   end

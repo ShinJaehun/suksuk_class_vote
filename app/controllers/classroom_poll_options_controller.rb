@@ -16,7 +16,7 @@ class ClassroomPollOptionsController < ApplicationController
         format.turbo_stream do
           render turbo_stream: [
             turbo_stream.append(helpers.dom_id(@contest, :option_list), partial: "poll_sessions/option_row", locals: { poll_session: @poll_session, contest: @contest, option: @option }),
-            turbo_stream.update(helpers.dom_id(@contest, :new_option), ""),
+            turbo_stream.update("school_poll_modal", ""),
             *status_and_start_streams
           ]
         end
@@ -35,6 +35,7 @@ class ClassroomPollOptionsController < ApplicationController
         format.turbo_stream do
           render turbo_stream: [
             turbo_stream.replace(@option, partial: "poll_sessions/option_row", locals: { poll_session: @poll_session, contest: @contest, option: @option }),
+            turbo_stream.update("school_poll_modal", ""),
             *status_and_start_streams
           ]
         end
@@ -90,8 +91,7 @@ class ClassroomPollOptionsController < ApplicationController
     @poll_session.poll.reload
     status_check = Polls::SessionStatusCheck.new(poll_session: @poll_session).call
     [
-      turbo_stream.replace(helpers.dom_id(@poll_session, :status_check), partial: "poll_sessions/status_check_frame", locals: { poll_session: @poll_session, status_check: status_check }),
-      turbo_stream.replace(helpers.dom_id(@poll_session, :start_action), partial: "poll_sessions/start_action_frame", locals: { poll_session: @poll_session, status_check: status_check })
+      turbo_stream.replace(helpers.dom_id(@poll_session, :status_check), partial: "poll_sessions/status_check_frame", locals: { poll_session: @poll_session, status_check: status_check })
     ]
   end
 end

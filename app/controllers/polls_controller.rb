@@ -1,6 +1,6 @@
 class PollsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_poll, only: %i[show ballot start open_current_participant_ballot submit_vote record_participation_outcome record_next_participant_absent advance_current_participant resume_current_participant close stop archive destroy]
+  before_action :set_poll, only: %i[show edit update ballot start open_current_participant_ballot submit_vote record_participation_outcome record_next_participant_absent advance_current_participant resume_current_participant close stop archive destroy]
 
   def index
     base_poll_sessions = PollSession
@@ -85,6 +85,30 @@ class PollsController < ApplicationController
     @integrity_report = Polls::IntegrityReport.new(@poll)
     @result_summary = Polls::ResultSummary.new(@poll) if @poll.closed?
     @poll_events = operation_event_log_events
+  end
+
+  def edit
+    prepare_classroom_settings
+  end
+
+  def update
+    prepare_classroom_settings
+
+    unless policy(@poll_session).edit_definition?
+      redirect_to poll_poll_session_path(@poll, @poll_session), alert: "투표 시작 후에는 설정을 변경할 수 없습니다."
+      return
+    end
+
+    attributes = poll_params
+    if attributes[:kind].present? && attributes[:kind] != @poll.kind && !@kind_changeable
+      @poll.assign_attributes(attributes.except(:kind))
+      @poll.errors.add(:kind, "투표 항목이나 선택지가 있으면 변경할 수 없습니다.")
+      render :edit, status: :unprocessable_entity
+    elsif @poll.update(attributes)
+      redirect_to poll_poll_session_path(@poll, @poll_session), notice: "투표 설정을 저장했습니다."
+    else
+      render :edit, status: :unprocessable_entity
+    end
   end
 
   def ballot
@@ -317,6 +341,22 @@ class PollsController < ApplicationController
   end
 
   private
+
+  def prepare_classroom_settings
+    raise ActiveRecord::RecordNotFound unless @poll.classroom_based?
+
+    @poll_session = @poll.current_poll_sessions.order(:created_at, :id).first ||
+      @poll.poll_sessions.order(created_at: :desc, id: :desc).first!
+    authorize @poll_session, :show?
+    @settings_editable = policy(@poll_session).edit_definition?
+    @kind_changeable = @settings_editable && classroom_kind_changeable?
+  end
+
+  def classroom_kind_changeable?
+    return false if @poll.poll_options.any?
+
+    @poll.poll_contests.none? || @poll.automatic_empty_default_contest.present?
+  end
 
   def set_poll
     @poll = Poll.find(params[:id])

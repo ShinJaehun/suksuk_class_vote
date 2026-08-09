@@ -1,6 +1,10 @@
 <% if turbo_frame_request? %>
-  <%= turbo_frame_tag @contest do %>
-    <%= render "poll_sessions/contest_form", poll_session: @poll_session, contest: @contest, form_url: poll_poll_session_contest_path(@poll, @poll_session, @contest), submit_label: "저장", cancel_path: poll_poll_session_path(@poll, @poll_session), frame_id: dom_id(@contest) %>
+  <%= turbo_frame_tag "school_poll_modal" do %>
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/40 p-4">
+      <%= render "poll_definitions/contest_form", poll: @poll, contest: @contest,
+                 form_url: poll_poll_session_contest_path(@poll, @poll_session, @contest), heading_action: "수정",
+                 submit_label: "저장", cancel_path: poll_poll_session_path(@poll, @poll_session) %>
+    </div>
   <% end %>
 <% else %>
   <%= render "poll_definitions/contest_form", poll: @poll, contest: @contest, form_url: poll_poll_session_contest_path(@poll, @poll_session, @contest), heading_action: "수정", submit_label: "저장", cancel_path: poll_poll_session_path(@poll, @poll_session) %>

@@ -13,233 +13,150 @@
                   end %>
 <%= turbo_frame_tag dom_id(@poll_session, :teacher_progress), data: polling_data do %>
   <div class="mx-auto max-w-5xl space-y-6">
-    <% visible_voter_count = @poll_session.draft? && !@poll_session.replacement? ? @active_students.size : @participants.size %>
-    <section class="rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
-             data-testid="poll-session-status-card">
-      <div class="flex flex-wrap items-center gap-2">
-        <h2 class="font-semibold">투표 실행 상태</h2>
-        <%= poll_badges(poll: @poll_session.poll, status_record: @poll_session) %>
+    <% visible_voters = @poll_session.draft? && !@poll_session.replacement? ? @active_students : @participants %>
+
+    <%= link_to poll_session_back_label(@poll_session, from: params[:from]),
+                poll_session_back_path(@poll_session, from: params[:from]),
+                data: { turbo_frame: "_top" },
+                class: "inline-block text-sm font-medium text-stone-700 underline" %>
+
+    <section class="space-y-4 rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
+             data-testid="poll-session-header">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div class="flex flex-wrap items-center gap-2">
+          <h1 class="text-3xl font-semibold"><%= poll_session_display_title(@poll_session) %></h1>
+          <%= poll_badges(poll: @poll_session.poll, status_record: @poll_session) %>
+        </div>
+        <% if !@poll_session.poll.school_managed? && policy(@poll_session).show? %>
+          <%= link_to "투표 설정", edit_poll_path(@poll_session.poll),
+                      data: { turbo_frame: "_top" },
+                      class: "rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700" %>
+        <% end %>
       </div>
-      <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-4">
-        <div>
-          <dt class="text-stone-500">활동 유형</dt>
-          <dd class="font-medium"><%= @poll_session.poll.activity_label %></dd>
-        </div>
-        <div>
-          <dt class="text-stone-500">대상 학급</dt>
-          <dd class="font-medium"><%= @poll_session.classroom_name_snapshot %></dd>
-        </div>
-        <div>
-          <dt class="text-stone-500">담당 교사</dt>
-          <dd class="font-medium"><%= @poll_session.operator_name_snapshot %></dd>
-        </div>
-        <div>
-          <dt class="text-stone-500">투표자 수</dt>
-          <dd class="font-medium"><%= visible_voter_count %>명</dd>
-        </div>
+      <dl class="grid gap-3 sm:grid-cols-3">
+        <% {
+             "대상 학급" => @poll_session.classroom_name_snapshot,
+             "담당 교사" => @poll_session.operator_name_snapshot,
+             "투표자 수" => "#{visible_voters.size}명"
+           }.each do |label, value| %>
+          <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+            <dt class="text-xs font-medium text-stone-500"><%= label %></dt>
+            <dd class="mt-1 font-semibold"><%= value %></dd>
+          </div>
+        <% end %>
       </dl>
       <% session_time_labels = poll_session_status_time_labels(@poll_session) %>
       <% if session_time_labels.any? %>
-        <p class="mt-3 text-sm text-stone-600"><%= session_time_labels.join(" · ") %></p>
+        <p class="text-sm text-stone-600"><%= session_time_labels.join(" · ") %></p>
       <% end %>
     </section>
-    <% if policy(@poll_session).stop? %>
-      <%= button_to "투표 중단",
-                    stop_poll_poll_session_path(@poll_session.poll, @poll_session),
-                    method: :patch,
-                    form: { data: { turbo_frame: "_top" } },
-                    data: {
-                      turbo_confirm: "현재 투표 실행을 중단할까요? 지금까지의 진행 기록은 보존되며 이 실행에서는 더 이상 투표를 계속할 수 없습니다."
-                    },
-                    class: "rounded-md border border-rose-300 px-4 py-2 text-sm font-medium text-rose-700" %>
-    <% end %>
-    <% if policy(@poll_session).revote? %>
-      <%= button_to "재투표 시작 준비",
-                    revote_poll_poll_session_path(@poll_session.poll, @poll_session),
-                    method: :post,
-                    form: { data: { turbo_frame: "_top" } },
-                    data: {
-                      turbo_confirm: "기존 진행 기록과 결과를 보존하고 같은 투표자 명단으로 새 재투표 실행을 만들까요?"
-                    },
-                    class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
-    <% end %>
-    <% if policy(@poll_session).archive_poll? %>
-      <%= button_to "보관",
-                    archive_poll_path(@poll_session.poll),
-                    method: :post,
-                    form: { data: { turbo_frame: "_top" } },
-                    data: { turbo_confirm: "종료된 투표와 모든 실행 이력을 보관할까요?" },
-                    class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
-    <% end %>
-    <% if policy(@poll_session).destroy_poll? %>
-      <%= button_to "투표 삭제",
-                    poll_path(@poll_session.poll),
-                    method: :delete,
-                    form: { data: { turbo_frame: "_top" } },
-                    data: { turbo_confirm: "투표 정의와 모든 실행 기록을 삭제할까요?" },
-                    class: "rounded-md border border-rose-300 px-4 py-2 text-sm font-medium text-rose-700" %>
-    <% end %>
-    <% if @poll_session.in_progress? %>
-      <%= turbo_stream_from @poll_session, :operation_screen %>
-      <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
-              data-testid="poll-session-header">
-        <div>
-          <%= link_to poll_session_back_label(@poll_session, from: params[:from]),
-                      poll_session_back_path(@poll_session, from: params[:from]),
-                      data: { turbo_frame: "_top" },
-                      class: "text-sm font-medium text-stone-700 underline" %>
-          <h1 class="mt-3 text-2xl font-semibold">투표 운영 현황</h1>
-          <p class="mt-1 text-lg font-medium"><%= poll_session_display_title(@poll_session) %></p>
-          <p class="mt-2 text-sm text-stone-600">
-            <%= @poll_session.classroom_name_snapshot %>
-            · 담당 교사: <%= @poll_session.operator_name_snapshot %>
-            · <%= poll_session_status_label(@poll_session) %>
-          </p>
-        </div>
 
-        <% if @poll_session.archived_at.blank? &&
-              @current_participant.present? &&
-              @status_check.progress_valid? &&
-              policy(@poll_session).operate? %>
-          <div data-controller="ballot-window"
-               data-testid="poll-session-ballot-window"
-               data-ballot-window-name-value="poll_session_<%= @poll_session.id %>_ballot">
-            <%= link_to "학생 투표 화면 열기",
-                        ballot_poll_poll_session_path(@poll_session.poll, @poll_session),
-                        target: "poll_session_#{@poll_session.id}_ballot",
-                        data: {
-                          turbo: false,
-                          action: "click->ballot-window#open"
-                        },
-                        class: "inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" %>
-          </div>
-        <% end %>
-      </header>
+    <%= render "poll_sessions/status_check_frame",
+               poll_session: @poll_session,
+               status_check: @status_check,
+               navigation_context: params[:from] %>
 
-      <%= render "operation",
-                 poll_session: @poll_session,
-                 current_participant: @current_participant,
-                 current_participation: @current_participation,
-                 next_pending_participant: @next_pending_participant,
-                 pending_participants: @pending_participants,
-                 poll_events: @poll_events,
-                 can_operate: policy(@poll_session).operate?,
-                 status_check: @status_check %>
-    <% elsif @poll_session.draft? %>
-      <header data-testid="poll-session-header">
-        <%= link_to poll_session_back_label(@poll_session, from: params[:from]),
-                    poll_session_back_path(@poll_session, from: params[:from]),
-                    data: { turbo_frame: "_top" },
-                    class: "text-sm font-medium text-stone-700 underline" %>
-        <h1 class="mt-3 text-2xl font-semibold">투표 운영 현황</h1>
-        <p class="mt-1 text-lg font-medium"><%= poll_session_display_title(@poll_session) %></p>
-        <% if @poll_session.poll.school_managed? %>
-          <p class="mt-1 text-sm font-medium text-stone-600">전교투표 학급 운영</p>
-        <% end %>
-        <p class="mt-1 text-sm text-stone-600"><%= @poll_session.poll.activity_label %></p>
-        <p class="mt-2 text-sm text-stone-600">
-          <%= @poll_session.classroom_name_snapshot %>
-          · 담당 교사: <%= @poll_session.operator_name_snapshot %>
-          · <%= poll_session_status_label(@poll_session) %>
-        </p>
-      </header>
-
+    <% unless @poll_session.in_progress? %>
       <% if policy(@poll_session).edit_definition? %>
-        <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm" data-testid="poll-session-definition-form">
-          <h2 class="text-lg font-semibold">투표 기본 정보</h2>
-          <%= form_with model: @poll_session.poll,
-                        url: definition_poll_poll_session_path(@poll_session.poll, @poll_session),
-                        class: "mt-4 space-y-4" do |form| %>
-            <div>
-              <%= form.label :title, "투표 이름", class: "block text-sm font-medium" %>
-              <%= form.text_field :title, class: "mt-1 w-full rounded-md border-stone-300" %>
-            </div>
-            <%= render "poll_definitions/kind_selector", form: form, poll: @poll_session.poll %>
-            <%= form.submit "저장", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
-          <% end %>
-        </section>
-
         <%= render "poll_sessions/definition_management", poll_session: @poll_session %>
       <% else %>
-        <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm" data-testid="poll-session-candidates">
-          <h2 class="text-lg font-semibold"><%= @poll_session.poll.choice_label %></h2>
-          <% @poll_session.poll.poll_contests.sort_by { |contest| [contest.position, contest.id] }.each do |contest| %>
-            <h3 class="mt-4 font-semibold"><%= contest.title %></h3>
-            <ul class="mt-2">
-              <% contest.poll_options.sort_by { |option| [option.number, option.id] }.each do |option| %>
-                <li><%= @poll_session.poll.choice_number_label %> <%= option.number %> · <%= option.name %></li>
-              <% end %>
-            </ul>
-          <% end %>
+        <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
+                data-testid="poll-session-candidates">
+          <h2 class="text-lg font-semibold"><%= @poll_session.poll.contest_label %> 관리</h2>
+          <div class="mt-4 space-y-5">
+            <% visible_contests = @poll_session.poll.poll_contests.reject { |contest| contest == @poll_session.poll.automatic_empty_default_contest } %>
+            <% visible_contests.sort_by { |contest| [contest.position, contest.id] }.each do |contest| %>
+              <article class="rounded-md border border-stone-200 p-4">
+                <h3 class="font-semibold"><%= contest.position %>. <%= contest.title %></h3>
+                <div class="mt-3 <%= @poll_session.poll.election? ? "grid gap-3 sm:grid-cols-2" : "space-y-1" %>">
+                  <% contest.poll_options.sort_by { |option| [option.number, option.id] }.each do |option| %>
+                    <div class="flex items-center gap-3 py-1">
+                      <% if @poll_session.poll.election? && option.photo.attached? %>
+                        <%= image_tag poll_option_photo_source(option, variant: :thumbnail),
+                                      alt: "#{option.name} 후보 사진",
+                                      class: "h-12 w-12 rounded-md object-contain" %>
+                      <% end %>
+                      <span><%= @poll_session.poll.choice_number_label %> <%= option.number %>번 · <%= option.name %></span>
+                    </div>
+                  <% end %>
+                </div>
+              </article>
+            <% end %>
+          </div>
         </section>
       <% end %>
 
       <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
-               data-testid="poll-session-roster">
-        <% draft_roster = @poll_session.replacement? ? @participants : @active_students %>
+              data-testid="poll-session-roster">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h2 class="text-lg font-semibold">투표자 명단</h2>
           <div class="flex items-center gap-3">
-            <span class="text-sm text-stone-600">전체 <%= draft_roster.size %>명</span>
+            <span class="text-sm text-stone-600">전체 <%= visible_voters.size %>명</span>
             <% if policy(@poll_session).edit_replacement_roster? %>
-              <%= link_to "투표자 명단 수정",
-                          edit_poll_poll_session_roster_path(@poll_session.poll, @poll_session),
+              <%= link_to "투표자 명단 수정", edit_poll_poll_session_roster_path(@poll_session.poll, @poll_session),
                           data: { turbo_frame: "_top" },
                           class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium" %>
-            <% elsif !@poll_session.replacement? && policy(@poll_session.classroom).manage_students? %>
+            <% elsif @poll_session.draft? && !@poll_session.replacement? && policy(@poll_session.classroom).manage_students? %>
               <%= link_to "투표자 명단 수정",
-                          classroom_students_path(
-                            @poll_session.classroom,
+                          classroom_students_path(@poll_session.classroom,
                             return_poll_id: @poll_session.poll_id,
-                            return_poll_session_id: @poll_session.id
-                          ),
+                            return_poll_session_id: @poll_session.id),
                           data: { turbo_frame: "_top" },
                           class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium" %>
             <% end %>
           </div>
         </div>
-        <% unless @poll_session.replacement? %>
+        <% if @poll_session.draft? && !@poll_session.replacement? %>
           <p class="mt-2 text-sm text-stone-600">투표를 시작할 때 이 학급의 활성 학생 명단이 투표자로 확정됩니다.</p>
         <% end %>
-        <% if draft_roster.any? %>
-          <ul class="mt-4 divide-y divide-stone-200">
-            <% draft_roster.each do |student| %>
-              <li class="flex gap-4 py-3">
-                <span class="w-16 font-medium"><%= student.number %>번</span>
-                <span><%= student.name %></span>
-              </li>
+        <% if visible_voters.any? %>
+          <% voter_columns = visible_voters.each_slice((visible_voters.size / 2.0).ceil).to_a %>
+          <div class="mt-4 grid gap-x-8 sm:grid-cols-2">
+            <% voter_columns.each do |voters| %>
+              <ul>
+                <% voters.each do |voter| %>
+                  <li class="flex gap-3 border-b border-stone-100 py-2">
+                    <span class="w-14 font-medium"><%= voter.number %>번</span>
+                    <span><%= voter.name %></span>
+                    <% if @poll_session.closed? %>
+                      <span class="text-sm text-stone-500">· <%= poll_participation_status_label(voter.poll_participation) %></span>
+                    <% end %>
+                  </li>
+                <% end %>
+              </ul>
             <% end %>
-          </ul>
+          </div>
         <% else %>
           <p class="mt-4 text-stone-600">투표 대상 학생이 없습니다.</p>
         <% end %>
       </section>
+    <% end %>
 
-      <% if @poll_session.poll.school_managed? && @poll_session.poll.draft? %>
-        <section class="rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-800" data-testid="poll-session-status-check">
-          <h2 class="font-semibold">상태 점검: 시작 대기</h2>
-          <p class="mt-2 text-sm">전교투표가 시작되면 이 학급 투표를 시작할 수 있습니다.</p>
-        </section>
-      <% else %>
-        <%= render "poll_sessions/status_check_frame", poll_session: @poll_session, status_check: @status_check %>
+    <% if @poll_session.started_at.present? %>
+      <% if @poll_session.in_progress? %>
+        <%= turbo_stream_from @poll_session, :operation_screen %>
+        <% if @current_participant.present? && @status_check.progress_valid? && policy(@poll_session).operate? %>
+          <div class="flex justify-end" data-controller="ballot-window"
+               data-testid="poll-session-ballot-window"
+               data-ballot-window-name-value="poll_session_<%= @poll_session.id %>_ballot">
+            <%= link_to "학생 투표 화면 열기", ballot_poll_poll_session_path(@poll_session.poll, @poll_session),
+                        target: "poll_session_#{@poll_session.id}_ballot",
+                        data: { turbo: false, action: "click->ballot-window#open" },
+                        class: "inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" %>
+          </div>
+        <% end %>
+        <%= render "operation",
+                   poll_session: @poll_session,
+                   current_participant: @current_participant,
+                   current_participation: @current_participation,
+                   next_pending_participant: @next_pending_participant,
+                   pending_participants: @pending_participants,
+                   poll_events: @poll_events,
+                   can_operate: policy(@poll_session).operate?,
+                   status_check: @status_check %>
+      <% elsif @poll_session.closed? %>
+        <%= render "poll_sessions/closed_summary" %>
       <% end %>
-      <%= render "poll_sessions/start_action_frame",
-                 poll_session: @poll_session,
-                 status_check: @status_check,
-                 navigation_context: params[:from] %>
-      <%= render "event_log", poll_events: @poll_events %>
-    <% elsif @poll_session.closed? %>
-      <%= render "poll_sessions/closed_summary" %>
-    <% else %>
-      <header>
-        <%= link_to poll_session_back_label(@poll_session, from: params[:from]),
-                    poll_session_back_path(@poll_session, from: params[:from]),
-                    data: { turbo_frame: "_top" },
-                    class: "text-sm font-medium text-stone-700 underline" %>
-        <h1 class="mt-3 text-2xl font-semibold">투표 운영 현황</h1>
-        <p class="mt-1 text-lg font-medium"><%= poll_session_display_title(@poll_session) %></p>
-        <p class="mt-2 text-sm font-medium text-stone-600"><%= poll_session_status_label(@poll_session) %></p>
-      </header>
       <%= render "event_log", poll_events: @poll_events %>
     <% end %>
   </div>

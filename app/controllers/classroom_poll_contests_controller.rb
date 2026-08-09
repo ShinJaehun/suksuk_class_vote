@@ -9,15 +9,16 @@ class ClassroomPollContestsController < ApplicationController
   end
 
   def create
-    @contest = @poll.poll_contests.new(contest_params)
-    @contest.position = @poll.poll_contests.maximum(:position).to_i + 1
+    @contest = @poll.automatic_empty_default_contest || @poll.poll_contests.new
+    @contest.assign_attributes(contest_params)
+    @contest.position ||= @poll.poll_contests.maximum(:position).to_i + 1
     if @contest.save
       respond_to do |format|
         format.html { redirect_to workspace_path, notice: "#{@poll.contest_label} 정보를 추가했습니다." }
         format.turbo_stream do
           render turbo_stream: [
             turbo_stream.append(helpers.dom_id(@poll_session, :contest_list), partial: "poll_sessions/contest_card", locals: { poll_session: @poll_session, contest: @contest }),
-            turbo_stream.update(helpers.dom_id(@poll_session, :new_contest), ""),
+            turbo_stream.update("school_poll_modal", ""),
             *status_and_start_streams
           ]
         end
@@ -36,6 +37,7 @@ class ClassroomPollContestsController < ApplicationController
         format.turbo_stream do
           render turbo_stream: [
             turbo_stream.replace(@contest, partial: "poll_sessions/contest_card", locals: { poll_session: @poll_session, contest: @contest }),
+            turbo_stream.update("school_poll_modal", ""),
             *status_and_start_streams
           ]
         end
@@ -90,8 +92,7 @@ class ClassroomPollContestsController < ApplicationController
     @poll_session.poll.reload
     status_check = Polls::SessionStatusCheck.new(poll_session: @poll_session).call
     [
-      turbo_stream.replace(helpers.dom_id(@poll_session, :status_check), partial: "poll_sessions/status_check_frame", locals: { poll_session: @poll_session, status_check: status_check }),
-      turbo_stream.replace(helpers.dom_id(@poll_session, :start_action), partial: "poll_sessions/start_action_frame", locals: { poll_session: @poll_session, status_check: status_check })
+      turbo_stream.replace(helpers.dom_id(@poll_session, :status_check), partial: "poll_sessions/status_check_frame", locals: { poll_session: @poll_session, status_check: status_check })
     ]
   end
 end

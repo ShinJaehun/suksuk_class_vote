@@ -60,19 +60,6 @@ class PollSessionsController < ApplicationController
     end
   end
 
-  def update_definition
-    poll_session = find_poll_session
-    authorize poll_session, :edit_definition?
-
-    if poll_session.poll.update(definition_params)
-      redirect_to poll_poll_session_path(poll_session.poll, poll_session),
-                  notice: "투표 기본 정보를 수정했습니다."
-    else
-      redirect_to poll_poll_session_path(poll_session.poll, poll_session),
-                  alert: poll_session.poll.errors.full_messages.to_sentence
-    end
-  end
-
   def ballot
     @poll_session = PollSession
       .includes(
@@ -285,10 +272,6 @@ class PollSessionsController < ApplicationController
       :poll_option_id,
       :abstain
     )
-  end
-
-  def definition_params
-    params.require(:poll).permit(:title, :kind)
   end
 
   def redirect_with_result(result, path, success_message)

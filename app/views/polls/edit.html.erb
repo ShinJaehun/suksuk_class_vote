@@ -1,0 +1,58 @@
+<div class="mx-auto max-w-3xl space-y-6">
+  <%= link_to "학급투표 상세로 돌아가기", poll_poll_session_path(@poll, @poll_session),
+              class: "text-sm font-medium text-stone-700 underline" %>
+
+  <div class="flex flex-wrap items-center gap-2">
+    <h1 class="text-3xl font-semibold">투표 설정</h1>
+    <%= poll_badges(poll: @poll, status_record: @poll_session) %>
+  </div>
+
+  <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+    <% if @poll.errors.any? %>
+      <div class="mb-4 rounded-md border border-rose-200 bg-rose-50 p-4 text-rose-800">
+        <p class="font-medium">투표 설정을 저장할 수 없습니다.</p>
+        <ul class="mt-2 list-disc pl-5 text-sm">
+          <% @poll.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <% unless @settings_editable %>
+      <p class="mb-4 rounded-md bg-stone-50 p-3 text-sm text-stone-600">투표 시작 후에는 설정을 변경할 수 없습니다.</p>
+    <% end %>
+
+    <%= form_with model: @poll, class: "space-y-4" do |form| %>
+      <div>
+        <%= form.label :title, "투표 이름", class: "block text-sm font-medium" %>
+        <%= form.text_field :title, disabled: !@settings_editable,
+                            class: "mt-1 w-full rounded-md border-stone-300 disabled:bg-stone-100" %>
+      </div>
+      <div class="space-y-1" data-testid="poll-kind-selector">
+        <%= form.label :kind, "활동 유형", class: "text-sm font-medium text-stone-700" %>
+        <%= form.select :kind, poll_kind_options, {}, disabled: !@kind_changeable,
+                        class: "w-full rounded-md border border-stone-300 px-3 py-2 disabled:bg-stone-100" %>
+        <% if @settings_editable && !@kind_changeable %>
+          <p class="text-sm text-stone-600">투표 항목이나 선택지가 있으면 활동 유형을 변경할 수 없습니다.</p>
+        <% end %>
+      </div>
+      <div class="flex gap-3">
+        <%= form.submit "저장", disabled: !@settings_editable,
+                        class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-stone-300" %>
+        <%= link_to "취소", poll_poll_session_path(@poll, @poll_session),
+                    class: "rounded-md border border-stone-300 px-4 py-2 text-sm font-medium" %>
+      </div>
+    <% end %>
+  </section>
+
+  <% if policy(@poll_session).destroy_poll? %>
+    <section class="rounded-xl border border-rose-300 bg-rose-50 p-6 shadow-sm">
+      <h2 class="text-xl font-semibold text-rose-900">학급투표 삭제</h2>
+      <p class="mt-2 text-sm text-rose-800">투표 정의와 모든 실행 기록을 영구 삭제합니다.</p>
+      <%= button_to "학급투표 삭제", poll_path(@poll), method: :delete,
+                    data: { turbo_confirm: "투표 정의와 모든 실행 기록을 삭제할까요?" },
+                    class: "mt-4 rounded-md bg-rose-700 px-4 py-2 text-sm font-semibold text-white" %>
+    </section>
+  <% end %>
+</div>

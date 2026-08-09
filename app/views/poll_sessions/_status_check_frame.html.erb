@@ -1,3 +1,6 @@
-<%= turbo_frame_tag dom_id(poll_session, :status_check) do %>
-  <%= render "poll_sessions/status_check", status_check: status_check %>
+<%= turbo_frame_tag dom_id(poll_session, :status_check), class: "block" do %>
+  <%= render "poll_sessions/status_check",
+             poll_session: poll_session,
+             status_check: status_check,
+             navigation_context: local_assigns[:navigation_context] %>
 <% end %>

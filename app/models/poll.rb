@@ -202,6 +202,14 @@ class Poll < ApplicationRecord
     default_poll_contest&.poll_options || PollOption.none
   end
 
+  def automatic_empty_default_contest
+    contests = poll_contests.to_a
+    return unless contests.one?
+
+    contest = contests.first
+    contest if contest.title == "기본" && contest.poll_options.empty?
+  end
+
   def ensure_default_poll_contest!
     poll_contests.find_or_create_by!(position: 1) do |poll_contest|
       poll_contest.title = "기본"

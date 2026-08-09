@@ -87,6 +87,7 @@ module Polls
       check_common_definition
       if include_poll_definition
         contests = poll&.poll_contests&.to_a || []
+        contests = contests.reject { |contest| contest == poll.automatic_empty_default_contest }
         issues << "투표 항목이 없습니다." if contests.empty?
         if contests.any? { |contest| contest.poll_options.size < 2 }
           issues << "등록된 #{poll.choice_label} 수가 2개 이상이어야 합니다."

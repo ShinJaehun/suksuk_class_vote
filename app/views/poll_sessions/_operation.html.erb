@@ -1,8 +1,6 @@
 <%= turbo_frame_tag dom_id(poll_session, :operation) do %>
   <div class="space-y-6">
     <% if poll_session.in_progress? %>
-      <%= render "poll_sessions/status_check", status_check: status_check %>
-
       <section class="rounded-xl border border-stone-200 bg-white px-6 py-10 text-center shadow-sm"
                data-testid="poll-session-current-participant">
         <p class="text-sm font-semibold uppercase tracking-wide text-stone-500">
@@ -133,6 +131,5 @@
       <% end %>
     <% end %>
 
-    <%= render "poll_sessions/event_log", poll_events: poll_events %>
   </div>
 <% end %>

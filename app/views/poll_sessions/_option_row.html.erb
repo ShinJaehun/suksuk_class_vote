@@ -1,10 +1,17 @@
 <%= turbo_frame_tag option do %>
-  <div class="flex flex-wrap items-center justify-between gap-3 py-1">
-    <span><%= poll_session.poll.choice_number_label %> <%= option.number %> · <%= option.name %></span>
+  <div class="flex flex-wrap items-center justify-between gap-3 <%= poll_session.poll.election? ? "rounded-md bg-stone-50 p-3" : "py-1" %>">
+    <span class="flex items-center gap-3">
+      <% if poll_session.poll.election? && option.photo.attached? %>
+        <%= image_tag poll_option_photo_source(option, variant: :thumbnail),
+                      alt: "#{option.name} 후보 사진",
+                      class: "h-12 w-12 rounded-md object-contain" %>
+      <% end %>
+      <span><%= poll_session.poll.choice_number_label %> <%= option.number %>번 · <%= option.name %></span>
+    </span>
     <span class="flex gap-3 text-sm">
       <%= link_to "#{poll_session.poll.choice_label} 수정",
                   edit_poll_poll_session_contest_option_path(poll_session.poll, poll_session, contest, option),
-                  data: { turbo_frame: dom_id(option) },
+                  data: { turbo_frame: "school_poll_modal" },
                   class: "underline" %>
       <%= button_to "#{poll_session.poll.choice_label} 삭제",
                     poll_poll_session_contest_option_path(poll_session.poll, poll_session, contest, option),

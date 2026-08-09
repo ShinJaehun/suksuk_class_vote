@@ -82,8 +82,10 @@ RSpec.describe "PollSession lifecycle", type: :request do
 
     replacement = Polls::RevoteSession.new(actor: teacher, poll_session: session).call.poll_session
     get poll_poll_session_path(replacement.poll, replacement)
-    expect(response.body).to include("투표자 명단 수정", "투표 기본 정보")
-    expect(response.body).to include("활동 유형", "관리")
+    expect(response.body).to include("투표자 명단 수정", "투표 설정")
+    expect(response.body).to include(
+      "#{replacement.poll.contest_label} 관리"
+    )
     expect(response.body).not_to include("학생 명단 관리", "재투표 명단 수정")
     expect(response.body).not_to include("이전 실행 · 중단")
     expect(response.body).not_to include("원본 확정 인원")
@@ -96,7 +98,6 @@ RSpec.describe "PollSession lifecycle", type: :request do
 
     get ballot_poll_poll_session_path(session.poll, session)
     expect(response.body).to include("중단된 투표입니다. 선생님의 안내를 기다려 주세요.")
-
   end
 
   it "rejects school-managed stop and revote for an otherwise authorized admin" do

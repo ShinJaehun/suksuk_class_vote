@@ -23,7 +23,7 @@ Rails.application.routes.draw do
       post :revote, on: :member
     end
   end
-  resources :polls, only: %i[index show new create destroy] do
+  resources :polls, only: %i[index show new create edit update destroy] do
     get :archived, on: :collection
     get :ballot, on: :member
     post :start, on: :member
@@ -37,7 +37,6 @@ Rails.application.routes.draw do
     post :stop, on: :member
     post :archive, on: :member
     resources :poll_sessions, only: :show do
-      patch :definition, on: :member, action: :update_definition
       post :start, on: :member
       get :ballot, on: :member
       patch :mark_current_participant_absent, on: :member
