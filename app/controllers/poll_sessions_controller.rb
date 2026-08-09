@@ -35,7 +35,6 @@ class PollSessionsController < ApplicationController
       .sort_by { |event| [event.occurred_at, event.id] }
       .reverse
 
-    prepare_closed_summary if @poll_session.closed? && @poll_session.poll.school_managed?
   end
 
   def results
@@ -47,7 +46,7 @@ class PollSessionsController < ApplicationController
         poll_contest_tallies: :poll_contest
       )
       .find_by!(id: params[:id], poll_id: params[:poll_id])
-    raise ActiveRecord::RecordNotFound if @poll_session.poll.school_managed? || !@poll_session.closed?
+    raise ActiveRecord::RecordNotFound unless @poll_session.closed?
     authorize @poll_session, :show?
 
     @status_check = Polls::SessionStatusCheck.new(poll_session: @poll_session).call

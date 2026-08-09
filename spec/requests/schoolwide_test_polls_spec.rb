@@ -383,9 +383,22 @@ RSpec.describe "Schoolwide test Polls", type: :request do
     expect(lifecycle_times).not_to include("테스트투표")
     get results_school_poll_path(test_poll)
     expect(response).to have_http_status(:ok)
-    get poll_poll_session_path(test_poll, session)
+
+    session_detail_path = poll_poll_session_path(test_poll, session, from: "school_poll")
+    session_results_path = results_poll_poll_session_path(test_poll, session, from: "school_poll")
+    get session_detail_path
     expect(response).to have_http_status(:ok)
-    expect(response.body).to include("투표 결과", "테스트")
+    expect(response.body).to include("결과 집계 보기", session_results_path)
+    expect(response.body).not_to include('data-testid="poll-session-results"')
+
+    get session_results_path
+    expect(response).to have_http_status(:ok)
+    expect(response.body).to include(
+      "#{test_poll.title} 결과 집계",
+      "투표 결과 인쇄",
+      'data-testid="poll-session-results"',
+      'data-testid="poll-session-printable-results"'
+    )
     expect(source.reload).to be_draft
     expect(source.started_at).to be_nil
   end

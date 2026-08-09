@@ -897,16 +897,47 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(response).to have_http_status(:not_found)
   end
 
-  it "rejects a school-managed Session result URL" do
-    poll, poll_session, progress, = create_execution
-    operator = poll_session.operator
+  it "shows only the selected school-managed Session result and preserves school context" do
+    poll, poll_session, progress, current, waiting, option, tally, operator = create_execution
+    second_option = create(:poll_option, poll: poll, poll_contest: option.poll_contest,
+                                         number: 2, name: "이후보")
+    tally.update!(votes_count: 2)
+    create(:poll_option_tally, poll: poll, poll_session: poll_session,
+                               poll_option: second_option, votes_count: 1)
+    create(:poll_participation, poll_participant: current, status: :completed)
+    create(:poll_participation, poll_participant: waiting, status: :absent)
+    create_contest_completions(current)
+    poll_session.poll_contest_tallies.find_by!(poll_contest: option.poll_contest)
+      .update!(abstentions_count: 1)
+
     closed_at = Time.current
     poll_session.update!(status: :closed, closed_at: closed_at)
     progress.update!(status: :closed, closed_at: closed_at, ballot_status: :ballot_locked)
     poll.update!(school_managed: true)
+
+    other_teacher = create(:user)
+    create(:school_membership, school: poll.school, user: other_teacher)
+    other_classroom = create(:classroom, school: poll.school, teacher: other_teacher)
+    other_session = create(:poll_session, poll: poll, classroom: other_classroom, operator: other_teacher,
+                                           status: :closed, started_at: 1.hour.ago, closed_at: Time.current)
+    create(:poll_option_tally, poll: poll, poll_session: other_session,
+                               poll_option: option, votes_count: 77)
     sign_in operator
 
-    get results_poll_poll_session_path(poll, poll_session)
-    expect(response).to have_http_status(:not_found)
+    detail_path = poll_poll_session_path(poll, poll_session, from: "school_poll")
+    results_path = results_poll_poll_session_path(poll, poll_session, from: "school_poll")
+    get detail_path
+
+    page = Nokogiri::HTML(response.body)
+    expect(page.at_css("a[href='#{results_path}']")).to be_present
+    expect(response.body).to include("결과 집계 보기")
+    expect(response.body).not_to include("data-testid=\"poll-session-results\"", "보관")
+
+    get results_path
+
+    expect(response).to have_http_status(:ok)
+    expect(response.body).to include("2표", "1표", "기권", "25%")
+    expect(response.body).not_to include("77표")
+    expect(Nokogiri::HTML(response.body).at_css("a[href='#{detail_path}']")).to be_present
   end
 end
