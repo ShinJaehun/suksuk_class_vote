@@ -1,7 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = ["input", "preview", "previewImage", "previewLabel", "removeCheckbox", "removeMessage"]
+  static targets = ["input", "preview", "previewImage", "previewLabel", "removeCheckbox", "removeMessage", "submitButton", "loadingIndicator"]
 
   connect() {
     this.objectUrl = null
@@ -55,6 +55,23 @@ export default class extends Controller {
     }
 
     this.syncRemoveState()
+  }
+
+  submit() {
+    if (!this.hasSubmitButtonTarget) return
+
+    this.originalSubmitLabel = this.submitButtonTarget.value
+    this.submitButtonTarget.disabled = true
+    this.submitButtonTarget.value = "저장 중..."
+    if (this.hasLoadingIndicatorTarget) this.loadingIndicatorTarget.hidden = false
+  }
+
+  submitEnd() {
+    if (!this.hasSubmitButtonTarget) return
+
+    this.submitButtonTarget.disabled = false
+    this.submitButtonTarget.value = this.originalSubmitLabel
+    if (this.hasLoadingIndicatorTarget) this.loadingIndicatorTarget.hidden = true
   }
 
   syncRemoveState() {

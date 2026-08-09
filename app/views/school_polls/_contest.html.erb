@@ -12,7 +12,7 @@
       <% end %>
     </div>
     <% if contest.poll_options.any? %>
-      <div class="mt-3 grid gap-3 sm:grid-cols-2">
+      <div class="mt-3 grid gap-3 <%= "sm:grid-cols-2" if poll.election? %>">
         <% contest.poll_options.sort_by { |option| [option.number, option.id] }.each do |option| %>
           <%= render "school_polls/option", poll: poll, contest: contest, option: option %>
         <% end %>

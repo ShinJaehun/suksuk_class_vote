@@ -7,7 +7,7 @@ class SchoolPollOptionsController < ApplicationController
   before_action :set_option, only: %i[edit update destroy]
 
   def new
-    @option = @contest.poll_options.new
+    @option = @contest.poll_options.new(number: @contest.poll_options.maximum(:number).to_i + 1)
   end
 
   def create

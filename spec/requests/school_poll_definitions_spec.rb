@@ -189,6 +189,37 @@ RSpec.describe "School Poll definition management", type: :request do
 
     before { sign_in create(:user, :admin) }
 
+    it "prefills the next Option number for election and non-election Polls" do
+      create(:poll_option, poll: poll, poll_contest: contest, number: 2)
+      get new_school_poll_contest_option_path(poll, contest)
+      expect(Nokogiri::HTML(response.body).at_css("input[name='poll_option[number]']")["value"]).to eq("3")
+
+      survey = school_poll(kind: :survey)
+      survey_contest = create(:poll_contest, poll: survey)
+      get new_school_poll_contest_option_path(survey, survey_contest)
+      expect(Nokogiri::HTML(response.body).at_css("input[name='poll_option[number]']")["value"]).to eq("1")
+    end
+
+    it "keeps election Options in two columns and other kinds in one column" do
+      create(:poll_option, poll: poll, poll_contest: contest)
+      get school_poll_path(poll)
+      election_list = Nokogiri::HTML(response.body).at_css("#poll_contest_#{contest.id} .mt-3.grid")
+      expect(election_list["class"]).to include("sm:grid-cols-2")
+      expect(election_list.text).to include("수정", "삭제")
+      expect(response.body).to include(new_school_poll_contest_option_path(poll, contest))
+
+      %i[survey discussion debate].each do |kind|
+        other_poll = school_poll(kind: kind)
+        other_contest = create(:poll_contest, poll: other_poll)
+        create(:poll_option, poll: other_poll, poll_contest: other_contest)
+        get school_poll_path(other_poll)
+        option_list = Nokogiri::HTML(response.body).at_css("#poll_contest_#{other_contest.id} .mt-3.grid")
+        expect(option_list["class"]).not_to include("sm:grid-cols-2")
+        expect(option_list.text).to include("수정", "삭제")
+        expect(response.body).to include(new_school_poll_contest_option_path(other_poll, other_contest))
+      end
+    end
+
     it "creates, updates, and destroys an Option under its Contest" do
       post school_poll_contest_options_path(poll, contest),
            params: { poll_option: { number: 1, name: "홍길동" } }
@@ -304,12 +335,17 @@ RSpec.describe "School Poll definition management", type: :request do
       expect(response.body).to include(
         "poll_option_photo",
         "candidate-photo-preview",
+        "submit-&gt;candidate-photo-preview#submit",
+        "turbo:submit-end-&gt;candidate-photo-preview#submitEnd",
+        "data-candidate-photo-preview-target=\"submitButton\"",
+        "저장 중...",
+        "value=\"추가\"",
         "JPG, PNG, WebP",
         "최대 15MB"
       )
 
       get edit_school_poll_contest_option_path(poll, contest, option)
-      expect(response.body).to include("poll_option_photo")
+      expect(response.body).to include("poll_option_photo", "value=\"저장\"")
 
       get school_poll_path(poll)
       expect(response.body).to include("avatars/", "h-12 w-12", option.name)

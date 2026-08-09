@@ -6,7 +6,9 @@
     <div>
       <div class="flex flex-wrap items-center gap-2">
         <h2 class="text-xl font-semibold">상태점검</h2>
-        <%= poll_status_badge(poll) %>
+        <% if !poll.draft? || (status_check.startable? && poll.schoolwide_runtime_available?) %>
+          <%= poll_status_badge(poll) %>
+        <% end %>
       </div>
       <% poll_time_labels = poll_status_time_labels(poll).map { |label| label.sub(/\A(?:전교투표|테스트투표) /, "") } %>
       <% if poll_time_labels.any? %>

@@ -894,6 +894,34 @@ RSpec.describe "School Poll management", type: :request do
       [poll, poll_session, teacher]
     end
 
+    it "shows the status badge only when a draft is startable or after draft" do
+      admin = create(:user, :admin)
+      unready = create(
+        :poll,
+        user: admin,
+        school: create(:school),
+        school_managed: true,
+        participant_group: nil
+      )
+      ready, = create_startable_schoolwide_poll(school: create(:school), actor: admin)
+      sign_in admin
+
+      get school_poll_path(unready)
+      status_heading = Nokogiri::HTML(response.body).css("h2").find { |heading| heading.text.strip == "상태점검" }
+      expect(status_heading.parent.css("span").map { |badge| badge.text.squish }).not_to include("준비")
+
+      get school_poll_path(ready)
+      status_heading = Nokogiri::HTML(response.body).css("h2").find { |heading| heading.text.strip == "상태점검" }
+      expect(status_heading.parent.text.squish).to include("준비")
+
+      { in_progress: "진행 중", closed: "종료", stopped: "중단" }.each do |status, label|
+        ready.update_columns(status: Poll.statuses.fetch(status))
+        get school_poll_path(ready)
+        status_heading = Nokogiri::HTML(response.body).css("h2").find { |heading| heading.text.strip == "상태점검" }
+        expect(status_heading.parent.text.squish).to include(label)
+      end
+    end
+
     it "starts and closes a Schoolwide Poll through member actions" do
       admin = create(:user, :admin)
       poll, poll_session, teacher = create_startable_schoolwide_poll(
