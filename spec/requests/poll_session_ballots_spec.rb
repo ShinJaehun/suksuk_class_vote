@@ -178,6 +178,8 @@ RSpec.describe "PollSession ballots", type: :request do
       close_ballot_screen_poll_poll_session_path(poll, poll_session)
     )
     expect(response.body).to include("선생님이 투표를 시작할 때까지 기다려 주세요.")
+    expect(response.body).to include("학생 투표 화면", "현재 투표자", poll.title, "#{current.number}번 #{current.name}")
+    expect(response.body).not_to include("현재 학생")
     expect(response.body).not_to include("투표 제출")
 
     progress.update!(ballot_status: :ballot_open)
@@ -192,18 +194,14 @@ RSpec.describe "PollSession ballots", type: :request do
       option.name,
       "투표 진행 1 / 1"
     )
-    expect(
-      page.at_css(
-        "form[action='#{submit_ballot_poll_poll_session_path(poll, poll_session)}'] " \
-        "input[type='submit'][value='제출']"
-      )
-    ).to be_present
-    expect(response.body).not_to include(
-      "poll-contest-ballot",
-      "election_vote_stamp",
-      "candidate-photo-placeholder"
-    )
-    expect(ballot_wrapper["class"]).to include("mx-auto max-w-2xl")
+    expect(page.at_css("form[data-controller='poll-contest-ballot']")).to be_present
+    expect(page.at_css("[data-testid='poll-session-ballot-options']").css("button[data-poll-contest-ballot-target='card']").size).to eq(1)
+    actions = page.at_css("[data-testid='poll-session-ballot-actions']")
+    expect(actions.text.squish).to include("기권", "최종제출")
+    expect(actions["class"]).to include("justify-between")
+    expect(response.body).not_to include("현재 학생", poll.contest_label, "#{poll.choice_label} 선택")
+    expect(ballot_wrapper["class"]).to include("w-full")
+    expect(page.at_css("main")["class"]).to include("min-h-screen px-2 py-2")
   end
 
   it "renders only the current Schoolwide Election Contest with legacy candidate cards" do
@@ -265,6 +263,8 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(ballot_wrapper["class"]).not_to include("max-w-2xl")
     expect(page.at_css("header").text).to include(poll.title, "#{current.number}번 #{current.name}")
     expect(response.body.scan("현재 투표자").size).to eq(1)
+    expect(page.at_css("[data-testid='poll-session-election-candidates']")).to be_present
+    expect(response.body).not_to include("현재 학생", "후보자를 선택하세요")
     expect(response.body).not_to include("부회장", second_option.name, "opacity-100")
 
     create(
@@ -292,7 +292,7 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(ballot.to_html).not_to include("opacity-100")
   end
 
-  it "keeps the regular ballot UI for non-Election Schoolwide Polls" do
+  it "uses the common ballot UI for non-Election Schoolwide Polls" do
     poll, poll_session, progress, _current, _waiting, option, _tally, operator = create_execution
     poll.update!(
       school_managed: true,
@@ -309,16 +309,12 @@ RSpec.describe "PollSession ballots", type: :request do
     ballot_wrapper = page.at_css("[data-controller='poll-session-ballot-screen']")
 
     expect(response.body).to include("투표 진행 1 / 1", option.name)
-    expect(ballot_wrapper["class"]).to include("mx-auto max-w-2xl")
-    expect(response.body).not_to include(
-      "poll-contest-ballot",
-      "election_vote_stamp",
-      "candidate-photo-placeholder",
-      "avatars/"
-    )
+    expect(ballot_wrapper["class"]).to include("w-full")
+    expect(response.body).to include("poll-contest-ballot", "학생 투표 화면", "현재 투표자")
+    expect(response.body).not_to include("현재 학생", "설문 문항", "선택지 선택")
   end
 
-  it "uses the legacy candidate-count grid classes" do
+  it "uses the legacy candidate-count grid classes for Schoolwide Elections" do
     {
       1 => "grid-cols-1",
       2 => "grid-cols-2",
@@ -332,12 +328,8 @@ RSpec.describe "PollSession ballots", type: :request do
       poll, poll_session, progress, _current, _waiting, option, _tally, operator = create_execution
       poll.update!(school_managed: true, status: :in_progress, started_at: Time.current)
       (candidate_count - 1).times do |index|
-        candidate = create(
-          :poll_option,
-          poll: poll,
-          poll_contest: option.poll_contest,
-          number: index + 2
-        )
+        candidate = create(:poll_option, poll: poll, poll_contest: option.poll_contest,
+                                          number: index + 2)
         create(:poll_option_tally, poll: poll, poll_session: poll_session, poll_option: candidate)
       end
       progress.update!(ballot_status: :ballot_open)
@@ -345,7 +337,8 @@ RSpec.describe "PollSession ballots", type: :request do
 
       get ballot_poll_poll_session_path(poll, poll_session)
 
-      expect(response.body).to include(grid_class)
+      expect(response.body).to include(grid_class, "candidate-photo-placeholder", "aspect-[3/2]")
+      expect(response.body).not_to include("data-testid=\"poll-session-ballot-options\"")
       sign_out operator
     end
   end
@@ -372,6 +365,10 @@ RSpec.describe "PollSession ballots", type: :request do
       ballot_status: "ballot_locked",
       current_poll_participant: current
     )
+
+    follow_redirect!
+    expect(response.body).to include("학생 투표 화면", "현재 투표자", "투표가 완료되었습니다.")
+    expect(response.body).not_to include("현재 학생", "border-emerald-200 bg-emerald-50 px-4 py-3")
 
     get poll_poll_session_path(poll, poll_session)
 
@@ -416,6 +413,10 @@ RSpec.describe "PollSession ballots", type: :request do
       ballot_status: "ballot_locked",
       current_poll_participant: current
     )
+
+    follow_redirect!
+    expect(response.body).to include("학생 투표 화면", "현재 투표자", "투표가 완료되었습니다.")
+    expect(response.body).not_to include("현재 학생", "border-emerald-200 bg-emerald-50 px-4 py-3")
 
     patch advance_participant_poll_poll_session_path(poll, poll_session), params: {
       expected_current_poll_participant_id: current.id
