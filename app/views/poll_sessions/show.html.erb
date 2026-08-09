@@ -11,6 +11,7 @@
                   else
                     {}
                   end %>
+<%= turbo_stream_from @poll_session, :operation_screen if @poll_session.in_progress? %>
 <%= turbo_frame_tag dom_id(@poll_session, :teacher_progress), data: polling_data do %>
   <div class="mx-auto max-w-5xl space-y-6">
     <% visible_voters = @poll_session.draft? && !@poll_session.replacement? ? @active_students : @participants %>
@@ -82,6 +83,9 @@
     <%= render "poll_sessions/status_check_frame",
                poll_session: @poll_session,
                status_check: @status_check,
+               can_operate: @can_operate,
+               can_stop: @can_stop,
+               can_revote: @can_revote,
                navigation_context: params[:from] %>
 
     <% unless @poll_session.in_progress? %>
@@ -162,7 +166,6 @@
 
     <% if @poll_session.started_at.present? %>
       <% if @poll_session.in_progress? %>
-        <%= turbo_stream_from @poll_session, :operation_screen %>
         <%= render "operation",
                    poll_session: @poll_session,
                    current_participant: @current_participant,
@@ -170,10 +173,10 @@
                    next_pending_participant: @next_pending_participant,
                    pending_participants: @pending_participants,
                    poll_events: @poll_events,
-                   can_operate: policy(@poll_session).operate?,
+                   can_operate: @can_operate,
                    status_check: @status_check %>
       <% end %>
-      <%= render "event_log", poll_events: @poll_events %>
+      <%= render "event_log", poll_session: @poll_session, poll_events: @poll_events %>
     <% end %>
   </div>
 <% end %>

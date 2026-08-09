@@ -2,12 +2,16 @@ require "rails_helper"
 
 RSpec.describe "PollSession supervised participant flow", type: :request do
   include Devise::Test::IntegrationHelpers
+  include ActionCable::TestHelper
 
   it "keeps a final current participant until the operator approves the next student" do
     poll, poll_session, progress, first, second, operator = create_execution
+    operation_stream = Turbo::StreamsChannel.send(:stream_name_from, [poll_session, :operation_screen])
     sign_in operator
 
-    patch mark_current_participant_absent_poll_poll_session_path(poll, poll_session)
+    expect do
+      patch mark_current_participant_absent_poll_poll_session_path(poll, poll_session)
+    end.to change { broadcasts(operation_stream).size }.by(1)
 
     expect(response).to redirect_to(poll_poll_session_path(poll, poll_session))
     expect(first.reload.poll_participation).to be_absent
@@ -16,9 +20,11 @@ RSpec.describe "PollSession supervised participant flow", type: :request do
       ballot_status: "ballot_locked"
     )
 
-    patch advance_participant_poll_poll_session_path(poll, poll_session), params: {
-      expected_current_poll_participant_id: first.id
-    }
+    expect do
+      patch advance_participant_poll_poll_session_path(poll, poll_session), params: {
+        expected_current_poll_participant_id: first.id
+      }
+    end.to change { broadcasts(operation_stream).size }.by(1)
 
     expect(progress.reload).to have_attributes(
       current_poll_participant: second,

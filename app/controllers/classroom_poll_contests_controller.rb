@@ -91,8 +91,19 @@ class ClassroomPollContestsController < ApplicationController
     @poll_session.reload
     @poll_session.poll.reload
     status_check = Polls::SessionStatusCheck.new(poll_session: @poll_session).call
+    session_policy = policy(@poll_session)
     [
-      turbo_stream.replace(helpers.dom_id(@poll_session, :status_check), partial: "poll_sessions/status_check_frame", locals: { poll_session: @poll_session, status_check: status_check })
+      turbo_stream.replace(
+        helpers.dom_id(@poll_session, :status_check),
+        partial: "poll_sessions/status_check_frame",
+        locals: {
+          poll_session: @poll_session,
+          status_check: status_check,
+          can_operate: session_policy.operate?,
+          can_stop: session_policy.stop?,
+          can_revote: session_policy.revote?
+        }
+      )
     ]
   end
 end

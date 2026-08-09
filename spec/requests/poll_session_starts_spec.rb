@@ -2,6 +2,7 @@ require "rails_helper"
 
 RSpec.describe "PollSession starts", type: :request do
   include Devise::Test::IntegrationHelpers
+  include ActionCable::TestHelper
 
   def create_startable_poll_session
     school = create(:school)
@@ -21,6 +22,7 @@ RSpec.describe "PollSession starts", type: :request do
 
   it "starts a teacher's draft PollSession through the nested POST route" do
     poll, poll_session, teacher = create_startable_poll_session
+    operation_stream = Turbo::StreamsChannel.send(:stream_name_from, [poll_session, :operation_screen])
     sign_in teacher
 
     expect do
@@ -41,6 +43,13 @@ RSpec.describe "PollSession starts", type: :request do
     expect(poll_session.poll_events.last).to have_attributes(
       actor: teacher,
       event_type: "poll_started"
+    )
+    teacher_update = ActiveSupport::JSON.decode(broadcasts(operation_stream).last)
+    expect(teacher_update).to include(
+      %(target="operation_poll_session_#{poll_session.id}"),
+      %(target="status_check_poll_session_#{poll_session.id}"),
+      %(target="event_log_poll_session_#{poll_session.id}"),
+      "투표 중단"
     )
   end
 

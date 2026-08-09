@@ -1,7 +1,7 @@
 <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
          data-testid="poll-session-status-check">
   <% parent_allows_start = !poll_session.poll.school_managed? || poll_session.poll.in_progress? %>
-  <% start_action_available = parent_allows_start && status_check.startable? && policy(poll_session).operate? %>
+  <% start_action_available = parent_allows_start && status_check.startable? && can_operate %>
   <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
     <div>
       <div class="flex flex-wrap items-center gap-2">
@@ -26,13 +26,13 @@
                         "현재 활성 학생 명단으로 투표를 시작할까요?" },
                       class: "rounded-md bg-emerald-600 px-5 py-3 text-sm font-semibold text-white" %>
       <% end %>
-      <% if policy(poll_session).stop? %>
+      <% if can_stop %>
         <%= button_to "투표 중단", stop_poll_poll_session_path(poll_session.poll, poll_session),
                       method: :patch, form: { data: { turbo_frame: "_top" } },
                       data: { turbo_confirm: "현재 투표 실행을 중단할까요? 지금까지의 진행 기록은 보존되며 이 실행에서는 더 이상 투표를 계속할 수 없습니다." },
                       class: "rounded-md bg-rose-700 px-4 py-2 text-sm font-semibold text-white" %>
       <% end %>
-      <% if policy(poll_session).revote? %>
+      <% if can_revote %>
         <%= button_to "재투표 시작 준비", revote_poll_poll_session_path(poll_session.poll, poll_session),
                       method: :post, form: { data: { turbo_frame: "_top" } },
                       data: { turbo_confirm: "기존 진행 기록과 결과를 보존하고 같은 투표자 명단으로 새 재투표 실행을 만들까요?" },

@@ -2,5 +2,8 @@
   <%= render "poll_sessions/status_check",
              poll_session: poll_session,
              status_check: status_check,
+             can_operate: can_operate,
+             can_stop: can_stop,
+             can_revote: can_revote,
              navigation_context: local_assigns[:navigation_context] %>
 <% end %>

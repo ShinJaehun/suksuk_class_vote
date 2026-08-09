@@ -346,6 +346,7 @@ RSpec.describe "PollSession ballots", type: :request do
   it "submits a choice, keeps the completed current, and explicitly advances" do
     poll, poll_session, progress, current, waiting, option, tally, operator = create_execution
     progress.update!(ballot_status: :ballot_open)
+    operation_stream = Turbo::StreamsChannel.send(:stream_name_from, [poll_session, :operation_screen])
     sign_in operator
 
     post submit_ballot_poll_poll_session_path(poll, poll_session), params: {
@@ -364,6 +365,14 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(progress.reload).to have_attributes(
       ballot_status: "ballot_locked",
       current_poll_participant: current
+    )
+    teacher_update = ActiveSupport::JSON.decode(broadcasts(operation_stream).last)
+    expect(teacher_update).to include(
+      %(target="operation_poll_session_#{poll_session.id}"),
+      %(target="status_check_poll_session_#{poll_session.id}"),
+      %(target="event_log_poll_session_#{poll_session.id}"),
+      "투표 완료",
+      "대기"
     )
 
     follow_redirect!
@@ -547,6 +556,7 @@ RSpec.describe "PollSession ballots", type: :request do
     current_card = page.at_css("[data-testid='poll-session-current-participant']")
     current_name = current_card.at_css("p.text-5xl")
     progress_frame = page.at_css("turbo-frame[data-controller='poll-session-progress']")
+    operation_subscription = page.at_css("turbo-cable-stream-source[channel='Turbo::StreamsChannel']")
     status_check = page.at_css(
       "[data-testid='poll-session-status-check']"
     )
@@ -571,6 +581,11 @@ RSpec.describe "PollSession ballots", type: :request do
       poll_poll_session_path(poll, poll_session)
     )
     expect(progress_frame["data-poll-session-progress-interval-value"]).to eq("2500")
+    expect(operation_subscription).to be_present
+    expect(operation_subscription.ancestors("turbo-frame")).to be_empty
+    expect(page.at_css("#operation_poll_session_#{poll_session.id}")).to be_present
+    expect(page.at_css("#status_check_poll_session_#{poll_session.id}")).to be_present
+    expect(page.at_css("#event_log_poll_session_#{poll_session.id}")).to be_present
     expect(response.body).not_to include("투표 화면 " + "잠그기")
     expect(response.body).not_to include(
       "ballot " + "상태",

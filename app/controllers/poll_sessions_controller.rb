@@ -34,6 +34,10 @@ class PollSessionsController < ApplicationController
       .select { |event| event.event_type.in?(displayed_event_types) }
       .sort_by { |event| [event.occurred_at, event.id] }
       .reverse
+    session_policy = policy(@poll_session)
+    @can_operate = session_policy.operate?
+    @can_stop = session_policy.stop?
+    @can_revote = session_policy.revote?
 
   end
 
@@ -384,12 +388,13 @@ class PollSessionsController < ApplicationController
       .sort_by { |event| [event.occurred_at, event.id] }
       .reverse
     status_check = Polls::SessionStatusCheck.new(poll_session: poll_session).call
+    session_policy = policy(poll_session)
 
-    Turbo::StreamsChannel.broadcast_replace_to(
+    Turbo::StreamsChannel.broadcast_render_to(
       poll_session,
       :operation_screen,
-      target: helpers.dom_id(poll_session, :operation),
-      partial: "poll_sessions/operation",
+      template: "poll_sessions/operation_screen",
+      formats: :turbo_stream,
       locals: {
         poll_session: poll_session,
         current_participant: current_participant,
@@ -397,7 +402,9 @@ class PollSessionsController < ApplicationController
         next_pending_participant: next_pending_participant(current_participant, participants),
         pending_participants: pending_participants,
         poll_events: poll_events,
-        can_operate: policy(poll_session).operate?,
+        can_operate: session_policy.operate?,
+        can_stop: session_policy.stop?,
+        can_revote: session_policy.revote?,
         status_check: status_check
       }
     )

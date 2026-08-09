@@ -1,0 +1,24 @@
+<%= turbo_stream.replace dom_id(poll_session, :operation),
+                         partial: "poll_sessions/operation",
+                         locals: {
+                           poll_session: poll_session,
+                           current_participant: current_participant,
+                           current_participation: current_participation,
+                           next_pending_participant: next_pending_participant,
+                           pending_participants: pending_participants,
+                           poll_events: poll_events,
+                           can_operate: can_operate,
+                           status_check: status_check
+                         } %>
+<%= turbo_stream.replace dom_id(poll_session, :status_check),
+                         partial: "poll_sessions/status_check_frame",
+                         locals: {
+                           poll_session: poll_session,
+                           status_check: status_check,
+                           can_operate: can_operate,
+                           can_stop: can_stop,
+                           can_revote: can_revote
+                         } %>
+<%= turbo_stream.replace dom_id(poll_session, :event_log),
+                         partial: "poll_sessions/event_log",
+                         locals: { poll_session: poll_session, poll_events: poll_events } %>
