@@ -189,6 +189,21 @@ RSpec.describe Polls::SchoolwideStatusCheck do
       ).call
     ).to be_success
 
+    expect(Polls::SessionStatusCheck).to receive(:new).and_wrap_original do |method, poll_session:|
+      expect(poll_session).to satisfy do |session|
+        session.association(:poll).loaded? &&
+          session.association(:poll_progress).loaded? &&
+          session.association(:poll_participants).loaded? &&
+          session.association(:poll_option_tallies).loaded? &&
+          session.association(:poll_contest_tallies).loaded? &&
+          session.poll_participants.all? do |participant|
+            participant.association(:poll_participation).loaded? &&
+              participant.association(:poll_contest_completions).loaded?
+          end
+      end
+      method.call(poll_session: poll_session)
+    end
+
     expect(described_class.new(poll: poll.reload)).to be_closable
   end
 

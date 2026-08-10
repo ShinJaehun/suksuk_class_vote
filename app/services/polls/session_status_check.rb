@@ -66,10 +66,17 @@ module Polls
     def collect_counts
       @participants = poll_session&.poll_participants&.to_a || []
       @participations = participants.filter_map(&:poll_participation)
-      @completions = PollContestCompletion
-        .where(poll_participant_id: participants.map(&:id))
-        .includes(:poll_contest)
-        .to_a
+      completions_loaded = participants.all? do |participant|
+        participant.association(:poll_contest_completions).loaded?
+      end
+      @completions = if completions_loaded
+                       participants.flat_map(&:poll_contest_completions)
+                     else
+                       PollContestCompletion
+                         .where(poll_participant_id: participants.map(&:id))
+                         .includes(:poll_contest)
+                         .to_a
+                     end
       @completed_count = participations.count(&:completed?)
       @absent_count = participations.count(&:absent?)
       @abstained_count = participations.count(&:abstained?)

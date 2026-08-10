@@ -127,7 +127,7 @@ module Polls
       issues << "모든 학급 투표가 종료되어야 합니다." if sessions.any? { |session| !session.closed? }
       return issues.uniq unless sessions.all?(&:closed?)
 
-      sessions.each do |poll_session|
+      integrity_sessions.each do |poll_session|
         check = Polls::SessionStatusCheck.new(poll_session: poll_session).call
         check.issues.each do |issue|
           issues << "#{poll_session.classroom_name_snapshot}: #{issue}"
@@ -146,6 +146,18 @@ module Polls
 
     def sessions
       @sessions ||= poll&.current_poll_sessions&.includes(:operator, classroom: :students)&.to_a || []
+    end
+
+    def integrity_sessions
+      @integrity_sessions ||= poll.current_poll_sessions.includes(
+        :operator,
+        poll: { poll_contests: :poll_options },
+        poll_progress: :poll,
+        poll_participants: [:poll_participation, { poll_contest_completions: :poll_contest }],
+        poll_option_tallies: %i[poll poll_session],
+        poll_contest_tallies: %i[poll poll_session],
+        classroom: :students
+      ).to_a
     end
 
     def contests
