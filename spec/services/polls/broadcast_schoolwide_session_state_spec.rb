@@ -84,6 +84,32 @@ RSpec.describe Polls::BroadcastSchoolwideSessionState do
     expect(Polls::SchoolwideStatusCheck).to have_received(:new).with(poll: poll).at_least(:twice)
   end
 
+  it "broadcasts every current classroom runtime and one aggregate for a batch" do
+    school = create(:school)
+    poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+    sessions = 2.times.map do
+      teacher = create(:user)
+      create(:school_membership, school: school, user: teacher)
+      classroom = create(:classroom, school: school, teacher: teacher)
+      create(:student, classroom: classroom)
+      create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
+    end
+    stream = Turbo::StreamsChannel.send(:stream_name_from, [poll, :schoolwide_runtime])
+    previous_count = broadcasts(stream).size
+
+    described_class.for_batch(poll: poll, actor: create(:user, :admin))
+
+    payloads = broadcasts(stream).drop(previous_count)
+    sessions.each do |poll_session|
+      expect(payloads.join).to include(
+        "school_poll_#{poll.id}_classroom_#{poll_session.classroom_id}_runtime"
+      )
+    end
+    status_target = ActionView::RecordIdentifier.dom_id(poll, :schoolwide_status_runtime)
+    expect(payloads.count { |payload| payload.include?(status_target) }).to eq(1)
+    expect(payloads.size).to eq(3)
+  end
+
   it "replaces the stable classroom row with the replacement Session" do
     school = create(:school)
     teacher = create(:user)

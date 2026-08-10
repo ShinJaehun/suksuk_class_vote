@@ -19,8 +19,28 @@ class PollSession < ApplicationRecord
 
   enum :status, { draft: 0, in_progress: 10, closed: 20, stopped: 30 }
 
+  SCHOOLWIDE_RUNTIME_BROADCAST_SUPPRESSION_KEY = :poll_session_schoolwide_runtime_broadcast_suppressed
+
+  class << self
+    def with_schoolwide_runtime_broadcast_suppressed
+      previous = ActiveSupport::IsolatedExecutionState[SCHOOLWIDE_RUNTIME_BROADCAST_SUPPRESSION_KEY]
+      ActiveSupport::IsolatedExecutionState[SCHOOLWIDE_RUNTIME_BROADCAST_SUPPRESSION_KEY] = true
+      yield
+    ensure
+      if previous
+        ActiveSupport::IsolatedExecutionState[SCHOOLWIDE_RUNTIME_BROADCAST_SUPPRESSION_KEY] = previous
+      else
+        ActiveSupport::IsolatedExecutionState.delete(SCHOOLWIDE_RUNTIME_BROADCAST_SUPPRESSION_KEY)
+      end
+    end
+
+    def schoolwide_runtime_broadcast_suppressed?
+      ActiveSupport::IsolatedExecutionState[SCHOOLWIDE_RUNTIME_BROADCAST_SUPPRESSION_KEY]
+    end
+  end
+
   after_create_commit :broadcast_schoolwide_runtime, if: :school_managed_poll?
-  after_update_commit :broadcast_schoolwide_runtime,
+  after_update_commit :broadcast_schoolwide_runtime_after_status_change,
                       if: -> { school_managed_poll? && saved_change_to_status? }
 
   scope :current_execution, -> { where.missing(:replacement_session) }
@@ -77,12 +97,18 @@ class PollSession < ApplicationRecord
   end
 
   def broadcast_schoolwide_runtime
+    return if self.class.schoolwide_runtime_broadcast_suppressed?
+
     Polls::BroadcastSchoolwideSessionState.new(poll: poll, classroom: classroom).call
   rescue StandardError => error
     Rails.logger.error(
       "[poll_session_broadcast_failed] poll_id=#{poll_id} poll_session_id=#{id} " \
       "broadcast=\"schoolwide_runtime_callback\" error_class=#{error.class.name.inspect}"
     )
+  end
+
+  def broadcast_schoolwide_runtime_after_status_change
+    broadcast_schoolwide_runtime
   end
 
   def poll_and_classroom_must_share_school

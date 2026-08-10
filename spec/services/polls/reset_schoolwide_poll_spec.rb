@@ -59,6 +59,26 @@ RSpec.describe Polls::ResetSchoolwidePoll do
     end
   end
 
+  it "suppresses per-Session create callbacks and performs one reset final broadcast" do
+    poll, _old_session, classroom = create_target(status: :in_progress)
+    second_teacher = create(:user)
+    create(:school_membership, school: poll.school, user: second_teacher)
+    second_classroom = create(:classroom, school: poll.school, teacher: second_teacher)
+    create(:poll_session, poll: poll, classroom: second_classroom, operator: second_teacher,
+                          status: :in_progress, started_at: 1.hour.ago)
+    expect(Polls::BroadcastSchoolwideSessionState).not_to receive(:new)
+      .with(poll: poll, classroom: classroom)
+    expect(Polls::BroadcastSchoolwideSessionState).not_to receive(:new)
+      .with(poll: poll, classroom: second_classroom)
+    expect(Polls::BroadcastSchoolwideSessionState).to receive(:for_reset)
+      .once.with(poll: poll, actor: admin).and_call_original
+
+    result = described_class.new(poll: poll, actor: admin).call
+
+    expect(result).to be_success
+    expect(poll.poll_sessions.current_execution.count).to eq(2)
+  end
+
   it "expires both realtime screens after a successful reset" do
     poll, old_session, = create_target(status: :in_progress)
     operation_stream = Turbo::StreamsChannel.send(:stream_name_from, [old_session, :operation_screen])

@@ -26,6 +26,39 @@ RSpec.describe PollSession, type: :model do
     end
   end
 
+  describe "schoolwide runtime callback" do
+    it "keeps create and status update broadcasts for an isolated School-managed Session" do
+      school = create(:school)
+      teacher = create(:user)
+      create(:school_membership, school: school, user: teacher)
+      classroom = create(:classroom, school: school, teacher: teacher)
+      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      broadcaster = instance_double(Polls::BroadcastSchoolwideSessionState, call: nil)
+      expect(Polls::BroadcastSchoolwideSessionState).to receive(:new)
+        .with(poll: poll, classroom: classroom).twice.and_return(broadcaster)
+
+      poll_session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
+      poll_session.update!(status: :in_progress, started_at: Time.current)
+    end
+
+    it "restores callback broadcasting after a suppressed block raises" do
+      expect do
+        described_class.with_schoolwide_runtime_broadcast_suppressed { raise "failure" }
+      end.to raise_error("failure")
+
+      school = create(:school)
+      teacher = create(:user)
+      create(:school_membership, school: school, user: teacher)
+      classroom = create(:classroom, school: school, teacher: teacher)
+      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      broadcaster = instance_double(Polls::BroadcastSchoolwideSessionState, call: nil)
+      expect(Polls::BroadcastSchoolwideSessionState).to receive(:new)
+        .with(poll: poll, classroom: classroom).and_return(broadcaster)
+
+      create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
+    end
+  end
+
   describe "classroom_name_snapshot" do
     it "is required and limited to 100 characters" do
       expect(build(:poll_session, classroom_name_snapshot: nil)).to be_invalid

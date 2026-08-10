@@ -26,6 +26,10 @@ module Polls
       new(poll: poll, classroom: nil, actor: actor).broadcast_reset
     end
 
+    def self.for_batch(poll:, actor:)
+      new(poll: poll, classroom: nil, actor: actor).broadcast_batch
+    end
+
     def initialize(poll:, classroom:, actor: nil)
       @poll = poll
       @classroom = classroom
@@ -73,6 +77,17 @@ module Polls
       end
       broadcast_safely("reset_status_runtime") { broadcast_status_runtime }
       broadcast_revote_history
+    end
+
+    def broadcast_batch
+      return unless poll&.school_managed?
+
+      poll.poll_sessions.current_execution.includes(classroom: :students).find_each do |session|
+        broadcast_safely("batch_classroom_runtime", session_id: session.id) do
+          broadcast_session(session)
+        end
+      end
+      broadcast_safely("batch_status_runtime") { broadcast_status_runtime }
     end
 
     private

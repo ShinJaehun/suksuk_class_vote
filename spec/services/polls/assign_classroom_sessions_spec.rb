@@ -67,6 +67,19 @@ RSpec.describe Polls::AssignClassroomSessions do
     expect(poll.reload).to be_draft
   end
 
+  it "suppresses create callbacks and performs one final batch runtime broadcast" do
+    first = create_classroom
+    second = create_classroom
+    expect(Polls::BroadcastSchoolwideSessionState).not_to receive(:new)
+      .with(poll: poll, classroom: first)
+    expect(Polls::BroadcastSchoolwideSessionState).not_to receive(:new)
+      .with(poll: poll, classroom: second)
+    expect(Polls::BroadcastSchoolwideSessionState).to receive(:for_batch)
+      .once.with(poll: poll, actor: manager).and_call_original
+
+    expect(call_service(classrooms: [first, second])).to be_success
+  end
+
   it "allows global admin and the same-School manager only" do
     classroom = create_classroom
     admin = create(:user, :admin)
@@ -96,6 +109,12 @@ RSpec.describe Polls::AssignClassroomSessions do
         expect(result).not_to be_success
       end.not_to change(PollSession, :count)
     end
+  end
+
+  it "does not perform a final batch broadcast when assignment fails" do
+    expect(Polls::BroadcastSchoolwideSessionState).not_to receive(:for_batch)
+
+    expect(call_service(classrooms: [])).not_to be_success
   end
 
   it "assigns an active teacher-led Classroom before any Students are registered" do

@@ -20,21 +20,26 @@ module Polls
       validate_inputs
       return failure if errors.any?
 
-      ActiveRecord::Base.transaction do
-        poll.lock!
-        unless poll.draft?
-          errors << "준비 상태의 전교투표에만 학급을 배정할 수 있습니다."
-          raise ActiveRecord::Rollback
-        end
-        if poll.poll_sessions.where(classroom_id: classroom_ids).exists?
-          errors << "이미 배정된 학급이 포함되어 있습니다."
-          raise ActiveRecord::Rollback
-        end
+      PollSession.with_schoolwide_runtime_broadcast_suppressed do
+        ActiveRecord::Base.transaction do
+          poll.lock!
+          unless poll.draft?
+            errors << "준비 상태의 전교투표에만 학급을 배정할 수 있습니다."
+            raise ActiveRecord::Rollback
+          end
+          if poll.poll_sessions.where(classroom_id: classroom_ids).exists?
+            errors << "이미 배정된 학급이 포함되어 있습니다."
+            raise ActiveRecord::Rollback
+          end
 
-        @poll_sessions = classrooms.map { |classroom| create_session!(classroom) }
+          @poll_sessions = classrooms.map { |classroom| create_session!(classroom) }
+        end
       end
 
-      errors.empty? ? success : failure
+      return failure if errors.any?
+
+      broadcast_runtime
+      success
     rescue ActiveRecord::RecordInvalid => e
       errors.concat(e.record.errors.full_messages)
       failure
@@ -88,6 +93,15 @@ module Polls
         status: :draft,
         classroom_name_snapshot: classroom_name_snapshot(classroom),
         operator_name_snapshot: operator_name_snapshot(classroom.teacher)
+      )
+    end
+
+    def broadcast_runtime
+      Polls::BroadcastSchoolwideSessionState.for_batch(poll: poll, actor: actor)
+    rescue StandardError => error
+      Rails.logger.error(
+        "[schoolwide_poll_broadcast_failed] actor_id=#{actor.id} poll_id=#{poll.id} " \
+        "broadcast=\"assignment_runtime\" error_class=#{error.class.name.inspect}"
       )
     end
 

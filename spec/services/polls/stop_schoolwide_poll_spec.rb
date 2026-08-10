@@ -56,6 +56,18 @@ RSpec.describe Polls::StopSchoolwidePoll do
     )
   end
 
+  it "suppresses status callbacks and performs one final batch runtime broadcast" do
+    poll, manager, sessions = setup_poll
+    sessions.each do |poll_session|
+      expect(Polls::BroadcastSchoolwideSessionState).not_to receive(:new)
+        .with(poll: poll, classroom: poll_session.classroom)
+    end
+    expect(Polls::BroadcastSchoolwideSessionState).to receive(:for_batch)
+      .once.with(poll: poll, actor: manager).and_call_original
+
+    expect(described_class.new(poll: poll, actor: manager).call).to be_success
+  end
+
   it "broadcasts terminal teacher and ballot screens for newly stopped Sessions" do
     poll, manager, sessions = setup_poll
     operation_stream = Turbo::StreamsChannel.send(:stream_name_from, [sessions[1], :operation_screen])
@@ -131,6 +143,7 @@ RSpec.describe Polls::StopSchoolwidePoll do
       method.call(*args)
     end
 
+    expect(Polls::BroadcastSchoolwideSessionState).not_to receive(:for_batch)
     expect(described_class.new(poll: poll, actor: manager).call).not_to be_success
     expect(poll.reload).to be_in_progress
     expect(poll.stopped_at).to be_nil

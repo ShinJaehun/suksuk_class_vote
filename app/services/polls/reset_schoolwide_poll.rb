@@ -23,26 +23,28 @@ module Polls
 
       expired_sessions = []
       previous_status = nil
-      Poll.transaction do
-        poll.lock!
-        previous_status = poll.status
-        unless poll.schoolwide_resettable? && poll.schoolwide_runtime_available?
-          errors << "종료되었거나 보관된 전교투표는 초기화할 수 없습니다."
-          raise ActiveRecord::Rollback
-        end
-        sessions = poll.poll_sessions.lock.to_a
-        expired_sessions = sessions
-        classrooms = locked_classrooms(sessions)
-        if classrooms.any? { |classroom| classroom.teacher.blank? }
-          errors << "담임교사가 없는 대상 학급이 있어 전교투표를 초기화할 수 없습니다."
-          raise ActiveRecord::Rollback
-        end
+      PollSession.with_schoolwide_runtime_broadcast_suppressed do
+        Poll.transaction do
+          poll.lock!
+          previous_status = poll.status
+          unless poll.schoolwide_resettable? && poll.schoolwide_runtime_available?
+            errors << "종료되었거나 보관된 전교투표는 초기화할 수 없습니다."
+            raise ActiveRecord::Rollback
+          end
+          sessions = poll.poll_sessions.lock.to_a
+          expired_sessions = sessions
+          classrooms = locked_classrooms(sessions)
+          if classrooms.any? { |classroom| classroom.teacher.blank? }
+            errors << "담임교사가 없는 대상 학급이 있어 전교투표를 초기화할 수 없습니다."
+            raise ActiveRecord::Rollback
+          end
 
-        @deleted_session_count = sessions.size
-        delete_runtime!(sessions)
-        poll.update!(status: :draft, started_at: nil, closed_at: nil, stopped_at: nil)
-        classrooms.each { |classroom| create_session!(classroom) }
-        @created_session_count = classrooms.size
+          @deleted_session_count = sessions.size
+          delete_runtime!(sessions)
+          poll.update!(status: :draft, started_at: nil, closed_at: nil, stopped_at: nil)
+          classrooms.each { |classroom| create_session!(classroom) }
+          @created_session_count = classrooms.size
+        end
       end
 
       return failure if errors.any?
