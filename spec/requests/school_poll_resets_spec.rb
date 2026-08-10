@@ -90,8 +90,11 @@ RSpec.describe "School Poll reset", type: :request do
       get edit_school_poll_path(poll)
       expect(response.body).not_to include("전교투표 초기화")
       expect(response.body).not_to include(%(action="#{reset_school_poll_path(poll)}"))
-      expect(response.body).to include("영구 삭제", "confirmation_title")
-
+      expect(response.body).not_to include("영구 삭제")
+      expect(response.body).not_to include("confirmation_title")
+      expect(response.body).to include(
+        "정상 종료된 전교투표는 보존되며 초기화하거나 삭제할 수 없습니다."
+      )
       post reset_school_poll_path(poll), params: { confirmation_title: poll.title }
       expect(session.reload).to be_persisted
       sign_out :user

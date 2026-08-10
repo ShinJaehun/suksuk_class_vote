@@ -851,6 +851,33 @@ RSpec.describe "School Poll management", type: :request do
   end
 
   describe "Schoolwide Poll settings and results access" do
+    it "hides deletion and rejects direct DELETE for preserved source Polls" do
+      admin = create(:user, :admin)
+      school = create(:school)
+      polls = [
+        create(:poll, school: school, school_managed: true, participant_group: nil,
+                      status: :closed, started_at: 1.hour.ago, closed_at: Time.current),
+        create(:poll, school: school, school_managed: true, participant_group: nil,
+                      status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current,
+                      archived_at: Time.current)
+      ]
+      sign_in admin
+
+      polls.each do |poll|
+        get edit_school_poll_path(poll)
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include(
+          "정상 종료된 전교투표는 보존되며 초기화하거나 삭제할 수 없습니다."
+        )
+        headings = Nokogiri::HTML(response.body).css("h2").map { |heading| heading.text.squish }
+        expect(headings).not_to include("전교투표 삭제")
+
+        delete school_poll_path(poll), params: { confirmation_title: poll.title }
+        expect(response).to redirect_to(admin_teachers_path)
+        expect(poll.reload).to be_persisted
+      end
+    end
+
     it "lets global admin open settings and shows only supported management tools" do
       poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil)
       sign_in create(:user, :admin)

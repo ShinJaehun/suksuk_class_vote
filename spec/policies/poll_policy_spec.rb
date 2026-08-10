@@ -248,7 +248,7 @@ RSpec.describe PollPolicy do
   end
 
   describe "#destroy_schoolwide?" do
-    it "applies manager preservation rules and allows global admin in every state" do
+    it "preserves closed or archived source Polls while retaining other deletion rules" do
       school = create(:school)
       manager = create(:user)
       create(:school_membership, :manager, school: school, user: manager)
@@ -260,7 +260,7 @@ RSpec.describe PollPolicy do
           started_at: (1.hour.ago unless status == :draft),
           stopped_at: (Time.current if status == :stopped),
           closed_at: (Time.current if status == :closed),
-          archived_at: (Time.current if status == :closed)
+          archived_at: nil
         }
         source = create(:poll, school: school, school_managed: true,
                                participant_group: nil, **attributes)
@@ -269,9 +269,16 @@ RSpec.describe PollPolicy do
 
         expect(described_class.new(manager, source).destroy_schoolwide?).to eq(status == :draft)
         expect(described_class.new(manager, test_poll).destroy_schoolwide?).to eq(status != :in_progress)
-        expect(described_class.new(admin, source)).to be_destroy_schoolwide
+        expect(described_class.new(admin, source).destroy_schoolwide?).to eq(status != :closed)
         expect(described_class.new(admin, test_poll)).to be_destroy_schoolwide
       end
+
+      archived_source = create(:poll, school: school, school_managed: true,
+                                      participant_group: nil, status: :stopped,
+                                      started_at: 1.hour.ago, stopped_at: Time.current,
+                                      archived_at: Time.current)
+      expect(described_class.new(admin, archived_source)).not_to be_destroy_schoolwide
+      expect(described_class.new(manager, archived_source)).not_to be_destroy_schoolwide
 
       source = create(:poll, school: school, school_managed: true, participant_group: nil)
       archived_test = create(:poll, school: school, school_managed: true,
@@ -279,6 +286,7 @@ RSpec.describe PollPolicy do
                                     status: :stopped, started_at: 1.hour.ago,
                                     stopped_at: Time.current, archived_at: Time.current)
       expect(described_class.new(manager, archived_test)).to be_destroy_schoolwide
+      expect(described_class.new(admin, archived_test)).to be_destroy_schoolwide
     end
 
     it "rejects another-School manager" do

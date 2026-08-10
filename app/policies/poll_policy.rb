@@ -62,6 +62,7 @@ class PollPolicy < ApplicationPolicy
 
   def destroy_schoolwide?
     return false unless school_show?
+    return false if !record.test_run? && (record.closed? || record.archived?)
     return true if admin?
 
     record.test_run? ? !record.in_progress? : record.draft?

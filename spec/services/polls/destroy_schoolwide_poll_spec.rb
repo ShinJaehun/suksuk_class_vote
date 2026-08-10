@@ -109,15 +109,27 @@ RSpec.describe Polls::DestroySchoolwidePoll do
     expect(ActiveStorage::Blob.exists?(child_blob_id)).to be(false)
   end
 
-  it "enforces manager preservation states and lets admin delete every state" do
+  it "preserves closed and archived source Polls while retaining other deletion rules" do
     school = create(:school)
     manager = create(:user)
     create(:school_membership, :manager, school: school, user: manager)
     admin = create(:user, :admin)
 
     %i[draft in_progress stopped closed].each do |status|
-      admin_target, = create_schoolwide_poll(school: school, actor: manager, status: status)
-      expect(described_class.new(poll: admin_target, actor: admin).call).to be_success
+      admin_target, admin_option = create_schoolwide_poll(school: school, actor: manager, status: status)
+      closed_session = if status == :closed
+                         classroom = create_classroom(school)
+                         create(:poll_session, poll: admin_target, classroom: classroom,
+                                               operator: classroom.teacher, status: :closed,
+                                               started_at: 1.hour.ago, closed_at: Time.current)
+                       end
+      result = described_class.new(poll: admin_target, actor: admin).call
+      expect(result.success?).to eq(status != :closed)
+      expect(Poll.exists?(admin_target.id)).to eq(status == :closed)
+      if status == :closed
+        expect(admin_option.reload).to be_persisted
+        expect(closed_session.reload).to be_persisted
+      end
 
       next if status == :draft
 
@@ -125,10 +137,39 @@ RSpec.describe Polls::DestroySchoolwidePoll do
       expect(described_class.new(poll: protected_source, actor: manager).call).not_to be_success
     end
 
+    archived_source, archived_option = create_schoolwide_poll(
+      school: school, actor: manager, status: :stopped
+    )
+    archived_source.update!(archived_at: Time.current)
+    archived_classroom = create_classroom(school)
+    archived_session = create(:poll_session, poll: archived_source,
+                                             classroom: archived_classroom,
+                                             operator: archived_classroom.teacher, status: :stopped,
+                                             started_at: 1.hour.ago, stopped_at: Time.current)
+    expect(described_class.new(poll: archived_source, actor: admin).call).not_to be_success
+    expect(archived_source.reload).to be_persisted
+    expect(archived_option.reload).to be_persisted
+    expect(archived_session.reload).to be_persisted
+
     running_test_source, = create_schoolwide_poll(school: school, actor: manager)
     running_test, = create_schoolwide_poll(school: school, actor: manager,
                                            test_source: running_test_source, status: :in_progress)
     expect(described_class.new(poll: running_test, actor: manager).call).not_to be_success
+  end
+
+  it "lets global admin delete closed and archived Test Polls" do
+    school = create(:school)
+    admin = create(:user, :admin)
+    source, = create_schoolwide_poll(school: school, actor: admin)
+    closed_test, = create_schoolwide_poll(school: school, actor: admin,
+                                         test_source: source, status: :closed)
+    archived_test, = create_schoolwide_poll(school: school, actor: admin,
+                                           test_source: source, status: :stopped)
+    archived_test.update!(archived_at: Time.current)
+
+    expect(described_class.new(poll: closed_test, actor: admin).call).to be_success
+    expect(described_class.new(poll: archived_test, actor: admin).call).to be_success
+    expect(Poll.where(id: [closed_test.id, archived_test.id])).to be_empty
   end
 
   it "logs non-draft admin force deletion without voter data" do
