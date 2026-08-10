@@ -193,13 +193,48 @@ RSpec.describe Polls::SchoolwideStatusCheck do
   end
 
   it "rejects draft, in-progress, and stopped Sessions when closing" do
-    %i[draft in_progress stopped].each do |status|
-      poll, poll_session, = create_startable_schoolwide_poll
-      poll.update!(status: :in_progress, started_at: Time.current)
-      poll_session.update_column(:status, PollSession.statuses.fetch(status.to_s))
-
-      expect(described_class.new(poll: poll.reload)).not_to be_closable
+    poll, = create_startable_schoolwide_poll
+    poll.update!(status: :in_progress, started_at: Time.current)
+    %i[in_progress stopped].each do |status|
+      teacher = create(:user)
+      create(:school_membership, school: poll.school, user: teacher)
+      classroom = create(:classroom, school: poll.school, teacher: teacher)
+      create(:poll_session, poll: poll, classroom: classroom, operator: teacher, status: status,
+                            started_at: Time.current,
+                            stopped_at: (Time.current if status == :stopped))
     end
+    expect(Polls::SessionStatusCheck).not_to receive(:new)
+
+    expect(described_class.new(poll: poll.reload)).not_to be_closable
+  end
+
+  it "does not deeply check closed Sessions while another current Session is unfinished" do
+    poll, closed_session, = create_startable_schoolwide_poll
+    poll.update!(status: :in_progress, started_at: Time.current)
+    closed_session.update!(status: :closed, started_at: 1.hour.ago, closed_at: Time.current)
+    teacher = create(:user)
+    create(:school_membership, school: poll.school, user: teacher)
+    classroom = create(:classroom, school: poll.school, teacher: teacher)
+    create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
+                          status: :in_progress, started_at: 30.minutes.ago)
+    expect(Polls::SessionStatusCheck).not_to receive(:new)
+
+    issues = described_class.new(poll: poll.reload).close_issues
+
+    expect(issues).to include("모든 학급 투표가 종료되어야 합니다.")
+  end
+
+  it "runs and preserves deep integrity issues once every current Session is closed" do
+    poll, poll_session, = create_startable_schoolwide_poll
+    poll.update!(status: :in_progress, started_at: Time.current)
+    poll_session.update!(status: :closed, started_at: 1.hour.ago, closed_at: Time.current)
+    integrity_issue = "집계 무결성을 확인해 주세요."
+    expect(Polls::SessionStatusCheck).to receive(:new).with(poll_session: poll_session)
+      .and_return(instance_double(Polls::SessionStatusCheck, call: double(issues: [integrity_issue])))
+
+    expect(described_class.new(poll: poll.reload).close_issues).to include(
+      "#{poll_session.classroom_name_snapshot}: #{integrity_issue}"
+    )
   end
 
   it "counts only the last replacement in a multi-step chain" do
@@ -228,7 +263,7 @@ RSpec.describe Polls::SchoolwideStatusCheck do
     leaf = create(:poll_session, poll: poll, classroom: source.classroom, operator: teacher,
                                  replacement_of: source)
     leaf.update!(status: :closed, started_at: 30.minutes.ago, closed_at: Time.current)
-    allow(Polls::SessionStatusCheck).to receive(:new).with(poll_session: leaf)
+    expect(Polls::SessionStatusCheck).to receive(:new).with(poll_session: leaf)
       .and_return(instance_double(Polls::SessionStatusCheck, call: double(issues: [])))
 
     expect(described_class.new(poll: poll.reload)).to be_closable

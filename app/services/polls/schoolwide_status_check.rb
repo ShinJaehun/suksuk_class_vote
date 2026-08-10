@@ -125,8 +125,9 @@ module Polls
       end
       issues << "중단된 학급 투표가 있어 전교투표를 종료할 수 없습니다." if sessions.any?(&:stopped?)
       issues << "모든 학급 투표가 종료되어야 합니다." if sessions.any? { |session| !session.closed? }
+      return issues.uniq unless sessions.all?(&:closed?)
 
-      sessions.select(&:closed?).each do |poll_session|
+      sessions.each do |poll_session|
         check = Polls::SessionStatusCheck.new(poll_session: poll_session).call
         check.issues.each do |issue|
           issues << "#{poll_session.classroom_name_snapshot}: #{issue}"
