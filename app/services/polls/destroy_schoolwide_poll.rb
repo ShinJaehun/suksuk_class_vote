@@ -15,6 +15,7 @@ module Polls
       return failure if errors.any?
 
       audit_attributes = nil
+      terminal_sessions = []
       Poll.transaction do
         poll.lock!
         unless PollPolicy.new(actor, poll).destroy_schoolwide?
@@ -24,6 +25,7 @@ module Polls
 
         targets = poll.test_run? ? [poll] : poll.test_polls.lock.to_a + [poll]
         targets.each { |target| target.poll_sessions.lock.load }
+        terminal_sessions = targets.flat_map { |target| target.poll_sessions.to_a }
         audit_attributes = audit_attributes_for(targets) if force_delete?
         targets.each { |target| delete_poll!(target) }
       end
@@ -31,6 +33,7 @@ module Polls
       return failure if errors.any?
 
       log_forced_delete(audit_attributes) if audit_attributes
+      broadcast_deleted_sessions(terminal_sessions)
       success
     rescue ActiveRecord::ActiveRecordError => error
       record = error.respond_to?(:record) ? error.record : nil
@@ -69,6 +72,15 @@ module Polls
 
     def force_delete?
       actor&.admin? && (!poll.draft? || poll.archived?)
+    end
+
+    def broadcast_deleted_sessions(sessions)
+      Polls::BroadcastTerminalSessionState.call(
+        sessions: sessions,
+        actor: actor,
+        teacher_message: "투표가 삭제되어 이 투표 실행은 더 이상 사용할 수 없습니다.",
+        ballot_message: "투표가 삭제되어 이 투표 실행은 더 이상 사용할 수 없습니다."
+      )
     end
 
     def audit_attributes_for(targets)

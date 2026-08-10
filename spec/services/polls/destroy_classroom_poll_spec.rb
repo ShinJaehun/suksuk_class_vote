@@ -1,6 +1,8 @@
 require "rails_helper"
 
 RSpec.describe Polls::DestroyClassroomPoll do
+  include ActionCable::TestHelper
+
   def create_target(status: :draft, operator: nil)
     school = create(:school)
     teacher = create(:user)
@@ -25,6 +27,38 @@ RSpec.describe Polls::DestroyClassroomPoll do
       expect(result).to be_success
       expect(Poll.exists?(poll.id)).to be(false)
     end
+  end
+
+  it "broadcasts deleted terminal screens only after a successful delete" do
+    poll, poll_session, teacher = create_target(status: :stopped)
+    operation_stream = Turbo::StreamsChannel.send(:stream_name_from, [poll_session, :operation_screen])
+    ballot_stream = Turbo::StreamsChannel.send(:stream_name_from, [poll_session, :ballot_screen])
+
+    result = described_class.new(poll: poll, actor: teacher).call
+
+    expect(result).to be_success
+    expect(broadcasts(operation_stream).join).to include(
+      "투표가 삭제되어", "내 투표 목록으로 돌아가기", "data-poll-session-terminal"
+    )
+    expect(broadcasts(ballot_stream).join).to include("투표가 삭제되어", "data-poll-session-terminal")
+    expect(broadcasts(ballot_stream).join).not_to include("내 투표 목록으로 돌아가기", "<form")
+  end
+
+  it "keeps a successful delete successful when terminal broadcasts fail" do
+    poll, poll_session, teacher = create_target(status: :stopped)
+    errors = []
+    allow(Turbo::StreamsChannel).to receive(:broadcast_replace_to)
+      .and_raise(StandardError, "학생정보")
+    allow(Rails.logger).to receive(:error) { |message| errors << message }
+
+    result = described_class.new(poll: poll, actor: teacher).call
+
+    expect(result).to be_success
+    expect(Poll.exists?(poll.id)).to be(false)
+    expect(errors.join).to include(
+      "poll_id=#{poll.id}", "poll_session_id=#{poll_session.id}", 'error_class="StandardError"'
+    )
+    expect(errors.join).not_to include("학생정보")
   end
 
   it "rejects in-progress, archived, Schoolwide, and unauthorized Polls" do
@@ -90,10 +124,14 @@ RSpec.describe Polls::DestroyClassroomPoll do
                                             source_participant_slot: nil)
     poll.errors.add(:base, "failure")
     allow(poll).to receive(:destroy!).and_raise(ActiveRecord::RecordNotDestroyed.new("failure", poll))
+    operation_stream = Turbo::StreamsChannel.send(:stream_name_from, [session, :operation_screen])
+    ballot_stream = Turbo::StreamsChannel.send(:stream_name_from, [session, :ballot_screen])
+    previous_counts = [broadcasts(operation_stream).size, broadcasts(ballot_stream).size]
 
     expect(described_class.new(poll: poll, actor: teacher).call).not_to be_success
     expect(session.reload).to be_persisted
     expect(participant.reload).to be_persisted
+    expect([broadcasts(operation_stream).size, broadcasts(ballot_stream).size]).to eq(previous_counts)
   end
 
   it "preserves a replacement that belongs to another Poll while detaching its deleted source" do

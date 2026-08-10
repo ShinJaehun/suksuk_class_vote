@@ -14,6 +14,7 @@ module Polls
       validate_inputs
       return failure if errors.any?
 
+      terminal_sessions = []
       Poll.transaction do
         poll.lock!
 
@@ -22,11 +23,15 @@ module Polls
           raise ActiveRecord::Rollback
         end
 
-        delete_runtime!
+        terminal_sessions = poll.poll_sessions.lock.to_a
+        delete_runtime!(terminal_sessions)
         poll.destroy!
       end
 
-      errors.empty? ? success : failure
+      return failure if errors.any?
+
+      broadcast_deleted_sessions(terminal_sessions)
+      success
     rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotDestroyed => e
       errors << (
         e.record.errors.full_messages.to_sentence.presence ||
@@ -44,8 +49,7 @@ module Polls
       errors << "학급투표를 삭제할 권한이 없습니다." unless poll&.persisted? && PollPolicy.new(actor, poll).destroy?
     end
 
-    def delete_runtime!
-      sessions = poll.poll_sessions.lock.to_a
+    def delete_runtime!(sessions)
       session_ids = sessions.map(&:id)
       participant_ids = PollParticipant.where(poll_id: poll.id).pluck(:id)
 
@@ -66,6 +70,15 @@ module Polls
       PollSession.where(id: session_ids).delete_all
 
       poll.association(:poll_sessions).reset
+    end
+
+    def broadcast_deleted_sessions(sessions)
+      Polls::BroadcastTerminalSessionState.call(
+        sessions: sessions,
+        actor: actor,
+        teacher_message: "투표가 삭제되어 이 투표 실행은 더 이상 사용할 수 없습니다.",
+        ballot_message: "투표가 삭제되어 이 투표 실행은 더 이상 사용할 수 없습니다."
+      )
     end
 
     def success

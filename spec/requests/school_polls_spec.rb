@@ -202,6 +202,8 @@ RSpec.describe "School Poll management", type: :request do
 
     it "creates a full-page same-Poll classroom replacement and rejects it after Poll stop" do
       poll, session, manager, = create_schoolwide_lifecycle
+      operation_stream = Turbo::StreamsChannel.send(:stream_name_from, [session, :operation_screen])
+      ballot_stream = Turbo::StreamsChannel.send(:stream_name_from, [session, :ballot_screen])
       sign_in manager
 
       post revote_school_poll_poll_session_path(poll, session)
@@ -212,6 +214,16 @@ RSpec.describe "School Poll management", type: :request do
       )
       expect(session).to be_stopped
       expect(replacement).to have_attributes(poll: poll, status: "draft")
+      operation_payload = broadcasts(operation_stream).last
+      ballot_payload = broadcasts(ballot_stream).last
+      expect(turbo_stream_fragment(operation_payload).text.squish).to include(
+        "상태점검", "이 학급 투표는 중단되었으며 진행 기록은 보존됩니다.",
+        "내 투표 목록으로 돌아가기"
+      )
+      ballot_fragment = turbo_stream_fragment(ballot_payload)
+      expect(ballot_fragment.text.squish).to include("중단된 투표입니다. 선생님의 안내를 기다려 주세요.")
+      expect(ballot_fragment.at_css("[data-poll-session-terminal]")).to be_present
+      expect(ballot_fragment.at_css("form")).to be_nil
 
       Polls::StopSchoolwidePoll.new(poll: poll, actor: manager).call
       expect do

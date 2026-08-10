@@ -64,13 +64,78 @@ RSpec.describe "PollSession stale recovery", type: :request do
     expect(flash[:alert]).to eq("전교투표가 초기화되어 이전 투표 실행은 더 이상 사용할 수 없습니다.")
 
     get ballot_poll_poll_session_path(poll, old_session)
-    expect(response).to redirect_to(polls_path)
-    expect(flash[:alert]).to eq("전교투표가 초기화되어 이전 투표 실행은 더 이상 사용할 수 없습니다.")
+    stale_ballot = Nokogiri::HTML(response.body)
+    expect(response).to have_http_status(:ok)
+    expect(stale_ballot.text.squish).to include(
+      "전교투표가 초기화되어 이 투표 실행은 더 이상 사용할 수 없습니다."
+    )
+    expect(stale_ballot.at_css("[data-poll-session-terminal]")).to be_present
+    expect(stale_ballot.at_css("form, a[href='#{polls_path}']")).to be_nil
 
     post close_ballot_screen_poll_poll_session_path(poll, old_session)
     expect(response).to have_http_status(:no_content)
     expect(new_session.reload).to be_draft
     expect(poll.poll_sessions.current_execution).to contain_exactly(new_session)
+  end
+
+  it "renders a deleted classroom ballot terminal while keeping teacher navigation safe" do
+    teacher = create(:user)
+    school = create(:school)
+    create(:school_membership, school: school, user: teacher)
+    classroom = create(:classroom, school: school, teacher: teacher)
+    poll = create(:poll, user: teacher, school: school, participant_group: nil)
+    poll_session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
+                                         status: :stopped, started_at: 1.hour.ago,
+                                         stopped_at: Time.current)
+    sign_in teacher
+    get poll_poll_session_path(poll, poll_session)
+    get ballot_poll_poll_session_path(poll, poll_session)
+
+    expect(Polls::DestroyClassroomPoll.new(poll: poll, actor: teacher).call).to be_success
+
+    get poll_poll_session_path(poll, poll_session)
+    expect(response).to redirect_to(polls_path)
+    expect(flash[:alert]).to eq("투표가 삭제되어 이 투표 실행은 더 이상 사용할 수 없습니다.")
+
+    get ballot_poll_poll_session_path(poll, poll_session)
+    page = Nokogiri::HTML(response.body)
+    expect(response).to have_http_status(:ok)
+    expect(page.text.squish).to include("투표가 삭제되어 이 투표 실행은 더 이상 사용할 수 없습니다.")
+    expect(page.at_css("[data-poll-session-terminal]")).to be_present
+    expect(page.at_css("form, a[href='#{polls_path}']")).to be_nil
+  end
+
+  it "recovers deleted Schoolwide teacher and ballot screens without student redirect" do
+    poll, poll_session, teacher = create_running_schoolwide_session
+    sign_in teacher
+    get poll_poll_session_path(poll, poll_session)
+    operation_frame = Nokogiri::HTML(response.body)
+      .at_css("turbo-frame#teacher_progress_poll_session_#{poll_session.id}")
+    operation_url = operation_frame["data-poll-session-progress-url-value"]
+    get ballot_poll_poll_session_path(poll, poll_session)
+    ballot_frame = Nokogiri::HTML(response.body)
+      .at_css("turbo-frame#ballot_poll_session_#{poll_session.id}")
+    ballot_url = ballot_frame["data-poll-session-progress-url-value"]
+
+    expect(Polls::DestroySchoolwidePoll.new(poll: poll, actor: create(:user, :admin)).call).to be_success
+
+    [operation_url, ballot_url].each do |url|
+      get url
+      page = Nokogiri::HTML(response.body)
+      expect(response).to have_http_status(:ok)
+      expect(page.text.squish).to include("투표가 삭제되어 이 투표 실행은 더 이상 사용할 수 없습니다.")
+      expect(page.at_css("[data-poll-session-terminal]")).to be_present
+      expect(page.at_css("form")).to be_nil
+    end
+
+    get poll_poll_session_path(poll, poll_session)
+    expect(response).to redirect_to(polls_path)
+
+    get ballot_poll_poll_session_path(poll, poll_session)
+    ballot_page = Nokogiri::HTML(response.body)
+    expect(response).to have_http_status(:ok)
+    expect(ballot_page.text.squish).to include("투표가 삭제되어 이 투표 실행은 더 이상 사용할 수 없습니다.")
+    expect(ballot_page.at_css("a[href='#{polls_path}'], form")).to be_nil
   end
 
   it "keeps an unrelated missing school-managed Session request as not found" do
@@ -174,6 +239,31 @@ RSpec.describe "PollSession stale recovery", type: :request do
     replacement = poll.poll_sessions.sole
     poll.update!(status: :in_progress, started_at: Time.current)
     replacement.update!(status: :in_progress, started_at: Time.current)
+
+    [operation_url, ballot_url].each do |url|
+      get url
+      page = Nokogiri::HTML(response.body)
+      expect(response).to have_http_status(:ok)
+      expect(page.text.squish).to include("전교투표가 초기화되어")
+      expect(page.at_css("[data-poll-session-terminal]")).to be_present
+    end
+  end
+
+  it "recovers reset frames from a signed token without remembered Session state" do
+    poll, old_session, teacher = create_running_schoolwide_session
+    sign_in teacher
+    get poll_poll_session_path(poll, old_session)
+    operation_frame = Nokogiri::HTML(response.body)
+      .at_css("turbo-frame#teacher_progress_poll_session_#{old_session.id}")
+    operation_url = operation_frame["data-poll-session-progress-url-value"]
+    get ballot_poll_poll_session_path(poll, old_session)
+    ballot_frame = Nokogiri::HTML(response.body)
+      .at_css("turbo-frame#ballot_poll_session_#{old_session.id}")
+    ballot_url = ballot_frame["data-poll-session-progress-url-value"]
+    Polls::ResetSchoolwidePoll.new(poll: poll, actor: teacher).call
+
+    reset!
+    sign_in teacher
 
     [operation_url, ballot_url].each do |url|
       get url

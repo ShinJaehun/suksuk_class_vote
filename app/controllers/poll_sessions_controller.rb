@@ -16,7 +16,7 @@ class PollSessionsController < ApplicationController
       )
       .find_by!(id: params[:id], poll_id: params[:poll_id])
     authorize @poll_session, :show?
-    remember_schoolwide_session(@poll_session)
+    remember_poll_session(@poll_session)
 
     @participants = @poll_session.poll_participants.sort_by { |participant| [participant.number, participant.id] }
     @status_check = Polls::SessionStatusCheck.new(poll_session: @poll_session).call
@@ -41,7 +41,7 @@ class PollSessionsController < ApplicationController
     @can_stop = session_policy.stop?
     @can_revote = session_policy.revote?
   rescue ActiveRecord::RecordNotFound
-    redirect_expired_schoolwide_session(:show?)
+    redirect_stale_poll_session(:show?)
   end
 
   def operation_frame
@@ -76,7 +76,7 @@ class PollSessionsController < ApplicationController
              navigation_context: params[:from]
            }
   rescue ActiveRecord::RecordNotFound
-    render_expired_schoolwide_session(:teacher_progress, :show?)
+    render_stale_session_frame(:teacher_progress, :show?)
   end
 
   def ballot_frame
@@ -90,7 +90,7 @@ class PollSessionsController < ApplicationController
              current_participant: @current_participant
            }
   rescue ActiveRecord::RecordNotFound
-    render_expired_schoolwide_session(:ballot, :operate?)
+    render_stale_session_frame(:ballot, :operate?)
   end
 
   def results
@@ -137,9 +137,9 @@ class PollSessionsController < ApplicationController
   def ballot
     prepare_ballot_session
     authorize @poll_session, :operate?
-    remember_schoolwide_session(@poll_session)
+    remember_poll_session(@poll_session)
   rescue ActiveRecord::RecordNotFound
-    redirect_expired_schoolwide_session(:operate?)
+    render_stale_ballot(:operate?)
   end
 
   def mark_current_participant_absent
@@ -243,7 +243,7 @@ class PollSessionsController < ApplicationController
     broadcast_poll_session_updates(poll_session) if result.success?
     head :no_content
   rescue ActiveRecord::RecordNotFound
-    expired_schoolwide_session!(:operate?)
+    stale_poll_session_reason!(:operate?)
     head :no_content
   end
 
@@ -323,33 +323,40 @@ class PollSessionsController < ApplicationController
 
   private
 
-  def remember_schoolwide_session(poll_session)
-    return unless poll_session.poll.school_managed?
-
-    remembered = session[:schoolwide_poll_sessions] ||= {}
-    poll_sessions = Array(remembered[poll_session.poll_id.to_s])
+  def remember_poll_session(poll_session)
+    remembered = session[:remembered_poll_sessions] ||= {}
+    poll_key = poll_session.poll_id.to_s
+    poll_sessions = Array(remembered.delete(poll_key))
     entry = [poll_session.id, poll_session.classroom_id, poll_session.operator_id, current_user.id]
     poll_sessions.reject! { |item| item.first == poll_session.id }
-    remembered[poll_session.poll_id.to_s] = (poll_sessions << entry).last(10)
-    session[:schoolwide_poll_sessions] = remembered
+    remembered[poll_key] = (poll_sessions << entry).last(5)
+    session[:remembered_poll_sessions] = remembered.to_a.last(10).to_h
   end
 
-  def redirect_expired_schoolwide_session(policy_query)
-    expired_schoolwide_session!(policy_query)
+  def redirect_stale_poll_session(policy_query)
+    reason = stale_poll_session_reason!(policy_query)
     redirect_to polls_path,
-                alert: "전교투표가 초기화되어 이전 투표 실행은 더 이상 사용할 수 없습니다."
+                alert: terminal_session_message(reason, :teacher)
   end
 
-  def expired_schoolwide_session!(policy_query)
+  def render_stale_ballot(policy_query)
+    reason = stale_poll_session_reason!(policy_query)
+    render_terminal_session(:ballot, reason)
+  end
+
+  def stale_poll_session_reason!(policy_query)
     poll_id = params[:poll_id].to_i
     session_id = params[:id].to_i
-    remembered_by_poll = session[:schoolwide_poll_sessions] || {}
+    remembered_by_poll = session[:remembered_poll_sessions] || {}
     remembered = Array(remembered_by_poll[poll_id.to_s])
     entry = remembered.find { |item| item.first == session_id && item.fourth == current_user.id }
     raise ActiveRecord::RecordNotFound unless entry
 
     _remembered_session_id, classroom_id, operator_id, _remembered_user_id = entry
-    poll = Poll.find_by!(id: poll_id, school_managed: true)
+    poll = Poll.find_by(id: poll_id)
+    return :deleted unless poll
+    raise ActiveRecord::RecordNotFound unless poll.school_managed?
+
     classroom = Classroom.find_by!(id: classroom_id, school_id: poll.school_id)
     operator = User.find(operator_id)
     stale_session = PollSession.new(
@@ -364,7 +371,23 @@ class PollSessionsController < ApplicationController
       .where.not(id: session_id)
       .exists?
 
-    stale_session
+    :reset
+  end
+
+  def render_terminal_session(frame, reason)
+    render partial: "poll_sessions/terminal_session",
+           locals: {
+             frame_id: "#{frame}_poll_session_#{params[:id]}",
+             presentation: frame == :teacher_progress ? :teacher : :ballot,
+             message: terminal_session_message(reason, frame == :teacher_progress ? :teacher : :ballot)
+           }
+  end
+
+  def terminal_session_message(reason, presentation)
+    return "투표가 삭제되어 이 투표 실행은 더 이상 사용할 수 없습니다." if reason == :deleted
+    return "전교투표가 초기화되어 이전 투표 실행은 더 이상 사용할 수 없습니다." if presentation == :teacher
+
+    "전교투표가 초기화되어 이 투표 실행은 더 이상 사용할 수 없습니다."
   end
 
   def poll_session_recovery_token(poll_session)
@@ -375,13 +398,26 @@ class PollSessionsController < ApplicationController
     )
   end
 
-  def render_expired_schoolwide_session(frame, policy_query)
-    raise ActiveRecord::RecordNotFound if params[:recovery_token].blank?
+  def render_stale_session_frame(frame, policy_query)
+    if params[:recovery_token].present?
+      payload = poll_session_recovery_verifier.verified(params[:recovery_token])
+      expected_ids = [params[:poll_id].to_i, params[:id].to_i]
+      raise ActiveRecord::RecordNotFound unless payload&.first(2) == expected_ids
 
-    payload = poll_session_recovery_verifier.verified(params[:recovery_token])
-    expected_ids = [params[:poll_id].to_i, params[:id].to_i]
-    raise ActiveRecord::RecordNotFound unless payload&.first(2) == expected_ids
+      reason = if Poll.exists?(id: payload.first)
+                 signed_reset_session_reason!(payload, policy_query)
+               else
+                 stale_poll_session_reason!(policy_query)
+               end
+    else
+      reason = stale_poll_session_reason!(policy_query)
+      raise ActiveRecord::RecordNotFound unless reason == :deleted
+    end
 
+    render_terminal_session(frame, reason)
+  end
+
+  def signed_reset_session_reason!(payload, policy_query)
     poll_id, session_id, classroom_id, operator_id = payload
     poll = Poll.find_by!(id: poll_id, school_managed: true)
     classroom = Classroom.find_by!(id: classroom_id, school_id: poll.school_id)
@@ -398,11 +434,7 @@ class PollSessionsController < ApplicationController
       .where.not(id: session_id)
       .exists?
 
-    render partial: "poll_sessions/expired_schoolwide_session",
-           locals: {
-             frame_id: helpers.dom_id(stale_session, frame),
-             presentation: frame == :teacher_progress ? :teacher : :ballot
-           }
+    :reset
   end
 
   def poll_session_recovery_verifier

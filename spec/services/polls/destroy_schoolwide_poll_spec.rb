@@ -2,6 +2,7 @@ require "rails_helper"
 
 RSpec.describe Polls::DestroySchoolwidePoll do
   include ActiveJob::TestHelper
+  include ActionCable::TestHelper
 
   def create_schoolwide_poll(school:, actor:, test_source: nil, status: :draft)
     timestamps = {
@@ -109,6 +110,48 @@ RSpec.describe Polls::DestroySchoolwidePoll do
     expect(ActiveStorage::Blob.exists?(child_blob_id)).to be(false)
   end
 
+  it "broadcasts deleted teacher and ballot terminals after commit" do
+    school = create(:school)
+    admin = create(:user, :admin)
+    poll, = create_schoolwide_poll(school: school, actor: admin, status: :stopped)
+    classroom = create_classroom(school)
+    poll_session = create(:poll_session, poll: poll, classroom: classroom,
+                                         operator: classroom.teacher, status: :stopped,
+                                         started_at: 1.hour.ago, stopped_at: Time.current)
+    operation_stream = Turbo::StreamsChannel.send(:stream_name_from, [poll_session, :operation_screen])
+    ballot_stream = Turbo::StreamsChannel.send(:stream_name_from, [poll_session, :ballot_screen])
+
+    result = described_class.new(poll: poll, actor: admin).call
+
+    expect(result).to be_success
+    expect(broadcasts(operation_stream).join).to include("투표가 삭제되어", "내 투표 목록으로 돌아가기")
+    expect(broadcasts(ballot_stream).join).to include("투표가 삭제되어", "data-poll-session-terminal")
+    expect(broadcasts(ballot_stream).join).not_to include("내 투표 목록으로 돌아가기", "<form")
+  end
+
+  it "does not let terminal broadcast failure change a successful delete" do
+    school = create(:school)
+    admin = create(:user, :admin)
+    poll, = create_schoolwide_poll(school: school, actor: admin, status: :stopped)
+    classroom = create_classroom(school)
+    poll_session = create(:poll_session, poll: poll, classroom: classroom,
+                                         operator: classroom.teacher, status: :stopped,
+                                         started_at: 1.hour.ago, stopped_at: Time.current)
+    errors = []
+    allow(Turbo::StreamsChannel).to receive(:broadcast_replace_to)
+      .and_raise(StandardError, "학생정보")
+    allow(Rails.logger).to receive(:error) { |message| errors << message }
+
+    result = described_class.new(poll: poll, actor: admin).call
+
+    expect(result).to be_success
+    expect(Poll.exists?(poll.id)).to be(false)
+    expect(errors.join).to include(
+      "poll_id=#{poll.id}", "poll_session_id=#{poll_session.id}", 'error_class="StandardError"'
+    )
+    expect(errors.join).not_to include("학생정보")
+  end
+
   it "preserves closed and archived source Polls while retaining other deletion rules" do
     school = create(:school)
     manager = create(:user)
@@ -196,10 +239,14 @@ RSpec.describe Polls::DestroySchoolwidePoll do
     allow_any_instance_of(PollOption).to receive(:destroy!).and_raise(
       ActiveRecord::RecordNotDestroyed.new("failed", source_option)
     )
+    operation_stream = Turbo::StreamsChannel.send(:stream_name_from, [child_session, :operation_screen])
+    ballot_stream = Turbo::StreamsChannel.send(:stream_name_from, [child_session, :ballot_screen])
+    previous_counts = [broadcasts(operation_stream).size, broadcasts(ballot_stream).size]
 
     expect(described_class.new(poll: source, actor: admin).call).not_to be_success
     expect(source.reload).to be_persisted
     expect(child.reload).to be_persisted
     expect(child_session.reload).to be_persisted
+    expect([broadcasts(operation_stream).size, broadcasts(ballot_stream).size]).to eq(previous_counts)
   end
 end

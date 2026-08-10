@@ -111,27 +111,11 @@ module Polls
     end
 
     def broadcast_expired_sessions(sessions)
-      sessions.each do |session|
-        broadcast_expired_session(session, :operation_screen, :teacher_progress)
-        broadcast_expired_session(session, :ballot_screen, :ballot)
-      end
-    end
-
-    def broadcast_expired_session(session, stream, frame)
-      Turbo::StreamsChannel.broadcast_replace_to(
-        session,
-        stream,
-        target: ActionView::RecordIdentifier.dom_id(session, frame),
-        partial: "poll_sessions/expired_schoolwide_session",
-        locals: {
-          frame_id: ActionView::RecordIdentifier.dom_id(session, frame),
-          presentation: frame == :teacher_progress ? :teacher : :ballot
-        }
-      )
-    rescue StandardError => error
-      Rails.logger.error(
-        "[poll_session_broadcast_failed] actor_id=#{actor.id} poll_id=#{poll.id} " \
-        "poll_session_id=#{session.id} broadcast=#{stream.inspect} error_class=#{error.class.name.inspect}"
+      Polls::BroadcastTerminalSessionState.call(
+        sessions: sessions,
+        actor: actor,
+        teacher_message: "전교투표가 초기화되어 이 투표 실행은 더 이상 사용할 수 없습니다.",
+        ballot_message: "전교투표가 초기화되어 이 투표 실행은 더 이상 사용할 수 없습니다."
       )
     end
 

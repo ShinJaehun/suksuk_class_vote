@@ -64,6 +64,12 @@ class SchoolPollSessionsController < ApplicationController
     result = Polls::RevoteSchoolSession.new(poll_session: poll_session, actor: current_user).call
 
     if result.success?
+      Polls::BroadcastTerminalSessionState.call(
+        sessions: [poll_session],
+        actor: current_user,
+        teacher_message: "이 학급 투표는 중단되었으며 진행 기록은 보존됩니다.",
+        ballot_message: "중단된 투표입니다. 선생님의 안내를 기다려 주세요."
+      )
       Polls::BroadcastSchoolwideSessionState.for_revote(
         poll: poll,
         classroom: result.poll_session.classroom
