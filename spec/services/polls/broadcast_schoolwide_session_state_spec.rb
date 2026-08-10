@@ -157,4 +157,52 @@ RSpec.describe Polls::BroadcastSchoolwideSessionState do
     expect(payload).to include("테스트투표를 시작할 수 있습니다.", "테스트투표 시작")
     expect(payload).not_to include("테스트투표 만들기")
   end
+
+  it "continues the status broadcast after a classroom runtime failure" do
+    school = create(:school)
+    teacher = create(:user)
+    create(:school_membership, school: school, user: teacher)
+    classroom = create(:classroom, school: school, teacher: teacher)
+    poll = create(:poll, school: school, participant_group: nil)
+    session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
+    poll.update!(school_managed: true)
+    session_target = "school_poll_#{poll.id}_classroom_#{classroom.id}_runtime"
+    status_target = ActionView::RecordIdentifier.dom_id(poll, :schoolwide_status_runtime)
+    attempted_targets = []
+    errors = []
+    allow(Turbo::StreamsChannel).to receive(:broadcast_replace_to) do |*_streamables, **options|
+      attempted_targets << options[:target]
+      raise StandardError, "학생정보" if options[:target] == session_target
+    end
+    allow(Rails.logger).to receive(:error) { |message| errors << message }
+
+    described_class.new(poll: poll, classroom: classroom).call
+
+    expect(attempted_targets).to eq([session_target, status_target])
+    expect(errors.join).to include(
+      "poll_id=#{poll.id}", "poll_session_id=#{session.id}",
+      'broadcast="classroom_runtime"', 'error_class="StandardError"'
+    )
+    expect(errors.join).not_to include("학생정보")
+  end
+
+  it "does not surface a schoolwide after-commit broadcast failure" do
+    poll_session = create(:poll_session)
+    poll_session.poll.update!(school_managed: true, status: :in_progress, started_at: Time.current)
+    errors = []
+    allow_any_instance_of(described_class).to receive(:call)
+      .and_raise(StandardError, "학생정보")
+    allow(Rails.logger).to receive(:error) { |message| errors << message }
+
+    expect do
+      poll_session.update!(status: :in_progress, started_at: Time.current)
+    end.not_to raise_error
+
+    expect(poll_session.reload).to be_in_progress
+    expect(errors.join).to include(
+      "poll_id=#{poll_session.poll_id}", "poll_session_id=#{poll_session.id}",
+      'broadcast="schoolwide_runtime_callback"', 'error_class="StandardError"'
+    )
+    expect(errors.join).not_to include("학생정보")
+  end
 end

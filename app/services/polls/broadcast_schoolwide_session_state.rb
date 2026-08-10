@@ -34,9 +34,9 @@ module Polls
         session = poll.poll_sessions.current_execution.find_by(classroom: classroom)
         return unless session
 
-        broadcast_session(session)
+        broadcast_safely("classroom_runtime", session_id: session.id) { broadcast_session(session) }
       end
-      broadcast_status_runtime
+      broadcast_safely("status_runtime") { broadcast_status_runtime }
     end
 
     def broadcast_revote_history
@@ -54,11 +54,29 @@ module Polls
         partial: "school_polls/revote_history",
         locals: { poll: poll, history_sessions: history_sessions }
       )
+    rescue StandardError => error
+      log_broadcast_failure(error, broadcast: "revote_history")
     end
 
     private
 
     attr_reader :poll, :classroom
+
+    def broadcast_safely(broadcast, session_id: nil)
+      yield
+    rescue StandardError => error
+      log_broadcast_failure(error, broadcast: broadcast, session_id: session_id)
+    end
+
+    def log_broadcast_failure(error, broadcast:, session_id: nil)
+      attributes = {
+        poll_id: poll.id,
+        poll_session_id: session_id,
+        broadcast: broadcast,
+        error_class: error.class.name
+      }.compact
+      Rails.logger.error("[schoolwide_poll_broadcast_failed] #{attributes.map { |key, value| "#{key}=#{value.inspect}" }.join(" ")}")
+    end
 
     def broadcast_session(session)
       Turbo::StreamsChannel.broadcast_replace_to(

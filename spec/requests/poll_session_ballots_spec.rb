@@ -956,4 +956,48 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(response.body).not_to include("77표")
     expect(Nokogiri::HTML(response.body).at_css("a[href='#{detail_path}']")).to be_present
   end
+
+  it "isolates ballot and operation broadcast failures after a successful submit" do
+    poll, poll_session, progress, current, _waiting, option, tally, operator = create_execution
+    progress.update!(ballot_status: :ballot_open)
+    errors = []
+    allow(Turbo::StreamsChannel).to receive(:broadcast_replace_to)
+      .and_raise(StandardError, "김학생")
+    expect(Turbo::StreamsChannel).to receive(:broadcast_render_to)
+      .and_raise(StandardError, "김학생")
+    allow(Rails.logger).to receive(:error) { |message| errors << message }
+    sign_in operator
+
+    post submit_ballot_poll_poll_session_path(poll, poll_session), params: {
+      ballot: {
+        expected_current_poll_participant_id: current.id,
+        poll_contest_id: option.poll_contest_id,
+        poll_option_id: option.id
+      }
+    }
+
+    expect(response).to redirect_to(ballot_poll_poll_session_path(poll, poll_session))
+    expect(tally.reload.votes_count).to eq(1)
+    expect(current.reload.poll_participation).to be_completed
+    expect(errors.join).to include(
+      "actor_id=#{operator.id}", "poll_id=#{poll.id}",
+      "poll_session_id=#{poll_session.id}",
+      'broadcast="ballot_screen"', 'broadcast="operation_screen"',
+      'error_class="StandardError"'
+    )
+    expect(errors.join).not_to include("김학생")
+  end
+
+  it "returns no content when close-window broadcasts fail" do
+    poll, poll_session, progress, _current, _waiting, _option, _tally, operator = create_execution
+    progress.update!(ballot_status: :ballot_open)
+    allow(Turbo::StreamsChannel).to receive(:broadcast_replace_to).and_raise(StandardError)
+    allow(Turbo::StreamsChannel).to receive(:broadcast_render_to).and_raise(StandardError)
+    sign_in operator
+
+    post close_ballot_screen_poll_poll_session_path(poll, poll_session)
+
+    expect(response).to have_http_status(:no_content)
+    expect(progress.reload).to be_ballot_locked
+  end
 end

@@ -70,7 +70,7 @@ class PollSessionsController < ApplicationController
     ).call
 
     if result.success?
-      broadcast_operation_screen(poll_session)
+      broadcast_poll_session_updates(poll_session, ballot: false)
       redirect_to poll_poll_session_path(
         poll_session.poll,
         poll_session,
@@ -106,8 +106,7 @@ class PollSessionsController < ApplicationController
     ).call
 
     if result.success?
-      broadcast_ballot_screen(poll_session)
-      broadcast_operation_screen(poll_session)
+      broadcast_poll_session_updates(poll_session)
       redirect_to poll_poll_session_path(poll_session.poll, poll_session),
                   notice: "현재 학생을 미참여 처리했습니다."
     else
@@ -126,8 +125,7 @@ class PollSessionsController < ApplicationController
       expected_current_poll_participant_id: params[:expected_current_poll_participant_id]
     ).call
 
-    broadcast_ballot_screen(poll_session) if result.success?
-    broadcast_operation_screen(poll_session) if result.success?
+    broadcast_poll_session_updates(poll_session) if result.success?
     redirect_with_result(
       result,
       poll_poll_session_path(poll_session.poll, poll_session),
@@ -145,8 +143,7 @@ class PollSessionsController < ApplicationController
       expected_current_poll_participant_id: params[:expected_current_poll_participant_id]
     ).call
 
-    broadcast_ballot_screen(poll_session) if result.success?
-    broadcast_operation_screen(poll_session) if result.success?
+    broadcast_poll_session_updates(poll_session) if result.success?
     redirect_with_result(
       result,
       poll_poll_session_path(poll_session.poll, poll_session),
@@ -163,8 +160,7 @@ class PollSessionsController < ApplicationController
       poll_session: poll_session
     ).call
 
-    broadcast_ballot_screen(poll_session) if result.success?
-    broadcast_operation_screen(poll_session) if result.success?
+    broadcast_poll_session_updates(poll_session) if result.success?
     redirect_with_result(
       result,
       poll_poll_session_path(poll_session.poll, poll_session),
@@ -181,8 +177,7 @@ class PollSessionsController < ApplicationController
       poll_session: poll_session
     ).call
 
-    broadcast_ballot_screen(poll_session) if result.success?
-    broadcast_operation_screen(poll_session) if result.success?
+    broadcast_poll_session_updates(poll_session) if result.success?
     redirect_with_result(
       result,
       poll_poll_session_path(poll_session.poll, poll_session),
@@ -199,8 +194,7 @@ class PollSessionsController < ApplicationController
       poll_session: poll_session
     ).call
 
-    broadcast_ballot_screen(poll_session) if result.success?
-    broadcast_operation_screen(poll_session) if result.success?
+    broadcast_poll_session_updates(poll_session) if result.success?
     head :no_content
   end
 
@@ -218,8 +212,7 @@ class PollSessionsController < ApplicationController
       expected_current_poll_participant_id: ballot[:expected_current_poll_participant_id]
     ).call
 
-    broadcast_ballot_screen(poll_session) if result.success?
-    broadcast_operation_screen(poll_session) if result.success?
+    broadcast_poll_session_updates(poll_session) if result.success?
     success_message = if result.completed?
                         "투표가 완료되었습니다. 선생님의 안내를 기다려 주세요."
     else
@@ -242,8 +235,7 @@ class PollSessionsController < ApplicationController
       expected_current_poll_participant_id: params[:expected_current_poll_participant_id]
     ).call
 
-    broadcast_ballot_screen(poll_session) if result.success?
-    broadcast_operation_screen(poll_session) if result.success?
+    broadcast_poll_session_updates(poll_session) if result.success?
     redirect_with_result(
       result,
       poll_poll_session_path(poll_session.poll, poll_session),
@@ -257,8 +249,7 @@ class PollSessionsController < ApplicationController
     result = Polls::StopSession.new(actor: current_user, poll_session: poll_session).call
 
     if result.success?
-      broadcast_ballot_screen(poll_session)
-      broadcast_operation_screen(poll_session)
+      broadcast_poll_session_updates(poll_session)
     end
     redirect_with_result(
       result,
@@ -364,6 +355,26 @@ class PollSessionsController < ApplicationController
         progress: progress,
         current_participant: current_participant
       }
+    )
+  end
+
+  def broadcast_poll_session_updates(poll_session, ballot: true)
+    if ballot
+      broadcast_realtime_safely(poll_session, broadcast: "ballot_screen") do
+        broadcast_ballot_screen(poll_session)
+      end
+    end
+    broadcast_realtime_safely(poll_session, broadcast: "operation_screen") do
+      broadcast_operation_screen(poll_session)
+    end
+  end
+
+  def broadcast_realtime_safely(poll_session, broadcast:)
+    yield
+  rescue StandardError => error
+    Rails.logger.error(
+      "[poll_session_broadcast_failed] actor_id=#{current_user.id} poll_id=#{poll_session.poll_id} " \
+      "poll_session_id=#{poll_session.id} broadcast=#{broadcast.inspect} error_class=#{error.class.name.inspect}"
     )
   end
 
