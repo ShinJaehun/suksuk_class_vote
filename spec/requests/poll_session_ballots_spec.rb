@@ -182,11 +182,11 @@ RSpec.describe "PollSession ballots", type: :request do
     )
     expect(waiting_frame["data-controller"]).to eq("poll-session-progress")
     expect(waiting_frame["data-poll-session-progress-url-value"]).to eq(
-      ballot_poll_poll_session_path(poll, poll_session)
+      ballot_frame_poll_poll_session_path(poll, poll_session)
     )
-    expect(waiting_frame["data-poll-session-progress-interval-value"]).to eq("2500")
+    expect(waiting_frame["data-poll-session-progress-interval-value"]).to eq("5000")
     expect(waiting_frame["data-poll-session-progress-pause-selector-value"]).to eq(
-      "form[data-controller~='poll-contest-ballot']"
+      "form[data-controller~='poll-contest-ballot'], [data-poll-session-terminal]"
     )
     expect(ballot_subscription).to be_present
     expect(ballot_subscription.ancestors("turbo-frame")).to be_empty
@@ -198,6 +198,12 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(response.body).to include("학생 투표 화면", "현재 투표자", poll.title, "#{current.number}번 #{current.name}")
     expect(response.body).not_to include("현재 학생")
     expect(response.body).not_to include("투표 제출")
+
+    get ballot_frame_poll_poll_session_path(poll, poll_session)
+    refresh_page = Nokogiri::HTML(response.body)
+    expect(refresh_page.at_css("turbo-frame#ballot_poll_session_#{poll_session.id}")).to be_present
+    expect(refresh_page.text.squish).to include("선생님이 투표를 시작할 때까지 기다려 주세요.")
+    expect(refresh_page.at_css("main")).to be_nil
 
     progress.update!(ballot_status: :ballot_open)
     get ballot_poll_poll_session_path(poll, poll_session)
@@ -215,12 +221,13 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(page.at_css("form[data-controller='poll-contest-ballot']")).to be_present
     expect(interactive_frame["data-controller"]).to eq("poll-session-progress")
     expect(interactive_frame["data-poll-session-progress-url-value"]).to eq(
-      ballot_poll_poll_session_path(poll, poll_session)
+      ballot_frame_poll_poll_session_path(poll, poll_session)
     )
-    expect(interactive_frame["data-poll-session-progress-interval-value"]).to eq("2500")
+    expect(interactive_frame["data-poll-session-progress-interval-value"]).to eq("5000")
     expect(interactive_frame["data-poll-session-progress-pause-selector-value"]).to eq(
-      "form[data-controller~='poll-contest-ballot']"
+      "form[data-controller~='poll-contest-ballot'], [data-poll-session-terminal]"
     )
+    expect(interactive_frame.at_css("[data-poll-session-terminal]")).to be_nil
     expect(page.at_css("form[data-action*='turbo:submit-end->poll-contest-ballot#submitEnd']")).to be_present
     expect(page.at_css("[data-testid='poll-session-ballot-options']").css("button[data-poll-contest-ballot-target='card']").size).to eq(1)
     actions = page.at_css("[data-testid='poll-session-ballot-actions']")
@@ -229,6 +236,17 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(response.body).not_to include("현재 학생", poll.contest_label, "#{poll.choice_label} 선택")
     expect(ballot_wrapper["class"]).to include("w-full")
     expect(page.at_css("main")["class"]).to include("min-h-screen px-2 py-2")
+
+    get ballot_frame_poll_poll_session_path(poll, poll_session)
+    refresh_page = Nokogiri::HTML(response.body)
+    expect(refresh_page.at_css("turbo-frame#ballot_poll_session_#{poll_session.id}")).to be_present
+    expect(refresh_page.at_css("form[data-controller='poll-contest-ballot']")).to be_present
+
+    poll_session.update!(status: :stopped, stopped_at: Time.current)
+    get ballot_frame_poll_poll_session_path(poll, poll_session)
+    stopped_refresh = Nokogiri::HTML(response.body)
+    expect(stopped_refresh.text.squish).to include("중단된 투표입니다.")
+    expect(stopped_refresh.at_css("[data-poll-session-terminal]")).to be_present
   end
 
   it "renders only the current Schoolwide Election Contest with legacy candidate cards" do
@@ -409,10 +427,13 @@ RSpec.describe "PollSession ballots", type: :request do
     )
     expect(completed_frame["data-controller"]).to eq("poll-session-progress")
     expect(completed_frame["data-poll-session-progress-url-value"]).to eq(
-      ballot_poll_poll_session_path(poll, poll_session)
+      ballot_frame_poll_poll_session_path(poll, poll_session)
     )
-    expect(completed_frame["data-poll-session-progress-interval-value"]).to eq("2500")
+    expect(completed_frame["data-poll-session-progress-interval-value"]).to eq("5000")
     expect(response.body).not_to include("현재 학생", "border-emerald-200 bg-emerald-50 px-4 py-3")
+
+    get ballot_frame_poll_poll_session_path(poll, poll_session)
+    expect(Nokogiri::HTML(response.body).text.squish).to include("투표가 완료되었습니다.")
 
     get poll_poll_session_path(poll, poll_session)
 
@@ -543,6 +564,8 @@ RSpec.describe "PollSession ballots", type: :request do
     get ballot_poll_poll_session_path(poll, poll_session)
 
     expect(response).to redirect_to(polls_path)
+    get ballot_frame_poll_poll_session_path(poll, poll_session)
+    expect(response).to redirect_to(polls_path)
     sign_out other_teacher
     sign_in operator
     other_poll = create(:poll, user: operator)
@@ -613,9 +636,9 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(current_card.at_css("[data-testid='poll-session-operation-actions']")).to be_present
     expect(current_name["class"]).to include("sm:text-6xl", "font-bold", "tracking-tight")
     expect(progress_frame["data-poll-session-progress-url-value"]).to eq(
-      poll_poll_session_path(poll, poll_session)
+      operation_frame_poll_poll_session_path(poll, poll_session)
     )
-    expect(progress_frame["data-poll-session-progress-interval-value"]).to eq("2500")
+    expect(progress_frame["data-poll-session-progress-interval-value"]).to eq("5000")
     expect(operation_subscription).to be_present
     expect(operation_subscription.ancestors("turbo-frame")).to be_empty
     expect(page.at_css("#operation_poll_session_#{poll_session.id}")).to be_present
@@ -790,6 +813,12 @@ RSpec.describe "PollSession ballots", type: :request do
       "모든 학생의 투표 처리가 끝났습니다.",
       "투표 종료"
     )
+    get operation_frame_poll_poll_session_path(poll, poll_session)
+    refresh_page = Nokogiri::HTML(response.body)
+    expect(refresh_page.text.squish).to include(
+      "전체 투표자 2명", "투표 완료 1명", "미참여 1명", "대기 0명",
+      "모든 학생의 투표 처리가 끝났습니다.", "투표 종료"
+    )
     expect(response.body).not_to include("다음 투표자는")
     close_form = Nokogiri::HTML(response.body).at_css(
       "form[action='#{close_poll_poll_session_path(poll, poll_session)}']"
@@ -860,6 +889,12 @@ RSpec.describe "PollSession ballots", type: :request do
       "ballot " + "상태",
       "투표 화면 " + "잠김"
     )
+
+    get ballot_frame_poll_poll_session_path(poll, poll_session)
+    ballot_refresh = Nokogiri::HTML(response.body)
+    expect(ballot_refresh.at_css("turbo-frame#ballot_poll_session_#{poll_session.id}")).to be_present
+    expect(ballot_refresh.text.squish).to include("투표가 종료되었습니다.")
+    expect(ballot_refresh.at_css("[data-poll-session-terminal]")).to be_present
 
     get results_poll_poll_session_path(poll, poll_session)
 

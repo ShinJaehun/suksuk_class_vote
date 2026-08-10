@@ -41,6 +41,51 @@ class PollSessionsController < ApplicationController
 
   end
 
+  def operation_frame
+    @poll_session = PollSession
+      .includes(
+        :operator,
+        :classroom,
+        poll: :poll_contests,
+        poll_progress: { current_poll_participant: %i[poll_participation poll_contest_completions] },
+        poll_participants: %i[poll_participation poll_contest_completions]
+      )
+      .find_by!(id: params[:id], poll_id: params[:poll_id])
+    authorize @poll_session, :show?
+
+    participants = @poll_session.poll_participants.sort_by { |participant| [participant.number, participant.id] }
+    status_check = Polls::SessionRuntimeSummary.new(poll_session: @poll_session).call
+    current_participant = status_check.current_participant
+    pending_participants = participants.reject { |participant| participant.poll_participation.present? }
+    session_policy = policy(@poll_session)
+
+    render partial: "poll_sessions/teacher_progress",
+           locals: {
+             poll_session: @poll_session,
+             status_check: status_check,
+             current_participant: current_participant,
+             current_participation: current_participant&.poll_participation,
+             next_pending_participant: next_pending_participant(current_participant, participants),
+             pending_participants: pending_participants,
+             can_operate: session_policy.operate?,
+             can_stop: @poll_session.in_progress? && session_policy.stop?,
+             can_revote: @poll_session.stopped? && session_policy.revote?,
+             navigation_context: params[:from]
+           }
+  end
+
+  def ballot_frame
+    prepare_ballot_session
+    authorize @poll_session, :operate?
+
+    render partial: "poll_sessions/ballot_content",
+           locals: {
+             poll_session: @poll_session,
+             progress: @poll_session.poll_progress,
+             current_participant: @current_participant
+           }
+  end
+
   def results
     @poll_session = PollSession
       .includes(
@@ -83,17 +128,8 @@ class PollSessionsController < ApplicationController
   end
 
   def ballot
-    @poll_session = PollSession
-      .includes(
-        poll: { poll_contests: :poll_options },
-        poll_progress: {
-          current_poll_participant: %i[poll_participation poll_contest_completions]
-        }
-      )
-      .find_by!(id: params[:id], poll_id: params[:poll_id])
+    prepare_ballot_session
     authorize @poll_session, :operate?
-
-    @current_participant = @poll_session.poll_progress&.current_poll_participant
   end
 
   def mark_current_participant_absent
@@ -273,6 +309,18 @@ class PollSessionsController < ApplicationController
   end
 
   private
+
+  def prepare_ballot_session
+    @poll_session = PollSession
+      .includes(
+        poll: { poll_contests: :poll_options },
+        poll_progress: {
+          current_poll_participant: %i[poll_participation poll_contest_completions]
+        }
+      )
+      .find_by!(id: params[:id], poll_id: params[:poll_id])
+    @current_participant = @poll_session.poll_progress&.current_poll_participant
+  end
 
   def find_poll_session
     PollSession.find_by!(id: params[:id], poll_id: params[:poll_id])

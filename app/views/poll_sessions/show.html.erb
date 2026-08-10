@@ -1,18 +1,5 @@
-<% polling_data = if @poll_session.in_progress?
-                    {
-                      controller: "poll-session-progress",
-                      poll_session_progress_interval_value: 2500,
-                      poll_session_progress_url_value: poll_poll_session_path(
-                        @poll_session.poll,
-                        @poll_session,
-                        poll_session_context_params(@poll_session, from: params[:from])
-                      )
-                    }
-                  else
-                    {}
-                  end %>
 <%= turbo_stream_from @poll_session, :operation_screen if @poll_session.in_progress? %>
-<%= turbo_frame_tag dom_id(@poll_session, :teacher_progress), data: polling_data do %>
+<div class="contents">
   <div class="mx-auto max-w-5xl space-y-6">
     <% visible_voters = @poll_session.draft? && !@poll_session.replacement? ? @active_students : @participants %>
 
@@ -80,13 +67,15 @@
       </dl>
     </section>
 
-    <%= render "poll_sessions/status_check_frame",
-               poll_session: @poll_session,
-               status_check: @status_check,
-               can_operate: @can_operate,
-               can_stop: @can_stop,
-               can_revote: @can_revote,
-               navigation_context: params[:from] %>
+    <% unless @poll_session.in_progress? %>
+      <%= render "poll_sessions/status_check_frame",
+                 poll_session: @poll_session,
+                 status_check: @status_check,
+                 can_operate: @can_operate,
+                 can_stop: @can_stop,
+                 can_revote: @can_revote,
+                 navigation_context: params[:from] %>
+    <% end %>
 
     <% unless @poll_session.in_progress? %>
       <% if policy(@poll_session).edit_definition? %>
@@ -166,17 +155,19 @@
 
     <% if @poll_session.started_at.present? %>
       <% if @poll_session.in_progress? %>
-        <%= render "operation",
+        <%= render "teacher_progress",
                    poll_session: @poll_session,
+                   status_check: @status_check,
                    current_participant: @current_participant,
                    current_participation: @current_participation,
                    next_pending_participant: @next_pending_participant,
                    pending_participants: @pending_participants,
-                   poll_events: @poll_events,
                    can_operate: @can_operate,
-                   status_check: @status_check %>
+                   can_stop: @can_stop,
+                   can_revote: @can_revote,
+                   navigation_context: params[:from] %>
       <% end %>
       <%= render "event_log", poll_session: @poll_session, poll_events: @poll_events %>
     <% end %>
   </div>
-<% end %>
+</div>

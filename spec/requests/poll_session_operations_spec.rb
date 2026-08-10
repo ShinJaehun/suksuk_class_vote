@@ -101,6 +101,8 @@ RSpec.describe "PollSession operations", type: :request do
       get poll_poll_session_path(poll, poll_session)
       expect(response).to redirect_to(polls_path)
       expect(flash[:alert]).to eq("접근 권한이 없습니다.")
+      get operation_frame_poll_poll_session_path(poll, poll_session)
+      expect(response).to redirect_to(polls_path)
       sign_out actor
     end
   end
@@ -168,11 +170,28 @@ RSpec.describe "PollSession operations", type: :request do
     )
     expect(progress_frame["data-controller"]).to eq("poll-session-progress")
     expect(progress_frame["data-poll-session-progress-url-value"]).to eq(
-      poll_poll_session_path(poll, poll_session)
+      operation_frame_poll_poll_session_path(poll, poll_session)
     )
-    expect(progress_frame["data-poll-session-progress-interval-value"]).to eq("2500")
+    expect(progress_frame["data-poll-session-progress-interval-value"]).to eq("5000")
+    expect(progress_frame["data-poll-session-progress-pause-selector-value"]).to eq(
+      "[data-poll-session-terminal]"
+    )
     expect(operation_subscription).to be_present
     expect(operation_subscription.ancestors("turbo-frame")).to be_empty
+
+    expect(Polls::SessionStatusCheck).not_to receive(:new)
+    get operation_frame_poll_poll_session_path(poll, poll_session)
+    refresh_page = Nokogiri::HTML(response.body)
+    refresh_frame = refresh_page.at_css("turbo-frame##{outer_frame_id}")
+    expect(refresh_frame).to be_present
+    expect(refresh_frame.text.squish).to include(
+      "상태점검 진행 중",
+      "다음 투표자는 #{poll_session.poll_participants.order(:number, :id).first.number}번"
+    )
+    expect(refresh_page.at_css("[data-testid='poll-session-event-log']")).to be_nil
+    expect(refresh_frame.text.squish).to include(
+      "전체 투표자 2명", "투표 완료 0명", "미참여 0명", "대기 2명"
+    )
   end
 
   it "renders draft, closed, and stopped sessions safely without progress" do
@@ -191,6 +210,9 @@ RSpec.describe "PollSession operations", type: :request do
       expect(response.body).to include("투표 대상 학생이 없습니다.") if status == :closed
       if status.in?(%i[closed stopped])
         expect(page.at_css("turbo-frame[data-controller='poll-session-progress']")).to be_nil
+        get operation_frame_poll_poll_session_path(poll, poll_session)
+        refresh_page = Nokogiri::HTML(response.body)
+        expect(refresh_page.at_css("[data-poll-session-terminal]")).to be_present
       end
       sign_out teacher
     end

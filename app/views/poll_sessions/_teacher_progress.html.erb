@@ -1,0 +1,38 @@
+<% polling_data = if poll_session.in_progress?
+                    {
+                      controller: "poll-session-progress",
+                      poll_session_progress_interval_value: 5000,
+                      poll_session_progress_url_value: operation_frame_poll_poll_session_path(
+                        poll_session.poll,
+                        poll_session,
+                        poll_session_context_params(poll_session, from: local_assigns[:navigation_context])
+                      ),
+                      poll_session_progress_pause_selector_value: "[data-poll-session-terminal]"
+                    }
+                  else
+                    {}
+                  end %>
+<%= turbo_frame_tag dom_id(poll_session, :teacher_progress), data: polling_data do %>
+  <div class="space-y-6">
+    <% if poll_session.closed? || poll_session.stopped? %>
+      <span class="hidden" data-poll-session-terminal></span>
+    <% end %>
+    <%= render "poll_sessions/status_check_frame",
+               poll_session: poll_session,
+               status_check: status_check,
+               can_operate: can_operate,
+               can_stop: can_stop,
+               can_revote: can_revote,
+               navigation_context: local_assigns[:navigation_context] %>
+    <% if poll_session.in_progress? %>
+      <%= render "poll_sessions/operation",
+                 poll_session: poll_session,
+                 current_participant: current_participant,
+                 current_participation: current_participation,
+                 next_pending_participant: next_pending_participant,
+                 pending_participants: pending_participants,
+                 can_operate: can_operate,
+                 status_check: status_check %>
+    <% end %>
+  </div>
+<% end %>

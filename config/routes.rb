@@ -38,6 +38,8 @@ Rails.application.routes.draw do
     post :archive, on: :member
     resources :poll_sessions, only: :show do
       get :results, on: :member
+      get :operation_frame, on: :member
+      get :ballot_frame, on: :member
       post :start, on: :member
       get :ballot, on: :member
       patch :mark_current_participant_absent, on: :member
