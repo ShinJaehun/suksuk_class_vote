@@ -14,6 +14,7 @@ RSpec.describe Polls::CloseSession do
     poll_session.poll_option_tallies.order(:poll_option_id).first.update!(
       votes_count: poll_session.poll_participants.count
     )
+    expect(poll_session).to receive(:with_lock).and_call_original
 
     result = described_class.new(
       actor: operator,

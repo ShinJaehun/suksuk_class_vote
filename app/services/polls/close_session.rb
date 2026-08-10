@@ -20,19 +20,21 @@ module Polls
       return failure if errors.any?
 
       ActiveRecord::Base.transaction do
-        progress = poll_session.poll_progress&.lock!
-        poll_session.reload
-        current_participant = progress&.current_poll_participant
-        validate_locked_state(progress, current_participant)
+        poll_session.with_lock do
+          progress = poll_session.poll_progress&.lock!
+          poll_session.reload
+          current_participant = progress&.current_poll_participant
+          validate_locked_state(progress, current_participant)
 
-        if errors.empty?
-          closed_at = Time.current
-          poll_session.update!(status: :closed, closed_at: closed_at, stopped_at: nil)
-          progress.update!(status: :closed, closed_at: closed_at, ballot_status: :ballot_locked)
-          record_event(current_participant, closed_at)
+          if errors.empty?
+            closed_at = Time.current
+            poll_session.update!(status: :closed, closed_at: closed_at, stopped_at: nil)
+            progress.update!(status: :closed, closed_at: closed_at, ballot_status: :ballot_locked)
+            record_event(current_participant, closed_at)
+          end
+
+          raise ActiveRecord::Rollback if errors.any?
         end
-
-        raise ActiveRecord::Rollback if errors.any?
       end
 
       errors.any? ? failure : success

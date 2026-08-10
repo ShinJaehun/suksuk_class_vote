@@ -21,7 +21,8 @@ module Polls
             validate
             raise ActiveRecord::Rollback if errors.any?
             stopped_at = Time.current
-            sessions = poll.current_poll_sessions.order(:id).to_a
+            current_session_ids = poll.current_poll_sessions.select(:id)
+            sessions = PollSession.where(id: current_session_ids).order(:id).lock.to_a
             poll.update!(
               status: :stopped,
               stopped_at: poll.stopped_at || stopped_at,
