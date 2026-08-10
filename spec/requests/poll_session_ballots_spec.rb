@@ -795,9 +795,7 @@ RSpec.describe "PollSession ballots", type: :request do
       "form[action='#{close_poll_poll_session_path(poll, poll_session)}']"
     )
     expect(close_form).to be_present
-    expect(close_form["data-turbo-frame"]).to eq(
-      ActionView::RecordIdentifier.dom_id(poll_session, :teacher_progress)
-    )
+    expect(close_form["data-turbo-frame"]).to eq("_top")
   end
 
   it "links a closed detail to its Session result page without rendering results inline" do
