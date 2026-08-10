@@ -20,7 +20,7 @@
         <%= button_to "투표 시작", start_poll_poll_session_path(poll_session.poll, poll_session),
                       method: :post,
                       params: poll_session_context_params(poll_session, from: local_assigns[:navigation_context]),
-                      form: { data: { turbo_frame: dom_id(poll_session, :teacher_progress) } },
+                      form: { data: { turbo_frame: "_top" } },
                       data: { turbo_confirm: poll_session.replacement? ?
                         "현재 투표자 명단으로 투표를 시작할까요?" :
                         "현재 활성 학생 명단으로 투표를 시작할까요?" },

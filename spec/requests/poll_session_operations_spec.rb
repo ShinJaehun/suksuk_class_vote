@@ -139,7 +139,7 @@ RSpec.describe "PollSession operations", type: :request do
       "form[action='#{start_poll_poll_session_path(poll, poll_session)}']"
     )
     expect(start_form).to be_present
-    expect(start_form["data-turbo-frame"]).to eq(dom_id(poll_session, :teacher_progress))
+    expect(start_form["data-turbo-frame"]).to eq("_top")
     candidate_text = page.at_css("[data-testid='poll-session-candidates']").text.squish
     expect(candidate_text).to include(
       poll.default_poll_contest.title,
@@ -160,8 +160,19 @@ RSpec.describe "PollSession operations", type: :request do
     expect(poll_session.reload).to be_in_progress
     expect(poll_session.poll_participants.count).to eq(2)
     follow_redirect!
+    started_page = Nokogiri::HTML(response.body)
     outer_frame_id = dom_id(poll_session, :teacher_progress)
-    expect(Nokogiri::HTML(response.body).at_css("turbo-frame##{outer_frame_id}")).to be_present
+    progress_frame = started_page.at_css("turbo-frame##{outer_frame_id}")
+    operation_subscription = started_page.at_css(
+      "turbo-cable-stream-source[channel='Turbo::StreamsChannel']"
+    )
+    expect(progress_frame["data-controller"]).to eq("poll-session-progress")
+    expect(progress_frame["data-poll-session-progress-url-value"]).to eq(
+      poll_poll_session_path(poll, poll_session)
+    )
+    expect(progress_frame["data-poll-session-progress-interval-value"]).to eq("2500")
+    expect(operation_subscription).to be_present
+    expect(operation_subscription.ancestors("turbo-frame")).to be_empty
   end
 
   it "renders draft, closed, and stopped sessions safely without progress" do
