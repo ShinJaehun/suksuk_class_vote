@@ -3,6 +3,7 @@ Rails.application.routes.draw do
   resource :dashboard, only: :show
   resources :school_polls, only: %i[index new create show edit update destroy] do
     resources :test_polls, only: :create, controller: "school_poll_test_polls"
+    get :runtime, on: :member
     get :results, on: :member
     post :start, on: :member
     post :stop, on: :member

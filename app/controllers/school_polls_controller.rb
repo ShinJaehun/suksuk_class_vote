@@ -53,6 +53,12 @@ class SchoolPollsController < ApplicationController
     prepare_show
   end
 
+  def runtime
+    @poll = school_poll_scope.find(params[:id])
+    authorize @poll, :school_show?
+    prepare_runtime
+  end
+
   def edit
     @poll = school_poll_scope.find(params[:id])
     authorize @poll, :school_edit?
@@ -239,6 +245,24 @@ class SchoolPollsController < ApplicationController
     @test_polls = @poll.test_run? ? Poll.none : @poll.test_polls
       .includes(:school, :user, :poll_sessions)
       .order(created_at: :desc)
+  end
+
+  def prepare_runtime
+    @schoolwide_status_check = Polls::SchoolwideStatusCheck.new(poll: @poll)
+    @current_poll_sessions = @poll.poll_sessions.current_execution
+      .includes(:replacement_session, :poll_participants, classroom: :students)
+      .order(:created_at, :id)
+      .to_a
+    @history_poll_sessions = @poll.poll_sessions
+      .where.associated(:replacement_session)
+      .includes(:poll_participants)
+      .order(:created_at, :id)
+      .to_a
+    @current_session_counts = PollSession.statuses.keys.index_with do |status|
+      @current_poll_sessions.count do |session|
+        session.status == status && (status != "draft" || session.readiness_voter_count.positive?)
+      end
+    end
   end
 
   def prepare_edit

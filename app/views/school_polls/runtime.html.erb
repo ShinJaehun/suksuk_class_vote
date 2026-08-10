@@ -1,0 +1,25 @@
+<%= turbo_frame_tag dom_id(@poll, :runtime_recovery) do %>
+  <% unless @poll.in_progress? %>
+    <span hidden data-school-poll-terminal></span>
+  <% end %>
+
+  <%= turbo_stream.replace dom_id(@poll, :schoolwide_status_runtime),
+                           partial: "school_polls/status_runtime",
+                           locals: {
+                             poll: @poll,
+                             status_check: @schoolwide_status_check,
+                             current_session_counts: @current_session_counts,
+                             current_session_total: @current_poll_sessions.size,
+                             history_session_count: @history_poll_sessions.size
+                           } %>
+
+  <% @current_poll_sessions.each do |session| %>
+    <%= turbo_stream.replace "school_poll_#{@poll.id}_classroom_#{session.classroom_id}_runtime",
+                             partial: "school_polls/session_runtime",
+                             locals: { poll: @poll, session: session } %>
+  <% end %>
+
+  <%= turbo_stream.replace dom_id(@poll, :revote_history),
+                           partial: "school_polls/revote_history",
+                           locals: { poll: @poll, history_sessions: @history_poll_sessions } %>
+<% end %>

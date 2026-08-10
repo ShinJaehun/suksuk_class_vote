@@ -60,6 +60,80 @@ RSpec.describe "School Poll management", type: :request do
   end
 
   describe "Schoolwide recovery lifecycle" do
+    it "adds one 10-second runtime recovery frame while keeping the live stream" do
+      poll, = create_schoolwide_lifecycle
+      sign_in create(:user, :admin)
+
+      get school_poll_path(poll)
+
+      page = Nokogiri::HTML(response.body)
+      recovery_frames = page.css("turbo-frame[data-controller='school-poll-runtime-recovery']")
+      expect(recovery_frames.size).to eq(1)
+      expect(recovery_frames.first["data-school-poll-runtime-recovery-url-value"]).to eq(runtime_school_poll_path(poll))
+      expect(recovery_frames.first["data-school-poll-runtime-recovery-interval-value"]).to eq("10000")
+      expect(page.at_css("turbo-cable-stream-source[channel='Turbo::StreamsChannel']")).to be_present
+    end
+
+    it "does not poll when the School Poll is not running" do
+      poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil)
+      sign_in create(:user, :admin)
+
+      get school_poll_path(poll)
+
+      expect(Nokogiri::HTML(response.body).at_css("[data-controller='school-poll-runtime-recovery']")).to be_nil
+    end
+
+    it "refreshes aggregate, current classroom, and revote runtime from the lightweight endpoint" do
+      poll, session, manager, = create_schoolwide_lifecycle
+      sign_in manager
+      session.update!(status: :stopped, stopped_at: Time.current)
+      replacement = create(:poll_session, poll: poll, classroom: session.classroom,
+                                           operator: session.operator, replacement_of: session)
+      create(:poll_participant, poll: poll, poll_session: replacement, number: 1, name: "학생")
+      second_teacher = create(:user)
+      second_classroom = create_eligible_classroom(school: poll.school, teacher: second_teacher)
+      create(:student, classroom: second_classroom, active: false)
+      second_session = create(:poll_session, poll: poll, classroom: second_classroom, operator: second_teacher)
+
+      get runtime_school_poll_path(poll)
+
+      page = Nokogiri::HTML(response.body)
+      status_target = ActionView::RecordIdentifier.dom_id(poll, :schoolwide_status_runtime)
+      classroom_target = "school_poll_#{poll.id}_classroom_#{session.classroom_id}_runtime"
+      second_classroom_target = "school_poll_#{poll.id}_classroom_#{second_classroom.id}_runtime"
+      history_target = ActionView::RecordIdentifier.dom_id(poll, :revote_history)
+      status_stream = page.at_css("turbo-stream[target='#{status_target}'] template")
+      classroom_stream = page.at_css("turbo-stream[target='#{classroom_target}'] template")
+      second_classroom_stream = page.at_css("turbo-stream[target='#{second_classroom_target}'] template")
+      history_stream = page.at_css("turbo-stream[target='#{history_target}'] template")
+
+      expect(status_stream.text.squish).to include("전체 학급 2", "준비 2", "재투표 이력 1")
+      expect(classroom_stream.text.squish).to include("재투표", "준비")
+      expect(classroom_stream.inner_html).to include(poll_poll_session_path(poll, replacement, from: "school_poll"))
+      expect(second_classroom_stream.text.squish).to include(second_session.classroom_name_snapshot, "투표자 1명")
+      expect(history_stream.text.squish).to include("재투표 이력", session.classroom_name_snapshot)
+    end
+
+    it "marks terminal runtime responses and rejects users outside the School" do
+      poll, _, manager, = create_schoolwide_lifecycle
+      poll.update!(status: :stopped, stopped_at: Time.current)
+      sign_in manager
+
+      get runtime_school_poll_path(poll)
+
+      expect(response).to have_http_status(:ok)
+      expect(Nokogiri::HTML(response.body).at_css("[data-school-poll-terminal]")).to be_present
+
+      sign_out manager
+      other_manager = create(:user)
+      create(:school_membership, :manager, school: create(:school), user: other_manager)
+      sign_in other_manager
+
+      get runtime_school_poll_path(poll)
+
+      expect(response).to have_http_status(:not_found)
+    end
+
     it "lets the manager stop the whole Poll while hiding central actions from the teacher" do
       poll, session, manager, teacher = create_schoolwide_lifecycle
       sign_in manager

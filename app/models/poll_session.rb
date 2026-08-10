@@ -50,7 +50,12 @@ class PollSession < ApplicationRecord
   end
 
   def readiness_voter_count
-    draft? && !replacement? ? classroom.students.where(active: true).count : poll_participants.count
+    if draft? && !replacement?
+      students = classroom.students
+      students.loaded? ? students.count(&:active?) : students.where(active: true).count
+    else
+      poll_participants.loaded? ? poll_participants.size : poll_participants.count
+    end
   end
 
   def schoolwide_revote_available?
