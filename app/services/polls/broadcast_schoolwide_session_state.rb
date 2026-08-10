@@ -22,9 +22,14 @@ module Polls
       broadcaster.broadcast_revote_history
     end
 
-    def initialize(poll:, classroom:)
+    def self.for_reset(poll:, actor:)
+      new(poll: poll, classroom: nil, actor: actor).broadcast_reset
+    end
+
+    def initialize(poll:, classroom:, actor: nil)
       @poll = poll
       @classroom = classroom
+      @actor = actor
     end
 
     def call
@@ -58,9 +63,21 @@ module Polls
       log_broadcast_failure(error, broadcast: "revote_history")
     end
 
+    def broadcast_reset
+      return unless poll&.school_managed?
+
+      poll.poll_sessions.current_execution.includes(classroom: :students).find_each do |session|
+        broadcast_safely("reset_classroom_runtime", session_id: session.id) do
+          broadcast_session(session)
+        end
+      end
+      broadcast_safely("reset_status_runtime") { broadcast_status_runtime }
+      broadcast_revote_history
+    end
+
     private
 
-    attr_reader :poll, :classroom
+    attr_reader :poll, :classroom, :actor
 
     def broadcast_safely(broadcast, session_id: nil)
       yield
@@ -70,6 +87,7 @@ module Polls
 
     def log_broadcast_failure(error, broadcast:, session_id: nil)
       attributes = {
+        actor_id: actor&.id,
         poll_id: poll.id,
         poll_session_id: session_id,
         broadcast: broadcast,
@@ -82,7 +100,7 @@ module Polls
       Turbo::StreamsChannel.broadcast_replace_to(
         poll,
         STREAM_NAME,
-        target: "school_poll_#{poll.id}_classroom_#{classroom.id}_runtime",
+        target: "school_poll_#{poll.id}_classroom_#{session.classroom_id}_runtime",
         partial: "school_polls/session_runtime",
         locals: { poll: poll, session: session }
       )

@@ -22,8 +22,10 @@ module Polls
       return failure if errors.any?
 
       expired_sessions = []
+      previous_status = nil
       Poll.transaction do
         poll.lock!
+        previous_status = poll.status
         unless poll.schoolwide_resettable? && poll.schoolwide_runtime_available?
           errors << "종료되었거나 보관된 전교투표는 초기화할 수 없습니다."
           raise ActiveRecord::Rollback
@@ -45,7 +47,9 @@ module Polls
 
       return failure if errors.any?
 
+      log_success(previous_status)
       broadcast_expired_sessions(expired_sessions)
+      broadcast_admin_runtime
       success
     rescue ActiveRecord::RecordInvalid => e
       errors << (e.record.errors.full_messages.to_sentence.presence || "전교투표를 초기화할 수 없습니다.")
@@ -119,12 +123,37 @@ module Polls
         stream,
         target: ActionView::RecordIdentifier.dom_id(session, frame),
         partial: "poll_sessions/expired_schoolwide_session",
-        locals: { frame_id: ActionView::RecordIdentifier.dom_id(session, frame) }
+        locals: {
+          frame_id: ActionView::RecordIdentifier.dom_id(session, frame),
+          presentation: frame == :teacher_progress ? :teacher : :ballot
+        }
       )
     rescue StandardError => error
       Rails.logger.error(
         "[poll_session_broadcast_failed] actor_id=#{actor.id} poll_id=#{poll.id} " \
         "poll_session_id=#{session.id} broadcast=#{stream.inspect} error_class=#{error.class.name.inspect}"
+      )
+    end
+
+    def broadcast_admin_runtime
+      Polls::BroadcastSchoolwideSessionState.for_reset(poll: poll, actor: actor)
+    rescue StandardError => error
+      Rails.logger.error(
+        "[schoolwide_poll_broadcast_failed] actor_id=#{actor.id} poll_id=#{poll.id} " \
+        "broadcast=\"reset_runtime\" error_class=#{error.class.name.inspect}"
+      )
+    end
+
+    def log_success(previous_status)
+      Rails.logger.info(
+        "[schoolwide_poll_reset] actor_id=#{actor.id} poll_id=#{poll.id} " \
+        "previous_status=#{previous_status.inspect} deleted_session_count=#{deleted_session_count} " \
+        "created_session_count=#{created_session_count}"
+      )
+    rescue StandardError => error
+      Rails.logger.error(
+        "[schoolwide_poll_reset_log_failed] actor_id=#{actor.id} poll_id=#{poll.id} " \
+        "error_class=#{error.class.name.inspect}"
       )
     end
 

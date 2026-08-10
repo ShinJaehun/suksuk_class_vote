@@ -39,16 +39,94 @@ RSpec.describe "PollSession stale recovery", type: :request do
 
     expect(result).to be_success
     expect(PollSession.exists?(old_session.id)).to be(false)
-    expect(poll.poll_sessions.sole).to be_draft
+    new_session = poll.poll_sessions.sole
+    expect(new_session).to be_draft
     [operation_url, ballot_url].each do |url|
       get url
       page = Nokogiri::HTML(response.body)
       expect(response).to have_http_status(:ok)
-      expect(page.text.squish).to include("전교투표가 초기화되어", "내 투표 목록으로 돌아가기")
+      expect(page.text.squish).to include("전교투표가 초기화되어")
       expect(page.at_css("[data-poll-session-terminal]")).to be_present
-      expect(page.at_css("a[href='#{polls_path}']")).to be_present
       expect(page.at_css("form")).to be_nil
     end
+    get operation_url
+    teacher_page = Nokogiri::HTML(response.body)
+    expect(teacher_page.at_css("[data-testid='poll-session-status-check']")).to be_present
+    expect(teacher_page.text.squish).to include("상태점검", "내 투표 목록으로 돌아가기")
+    expect(teacher_page.at_css("a[href='#{polls_path}']")).to be_present
+
+    get ballot_url
+    ballot_page = Nokogiri::HTML(response.body)
+    expect(ballot_page.text.squish).not_to include("상태점검", "내 투표 목록으로 돌아가기")
+
+    get poll_poll_session_path(poll, old_session)
+    expect(response).to redirect_to(polls_path)
+    expect(flash[:alert]).to eq("전교투표가 초기화되어 이전 투표 실행은 더 이상 사용할 수 없습니다.")
+
+    get ballot_poll_poll_session_path(poll, old_session)
+    expect(response).to redirect_to(polls_path)
+    expect(flash[:alert]).to eq("전교투표가 초기화되어 이전 투표 실행은 더 이상 사용할 수 없습니다.")
+
+    post close_ballot_screen_poll_poll_session_path(poll, old_session)
+    expect(response).to have_http_status(:no_content)
+    expect(new_session.reload).to be_draft
+    expect(poll.poll_sessions.current_execution).to contain_exactly(new_session)
+  end
+
+  it "keeps an unrelated missing school-managed Session request as not found" do
+    poll, old_session, teacher = create_running_schoolwide_session
+    sign_in teacher
+
+    get poll_poll_session_path(poll, old_session.id + 100_000)
+    expect(response).to have_http_status(:not_found)
+  end
+
+  it "keeps a missing classroom PollSession request as not found" do
+    teacher = create(:user)
+    sign_in teacher
+    classroom_poll = create(:poll, user: teacher, school_managed: false)
+
+    get poll_poll_session_path(classroom_poll, 100_001)
+    expect(response).to have_http_status(:not_found)
+  end
+
+  it "does not let another user reuse remembered stale show access" do
+    poll, old_session, teacher = create_running_schoolwide_session
+    sign_in teacher
+    get poll_poll_session_path(poll, old_session)
+    Polls::ResetSchoolwidePoll.new(poll: poll, actor: teacher).call
+
+    sign_out teacher
+    sign_in create(:user)
+
+    get poll_poll_session_path(poll, old_session)
+    expect(response).to have_http_status(:not_found)
+  end
+
+  it "does not let another user reuse remembered stale ballot access" do
+    poll, old_session, teacher = create_running_schoolwide_session
+    sign_in teacher
+    get ballot_poll_poll_session_path(poll, old_session)
+    Polls::ResetSchoolwidePoll.new(poll: poll, actor: teacher).call
+
+    sign_out teacher
+    sign_in create(:user)
+
+    get ballot_poll_poll_session_path(poll, old_session)
+    expect(response).to have_http_status(:not_found)
+  end
+
+  it "does not let another user reuse remembered stale ballot cleanup access" do
+    poll, old_session, teacher = create_running_schoolwide_session
+    sign_in teacher
+    get ballot_poll_poll_session_path(poll, old_session)
+    Polls::ResetSchoolwidePoll.new(poll: poll, actor: teacher).call
+
+    sign_out teacher
+    sign_in create(:user)
+
+    post close_ballot_screen_poll_poll_session_path(poll, old_session)
+    expect(response).to have_http_status(:not_found)
   end
 
   it "keeps invalid, mismatched, and unauthorized stale requests unavailable" do
@@ -59,6 +137,9 @@ RSpec.describe "PollSession stale recovery", type: :request do
       .at_css("turbo-frame#teacher_progress_poll_session_#{old_session.id}")
     operation_url = operation_frame["data-poll-session-progress-url-value"]
     Polls::ResetSchoolwidePoll.new(poll: poll, actor: teacher).call
+
+    get poll_poll_session_path(poll, old_session.id + 100_000)
+    expect(response).to have_http_status(:not_found)
 
     get operation_frame_poll_poll_session_path(poll, old_session)
     expect(response).to have_http_status(:not_found)

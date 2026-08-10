@@ -2,6 +2,11 @@ require "rails_helper"
 
 RSpec.describe Polls::ResetSchoolwidePoll do
   include ActionCable::TestHelper
+  include Rails.application.routes.url_helpers
+
+  def turbo_stream_fragment(payload)
+    Nokogiri::HTML.fragment(ActiveSupport::JSON.decode(payload))
+  end
 
   def lifecycle_attributes(status)
     {
@@ -70,11 +75,67 @@ RSpec.describe Polls::ResetSchoolwidePoll do
     )
   end
 
+  it "logs a privacy-safe audit record only after a successful reset" do
+    poll, old_session, = create_target(status: :in_progress)
+    create(:poll_participant, poll: poll, poll_session: old_session,
+                              number: 9876, name: "감사로그금지학생")
+    messages = []
+    allow(Rails.logger).to receive(:info) { |message| messages << message }
+
+    result = described_class.new(poll: poll, actor: admin).call
+
+    expect(result).to be_success
+    expect(messages.grep(/\[schoolwide_poll_reset\]/).sole).to include(
+      "actor_id=#{admin.id}", "poll_id=#{poll.id}", 'previous_status="in_progress"',
+      "deleted_session_count=1", "created_session_count=1"
+    )
+    expect(messages.join).not_to include("감사로그금지학생", "9876")
+
+    failed_poll, = create_target(status: :closed)
+    expect(described_class.new(poll: failed_poll, actor: admin).call).not_to be_success
+    expect(messages.grep(/\[schoolwide_poll_reset\]/).size).to eq(1)
+  end
+
+  it "broadcasts reset classroom, aggregate, and cleared revote history runtime" do
+    poll, source, classroom = create_target(status: :in_progress)
+    create(:student, classroom: classroom)
+    source.update!(status: :stopped, stopped_at: Time.current)
+    replacement = create(:poll_session, poll: poll, classroom: classroom,
+                                         operator: classroom.teacher, replacement_of: source)
+    stream = Turbo::StreamsChannel.send(:stream_name_from, [poll, :schoolwide_runtime])
+    previous_broadcast_count = broadcasts(stream).size
+
+    result = described_class.new(poll: poll, actor: admin).call
+
+    new_session = poll.poll_sessions.sole
+    payloads = broadcasts(stream).drop(previous_broadcast_count)
+    classroom_target = "school_poll_#{poll.id}_classroom_#{classroom.id}_runtime"
+    status_target = ActionView::RecordIdentifier.dom_id(poll, :schoolwide_status_runtime)
+    history_target = ActionView::RecordIdentifier.dom_id(poll, :revote_history)
+    classroom_payload = payloads.reverse.find { |payload| payload.include?(classroom_target) }
+    status_payload = payloads.reverse.find { |payload| payload.include?(status_target) }
+    history_payload = payloads.reverse.find { |payload| payload.include?(history_target) }
+    classroom_fragment = turbo_stream_fragment(classroom_payload)
+    classroom_links = classroom_fragment.css("a").map { |link| link["href"] }
+
+    expect(result).to be_success
+    expect(classroom_links).to include(poll_poll_session_path(poll, new_session, from: "school_poll"))
+    expect(classroom_links).not_to include(poll_poll_session_path(poll, source, from: "school_poll"))
+    expect(classroom_links).not_to include(poll_poll_session_path(poll, replacement, from: "school_poll"))
+    expect(turbo_stream_fragment(status_payload).text.squish).to include(
+      "전체 학급 1", "준비 1", "재투표 이력 0"
+    )
+    expect(history_payload).to include(history_target)
+    expect(turbo_stream_fragment(history_payload).text.squish).not_to include("재투표 이력")
+  end
+
   it "keeps reset successful when one expiration broadcast fails" do
     poll, old_session, = create_target(status: :in_progress)
     ballot_stream = Turbo::StreamsChannel.send(:stream_name_from, [old_session, :ballot_screen])
     teacher_target = ActionView::RecordIdentifier.dom_id(old_session, :teacher_progress)
     allow(Rails.logger).to receive(:error)
+    expect(Polls::BroadcastSchoolwideSessionState).to receive(:for_reset)
+      .with(poll: poll, actor: admin).and_call_original
     allow(Turbo::StreamsChannel).to receive(:broadcast_replace_to).and_wrap_original do |method, *args, **options|
       raise StandardError if options[:target] == teacher_target
 
@@ -90,6 +151,27 @@ RSpec.describe Polls::ResetSchoolwidePoll do
     expect(Rails.logger).to have_received(:error).with(
       include("[poll_session_broadcast_failed]", "poll_session_id=#{old_session.id}", "broadcast=:operation_screen")
     )
+  end
+
+  it "keeps reset successful and logs safely when the admin runtime broadcast fails" do
+    poll, old_session, = create_target(status: :in_progress)
+    allow(Polls::BroadcastSchoolwideSessionState).to receive(:for_reset)
+      .and_raise(StandardError, "감사로그금지학생")
+    errors = []
+    allow(Rails.logger).to receive(:info).and_raise(StandardError, "감사로그금지학생")
+    allow(Rails.logger).to receive(:error) { |message| errors << message }
+
+    result = described_class.new(poll: poll, actor: admin).call
+
+    expect(result).to be_success
+    expect(poll.reload).to be_draft
+    expect(PollSession.exists?(old_session.id)).to be(false)
+    expect(poll.poll_sessions.sole).to be_draft
+    expect(errors.join).to include(
+      "actor_id=#{admin.id}", "poll_id=#{poll.id}", 'broadcast="reset_runtime"',
+      'error_class="StandardError"'
+    )
+    expect(errors.join).not_to include("감사로그금지학생")
   end
 
   it "removes the replacement chain and all runtime while preserving definition and identity" do

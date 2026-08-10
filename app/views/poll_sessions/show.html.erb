@@ -8,17 +8,7 @@
                   poll_session_back_path(@poll_session, from: params[:from]),
                   data: { turbo_frame: "_top" },
                   class: "text-sm font-medium text-stone-700 underline" %>
-      <% if @poll_session.in_progress? && @current_participant.present? &&
-            @status_check.progress_valid? && policy(@poll_session).operate? %>
-        <div data-controller="ballot-window"
-             data-testid="poll-session-ballot-window"
-             data-ballot-window-name-value="poll_session_<%= @poll_session.id %>_ballot">
-          <%= link_to "학생 투표 화면 열기", ballot_poll_poll_session_path(@poll_session.poll, @poll_session),
-                      target: "poll_session_#{@poll_session.id}_ballot",
-                      data: { turbo: false, action: "click->ballot-window#open" },
-                      class: "inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" %>
-        </div>
-      <% elsif @poll_session.closed? && !@poll_session.poll.school_managed? && policy(@poll_session).archive_poll? %>
+      <% if @poll_session.closed? && !@poll_session.poll.school_managed? && policy(@poll_session).archive_poll? %>
         <%= button_to "보관", archive_poll_path(@poll_session.poll), method: :post,
                       form: { data: { turbo_frame: "_top" } },
                       data: { turbo_confirm: "종료된 투표와 모든 실행 이력을 보관할까요?" },

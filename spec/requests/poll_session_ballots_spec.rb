@@ -632,6 +632,10 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(ballot_link["target"]).to eq("poll_session_#{poll_session.id}_ballot")
     expect(ballot_link["data-turbo"]).to eq("false")
     expect(ballot_link["class"]).to include("bg-blue-600", "text-white", "hover:bg-blue-700")
+    expect(ballot_link.ancestors("turbo-frame").map { |frame| frame["id"] }).to include(
+      "teacher_progress_poll_session_#{poll_session.id}"
+    )
+    expect(page.css("a[data-action='click->ballot-window#open']").size).to eq(1)
     expect(current_card.text).to include("#{current.number}번 #{current.name}")
     expect(current_card.at_css("[data-testid='poll-session-operation-actions']")).to be_present
     expect(current_name["class"]).to include("sm:text-6xl", "font-bold", "tracking-tight")
