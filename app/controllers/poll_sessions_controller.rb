@@ -93,6 +93,21 @@ class PollSessionsController < ApplicationController
     render_stale_session_frame(:ballot, :operate?)
   end
 
+  def runtime_recovery
+    presentation = runtime_recovery_presentation!
+    poll_session = PollSession.includes(:poll, :classroom, :operator)
+      .find_by!(id: params[:id], poll_id: params[:poll_id])
+    authorize poll_session, presentation == :teacher ? :show? : :operate?
+
+    return head :no_content if runtime_recovery_healthy?(poll_session, presentation)
+
+    render_runtime_recovery_terminal(presentation, runtime_terminal_reason(poll_session))
+  rescue ActiveRecord::RecordNotFound
+    presentation ||= runtime_recovery_presentation!
+    policy_query = presentation == :teacher ? :show? : :operate?
+    render_runtime_recovery_terminal(presentation, stale_session_reason_from_recovery!(policy_query))
+  end
+
   def results
     @poll_session = PollSession
       .includes(
@@ -132,6 +147,8 @@ class PollSessionsController < ApplicationController
     else
       redirect_to helpers.poll_session_back_path(poll_session, from: params[:from]), alert: result.error_message
     end
+  rescue ActiveRecord::RecordNotFound
+    redirect_stale_poll_session(:start?)
   end
 
   def ballot
@@ -272,6 +289,8 @@ class PollSessionsController < ApplicationController
       ballot_poll_poll_session_path(poll_session.poll, poll_session),
       success_message
     )
+  rescue ActiveRecord::RecordNotFound
+    render_stale_ballot(:operate?)
   end
 
   def close
@@ -399,6 +418,11 @@ class PollSessionsController < ApplicationController
   end
 
   def render_stale_session_frame(frame, policy_query)
+    reason = stale_session_reason_from_recovery!(policy_query)
+    render_terminal_session(frame, reason)
+  end
+
+  def stale_session_reason_from_recovery!(policy_query)
     if params[:recovery_token].present?
       payload = poll_session_recovery_verifier.verified(params[:recovery_token])
       expected_ids = [params[:poll_id].to_i, params[:id].to_i]
@@ -414,7 +438,7 @@ class PollSessionsController < ApplicationController
       raise ActiveRecord::RecordNotFound unless reason == :deleted
     end
 
-    render_terminal_session(frame, reason)
+    reason
   end
 
   def signed_reset_session_reason!(payload, policy_query)
@@ -439,6 +463,52 @@ class PollSessionsController < ApplicationController
 
   def poll_session_recovery_verifier
     Rails.application.message_verifier("poll-session-recovery")
+  end
+
+  def runtime_recovery_presentation!
+    presentation = params[:presentation].to_s
+    raise ActiveRecord::RecordNotFound unless presentation.in?(%w[teacher ballot])
+
+    presentation.to_sym
+  end
+
+  def runtime_recovery_healthy?(poll_session, presentation)
+    if presentation == :teacher
+      poll_session.poll.school_managed? && poll_session.draft? &&
+        (poll_session.poll.draft? || poll_session.poll.in_progress?)
+    else
+      poll_session.in_progress? && (!poll_session.poll.school_managed? || poll_session.poll.in_progress?)
+    end
+  end
+
+  def runtime_terminal_reason(poll_session)
+    return :stopped if poll_session.stopped? || poll_session.poll.stopped?
+    return :closed if poll_session.closed? || poll_session.poll.closed?
+
+    raise ActiveRecord::RecordNotFound
+  end
+
+  def render_runtime_recovery_terminal(presentation, reason)
+    frame = presentation == :teacher ? :status_check : :ballot
+    frame_id = "#{frame}_poll_session_#{params[:id]}"
+    render turbo_stream: turbo_stream.replace(
+      frame_id,
+      partial: "poll_sessions/terminal_session",
+      locals: {
+        frame_id: frame_id,
+        presentation: presentation,
+        message: runtime_terminal_message(reason, presentation)
+      }
+    )
+  end
+
+  def runtime_terminal_message(reason, presentation)
+    return terminal_session_message(reason, presentation) if reason.in?(%i[reset deleted])
+    return "중단된 투표입니다. 선생님의 안내를 기다려 주세요." if presentation == :ballot && reason == :stopped
+    return "투표가 종료되었습니다." if presentation == :ballot
+    return "전교투표가 중단되어 이 투표 실행은 더 이상 진행할 수 없습니다." if reason == :stopped
+
+    "투표가 종료되어 이 투표 실행은 더 이상 진행할 수 없습니다."
   end
 
   def prepare_ballot_session

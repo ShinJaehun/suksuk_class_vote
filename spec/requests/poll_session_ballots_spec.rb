@@ -219,6 +219,17 @@ RSpec.describe "PollSession ballots", type: :request do
       "투표 진행 1 / 1"
     )
     expect(page.at_css("form[data-controller='poll-contest-ballot']")).to be_present
+    recovery = page.at_css("[data-controller='poll-session-recovery']")
+    expect(recovery).to be_present
+    expect(recovery["data-poll-session-recovery-interval-value"]).to eq("10000")
+
+    recovery_url = recovery["data-poll-session-recovery-url-value"]
+    expect(recovery_url).to include(
+      runtime_recovery_poll_poll_session_path(poll, poll_session),
+      "presentation=ballot"
+    )
+    expect(recovery_url).not_to include("recovery_token=")
+    expect(recovery.ancestors("turbo-frame")).to be_empty
     expect(interactive_frame["data-controller"]).to eq("poll-session-progress")
     expect(interactive_frame["data-poll-session-progress-url-value"]).to eq(
       ballot_frame_poll_poll_session_path(poll, poll_session)

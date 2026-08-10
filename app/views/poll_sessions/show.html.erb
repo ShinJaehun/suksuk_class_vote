@@ -1,4 +1,15 @@
 <%= turbo_stream_from @poll_session, :operation_screen if @poll_session.in_progress? %>
+<% if @poll_session.poll.school_managed? && @poll_session.draft? %>
+  <div data-controller="poll-session-recovery"
+       data-poll-session-recovery-interval-value="10000"
+       data-poll-session-recovery-target-id-value="<%= dom_id(@poll_session, :status_check) %>"
+       data-poll-session-recovery-url-value="<%= runtime_recovery_poll_poll_session_path(
+         @poll_session.poll,
+         @poll_session,
+         presentation: :teacher,
+         recovery_token: poll_session_recovery_token(@poll_session)
+       ) %>"></div>
+<% end %>
 <div class="contents">
   <div class="mx-auto max-w-5xl space-y-6">
     <% visible_voters = @poll_session.draft? && !@poll_session.replacement? ? @active_students : @participants %>

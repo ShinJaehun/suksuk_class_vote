@@ -4,6 +4,18 @@
 
 <%= turbo_stream_from @poll_session, :ballot_screen %>
 
+<% if @poll_session.in_progress? %>
+  <div data-controller="poll-session-recovery"
+       data-poll-session-recovery-interval-value="10000"
+       data-poll-session-recovery-target-id-value="<%= dom_id(@poll_session, :ballot) %>"
+       data-poll-session-recovery-url-value="<%= runtime_recovery_poll_poll_session_path(
+         @poll_session.poll,
+         @poll_session,
+         presentation: :ballot,
+         recovery_token: poll_session_recovery_token(@poll_session)
+       ) %>"></div>
+<% end %>
+
 <div class="w-full space-y-3"
      data-controller="poll-session-ballot-screen"
      data-poll-session-ballot-screen-close-url-value="<%= close_ballot_screen_poll_poll_session_path(

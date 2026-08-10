@@ -41,6 +41,7 @@ Rails.application.routes.draw do
       get :results, on: :member
       get :operation_frame, on: :member
       get :ballot_frame, on: :member
+      get :runtime_recovery, on: :member
       post :start, on: :member
       get :ballot, on: :member
       patch :mark_current_participant_absent, on: :member

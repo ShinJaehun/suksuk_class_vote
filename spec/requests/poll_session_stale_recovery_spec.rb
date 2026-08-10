@@ -17,6 +17,21 @@ RSpec.describe "PollSession stale recovery", type: :request do
     [poll, session, teacher]
   end
 
+  def create_draft_schoolwide_session
+    school = create(:school)
+    teacher = create(:user)
+    create(:school_membership, :manager, school: school, user: teacher)
+    classroom = create(:classroom, school: school, teacher: teacher)
+    create(:student, classroom: classroom, number: 1, name: "학생")
+    poll = create(:poll, school: school, school_managed: true, participant_group: nil,
+                         status: :in_progress, started_at: 1.hour.ago)
+    contest = create(:poll_contest, poll: poll, position: 1)
+    create(:poll_option, poll: poll, poll_contest: contest, number: 1)
+    create(:poll_option, poll: poll, poll_contest: contest, number: 2)
+    poll_session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
+    [poll, poll_session, teacher]
+  end
+
   it "recovers deleted teacher and ballot frames after reset" do
     poll, old_session, teacher = create_running_schoolwide_session
     sign_in teacher
@@ -272,5 +287,87 @@ RSpec.describe "PollSession stale recovery", type: :request do
       expect(page.text.squish).to include("전교투표가 초기화되어")
       expect(page.at_css("[data-poll-session-terminal]")).to be_present
     end
+  end
+
+  it "returns a lightweight healthy recovery response and a stopped ballot terminal" do
+    poll, poll_session, teacher = create_running_schoolwide_session
+    sign_in teacher
+    get ballot_poll_poll_session_path(poll, poll_session)
+    recovery_url = Nokogiri::HTML(response.body)
+      .at_css("[data-controller='poll-session-recovery']")["data-poll-session-recovery-url-value"]
+
+    get recovery_url
+    expect(response).to have_http_status(:no_content)
+    expect(response.body).to be_empty
+
+    poll_session.update!(status: :stopped, stopped_at: Time.current)
+    get recovery_url
+    terminal = Nokogiri::HTML(response.body)
+    expect(response).to have_http_status(:ok)
+    expect(response.media_type).to eq("text/vnd.turbo-stream.html")
+    expect(terminal.text.squish).to include("중단된 투표입니다. 선생님의 안내를 기다려 주세요.")
+    expect(terminal.at_css("[data-poll-session-terminal]")).to be_present
+    expect(terminal.at_css("form, a[href='#{polls_path}']")).to be_nil
+  end
+
+  it "recovers a reset draft teacher screen through the signed lifecycle probe" do
+    poll, poll_session, teacher = create_draft_schoolwide_session
+    sign_in teacher
+    get poll_poll_session_path(poll, poll_session)
+    page = Nokogiri::HTML(response.body)
+    recovery = page.at_css("[data-controller='poll-session-recovery']")
+    recovery_url = recovery["data-poll-session-recovery-url-value"]
+
+    expect(recovery["data-poll-session-recovery-interval-value"]).to eq("10000")
+    expect(recovery_url).to include("presentation=teacher", "recovery_token=")
+    expect(page.at_css("form[action='#{start_poll_poll_session_path(poll, poll_session)}']")).to be_present
+    expect(Polls::ResetSchoolwidePoll.new(poll: poll, actor: teacher).call).to be_success
+
+    reset!
+    sign_in teacher
+    get recovery_url
+    terminal = Nokogiri::HTML(response.body)
+    expect(response).to have_http_status(:ok)
+    expect(terminal.at_css("turbo-stream[target='status_check_poll_session_#{poll_session.id}']")).to be_present
+    expect(terminal.text.squish).to include("전교투표가 초기화되어", "내 투표 목록으로 돌아가기")
+    expect(terminal.at_css("[data-poll-session-terminal]")).to be_present
+  end
+
+  it "recovers deleted ballot probes without redirecting the student" do
+    poll, poll_session, teacher = create_running_schoolwide_session
+    sign_in teacher
+    get ballot_poll_poll_session_path(poll, poll_session)
+    recovery_url = Nokogiri::HTML(response.body)
+      .at_css("[data-controller='poll-session-recovery']")["data-poll-session-recovery-url-value"]
+    expect(Polls::DestroySchoolwidePoll.new(poll: poll, actor: create(:user, :admin)).call).to be_success
+
+    get recovery_url
+    terminal = Nokogiri::HTML(response.body)
+    expect(response).to have_http_status(:ok)
+    expect(terminal.text.squish).to include("투표가 삭제되어")
+    expect(terminal.at_css("[data-poll-session-terminal]")).to be_present
+    expect(terminal.at_css("form, a[href='#{polls_path}']")).to be_nil
+  end
+
+  it "handles stale start and ballot submission without exposing RecordNotFound" do
+    poll, draft_session, teacher = create_draft_schoolwide_session
+    sign_in teacher
+    get poll_poll_session_path(poll, draft_session)
+    expect(Polls::ResetSchoolwidePoll.new(poll: poll, actor: teacher).call).to be_success
+
+    post start_poll_poll_session_path(poll, draft_session)
+    expect(response).to redirect_to(polls_path)
+    expect(flash[:alert]).to include("초기화되어")
+
+    poll, running_session, teacher = create_running_schoolwide_session
+    sign_in teacher
+    get ballot_poll_poll_session_path(poll, running_session)
+    expect(Polls::ResetSchoolwidePoll.new(poll: poll, actor: teacher).call).to be_success
+
+    post submit_ballot_poll_poll_session_path(poll, running_session), params: { ballot: {} }
+    terminal = Nokogiri::HTML(response.body)
+    expect(response).to have_http_status(:ok)
+    expect(terminal.text.squish).to include("전교투표가 초기화되어")
+    expect(terminal.at_css("[data-poll-session-terminal]")).to be_present
   end
 end
