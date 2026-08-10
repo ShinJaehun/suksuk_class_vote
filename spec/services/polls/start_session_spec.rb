@@ -209,6 +209,44 @@ RSpec.describe Polls::StartSession do
       expect(poll_session.classroom.reload.teacher).to eq(classroom_teacher)
     end
 
+    it "preserves the assigned operator when an admin starts a Schoolwide Session" do
+      poll_session, assigned_teacher = create_startable_session
+      poll_session.poll.update!(school_managed: true, status: :in_progress, started_at: 1.hour.ago)
+      original_snapshot = poll_session.operator_name_snapshot
+      admin = create(:user, :admin)
+
+      result = described_class.new(actor: admin, poll_session: poll_session).call
+
+      expect(result).to be_success
+      expect(poll_session.reload).to have_attributes(
+        status: "in_progress",
+        operator: assigned_teacher,
+        operator_name_snapshot: original_snapshot
+      )
+      expect(poll_session.poll_events.find_by!(event_type: "poll_started").actor).to eq(admin)
+    end
+
+    it "preserves the assigned operator when an admin starts a Schoolwide replacement Session" do
+      source, assigned_teacher = create_startable_session
+      source.poll.update!(school_managed: true, status: :in_progress, started_at: 1.hour.ago)
+      source.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
+      replacement = create(:poll_session, poll: source.poll, classroom: source.classroom,
+                                           operator: assigned_teacher, replacement_of: source)
+      create(:poll_participant, poll: source.poll, poll_session: replacement, number: 1, name: "학생")
+      original_snapshot = replacement.operator_name_snapshot
+      admin = create(:user, :admin)
+
+      result = described_class.new(actor: admin, poll_session: replacement).call
+
+      expect(result).to be_success
+      expect(replacement.reload).to have_attributes(
+        status: "in_progress",
+        operator: assigned_teacher,
+        operator_name_snapshot: original_snapshot
+      )
+      expect(replacement.poll_events.find_by!(event_type: "poll_started").actor).to eq(admin)
+    end
+
     it "rejects another teacher, another-school manager, membershipless teacher, and nil actor" do
       actors = []
       poll_session, = create_startable_session

@@ -42,6 +42,31 @@ RSpec.describe "Polls", type: :request do
       expect(badges.text.squish).to eq("학급 선거 준비")
     end
 
+    it "keeps an admin-started Schoolwide Session on the assigned teacher's list" do
+      teacher = create(:user)
+      school = create(:school)
+      create(:school_membership, school: school, user: teacher)
+      classroom = create(:classroom, school: school, teacher: teacher)
+      poll = create(:poll, user: teacher, school: school, school_managed: true,
+                           participant_group: nil, title: "담당 교사 전교투표",
+                           status: :in_progress, started_at: 1.hour.ago)
+      create(:poll_option, poll: poll, number: 1)
+      create(:poll_option, poll: poll, number: 2)
+      source = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
+                                     status: :stopped, started_at: 1.hour.ago,
+                                     stopped_at: Time.current)
+      poll_session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
+                                           replacement_of: source)
+      create(:poll_participant, poll: poll, poll_session: poll_session, number: 1, name: "학생")
+
+      result = Polls::StartSession.new(actor: create(:user, :admin), poll_session: poll_session).call
+      sign_in teacher
+      get polls_path
+
+      expect(result).to be_success
+      expect(response.body).to include(poll.title, poll_poll_session_path(poll, poll_session))
+    end
+
     it "hides archived Sessions from the default list" do
       teacher = create(:user)
       school = create(:school)

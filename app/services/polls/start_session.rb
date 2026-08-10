@@ -171,7 +171,7 @@ module Polls
         started_at: started_at,
         closed_at: nil,
         stopped_at: nil,
-        operator: actor,
+        operator: session_operator,
         operator_name_snapshot: operator_name_snapshot
       )
     end
@@ -254,7 +254,13 @@ module Polls
     end
 
     def operator_name_snapshot
+      return poll_session.operator_name_snapshot if poll&.school_managed?
+
       actor&.name.presence || actor&.email
+    end
+
+    def session_operator
+      poll.school_managed? ? poll_session.operator : actor
     end
 
     def success
