@@ -16,6 +16,7 @@ module Polls
       validate_actor
       return failure if errors.any?
 
+      stopped_test_sessions = []
       Poll.transaction do
         poll.with_lock do
           check = Polls::SchoolwideStatusCheck.new(poll: poll)
@@ -42,11 +43,14 @@ module Polls
               included_session_count: check.session_counts.fetch("closed", 0)
             }
           )
-          archive_child_test_polls!(closed_at) unless poll.test_run?
+          archive_child_test_polls!(closed_at, stopped_test_sessions) unless poll.test_run?
         end
       end
 
-      errors.empty? ? success : failure
+      return failure if errors.any?
+
+      broadcast_stopped_test_sessions(stopped_test_sessions)
+      success
     rescue ActiveRecord::RecordInvalid => e
       errors.concat(e.record.errors.full_messages)
       failure
@@ -56,7 +60,7 @@ module Polls
 
     attr_reader :poll, :actor, :errors
 
-    def archive_child_test_polls!(operation_at)
+    def archive_child_test_polls!(operation_at, stopped_sessions)
       poll.test_polls.where.not(status: :closed).lock.find_each do |test_poll|
         archive_at = test_poll.archived_at || operation_at
         unless test_poll.stopped?
@@ -70,11 +74,22 @@ module Polls
         test_poll.poll_sessions.lock.find_each do |session|
           attributes = { archived_at: session.archived_at || archive_at }
           if current_session_ids.include?(session.id) && !session.closed? && !session.stopped?
+            session.poll_progress&.update!(ballot_status: :ballot_locked)
             attributes.merge!(status: :stopped, stopped_at: operation_at, closed_at: nil)
+            stopped_sessions << session
           end
           session.update!(attributes)
         end
       end
+    end
+
+    def broadcast_stopped_test_sessions(sessions)
+      Polls::BroadcastTerminalSessionState.call(
+        sessions: sessions,
+        actor: actor,
+        teacher_message: "원본 전교투표가 종료되어 이 테스트투표 실행은 더 이상 진행할 수 없습니다.",
+        ballot_message: "원본 전교투표가 종료되어 이 테스트투표는 더 이상 진행할 수 없습니다. 선생님의 안내를 기다려 주세요."
+      )
     end
 
     def validate_actor

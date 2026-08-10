@@ -1,6 +1,8 @@
 require "rails_helper"
 
 RSpec.describe Polls::CloseSchoolwidePoll do
+  include ActionCable::TestHelper
+
   def create_closable_poll(actor: create(:user, :admin))
     school = create(:school)
     teacher = create(:user)
@@ -176,6 +178,10 @@ RSpec.describe Polls::CloseSchoolwidePoll do
                                             operator: running_history.operator,
                                             replacement_of: running_history)
     running_session.update!(status: :in_progress, started_at: 1.hour.ago)
+    running_progress = create(:poll_progress, poll: running_test, poll_session: running_session,
+                                              ballot_status: :ballot_open)
+    operation_stream = Turbo::StreamsChannel.send(:stream_name_from, [running_session, :operation_screen])
+    ballot_stream = Turbo::StreamsChannel.send(:stream_name_from, [running_session, :ballot_screen])
     tally_count = PollOptionTally.count
 
     expect(described_class.new(poll: source, actor: source.user).call).to be_success
@@ -209,6 +215,9 @@ RSpec.describe Polls::CloseSchoolwidePoll do
                                                    archived_at: source.closed_at)
     expect(running_session.reload).to have_attributes(status: "stopped",
                                                       archived_at: source.closed_at)
+    expect(running_progress.reload).to be_ballot_locked
+    expect(broadcasts(operation_stream).join).to include("원본 전교투표가 종료되어", "data-poll-session-terminal")
+    expect(broadcasts(ballot_stream).join).to include("원본 전교투표가 종료되어", "data-poll-session-terminal")
     expect(running_history.reload).to have_attributes(status: "stopped",
                                                       archived_at: source.closed_at)
   end

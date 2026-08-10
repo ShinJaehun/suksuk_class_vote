@@ -14,6 +14,7 @@ module Polls
       validate
       return failure if errors.any?
 
+      stopped_sessions = []
       Poll.transaction do
         poll.with_lock do
           validate
@@ -29,7 +30,9 @@ module Polls
           sessions.each do |session|
             next if session.closed? || session.stopped?
 
+            session.poll_progress&.update!(ballot_status: :ballot_locked)
             session.update!(status: :stopped, stopped_at: session.stopped_at || stopped_at, closed_at: nil)
+            stopped_sessions << session
             newly_stopped += 1
           end
           poll.poll_events.create!(
@@ -45,7 +48,10 @@ module Polls
           )
         end
       end
-      errors.any? ? failure : Result.new(success?: true, poll: poll, errors: [])
+      return failure if errors.any?
+
+      broadcast_terminal_sessions(stopped_sessions)
+      Result.new(success?: true, poll: poll, errors: [])
     rescue ActiveRecord::RecordInvalid => error
       errors.concat(error.record.errors.full_messages)
       failure
@@ -67,6 +73,15 @@ module Polls
 
       membership = actor.school_membership
       actor.teacher? && membership&.manager? && membership.school == poll.school
+    end
+
+    def broadcast_terminal_sessions(sessions)
+      Polls::BroadcastTerminalSessionState.call(
+        sessions: sessions,
+        actor: actor,
+        teacher_message: "전교투표가 중단되어 이 투표 실행은 더 이상 진행할 수 없습니다.",
+        ballot_message: "중단된 투표입니다. 선생님의 안내를 기다려 주세요."
+      )
     end
 
     def failure = Result.new(success?: false, poll: poll, errors: errors.uniq)
