@@ -21,6 +21,7 @@ module Polls
       validate_inputs
       return failure if errors.any?
 
+      expired_sessions = []
       Poll.transaction do
         poll.lock!
         unless poll.schoolwide_resettable? && poll.schoolwide_runtime_available?
@@ -28,6 +29,7 @@ module Polls
           raise ActiveRecord::Rollback
         end
         sessions = poll.poll_sessions.lock.to_a
+        expired_sessions = sessions
         classrooms = locked_classrooms(sessions)
         if classrooms.any? { |classroom| classroom.teacher.blank? }
           errors << "담임교사가 없는 대상 학급이 있어 전교투표를 초기화할 수 없습니다."
@@ -41,7 +43,10 @@ module Polls
         @created_session_count = classrooms.size
       end
 
-      errors.empty? ? success : failure
+      return failure if errors.any?
+
+      broadcast_expired_sessions(expired_sessions)
+      success
     rescue ActiveRecord::RecordInvalid => e
       errors << (e.record.errors.full_messages.to_sentence.presence || "전교투표를 초기화할 수 없습니다.")
       failure
@@ -98,6 +103,28 @@ module Polls
         status: :draft,
         classroom_name_snapshot: "#{classroom.school_year}학년도 #{classroom.grade}학년 #{classroom.formatted_class_label}",
         operator_name_snapshot: classroom.teacher.name.presence || classroom.teacher.email
+      )
+    end
+
+    def broadcast_expired_sessions(sessions)
+      sessions.each do |session|
+        broadcast_expired_session(session, :operation_screen, :teacher_progress)
+        broadcast_expired_session(session, :ballot_screen, :ballot)
+      end
+    end
+
+    def broadcast_expired_session(session, stream, frame)
+      Turbo::StreamsChannel.broadcast_replace_to(
+        session,
+        stream,
+        target: ActionView::RecordIdentifier.dom_id(session, frame),
+        partial: "poll_sessions/expired_schoolwide_session",
+        locals: { frame_id: ActionView::RecordIdentifier.dom_id(session, frame) }
+      )
+    rescue StandardError => error
+      Rails.logger.error(
+        "[poll_session_broadcast_failed] actor_id=#{actor.id} poll_id=#{poll.id} " \
+        "poll_session_id=#{session.id} broadcast=#{stream.inspect} error_class=#{error.class.name.inspect}"
       )
     end
 

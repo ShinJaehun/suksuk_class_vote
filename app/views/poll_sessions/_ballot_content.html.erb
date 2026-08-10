@@ -1,8 +1,13 @@
 <% participation = current_participant&.poll_participation %>
+<% recovery_token = local_assigns[:recovery_token] || poll_session_recovery_token(poll_session) %>
 <% polling_data = {
   controller: "poll-session-progress",
   poll_session_progress_interval_value: 5000,
-  poll_session_progress_url_value: ballot_frame_poll_poll_session_path(poll_session.poll, poll_session),
+  poll_session_progress_url_value: ballot_frame_poll_poll_session_path(
+    poll_session.poll,
+    poll_session,
+    recovery_token: recovery_token
+  ),
   poll_session_progress_pause_selector_value: "form[data-controller~='poll-contest-ballot'], [data-poll-session-terminal]"
 } %>
 <%= turbo_frame_tag dom_id(poll_session, :ballot), data: polling_data do %>

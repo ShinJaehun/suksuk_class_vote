@@ -1,0 +1,10 @@
+<%= turbo_frame_tag frame_id do %>
+  <section class="rounded-md border border-amber-200 bg-amber-50 p-5"
+           data-poll-session-terminal>
+    <p class="font-medium text-amber-900">전교투표가 초기화되어 이 투표 실행은 더 이상 사용할 수 없습니다.</p>
+    <p class="mt-2 text-sm text-amber-800">현재 투표 목록으로 돌아가 새로 준비된 투표를 확인해 주세요.</p>
+    <%= link_to "내 투표 목록으로 돌아가기", polls_path,
+                data: { turbo_frame: "_top" },
+                class: "mt-4 inline-block text-sm font-medium text-amber-900 underline" %>
+  </section>
+<% end %>

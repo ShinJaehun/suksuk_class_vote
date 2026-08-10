@@ -1,6 +1,8 @@
 require "rails_helper"
 
 RSpec.describe Polls::ResetSchoolwidePoll do
+  include ActionCable::TestHelper
+
   def lifecycle_attributes(status)
     {
       status: status,
@@ -50,6 +52,44 @@ RSpec.describe Polls::ResetSchoolwidePoll do
         started_at: nil, closed_at: nil, stopped_at: nil, replacement_of_id: nil
       )
     end
+  end
+
+  it "expires both realtime screens after a successful reset" do
+    poll, old_session, = create_target(status: :in_progress)
+    operation_stream = Turbo::StreamsChannel.send(:stream_name_from, [old_session, :operation_screen])
+    ballot_stream = Turbo::StreamsChannel.send(:stream_name_from, [old_session, :ballot_screen])
+
+    result = described_class.new(poll: poll, actor: admin).call
+
+    expect(result).to be_success
+    expect(broadcasts(operation_stream).join).to include(
+      "전교투표가 초기화되어", "teacher_progress_poll_session_#{old_session.id}"
+    )
+    expect(broadcasts(ballot_stream).join).to include(
+      "전교투표가 초기화되어", "ballot_poll_session_#{old_session.id}"
+    )
+  end
+
+  it "keeps reset successful when one expiration broadcast fails" do
+    poll, old_session, = create_target(status: :in_progress)
+    ballot_stream = Turbo::StreamsChannel.send(:stream_name_from, [old_session, :ballot_screen])
+    teacher_target = ActionView::RecordIdentifier.dom_id(old_session, :teacher_progress)
+    allow(Rails.logger).to receive(:error)
+    allow(Turbo::StreamsChannel).to receive(:broadcast_replace_to).and_wrap_original do |method, *args, **options|
+      raise StandardError if options[:target] == teacher_target
+
+      method.call(*args, **options)
+    end
+
+    result = described_class.new(poll: poll, actor: admin).call
+
+    expect(result).to be_success
+    expect(poll.reload).to be_draft
+    expect(poll.poll_sessions.sole).to be_draft
+    expect(broadcasts(ballot_stream).join).to include("전교투표가 초기화되어")
+    expect(Rails.logger).to have_received(:error).with(
+      include("[poll_session_broadcast_failed]", "poll_session_id=#{old_session.id}", "broadcast=:operation_screen")
+    )
   end
 
   it "removes the replacement chain and all runtime while preserving definition and identity" do

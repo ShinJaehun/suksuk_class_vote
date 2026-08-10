@@ -5,7 +5,10 @@
                       poll_session_progress_url_value: operation_frame_poll_poll_session_path(
                         poll_session.poll,
                         poll_session,
-                        poll_session_context_params(poll_session, from: local_assigns[:navigation_context])
+                        poll_session_context_params(
+                          poll_session,
+                          from: local_assigns[:navigation_context]
+                        ).merge(recovery_token: poll_session_recovery_token(poll_session)).compact
                       ),
                       poll_session_progress_pause_selector_value: "[data-poll-session-terminal]"
                     }

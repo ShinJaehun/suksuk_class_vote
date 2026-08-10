@@ -1,5 +1,6 @@
 class PollSessionsController < ApplicationController
   before_action :authenticate_user!
+  helper_method :poll_session_recovery_token
 
   def show
     @poll_session = PollSession
@@ -38,7 +39,6 @@ class PollSessionsController < ApplicationController
     @can_operate = session_policy.operate?
     @can_stop = session_policy.stop?
     @can_revote = session_policy.revote?
-
   end
 
   def operation_frame
@@ -72,6 +72,8 @@ class PollSessionsController < ApplicationController
              can_revote: @poll_session.stopped? && session_policy.revote?,
              navigation_context: params[:from]
            }
+  rescue ActiveRecord::RecordNotFound
+    render_expired_schoolwide_session(:teacher_progress, :show?)
   end
 
   def ballot_frame
@@ -84,6 +86,8 @@ class PollSessionsController < ApplicationController
              progress: @poll_session.poll_progress,
              current_participant: @current_participant
            }
+  rescue ActiveRecord::RecordNotFound
+    render_expired_schoolwide_session(:ballot, :operate?)
   end
 
   def results
@@ -310,6 +314,45 @@ class PollSessionsController < ApplicationController
 
   private
 
+  def poll_session_recovery_token(poll_session)
+    return unless poll_session.poll.school_managed?
+
+    poll_session_recovery_verifier.generate(
+      [poll_session.poll_id, poll_session.id, poll_session.classroom_id, poll_session.operator_id]
+    )
+  end
+
+  def render_expired_schoolwide_session(frame, policy_query)
+    raise ActiveRecord::RecordNotFound if params[:recovery_token].blank?
+
+    payload = poll_session_recovery_verifier.verified(params[:recovery_token])
+    expected_ids = [params[:poll_id].to_i, params[:id].to_i]
+    raise ActiveRecord::RecordNotFound unless payload&.first(2) == expected_ids
+
+    poll_id, session_id, classroom_id, operator_id = payload
+    poll = Poll.find_by!(id: poll_id, school_managed: true)
+    classroom = Classroom.find_by!(id: classroom_id, school_id: poll.school_id)
+    operator = User.find(operator_id)
+    stale_session = PollSession.new(
+      id: session_id,
+      poll: poll,
+      classroom: classroom,
+      operator: operator
+    )
+    raise ActiveRecord::RecordNotFound unless policy(stale_session).public_send(policy_query)
+    raise ActiveRecord::RecordNotFound unless poll.poll_sessions.current_execution
+      .where(classroom_id: classroom_id)
+      .where.not(id: session_id)
+      .exists?
+
+    render partial: "poll_sessions/expired_schoolwide_session",
+           locals: { frame_id: helpers.dom_id(stale_session, frame) }
+  end
+
+  def poll_session_recovery_verifier
+    Rails.application.message_verifier("poll-session-recovery")
+  end
+
   def prepare_ballot_session
     @poll_session = PollSession
       .includes(
@@ -401,7 +444,8 @@ class PollSessionsController < ApplicationController
       locals: {
         poll_session: poll_session,
         progress: progress,
-        current_participant: current_participant
+        current_participant: current_participant,
+        recovery_token: poll_session_recovery_token(poll_session)
       }
     )
   end
