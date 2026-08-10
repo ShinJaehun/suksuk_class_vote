@@ -8,11 +8,12 @@ export default class extends Controller {
   }
 
   connect() {
-    this.checkWhenVisible = this.checkWhenVisible.bind(this)
+    this.stopped = false
+    this.handleVisibilityChange = this.handleVisibilityChange.bind(this)
     this.stopAfterTerminalRender = this.stopAfterTerminalRender.bind(this)
-    this.timer = window.setInterval(() => this.check(), this.intervalValue)
-    document.addEventListener("visibilitychange", this.checkWhenVisible)
+    document.addEventListener("visibilitychange", this.handleVisibilityChange)
     document.addEventListener("turbo:before-stream-render", this.stopAfterTerminalRender)
+    this.startPolling()
   }
 
   disconnect() {
@@ -42,8 +43,16 @@ export default class extends Controller {
     }
   }
 
-  checkWhenVisible() {
-    if (!document.hidden) this.check()
+  handleVisibilityChange() {
+    if (this.stopped) return
+
+    if (document.hidden) {
+      this.stopPolling()
+      return
+    }
+
+    this.check()
+    this.startPolling()
   }
 
   stopAfterTerminalRender(event) {
@@ -55,9 +64,20 @@ export default class extends Controller {
   }
 
   stop() {
+    this.stopped = true
+    this.stopPolling()
+    document.removeEventListener("visibilitychange", this.handleVisibilityChange)
+    document.removeEventListener("turbo:before-stream-render", this.stopAfterTerminalRender)
+  }
+
+  startPolling() {
+    if (this.stopped || document.hidden || this.timer) return
+
+    this.timer = window.setInterval(() => this.check(), this.intervalValue)
+  }
+
+  stopPolling() {
     window.clearInterval(this.timer)
     this.timer = null
-    document.removeEventListener("visibilitychange", this.checkWhenVisible)
-    document.removeEventListener("turbo:before-stream-render", this.stopAfterTerminalRender)
   }
 }

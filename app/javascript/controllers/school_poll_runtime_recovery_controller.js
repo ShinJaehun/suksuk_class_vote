@@ -8,14 +8,16 @@ export default class extends Controller {
   }
 
   connect() {
-    this.reloadWhenVisible = this.reloadWhenVisible.bind(this)
+    this.handleVisibilityChange = this.handleVisibilityChange.bind(this)
     this.syncPollingState = this.syncPollingState.bind(this)
+    document.addEventListener("visibilitychange", this.handleVisibilityChange)
     this.element.addEventListener("turbo:frame-render", this.syncPollingState)
-    this.startPolling()
+    this.syncPollingState()
   }
 
   disconnect() {
     this.stopPolling()
+    document.removeEventListener("visibilitychange", this.handleVisibilityChange)
     this.element.removeEventListener("turbo:frame-render", this.syncPollingState)
   }
 
@@ -27,26 +29,41 @@ export default class extends Controller {
     }
   }
 
-  reloadWhenVisible() {
-    if (document.hidden) return
+  handleVisibilityChange() {
+    if (document.hidden) {
+      this.stopPolling()
+      return
+    }
+
+    if (this.pollingPaused()) {
+      this.stopPolling()
+      return
+    }
 
     this.reloadFrame()
+    this.startPolling()
   }
 
   syncPollingState() {
-    if (this.element.querySelector(this.pauseSelectorValue)) this.stopPolling()
+    if (document.hidden || this.pollingPaused()) {
+      this.stopPolling()
+    } else {
+      this.startPolling()
+    }
+  }
+
+  pollingPaused() {
+    return this.hasPauseSelectorValue && this.element.querySelector(this.pauseSelectorValue)
   }
 
   startPolling() {
     if (this.timer) return
 
     this.timer = window.setInterval(() => this.reloadFrame(), this.intervalValue)
-    document.addEventListener("visibilitychange", this.reloadWhenVisible)
   }
 
   stopPolling() {
     window.clearInterval(this.timer)
     this.timer = null
-    document.removeEventListener("visibilitychange", this.reloadWhenVisible)
   }
 }
