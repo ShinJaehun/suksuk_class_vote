@@ -1,4 +1,11 @@
-<%= turbo_frame_tag dom_id(poll_session, :ballot) do %>
+<% participation = current_participant&.poll_participation %>
+<% polling_data = {
+  controller: "poll-session-progress",
+  poll_session_progress_interval_value: 2500,
+  poll_session_progress_url_value: ballot_poll_poll_session_path(poll_session.poll, poll_session),
+  poll_session_progress_pause_selector_value: "form[data-controller~='poll-contest-ballot']"
+} %>
+<%= turbo_frame_tag dom_id(poll_session, :ballot), data: polling_data do %>
   <header class="mx-auto mb-3 flex max-w-6xl items-end justify-between gap-4 rounded-md border border-stone-200 bg-white px-3 py-2"
           data-testid="poll-session-current-participant">
     <section>
@@ -15,7 +22,6 @@
     </section>
   </header>
 
-  <% participation = current_participant&.poll_participation %>
   <% contests = poll_session.poll.poll_contests.order(:position, :id).to_a %>
   <% current_contest = current_participant&.next_incomplete_poll_contest %>
   <% completed_contest_count = current_participant&.completed_contest_count.to_i %>
@@ -70,7 +76,7 @@
                     class: "space-y-3",
                     data: {
                       controller: "poll-contest-ballot",
-                      action: "submit->poll-contest-ballot#submit"
+                      action: "submit->poll-contest-ballot#submit turbo:submit-end->poll-contest-ballot#submitEnd"
                     } do |form| %>
         <%= form.hidden_field :expected_current_poll_participant_id,
                               name: "ballot[expected_current_poll_participant_id]",
@@ -140,7 +146,7 @@
                   class: "mx-auto max-w-6xl space-y-3",
                   data: {
                     controller: "poll-contest-ballot",
-                    action: "submit->poll-contest-ballot#submit"
+                    action: "submit->poll-contest-ballot#submit turbo:submit-end->poll-contest-ballot#submitEnd"
                   } do |form| %>
       <%= form.hidden_field :expected_current_poll_participant_id,
                             name: "ballot[expected_current_poll_participant_id]",

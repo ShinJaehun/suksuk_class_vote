@@ -3,18 +3,20 @@ import { Controller } from "@hotwired/stimulus"
 export default class extends Controller {
   static values = {
     interval: { type: Number, default: 2500 },
+    pauseSelector: String,
     url: String
   }
 
   connect() {
     this.reloadWhenVisible = this.reloadWhenVisible.bind(this)
-    this.timer = window.setInterval(() => this.reloadFrame(), this.intervalValue)
-    document.addEventListener("visibilitychange", this.reloadWhenVisible)
+    this.syncPollingState = this.syncPollingState.bind(this)
+    this.element.addEventListener("turbo:frame-render", this.syncPollingState)
+    this.syncPollingState()
   }
 
   disconnect() {
-    window.clearInterval(this.timer)
-    document.removeEventListener("visibilitychange", this.reloadWhenVisible)
+    this.stopPolling()
+    this.element.removeEventListener("turbo:frame-render", this.syncPollingState)
   }
 
   reloadFrame() {
@@ -29,5 +31,26 @@ export default class extends Controller {
     if (document.hidden) return
 
     this.reloadFrame()
+  }
+
+  syncPollingState() {
+    if (this.hasPauseSelectorValue && this.element.querySelector(this.pauseSelectorValue)) {
+      this.stopPolling()
+    } else {
+      this.startPolling()
+    }
+  }
+
+  startPolling() {
+    if (this.timer) return
+
+    this.timer = window.setInterval(() => this.reloadFrame(), this.intervalValue)
+    document.addEventListener("visibilitychange", this.reloadWhenVisible)
+  }
+
+  stopPolling() {
+    window.clearInterval(this.timer)
+    this.timer = null
+    document.removeEventListener("visibilitychange", this.reloadWhenVisible)
   }
 }

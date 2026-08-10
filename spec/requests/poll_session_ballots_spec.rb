@@ -173,6 +173,23 @@ RSpec.describe "PollSession ballots", type: :request do
     get ballot_poll_poll_session_path(poll, poll_session)
 
     expect(response).to have_http_status(:ok)
+    waiting_page = Nokogiri::HTML(response.body)
+    waiting_frame = waiting_page.at_css(
+      "turbo-frame#ballot_poll_session_#{poll_session.id}"
+    )
+    ballot_subscription = waiting_page.at_css(
+      "turbo-cable-stream-source[channel='Turbo::StreamsChannel']"
+    )
+    expect(waiting_frame["data-controller"]).to eq("poll-session-progress")
+    expect(waiting_frame["data-poll-session-progress-url-value"]).to eq(
+      ballot_poll_poll_session_path(poll, poll_session)
+    )
+    expect(waiting_frame["data-poll-session-progress-interval-value"]).to eq("2500")
+    expect(waiting_frame["data-poll-session-progress-pause-selector-value"]).to eq(
+      "form[data-controller~='poll-contest-ballot']"
+    )
+    expect(ballot_subscription).to be_present
+    expect(ballot_subscription.ancestors("turbo-frame")).to be_empty
     expect(response.body).to include(
       "data-controller=\"poll-session-ballot-screen\"",
       close_ballot_screen_poll_poll_session_path(poll, poll_session)
@@ -187,6 +204,7 @@ RSpec.describe "PollSession ballots", type: :request do
 
     page = Nokogiri::HTML(response.body)
     ballot_wrapper = page.at_css("[data-controller='poll-session-ballot-screen']")
+    interactive_frame = page.at_css("turbo-frame#ballot_poll_session_#{poll_session.id}")
 
     expect(response.body).to include(
       poll.title,
@@ -195,6 +213,15 @@ RSpec.describe "PollSession ballots", type: :request do
       "투표 진행 1 / 1"
     )
     expect(page.at_css("form[data-controller='poll-contest-ballot']")).to be_present
+    expect(interactive_frame["data-controller"]).to eq("poll-session-progress")
+    expect(interactive_frame["data-poll-session-progress-url-value"]).to eq(
+      ballot_poll_poll_session_path(poll, poll_session)
+    )
+    expect(interactive_frame["data-poll-session-progress-interval-value"]).to eq("2500")
+    expect(interactive_frame["data-poll-session-progress-pause-selector-value"]).to eq(
+      "form[data-controller~='poll-contest-ballot']"
+    )
+    expect(page.at_css("form[data-action*='turbo:submit-end->poll-contest-ballot#submitEnd']")).to be_present
     expect(page.at_css("[data-testid='poll-session-ballot-options']").css("button[data-poll-contest-ballot-target='card']").size).to eq(1)
     actions = page.at_css("[data-testid='poll-session-ballot-actions']")
     expect(actions.text.squish).to include("기권", "최종제출")
@@ -377,6 +404,14 @@ RSpec.describe "PollSession ballots", type: :request do
 
     follow_redirect!
     expect(response.body).to include("학생 투표 화면", "현재 투표자", "투표가 완료되었습니다.")
+    completed_frame = Nokogiri::HTML(response.body).at_css(
+      "turbo-frame#ballot_poll_session_#{poll_session.id}"
+    )
+    expect(completed_frame["data-controller"]).to eq("poll-session-progress")
+    expect(completed_frame["data-poll-session-progress-url-value"]).to eq(
+      ballot_poll_poll_session_path(poll, poll_session)
+    )
+    expect(completed_frame["data-poll-session-progress-interval-value"]).to eq("2500")
     expect(response.body).not_to include("현재 학생", "border-emerald-200 bg-emerald-50 px-4 py-3")
 
     get poll_poll_session_path(poll, poll_session)

@@ -47,12 +47,28 @@ export default class extends Controller {
 
     this.submitting = true
     this.element.setAttribute("aria-busy", "true")
+    this.disabledControls = Array.from(
+      this.element.querySelectorAll("button, input[type='submit']")
+    ).filter((control) => !control.disabled)
 
     queueMicrotask(() => {
-      this.element.querySelectorAll("button, input[type='submit']").forEach((button) => {
-        button.disabled = true
+      this.disabledControls.forEach((control) => {
+        control.disabled = true
       })
     })
+  }
+
+  submitEnd(event) {
+    if (event.detail.success) return
+
+    this.submitting = false
+    this.transitioning = false
+    this.element.removeAttribute("aria-busy")
+    this.disabledControls?.forEach((control) => {
+      control.disabled = false
+    })
+    this.disabledControls = []
+    this.syncSelection()
   }
 
   syncSelection() {
