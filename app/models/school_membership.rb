@@ -7,6 +7,9 @@ class SchoolMembership < ApplicationRecord
   validates :school, presence: true
   validates :user, presence: true
   validates :role, presence: true
+  validates :grade,
+            numericality: { only_integer: true, greater_than_or_equal_to: 1, less_than_or_equal_to: 6 },
+            allow_nil: true
   validates :user_id, uniqueness: true
   validates :school_id,
             uniqueness: {

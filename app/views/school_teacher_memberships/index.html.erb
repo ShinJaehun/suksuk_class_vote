@@ -50,6 +50,13 @@
           </div>
 
           <div class="flex flex-wrap gap-3 text-sm font-medium">
+            <% if current_user.admin? %>
+              <% if membership.manager? %>
+                <%= button_to "대표 선생님 지정 해제", demote_school_teacher_membership_path(@school, membership), method: :patch, class: "underline" %>
+              <% else %>
+                <%= button_to "대표 선생님 지정", promote_school_teacher_membership_path(@school, membership), method: :patch, data: { turbo_confirm: "이 선생님을 대표 선생님으로 지정할까요?" }, class: "underline" %>
+              <% end %>
+            <% end %>
             <% if classrooms.empty? && policy(membership).destroy? %>
               <%= button_to "학교 소속 해제",
                             school_teacher_membership_path(@school, membership),

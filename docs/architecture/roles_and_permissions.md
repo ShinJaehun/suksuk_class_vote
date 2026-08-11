@@ -53,14 +53,14 @@ admin은 다음 범위의 최고 관리 권한을 가진다.
 
 * 모든 School 조회·생성·수정
 * 모든 Classroom 조회·생성·수정과 Student 관리
-* 교사 계정 목록·생성
+* `/teachers`의 모든 학교 교사 계정 목록·단일/bulk 생성과 학교·학년 단위 일괄 편집·담임 배정, 선택 학년 배정·활성화·비활성화와 삭제 조건을 충족한 계정의 삭제 시도
 * SchoolMembership 목록·추가·제거와 manager 지정·해제
 * 일반 Poll과 PollSession의 조회·운영·상태 lifecycle
 * school-managed Poll의 정의·전체 lifecycle·학급 Session 재투표와 reset
 * legacy Election의 생성·구성·세션 배정·비상 초기화 등 관리
 * 모든 ElectionSession 조회·운영과 admin 전용 학급 재투표
 
-교사 계정 수정·비활성화는 현재 구현된 권한으로 간주하지 않는다. 또한 admin 권한이라도 Poll/Election
+교사 학교 이전은 현재 구현된 권한으로 간주하지 않는다. admin은 관리 대상 교사, manager는 자기 학교 교사의 임시 비밀번호를 개별 재발급할 수 있다. 또한 admin 권한이라도 Poll/Election
 상태와 보존 조건을 무시하지 않으며 각 policy와 service guard를 통과해야 한다.
 
 ### SchoolMembership manager
@@ -69,6 +69,8 @@ manager 권한은 membership이 속한 학교로 한정된다.
 
 * 자기 School 목록·상세 조회
 * 자기 학교 Classroom 목록·생성·수정과 Student 관리
+* `/teachers`의 자기 학교 교사 목록·단일/bulk 생성과 자기 학교·학년 단위 일괄 편집·담임 배정
+* 자기 학교 학년·미배정 교사의 선택 학년 배정·활성화·비활성화와 삭제 조건을 충족한 계정의 삭제 시도
 * 자기 학교 membership 목록 조회와 소속 없는 teacher 추가
 * 자기 자신이 아닌 일반 member의 membership 제거
 * 자기 학교 school-managed Poll 목록·생성·조회·수정 가능한 정의 관리
@@ -81,6 +83,8 @@ manager는 다른 학교 자원에 접근하지 못한다. manager 지정·해�
 ### 일반 teacher/member
 
 일반 teacher의 신규 구조 권한은 담당 Classroom과 실제 운영 Session을 중심으로 한다.
+
+일반 teacher는 다른 교사 목록이나 계정에 접근할 수 없지만 자신의 개인 계정 설정에서 이름·로그인 ID·이메일을 수정하고, 현재 비밀번호 확인 후 자신의 비밀번호를 변경할 수 있다. admin/manager는 다른 teacher의 영구 비밀번호를 직접 지정하지 않고 임시 비밀번호만 재발급한다. 학년·담임·활성 상태·학교 role은 개인 설정에서 변경할 수 없다.
 
 * 자기 학교에서 자신이 담임인 Classroom 조회·수정
 * 담당 Classroom의 Student 단일·bulk 등록, 수정, inactive와 복구
@@ -117,6 +121,8 @@ Classroom 생성은 admin과 manager가 할 수 있다. 수정과 Student 관리
 admin과 같은 학교 manager는 membership 목록을 보고 소속 없는 teacher를 member로 추가할 수 있다.
 manager 승격·해제는 admin-only다. admin은 membership을 제거할 수 있고, manager는 자기 학교의 일반
 member만 제거할 수 있다. controller는 담당 Classroom이 남아 있으면 제거를 추가로 차단한다.
+`SchoolMembership.grade`는 학교 내 학년 소속을 나타내며 nullable이다. `Classroom.grade`는 교실의
+학년이고 `Classroom.teacher`는 실제 담임 배정이므로, 학년 소속과 담당 반은 독립적으로 관리한다.
 
 ### 일반 Poll / PollSession
 
@@ -169,12 +175,12 @@ legacy Poll/Election 기록과 직접 연결된 세부 권한은 해당 runtime 
 
 ## 기본 진입과 내비게이션
 
-* admin 로그인 및 권한 실패 기본 경로: `/admin/teachers`
+* admin 로그인 및 권한 실패 기본 경로: `/teachers`
 * teacher 로그인 및 권한 실패 기본 경로: `/polls`
 * 로그인 사용자는 내 투표와 legacy 투표자 목록, 권한 범위의 Classroom 화면에 접근한다.
 * admin과 manager는 학교·전교투표 메뉴를 사용한다.
 * admin은 global 교사 관리와 legacy 전교임원선거 메뉴를 사용한다.
-* manager는 자기 학교 교사 membership 관리 메뉴를 사용한다.
+* manager는 `/teachers`의 자기 학교 교사 관리와 별도 membership 관리 기능을 사용한다.
 
 내비게이션 노출은 편의를 위한 것이며 실제 접근 권한은 controller와 policy가 결정한다.
 

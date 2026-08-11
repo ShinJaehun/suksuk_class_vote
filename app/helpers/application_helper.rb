@@ -1,4 +1,27 @@
 module ApplicationHelper
+  SCHOOL_COLOR_CLASSES = {
+    "rose" => "border-rose-200 bg-rose-50 text-rose-800",
+    "amber" => "border-amber-200 bg-amber-50 text-amber-800",
+    "emerald" => "border-emerald-200 bg-emerald-50 text-emerald-800",
+    "sky" => "border-sky-200 bg-sky-50 text-sky-800",
+    "violet" => "border-violet-200 bg-violet-50 text-violet-800"
+  }.freeze
+  SCHOOL_TEACHER_ROW_CLASSES = {
+    "rose" => "border-l-rose-400 bg-rose-50",
+    "amber" => "border-l-amber-400 bg-amber-50",
+    "emerald" => "border-l-emerald-400 bg-emerald-50",
+    "sky" => "border-l-sky-400 bg-sky-50",
+    "violet" => "border-l-violet-400 bg-violet-50"
+  }.freeze
+
+  def school_color_classes(school)
+    SCHOOL_COLOR_CLASSES.fetch(school&.color_key, "border-stone-200 bg-stone-50 text-stone-700")
+  end
+
+  def school_teacher_row_classes(school)
+    SCHOOL_TEACHER_ROW_CLASSES.fetch(school&.color_key, "border-l-stone-300 bg-stone-50")
+  end
+
   def kst_datetime(time)
     return "-" if time.blank?
 

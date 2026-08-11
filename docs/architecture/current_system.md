@@ -85,9 +85,14 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - Devise `registerable` 미사용: 교사 공개 회원가입 없음
 - `User` role enum 추가: `teacher`, `admin`
 - 개발용 admin seed 추가: `admin@example.com`
-- 로그인 후 기본 진입 경로 정리: teacher는 `/polls`, admin은 `/admin/teachers`
+- 로그인 후 기본 진입 경로 정리: teacher는 `/polls`, admin은 `/teachers`
 - root와 `/dashboard`는 삭제하지 않고 역할별 기본 경로로 redirect하는 안전한 진입점으로 유지
-- admin의 교사 계정 목록/생성 기능 추가
+- `/teachers`는 관리 가능한 교사 계정 목록과 개인 계정 설정 진입을 제공한다. 일반 teacher도 자신의 `/teachers/:id/edit`에서 이름·로그인 ID·이메일을 수정하고, 현재 비밀번호 확인 후 비밀번호를 직접 변경할 수 있다.
+- 학교 상세에서는 학년·담임·활성 상태와 이름·로그인 ID를 운영 단위로 관리하고, 기존 교사의 임시 비밀번호는 행별 확인 modal에서 개별 재발급한다.
+- 학교 상세의 학년·미배정 표에서는 선택한 교사의 학년 배정·활성화·비활성화를 별도 원자적 작업으로 처리한다. 비활성 교사의 운영 필드는 편집하지 않으며, 비활성이고 학년·담임이 모두 미배정일 때만 삭제를 시도한다. 삭제 전 historical 사용처를 별도 탐색하지 않고 DB/model reference 보호를 따르므로 사용 이력이 있는 계정은 보통 비활성 상태로 보존된다.
+- 로그인 ID 자동 발급과 선택 교사 비밀번호 일괄 재발급은 제공하지 않는다.
+- teacher 본인은 현재 비밀번호 확인 후 자신의 비밀번호를 변경한다. admin/manager는 관리 대상 teacher의 영구 비밀번호를 직접 지정하거나 조회하지 않고, 개별 재발급한 8자리 임시 비밀번호만 해당 응답에서 전달한다. 재발급된 teacher는 다음 로그인 후 비밀번호를 변경해야 한다.
+- 학교별 제한된 `color_key`를 교사 관리 화면의 badge와 accent에 사용
 - `ParticipantGroup` / `ParticipantSlot` 모델 기반 추가
 - 참여자 그룹 index/new/create/show/edit/update/destroy 추가
 - 참여자 그룹 상세 화면에서 `ParticipantSlot` 1명 추가 기능 추가
@@ -165,6 +170,7 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 ### 신규 Classroom/PollSession runtime
 
 - School·SchoolMembership·Classroom·Student 조직 기반 구현
+- `SchoolMembership.grade`는 학교 내 교사의 학년 소속, `Classroom.grade`는 교실 학년, `Classroom.teacher`는 실제 담임 배정의 기준으로 사용
 - admin은 전체 학교, manager는 소속 학교, 일반 teacher는 담임 Classroom 범위에서 학급·학생을 관리
 - Student 단일·bulk 등록과 비활성화·복구 구현
 - PollSession foundation과 실행 기록의 nullable `poll_session_id` 연결 구현: 신규 기록은 `poll_id`와 `poll_session_id`를 함께, legacy 기록은 `poll_session_id = NULL`로 유지
@@ -335,7 +341,7 @@ Session tally만 포함한다.
 현재 구현된 진입/내비게이션 정책:
 
 - teacher 로그인 후 기본 진입 경로는 `/polls`다.
-- admin 로그인 후 기본 진입 경로는 `/admin/teachers`다.
+- admin 로그인 후 기본 진입 경로는 `/teachers`다.
 - root와 `/dashboard`는 삭제하지 않고 역할별 기본 경로로 redirect한다.
 - 로그인한 모든 사용자에게 `투표 목록`, `투표자 명단` 링크를 표시한다.
 - admin에게는 추가로 `교사 관리`, `전교임원선거 관리` 링크를 표시한다.
@@ -346,7 +352,7 @@ Session tally만 포함한다.
 - 최근 전교 election 후보 사진·투표 카드 관련 집중 spec과 브라우저 검증은 통과했다.
 - 최신 HEAD 전체 RSpec은 별도로 확인해야 한다.
 - smoke 확인 항목:
-  - admin root/dashboard -> `/admin/teachers`
+  - admin root/dashboard -> `/teachers`
   - teacher root/dashboard -> `/polls`
   - admin nav에 `투표 목록`, `투표자 명단`, `교사 관리`, `전교임원선거 관리` 표시
   - teacher nav에는 `투표 목록`, `투표자 명단`만 표시

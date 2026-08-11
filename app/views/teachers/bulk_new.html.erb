@@ -1,0 +1,56 @@
+<div class="space-y-6" data-controller="teacher-bulk">
+  <div>
+    <%= link_to "여러 선생님 추가 설정으로 돌아가기", bulk_setup_teachers_path(school_id: @school&.id, grade: @grade, school_context: @school_context), class: "text-sm underline" %>
+    <h1 class="mt-2 text-3xl font-semibold">여러 선생님 명단 입력</h1>
+    <p class="mt-1 text-sm text-stone-600"><%= @school&.name %> · <%= @school_context ? (@grade == "unassigned" ? "미배정" : "#{@grade}학년") : "학년 개별 선택" %> · <span data-teacher-bulk-target="count"></span> · 임시 비밀번호는 자동으로 설정됩니다.</p>
+  </div>
+
+  <% if @bulk_errors.present? %>
+    <div class="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><%= @bulk_errors.to_sentence %></div>
+  <% end %>
+
+  <%= form_with url: bulk_create_teachers_path,
+                method: :post,
+                class: "space-y-4",
+                data: { turbo: false, action: "submit->teacher-bulk#submitOnce" } do %>
+    <%= hidden_field_tag :school_id, @school&.id %>
+    <%= hidden_field_tag :school_context, true if @school_context %>
+    <%= hidden_field_tag :grade, @grade if @school_context %>
+    <div class="overflow-x-auto rounded-md border border-stone-200 bg-white">
+      <table class="min-w-full divide-y divide-stone-200 text-sm">
+        <thead class="bg-stone-50"><tr><th class="p-3 text-left">이름</th><th class="p-3 text-left">로그인 ID</th><% unless @school_context %><th class="p-3 text-left">학년</th><% end %><th class="p-3 text-left">담당 반</th><th class="p-3 text-left">제외</th></tr></thead>
+        <tbody class="divide-y divide-stone-100">
+          <% @bulk_entries.each_with_index do |entry, index| %>
+            <% value = ->(key) { entry.respond_to?(key) ? entry.public_send(key) : entry[key] || entry[key.to_s] } %>
+            <% entry_errors = entry.respond_to?(:errors) ? entry.errors : (entry[:errors] || []) %>
+            <tr data-teacher-bulk-target="row">
+              <td class="p-3 align-top"><%= text_field_tag "teachers[rows][#{index}][name]", value.call(:name), class: "w-40 rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700", required: true %></td>
+              <td class="p-3 align-top">
+                <%= text_field_tag "teachers[rows][#{index}][login_id]", value.call(:login_id), class: "w-40 rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700", required: true, autocomplete: "off" %>
+                <% if @school_context %><%= hidden_field_tag "teachers[rows][#{index}][grade]", value.call(:grade), data: { teacher_bulk_target: "grade" } %><% end %>
+              </td>
+              <% unless @school_context %>
+                <td class="p-3 align-top"><%= select_tag "teachers[rows][#{index}][grade]", options_for_select(1.upto(6).map { |grade| ["#{grade}학년", grade] }, value.call(:grade)), class: "rounded-md border border-stone-300 bg-white px-3 py-2 focus:border-stone-700 focus:ring-stone-700", data: { teacher_bulk_target: "grade", action: "change->teacher-bulk#filter" } %></td>
+              <% end %>
+              <td class="p-3 align-top">
+                <% if @school_context && value.call(:grade).blank? %>
+                  <%= hidden_field_tag "teachers[rows][#{index}][classroom_id]", "" %>미배정
+                <% else %>
+                  <select name="teachers[rows][<%= index %>][classroom_id]" class="min-w-32 rounded-md border border-stone-300 bg-white px-3 py-2 focus:border-stone-700 focus:ring-stone-700" data-teacher-bulk-target="classroom">
+                    <option value="">미배정</option>
+                    <% @classrooms.each do |classroom| %>
+                      <option value="<%= classroom.id %>" data-grade="<%= classroom.grade %>" <%= "selected" if classroom.id.to_s == value.call(:classroom_id).to_s %>><%= classroom.formatted_class_label %></option>
+                    <% end %>
+                  </select>
+                <% end %>
+                <% if entry_errors.any? %><p class="mt-1 max-w-xs text-xs text-rose-700"><%= entry_errors.to_sentence %></p><% end %>
+              </td>
+              <td class="p-3 align-middle"><button type="button" class="inline-flex items-center text-sm font-medium text-rose-700 underline" data-action="teacher-bulk#removeRow">제외</button></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <%= submit_tag "여러 선생님 등록", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-wait disabled:opacity-60", data: { teacher_bulk_target: "submit" } %>
+  <% end %>
+</div>

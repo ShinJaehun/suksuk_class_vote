@@ -16,6 +16,19 @@ RSpec.describe School, type: :model do
       expect(school).not_to be_valid
       expect(school.errors[:name]).to be_present
     end
+
+    it "assigns an allowed color to a new school" do
+      school = create(:school, color_key: nil)
+
+      expect(School::COLOR_KEYS).to include(school.color_key)
+    end
+
+    it "rejects an unsupported color" do
+      school = build(:school, color_key: "custom-css")
+
+      expect(school).not_to be_valid
+      expect(school.errors[:color_key]).to be_present
+    end
   end
 
   describe "associations" do

@@ -80,8 +80,24 @@ Rails.application.routes.draw do
       end
     end
   end
-  resources :teachers, only: %i[index new create]
+  resources :teachers, only: %i[index new create edit update destroy] do
+    collection do
+      get :bulk_setup
+      get :bulk_new
+      post :bulk_create
+    end
+    member do
+      patch :deactivate
+      patch :reactivate
+      get :temporary_password
+      post :issue_temporary_password
+    end
+  end
   resources :schools, only: %i[index show new create edit update] do
+    member do
+      patch :bulk_update_teachers
+      patch :bulk_teacher_operation
+    end
     resources :teacher_memberships,
               path: "teachers",
               controller: "school_teacher_memberships",

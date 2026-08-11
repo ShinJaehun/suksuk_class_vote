@@ -11,8 +11,8 @@ RSpec.describe "School teacher memberships", type: :request do
 
   it "shows only the selected School memberships, roles, and Classroom links to admin" do
     school = create(:school, name: "아라초")
-    teacher, = add_teacher(school, name: "김교사")
-    manager, = add_teacher(school, role: :manager, name: "박대표")
+    teacher, teacher_membership = add_teacher(school, name: "김교사")
+    manager, manager_membership = add_teacher(school, role: :manager, name: "박대표")
     classroom = create(:classroom, school: school, teacher: teacher)
     other_school = create(:school)
     other_teacher, = add_teacher(other_school, name: "타학교교사")
@@ -22,7 +22,13 @@ RSpec.describe "School teacher memberships", type: :request do
 
     expect(response).to have_http_status(:ok)
     expect(response.body).to include("선생님 관리", teacher.name, manager.name, "일반 선생님", "대표 선생님")
-    expect(response.body).not_to include("대표 선생님 지정", "일반 선생님으로 변경")
+    expect(response.body).to include(
+      promote_school_teacher_membership_path(school, teacher_membership),
+      demote_school_teacher_membership_path(school, manager_membership),
+      "대표 선생님 지정",
+      "대표 선생님 지정 해제"
+    )
+    expect(response.body).not_to include("일반 선생님으로 변경")
     expect(response.body).to include(classroom.formatted_class_label, edit_classroom_path(classroom))
     expect(response.body).not_to include(other_teacher.name)
   end
@@ -169,26 +175,33 @@ RSpec.describe "School teacher memberships", type: :request do
     expect(response).to redirect_to(polls_path)
   end
 
-  it "shows only the new manager in the representative area after replacement" do
+  it "shows the replaced manager roles in membership management" do
     school = create(:school)
-    old_manager, = add_teacher(school, role: :manager, name: "기존 대표")
+    old_manager, old_membership = add_teacher(school, role: :manager, name: "기존 대표")
     new_manager, new_membership = add_teacher(school, name: "새 대표")
     sign_in create(:user, :admin)
 
     patch promote_school_teacher_membership_path(school, new_membership)
-    get school_path(school)
+    get school_teacher_memberships_path(school)
 
     page = Nokogiri::HTML(response.body)
-    representative_section = page.css("section").find { |section| section.at_css("h2")&.text == "대표 선생님" }
-    demote_form = representative_section.at_css(
-      %(form[action="#{demote_school_teacher_membership_path(school, new_membership)}"])
-    )
-    current_manager_row = demote_form.parent
+    new_manager_row = page.css("li").find { |row| row.text.include?(new_manager.name) }
+    old_manager_row = page.css("li").find { |row| row.text.include?(old_manager.name) }
 
-    expect(demote_form).to be_present
-    expect(current_manager_row.text).to include(new_manager.name, new_manager.email)
-    expect(current_manager_row.text).not_to include(old_manager.name, old_manager.email)
-    expect(response.body).to include(old_manager.name, "일반 선생님")
+    expect(new_manager_row).to be_present
+    expect(old_manager_row).to be_present
+    expect(
+      new_manager_row.at_css(
+        %(form[action="#{demote_school_teacher_membership_path(school, new_membership)}"])
+      )
+    ).to be_present
+    expect(
+      old_manager_row.at_css(
+        %(form[action="#{promote_school_teacher_membership_path(school, old_membership)}"])
+      )
+    ).to be_present
+    expect(new_manager_row.text).to include("대표 선생님")
+    expect(old_manager_row.text).to include("일반 선생님")
   end
 
   it "returns 404 when deleting a membership from another parent School" do

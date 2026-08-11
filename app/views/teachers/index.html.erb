@@ -4,10 +4,14 @@
       <h1 class="text-3xl font-semibold">선생님</h1>
       <p class="text-sm text-stone-600">계정, 학교 소속과 현재 담당 교실을 확인합니다.</p>
     </div>
-    <%= link_to "선생님 추가", new_teacher_path, class: "inline-flex justify-center rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+    <div class="flex flex-wrap gap-2">
+      <%= link_to "선생님 추가", new_teacher_path(school_id: @school_id), class: "inline-flex justify-center rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100" %>
+      <%= link_to "여러 선생님 추가", bulk_setup_teachers_path(school_id: @school_id), class: "inline-flex justify-center rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100" %>
+    </div>
   </div>
 
   <%= form_with url: teachers_path, method: :get, class: "grid gap-3 rounded-md border border-stone-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4" do |form| %>
+    <%= hidden_field_tag :sort, @teacher_sort %>
     <% if current_user.admin? %>
       <div class="space-y-1">
         <%= form.label :school_id, "학교", class: "text-sm font-medium" %>
@@ -40,38 +44,25 @@
     </div>
   <% end %>
 
+  <nav id="teacher_sort_toolbar" class="flex flex-wrap items-center gap-2 text-sm" aria-label="선생님 정렬">
+    <span class="text-stone-500">정렬</span>
+    <% { "school" => "학교", "grade" => "학년", "login_id" => "로그인 ID", "created_at" => "생성일" }.each do |value, label| %>
+      <%= link_to label,
+                  teachers_path(request.query_parameters.merge(sort: value)),
+                  class: "rounded-md border px-3 py-1.5 font-medium #{@teacher_sort == value ? 'border-stone-800 bg-stone-800 text-white' : 'border-stone-300 bg-white text-stone-700 hover:bg-stone-50'}" %>
+    <% end %>
+  </nav>
+
   <% if @teachers.any? %>
-    <ul class="space-y-3">
-      <% @teachers.each do |teacher| %>
-        <li class="rounded-md border border-stone-200 bg-white p-4">
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div class="space-y-1">
-              <div class="flex flex-wrap items-center gap-2">
-                <h2 class="text-lg font-semibold"><%= teacher.name.presence || "이름 없음" %></h2>
-                <span class="rounded-full px-2 py-0.5 text-xs font-medium <%= teacher.active? ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-700' %>"><%= teacher.active? ? "활성" : "비활성" %></span>
-              </div>
-              <p class="text-sm text-stone-600">로그인 ID <%= teacher.login_id %></p>
-              <% if teacher.email.present? %>
-                <p class="text-sm text-stone-600">이메일 <%= teacher.email %></p>
-              <% end %>
-              <p class="text-sm text-stone-600">소속 학교 <%= teacher.school&.name || "미소속" %> · 학교 역할 <%= teacher.school_membership&.manager? ? "대표 선생님" : (teacher.school_membership.present? ? "일반 선생님" : "-") %></p>
-              <% classroom = teacher.active_classroom %>
-              <p class="text-sm text-stone-600">현재 담당 교실 <%= classroom ? "#{classroom.grade}학년 #{classroom.formatted_class_label}" : "미배정" %></p>
-            </div>
-            <div class="text-right">
-              <p class="text-sm text-stone-500">생성일 <%= teacher.created_at.to_date %></p>
-              <% if teacher.school.present? %>
-                <%= link_to "학교 소속 설정", school_teacher_memberships_path(teacher.school), class: "ml-2 text-sm font-medium underline" %>
-              <% end %>
-              <% if classroom %>
-                <%= link_to "교실 설정", edit_classroom_path(classroom), class: "ml-2 text-sm font-medium underline" %>
-              <% end %>
-            </div>
-          </div>
-        </li>
-      <% end %>
-    </ul>
+    <section class="overflow-hidden rounded-md border border-stone-200 bg-white">
+      <div class="hidden grid-cols-[minmax(9rem,1fr)_minmax(7rem,0.8fr)_minmax(7rem,0.7fr)_minmax(10rem,1fr)_minmax(12rem,auto)] gap-4 bg-stone-50 px-4 py-2 text-xs font-medium text-stone-500 lg:grid">
+        <span>선생님</span><span>소속</span><span>역할</span><span>담당 교실</span><span>관리</span>
+      </div>
+      <ul class="divide-y divide-stone-200">
+        <%= render partial: "teachers/index_row", collection: @teachers, as: :teacher %>
+      </ul>
+    </section>
   <% else %>
-    <p class="rounded-md border border-stone-200 bg-white p-4 text-stone-600">조건에 맞는 선생님 계정이 없습니다.</p>
+    <p class="rounded-md border border-stone-200 bg-white py-10 text-center text-sm text-stone-500">선생님이 없습니다.</p>
   <% end %>
 </div>

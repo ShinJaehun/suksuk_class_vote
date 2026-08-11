@@ -39,6 +39,17 @@ RSpec.describe SchoolMembership, type: :model do
       expect(membership.errors[:role]).to be_present
     end
 
+    it "allows a nil or first-through-sixth grade" do
+      expect(build(:school_membership, grade: nil)).to be_valid
+      expect(build(:school_membership, grade: 1)).to be_valid
+      expect(build(:school_membership, grade: 6)).to be_valid
+    end
+
+    it "rejects grades outside first through sixth" do
+      expect(build(:school_membership, grade: 0)).not_to be_valid
+      expect(build(:school_membership, grade: 7)).not_to be_valid
+    end
+
     it "allows a teacher to have a member membership" do
       membership = build(:school_membership, user: build(:user))
 
@@ -46,7 +57,7 @@ RSpec.describe SchoolMembership, type: :model do
     end
 
     it "allows a teacher to have a manager membership" do
-      membership = build(:school_membership, :manager, user: build(:user))
+      membership = build(:school_membership, :manager, user: build(:user), grade: 3)
 
       expect(membership).to be_valid
     end

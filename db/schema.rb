@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_11_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_11_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -394,20 +394,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_11_000000) do
 
   create_table "school_memberships", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.integer "grade"
     t.integer "role", default: 0, null: false
     t.bigint "school_id", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.index ["school_id", "grade"], name: "index_school_memberships_on_school_id_and_grade"
     t.index ["school_id"], name: "index_school_memberships_on_school_id"
     t.index ["school_id"], name: "index_school_memberships_on_unique_manager", unique: true, where: "(role = 10)"
     t.index ["user_id"], name: "index_school_memberships_on_user_id", unique: true
+    t.check_constraint "grade IS NULL OR grade >= 1 AND grade <= 6", name: "school_memberships_grade_allowed"
   end
 
   create_table "schools", force: :cascade do |t|
+    t.string "color_key", null: false
     t.datetime "created_at", null: false
     t.string "name", null: false
     t.datetime "updated_at", null: false
     t.index ["name"], name: "index_schools_on_name", unique: true
+    t.check_constraint "color_key::text = ANY (ARRAY['rose'::character varying, 'amber'::character varying, 'emerald'::character varying, 'sky'::character varying, 'violet'::character varying]::text[])", name: "schools_color_key_allowed"
   end
 
   create_table "students", force: :cascade do |t|

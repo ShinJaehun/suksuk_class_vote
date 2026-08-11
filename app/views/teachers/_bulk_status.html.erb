@@ -1,0 +1,13 @@
+<div id="<%= dom_id(teacher, :bulk_status) %>" data-teacher-active-state="<%= teacher.active? %>">
+  <% if teacher.active? %>
+    <%= link_to "활성",
+                deactivate_teacher_path(teacher, school_id: school.id, teacher_grade: teacher_grade),
+                data: { turbo_method: :patch },
+                class: "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800" %>
+  <% else %>
+    <%= link_to "비활성",
+                reactivate_teacher_path(teacher, school_id: school.id, teacher_grade: teacher_grade),
+                data: { turbo_method: :patch },
+                class: "inline-flex rounded-full border border-stone-300 bg-stone-100 px-3 py-1 text-xs font-medium text-stone-700" %>
+  <% end %>
+</div>
