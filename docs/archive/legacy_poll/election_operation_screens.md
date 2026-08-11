@@ -1,5 +1,12 @@
 # 선거 운영 화면
 
+> 역사 문서: 이 문서는 PollSession 도입 전 direct Poll 운영 화면을 설계·구현하던 당시의 기록이다.
+> 현재 Classroom/Student + Poll/PollSession 운영 화면의 구현 기준이 아니며, 이 문서의 action/service
+> 이름과 “예상 커밋 흐름”을 현재 TODO로 사용하지 않는다. 현재 구조는
+> `docs/architecture/current_system.md`, `docs/architecture/school_voting_platform.md`,
+> `docs/architecture/recovery_and_integrity.md`를 우선 참고하고, 비밀투표·집계 원칙은
+> `docs/architecture/privacy_and_tally.md`를 참고한다.
+
 ## 목적
 
 교실 선거 운영 화면을 두 화면으로 분리한다. 하나는 TV 또는 교사용 화면에 띄우는 공개/운영 화면이고, 다른 하나는 현재 참여자만 보는 투표 화면이다.
