@@ -183,7 +183,6 @@ global admin도 시작 후 불변조건과 역사 자료의 읽기 전용 제한
 `SchoolMembership.role = manager`인 교사는 자기 학교 범위에서 다음을 수행한다.
 
 - 교사와 membership 관리
-- manager 역할 관리
 - 학급 관리와 담임 배정
 - 학생 관리
 - 학교 단위 Election·Poll 생성
@@ -480,7 +479,7 @@ Turbo Stream이 primary 갱신 수단이며 10초 polling은 단절·누락 때 
 
 Classroom·Student 관리 UI는 role 기반 Classroom scope와 일반 페이지 CRUD를 제공한다. admin은 모든
 학교, manager는 소속 학교, 일반 teacher는 자신이 담임인 Classroom과 학생 명단만 관리한다. Student는
-단일 또는 textarea bulk 방식으로 등록하고 hard delete 대신 비활성화·복구한다. 이 자료는 신규 Poll의
+단일 또는 30개의 번호·이름 행을 사용하는 bulk 방식으로 등록하고 hard delete 대신 비활성화·복구한다. 이 자료는 신규 Poll의
 Classroom 선택과 시작 snapshot에 사용하며 ParticipantGroup·ParticipantSlot 변환은 수행하지 않는다.
 다음 전환 작업은 운영 백업 복원본에서 Election ID 6 Classroom 변환을 먼저 리허설한 뒤
 historical/read_only, Election ID 6 historical Poll과 후보 사진 변환, legacy Poll 조사·backfill과
