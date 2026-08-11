@@ -1,5 +1,9 @@
 # Classroom Poll MVP
 
+> 이 문서는 `ParticipantGroup` / `ParticipantSlot` 기반 legacy Poll runtime의 역사 문서다.
+> 현재 신규 학급투표와 전교투표의 구현 기준으로 사용하지 않는다.
+> 현재 구조는 `docs/architecture/current_system.md`와 `docs/architecture/school_voting_platform.md`를 우선 참고한다.
+
 ## 목적
 
 이 문서는 `쑥쑥교실투표`의 교사 주도 학급 `Poll` MVP 흐름을 정의한다.
@@ -83,7 +87,7 @@ admin의 상세 관리 기능은 Admin `Election` 흐름에서 별도로 구현�
 
 참여자 그룹 등록 상세는 다음 문서를 따른다.
 
-- `docs/specs/bulk_student_import.md`
+- `docs/archive/legacy_poll/bulk_student_import.md`
 
 ---
 

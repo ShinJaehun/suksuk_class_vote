@@ -282,26 +282,17 @@ Session tally만 포함한다.
   - 비밀투표
   - 집계 방향 후보
 
-- `docs/architecture/voting_domain.md`
-  - ParticipantGroup 원본 명단
-  - 선거 생성 시 ParticipantGroup 선택 정책
-  - 선거 시작 조건 초안
-  - `PollParticipant` snapshot 모델 설계
-  - `Polls::Start` service 책임 설계
-  - 투표 참여자 명단 snapshot 생성 시점과 무결성 원칙
-  - Poll, PollProgress 등 후속 도메인 구조 초안
-
 - `docs/architecture/roles_and_permissions.md`
   - admin/teacher/student 역할과 권한
   - 선거 시작 권한 초안
 
-### Spec 문서
+### 역사 문서
 
-- `docs/specs/classroom_election_mvp.md`
-  - 학급 반장/부반장 선거 MVP 흐름
+- `docs/archive/legacy_poll/voting_domain.md`
+- `docs/archive/legacy_poll/classroom_election_mvp.md`
+- `docs/archive/legacy_poll/bulk_student_import.md`
 
-- `docs/specs/bulk_student_import.md`
-  - Excel/HWP 표 복사·붙여넣기 기반 학생 명단 등록
+위 문서는 ParticipantGroup/ParticipantSlot 기반 legacy Poll runtime 기록이며 현재 구현 기준으로 사용하지 않는다.
 
 추후 추가 예정:
 

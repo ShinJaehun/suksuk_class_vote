@@ -1,5 +1,9 @@
 # Voting Domain
 
+> 이 문서는 `ParticipantGroup` / `ParticipantSlot` 기반 legacy Poll runtime의 역사 문서다.
+> 현재 신규 학급투표와 전교투표의 구현 기준으로 사용하지 않는다.
+> 현재 구조는 `docs/architecture/current_system.md`와 `docs/architecture/school_voting_platform.md`를 우선 참고한다.
+
 ## 목적
 
 이 문서는 `쑥쑥교실투표`의 현재 투표 도메인 모델 관계를 정리하기 위한 architecture 문서다.

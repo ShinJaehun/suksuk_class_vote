@@ -1,5 +1,9 @@
 # Bulk Student Import
 
+> 이 문서는 `ParticipantGroup` / `ParticipantSlot` 기반 legacy Poll runtime의 역사 문서다.
+> 현재 신규 학급투표와 전교투표의 구현 기준으로 사용하지 않는다.
+> 현재 구조는 `docs/architecture/current_system.md`와 `docs/architecture/school_voting_platform.md`를 우선 참고한다.
+
 ## 목적
 
 이 문서는 `쑥쑥교실투표`의 학생/참여자 명단 bulk import 기능을 정의한다.
