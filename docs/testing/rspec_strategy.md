@@ -2,10 +2,10 @@
 
 ## 목적
 
-이 문서는 `쑥쑥교실투표(suksuk_class_vote)`에서 RSpec 테스트를 어떤 철학과 우선순위로 추가할지 정리한다.
+이 문서는 `쑥쑥교실투표(suksuk_class_vote)`에서 RSpec 테스트를 어떤 철학과 우선순위로 유지할지 정리한다.
 
 테스트의 목적은 coverage 수치가 아니라 핵심 기능 변경 시 confidence를 주는 안전망이다.
-이 프로젝트에서는 특히 권한, 상태 전이, 멱등성, 중복 제출 방지, 투표 중단 복구, 주요 request 흐름을 고정하는 데 집중한다.
+특히 권한, 상태 전이, 멱등성, 중복 제출 방지, 장애 복구와 주요 request 흐름을 고정한다.
 
 ---
 
@@ -13,13 +13,13 @@
 
 이 프로젝트의 테스트 목적은 다음과 같다.
 
-* 투표 중단 후 복구 가능성 보장
+* 투표 중단 후 DB 상태 기준 복구 가능성 보장
 * 중복 제출 방지
 * 투표 상태 전이 규칙 고정
-* 권한/소유권 경계 고정
+* 권한/소유권/학교 경계 고정
 * 출석번호 진행 상태와 후보 선택 결과 분리 원칙 검증
 * 수동 브라우저 테스트 의존도 감소
-* 향후 학급 선거 MVP를 전교 선거 구조로 확장할 때 회귀 방지
+* 신규 PollSession runtime과 남아 있는 legacy runtime의 회귀 방지
 
 Coverage 수치 자체를 목표로 삼지 않는다.
 
@@ -30,312 +30,228 @@ Coverage 수치 자체를 목표로 삼지 않는다.
 * readable > clever.
 * DRY보다 DAMP를 우선한다. 테스트는 조금 반복되더라도 의도가 드러나야 한다.
 * 테스트 이름은 사용자의 행동이나 도메인 규칙을 문장으로 설명한다.
-* context는 역할별로 명확히 나눈다.
-
-  * guest
-  * admin
-  * teacher
-* 학생은 초기 MVP에서 로그인 사용자가 아니므로, student context를 인증 사용자처럼 다루지 않는다.
+* context는 guest, admin, teacher 등 역할별로 명확히 나눈다.
+* 학생은 로그인 사용자가 아니므로 student context를 인증 사용자처럼 다루지 않는다.
 * 테스트 데이터는 가능한 사용 위치 가까이에 둔다.
 * 과도한 `shared_context`, helper, abstraction 남용을 피한다.
 * brittle한 HTML 구조, Tailwind class, 세부 DOM 배치 고정 테스트를 지양한다.
 * request spec은 핵심 텍스트, redirect, status, 데이터 변화, 권한 차단을 중심으로 검증한다.
-* system spec은 정말 필요한 happy path와 브라우저 통합 흐름에만 제한적으로 사용한다.
+* system spec은 핵심 happy path와 중요한 브라우저 통합 흐름에만 제한적으로 사용한다.
+
+---
+
+## 현재 기본 회귀 흐름
+
+신규 학급투표와 전교투표의 기본 회귀 대상은 다음 구조다.
+
+```text
+School / Classroom / active Student
+→ Poll draft
+→ PollSession
+→ PollParticipant snapshot
+→ PollProgress / participation / tally
+→ closed 또는 stopped
+→ 필요 시 replacement
+```
+
+ParticipantGroup / ParticipantSlot 기반 Poll과 Election / ElectionSession은 아직 제거되지 않았다.
+신규 runtime 테스트로 대체됐다고 보지 않고, 최종 전환 전까지 별도 호환 회귀 대상으로 유지한다.
 
 ---
 
 ## 테스트 우선순위 1
 
-초기 MVP에서 가장 먼저 고정해야 할 핵심 테스트 영역이다.
-
-### 인증/권한
+### 인증과 권한
 
 * guest는 주요 리소스에 접근할 수 없다.
-* teacher는 본인 참여자 그룹만 볼 수 있다.
-* teacher는 다른 teacher의 참여자 그룹을 볼 수 없다.
-* teacher는 본인 선거만 만들고 관리할 수 있다.
-* teacher는 다른 teacher의 선거를 수정할 수 없다.
-* teacher는 본인 투표 진행 정보만 진행할 수 있다.
-* teacher는 다른 teacher의 결과를 볼 수 없다.
-* admin은 전체 참여자 그룹, 선거, 결과에 접근할 수 있다.
+* teacher는 자기 학교·담당 Classroom·운영 PollSession 범위만 접근한다.
+* manager는 자기 학교 school-managed Poll 범위만 관리한다.
+* 다른 교사와 다른 학교의 Classroom, Student, Poll, PollSession 접근은 차단된다.
+* admin과 teacher/manager의 권한 차이, 신규 Poll과 legacy Election 권한 경계를 고정한다.
 
-### 참여자 그룹
+### Classroom / Student와 snapshot
 
-* teacher가 참여자 그룹을 생성할 수 있다.
-* teacher가 본인 참여자 그룹을 수정할 수 있다.
-* 다른 teacher의 참여자 그룹 수정은 차단된다.
-* 참여자 그룹 안에서 출석번호가 중복될 수 없다.
-* 이미 선거에 사용 중인 참여자 그룹의 수정/삭제 정책을 spec에 맞게 고정한다.
+* Classroom과 Student의 학교·담임·번호·active 불변식을 검증한다.
+* Student 단일·bulk 등록은 오류가 있으면 원자적으로 저장하지 않는다.
+* PollSession 시작은 active Student만 번호 순서로 PollParticipant snapshot에 복사한다.
+* 시작 뒤 Student 수정·inactive가 기존 snapshot과 결과를 바꾸지 않는다.
+* snapshot과 participation/tally가 학생별 선택을 직접 연결하지 않는다.
 
-### 학생 명단 bulk import
+### Poll / PollSession lifecycle
 
-* 탭 구분 입력을 파싱한다.
-* 공백 구분 입력을 파싱한다.
-* 제목 행을 건너뛴다.
-* 빈 줄을 무시한다.
-* 출석번호 중복을 오류로 표시한다.
-* 이름 없음 row를 오류로 표시한다.
-* 번호 없음 row를 오류로 표시한다.
-* 오류가 있으면 저장하지 않는다.
-* 정상 입력은 participant slots로 저장된다.
+* draft workspace의 정의·명단·시작 준비 조건을 고정한다.
+* 시작, ballot open/lock, 제출·기권, 미참여, advance, 종료 상태 전이를 검증한다.
+* 부분 완료 학생과 stale current participant 요청이 잘못된 진행·종료를 만들지 않는다.
+* 중단은 stopped 상태와 기존 진행 기록을 보존하고 추가 제출을 차단한다.
+* replacement 재투표는 source stopped Session을 보존하고 새 Poll/PollSession 관계를 고정한다.
+* 동일 학생 제출은 participation과 tally에 한 번만 반영된다.
 
-### 선거/후보
+### school-managed Poll
 
-* teacher가 본인 참여자 그룹을 대상으로 선거를 생성할 수 있다.
-* teacher가 본인 선거에 후보를 등록할 수 있다.
-* 선거 시작 전에는 후보를 수정할 수 있다.
-* 선거 시작 후에는 후보 수정/삭제가 제한된다.
-* 다른 teacher의 선거 후보 등록/수정은 차단된다.
+* parent Poll 준비·시작·중단·명시적 종료와 학급별 PollSession 경계를 검증한다.
+* 전체 결과에는 current closed Session만 포함한다.
+* 학급 Session 재투표는 stopped/closed source를 보존하고 replacement draft Session을 만든다.
+* Test Poll 생성·실행·원본 종료에 따른 terminal lifecycle을 검증한다.
+* current Session 중 하나라도 non-closed이면 종료 readiness가 깊은 검사를 수행하지 않고 실패한다.
+* 모두 closed일 때만 최종 Session 무결성 검사를 수행한다.
+* reset, Session 배정, 전체 중단 같은 batch 작업은 aggregate broadcast를 합치고 최종 상태를 갱신한다.
 
-### 투표 진행 상태
+### runtime recovery와 terminal consistency
 
-* `Poll`은 draft / in_progress / stopped / closed 상태를 가진다.
-* `PollProgress`은 active / closed 상태를 가진다.
-* `PollProgress`은 `Poll`이 in_progress가 된 뒤 생성되므로 active부터 시작한다.
-* `PollParticipation`은 completed / absent / abstained 같은 확정 상태를 가진다.
-* 완료된 `PollParticipant`는 다시 투표할 수 없다.
-* 종료되거나 중단된 투표에는 추가 제출을 할 수 없다.
-* participation에는 `poll_option_id`를 저장하지 않는다.
-* `PollOptionTally`는 `PollParticipant`와 직접 연결하지 않는다.
+* Turbo Stream / ActionCable을 primary 갱신 수단으로 유지한다.
+* recovery endpoint는 정상 상태에 `204 No Content`를 반환한다.
+* stale 또는 terminal 상태일 때만 필요한 작은 Turbo Stream 영역을 반환한다.
+* active ballot form과 학생이 선택 중인 값은 polling으로 교체하지 않는다.
+* stale teacher action과 student submit은 DB terminal 상태로 안전하게 수렴한다.
+* hidden tab의 polling timer 중단과 visible 복귀 직후 확인은 필요한 JS/browser 수준에서 검증한다.
 
-### 투표 제출 / 멱등성
+ActionCable 단절을 DevTools로 매번 인위적으로 재현하는 것을 필수 회귀 테스트로 두지 않는다.
+fallback endpoint의 서버 계약은 request/service spec을 우선한다.
 
-* 현재 `PollProgress.current_poll_participant`가 있을 때만 투표 제출이 가능하다.
-* 같은 `PollParticipant`의 제출이 중복되어도 득표수는 한 번만 증가한다.
-* 제출 성공 시 participation 완료와 tally 증가가 함께 반영된다.
-* 제출 실패 시 participation 완료와 tally 증가가 모두 반영되지 않는다.
-* 후보 선택/기권/미참여 요청의 current participant 확인값이 lock 이후 DB의 현재 참여자와 다르면 거부된다.
-* 투표 시작 직후 ballot은 locked이고, 교사 승인 액션 뒤에만 현재 학생 ballot이 열린다.
-* 학생 화면에서는 후보 선택과 기권만 가능하며 미참여 처리와 다음 투표자 이동은 제공하지 않는다.
-* 다음 학생 진행/투표 종료 요청도 stale current participant 요청이면 상태 변경과 event 생성 없이 실패한다.
-* 종료된 투표 진행 정보에 들어온 제출 요청은 거부된다.
-* 학생 completed_at과 후보별 득표 증가 정보를 화면에서 직접 연결해 보여주지 않는다.
-* 기권은 화면 표시상 투표 완료에 합산하고 후보별 tally에는 반영하지 않는다.
-* submit_vote, 기권, 미참여, 다음 투표자 진행 직후 상태 점검 카드가 Turbo로 갱신된다.
+### transaction과 동시성
 
-### 투표 종료 무결성 gate
+* tally, participation, completion과 event가 같은 transaction에서 함께 성공하거나 rollback된다.
+* 중복 실행 방어와 DB unique/state constraint를 검증한다.
+* 주요 Session 경로는 `PollSession -> PollProgress` 순서로 lock한다.
+* schoolwide stop은 `Poll -> PollSessions(id 순서) -> PollProgress` 순서를 유지한다.
+* outer join scope에서 선택한 current Session id를 base PollSession query로 다시 잠그는 계약을 고정한다.
+* race 상황에서도 최종 상태·집계·source 보존 invariant가 유지되는지 검증한다.
 
-* `Polls::Close`는 종료 직전 처리 상태 합계와 전체 참여자 수를 비교한다.
-* completed 수와 `PollOptionTally.votes_count` 합계를 비교한다.
-* 선택지 수와 tally row 수가 맞는지 확인한다.
-* 다른 투표 선택지에 연결된 tally와 음수 득표수를 거부한다.
-* 실패 시 poll, poll_progress, poll_closed event가 변경되지 않는지 service spec으로 고정한다.
-
-### 중단 복구
-
-* 교사 진행 화면을 새로고침해도 현재 `PollParticipant` 위치로 복구된다.
-* 학생 투표 화면을 새로고침해도 현재 `PollParticipant` 기준으로 복구된다.
-* 교사 재로그인 후 진행 중인 `PollParticipant` 위치로 복구된다.
-* 제출 요청이 성공했지만 브라우저가 완료 화면을 받지 못한 경우, 재접속 시 completed 상태로 보인다.
-* 제출 요청이 실패한 경우, 재접속 시 DB의 현재 참여자 상태 기준으로 다시 확인한다.
+deadlock 자체를 반복 재현하는 flaky test를 필수 전략으로 삼지 않는다. lock 순서, transaction 경계,
+중복 방어와 최종 invariant를 안정적으로 검증한다.
 
 ---
 
 ## 테스트 우선순위 2
 
-초기 MVP의 핵심 흐름이 안정된 뒤 보강할 영역이다.
-
-* 결과 화면의 후보별 득표 표시
-* 투표 종료 조건 검증
-* 미참여/무투표 처리 되돌림 정책
-* 선거 시작 후 참여자 그룹 수정 제한
+* 결과 화면과 count-only 집계 표시
 * locale이 개입되는 핵심 사용자 메시지
 * Turbo/HTML 응답 분기
-* admin 관리 화면
-* 감사 로그 도입 시 주요 이벤트 기록
-* 인쇄용 결과 화면 또는 export 기능
+* 인쇄용 결과 화면 또는 export
+* 운영 이벤트와 감사 기록
+* 접근성에 영향을 주는 핵심 ballot 상호작용
 
----
-
-## 후순위
-
-아래 항목은 테스트로 강하게 고정하기 전에 정책 안정성을 먼저 확인한다.
-
-* 세세한 view 구조
-* Tailwind class
-* 자주 바뀌는 문구
-* 너무 세밀한 DOM 순서
-* 후보 카드 디자인
-* 관리자 대시보드 세부 UI
-* 전교어린이회 선거 확장 기능
-* 선거관리위원 개표 승인
-* PDF 출력
+세세한 view 구조, Tailwind class, 자주 바뀌는 문구와 관리자 화면의 장식적 UI는 후순위다.
 
 ---
 
 ## 테스트 레벨
 
-### model spec
+### model / DB spec
 
-도메인 불변식과 상태 규칙을 고정할 때 우선 사용한다.
+도메인 불변식과 상태·관계 제약을 고정한다.
 
-대상 예시:
+주요 대상:
 
-* ParticipantGroup
-* ParticipantSlot
-* Poll
-* PollOption
-* PollProgress
-* PollParticipant
-* PollParticipation
-* PollOptionTally
+* School, SchoolMembership, Classroom, Student
+* Poll, PollSession, PollParticipant, PollProgress, PollParticipation
+* PollContestCompletion과 option/contest tally
+* source/replacement Session 관계
 
-검증 예시:
+검증 초점:
 
-* 출석번호 중복 금지
-* 상태 enum 전이 규칙
-* 종료된 선거 수정 제한
-* 완료된 `PollParticipant` 재투표 방지
-* 후보별 tally uniqueness
+* 학교·소유권·snapshot 관계
+* unique와 상태 제약
+* replacement 연결과 source 이력 보존
+* count-only tally와 개인 선택 비연결
 
----
+ParticipantGroup / ParticipantSlot model spec은 legacy Poll 제거 전까지 호환 제약을 보호한다.
 
 ### service spec
 
-상태 전이와 트랜잭션이 중요한 작업을 고정할 때 우선 사용한다.
+상태 전이, transaction과 lock 경계가 중요한 작업을 고정한다.
 
-대상 후보:
+주요 흐름:
 
-* `Polls::Start`
-* `Polls::SubmitVote`
-* `Polls::RecordParticipationOutcome`
-* `Polls::AdvanceCurrentParticipant`
-* `Polls::Close`
-* `Polls::IntegrityReport`
-* `BulkStudentImport::Parser`
-* `BulkStudentImport::Preview`
-* `BulkStudentImport::Commit`
+* PollSession 시작과 snapshot 생성
+* submit/participation/advance
+* close/stop과 integrity check
+* 일반·schoolwide replacement 재투표
+* schoolwide start/stop/close/reset와 batch broadcast
 
-검증 예시:
-
-* 투표 시작 시 `PollParticipant` snapshot, `PollProgress`, 후보별 tally 초기값이 함께 생성된다.
-* 투표 제출 시 tally 증가와 participation 완료가 하나의 transaction으로 처리된다.
-* 중복 제출이 득표수 중복 증가로 이어지지 않는다.
-* stale current participant 요청은 상태 변경과 event 생성 없이 실패한다.
-* 투표 종료 직전 무결성 gate 실패 시 `closed` 전환이 일어나지 않는다.
-* import preview가 오류를 올바르게 표시한다.
-* import commit은 오류가 있을 때 저장하지 않는다.
-
----
+legacy `Polls::Start`와 직접 실행 service spec은 ParticipantGroup Poll runtime 제거 전까지 회귀
+대상이다. Election service spec도 historical Poll 전환 전까지 운영 기록과 결과를 보호한다.
 
 ### policy spec
 
-역할과 scope의 경계를 고정할 때 사용한다.
+global role, SchoolMembership role, 학교 scope와 실제 operator 경계를 고정한다.
 
-검증 예시:
-
-* admin은 전체 리소스에 접근할 수 있다.
-* teacher는 본인 리소스에만 접근할 수 있다.
-* teacher는 다른 teacher의 participant group/poll/result에 접근할 수 없다.
-* guest는 주요 리소스에 접근할 수 없다.
-* 학생은 인증 사용자로 취급하지 않는다.
-
----
+* admin, manager, 일반 teacher의 범위를 구분한다.
+* 다른 학교·다른 Classroom·다른 operator 접근을 차단한다.
+* school-managed Poll 전체 lifecycle과 학급 Session 운영 권한을 분리한다.
+* legacy Election 관리와 배정된 ElectionSession 운영 권한을 구분한다.
 
 ### request spec
 
-사용자 흐름과 controller 권한을 고정할 때 우선 사용한다.
+controller 권한, 응답 형식과 상태 변화를 고정한다.
 
-검증 예시:
+* 주요 HTML/Turbo lifecycle action과 권한 차단
+* stale action의 안전한 실패 또는 terminal 복귀
+* recovery endpoint의 정상 `204`, stale/terminal Turbo 응답과 active ballot 보존
+* schoolwide parent lifecycle, 학급 Session 재투표와 Test Poll endpoint
+* 잘못된 요청 뒤 DB 상태·event·tally 불변
 
-* 로그인하지 않은 사용자는 redirect된다.
-* teacher가 participant group을 생성한다.
-* teacher가 bulk import preview를 요청한다.
-* teacher가 선거를 생성한다.
-* teacher가 후보를 등록한다.
-* teacher가 투표를 시작한다.
-* teacher가 투표를 종료한다.
-* 권한 없는 요청은 차단된다.
-* HTML/Turbo 응답이 기본적으로 깨지지 않는다.
+### system / browser spec
 
----
+실제 브라우저 통합이 필요한 최소 흐름만 둔다.
 
-### system spec
+* Classroom/Student에서 Poll draft와 PollSession을 시작하는 happy path
+* 교사 승인형 ballot, 학생 제출, 다음 학생, 명시적 종료
+* replacement 후 새 Session 운영과 source 이력 접근
+* terminal 화면 수렴과 중요한 Turbo UI 흐름
+* active ballot 선택 유지와 hidden-tab polling pause처럼 JS 동작이 핵심인 계약
 
-정말 필요한 핵심 happy path만 후보로 둔다.
-
-후보:
-
-* 교사 로그인 후 참여자 그룹 생성
-* 학생 명단 붙여넣기 import
-* 선거 생성
-* 후보 등록
-* 출석번호 순서로 투표 진행
-* 투표 종료 후 결과 확인
-
-system spec은 초기에는 최소화한다.
-중단 복구와 멱등성은 system spec보다 model/service/request spec으로 먼저 고정한다.
+중단 복구, 멱등성과 대부분의 polling 서버 계약은 system spec보다 model/service/request spec으로 먼저 고정한다.
 
 ---
 
-## 테스트 작성 순서 제안
+## 테스트 작성과 보강 순서
 
-### Step 1: import와 기본 도메인
+새 기능이나 회귀 수정에서는 다음 순서를 기본으로 한다.
 
-* bulk import parser/preview spec
-* ParticipantGroup / ParticipantSlot validation spec
-* teacher 소유권 기본 policy spec
+1. model/DB 불변식과 권한 경계
+2. service transaction·상태 전이·lock 계약
+3. request 권한·응답·stale/terminal 처리
+4. 실제 브라우저 통합이 필요한 최소 happy path
 
-### Step 2: 선거 생성
+이미 구현·검증된 PollSession 중단, replacement 재투표, recovery polling과 lock order를 미래 기능
+목록으로 두지 않는다. 변경이 생기면 해당 계약의 기존 회귀 테스트를 우선 보강한다.
 
-* Poll / PollOption model spec
-* teacher poll request spec
-* 후보 등록 request spec
-* 선거 시작 후 후보 수정 제한 spec
+---
 
-### Step 3: 투표 진행 상태
+## legacy 전환기의 테스트 역할
 
-* PollProgress 상태 전이 spec
-* PollParticipant snapshot 생성 spec
-* PollParticipation 확정 상태 spec
-* current participant 복구 request spec
+* 신규 Classroom/PollSession runtime은 현재 기본 회귀 대상이다.
+* ParticipantGroup/ParticipantSlot과 `Polls::Start` 기반 Poll은 제거 전까지 호환 회귀 대상이다.
+* Election/ElectionSession은 historical Poll 전환 완료 전까지 운영 기록 보호용 회귀 대상이다.
 
-### Step 4: 투표 제출
+다음 전환에서는 migration 자체보다 변환 전후 invariant와 조회 결과 보존을 우선 검증한다.
 
-* Polls::SubmitVote service spec
-* Polls::RecordParticipationOutcome service spec
-* tally 증가 spec
-* 중복 제출 방지 spec
-* stale current participant 요청 거부 spec
-* transaction rollback spec
-* completed PollParticipant 재투표 차단 spec
+* Election ID 6 Classroom 변환 dry-run과 `APPLY=1` 결과
+* historical/read_only 기반
+* Election ID 6 historical Poll과 후보 사진 이관
+* 운영 Poll 조사와 필요한 PollSession backfill
+* 신규/legacy runtime 분리와 legacy table 제거 전 회귀
 
-### Step 5: 복구 흐름
-
-* 진행 중인 PollParticipant 복구 request spec
-* 교사 재로그인 후 진행 중인 투표 진행 정보 접근 spec
-* 제출 성공/실패 후 재접속 시 상태 spec
-
-### Step 6: 결과 확인
-
-* 투표 종료 request spec
-* 결과 조회 권한 spec
-* 후보별 득표 표시 request spec
+legacy spec을 일괄 삭제하지 않는다. 대응 runtime과 보존 데이터가 제거되거나 변환된 뒤 관련 회귀 범위를
+확인하고 정리한다.
 
 ---
 
 ## 수동 Smoke Checklist
 
-자동 테스트와 별도로 브라우저에서 짧게 확인할 항목이다.
+자동 테스트와 별도로 실제 교실 운영 흐름을 짧게 확인한다.
 
-* 교사가 로그인한다.
-* 참여자 그룹을 생성한다.
-* Excel/HWP에서 복사한 학생 명단을 붙여넣는다.
-* 미리보기에서 정상/오류가 구분된다.
-* 정상 명단을 저장한다.
-* 선거를 생성한다.
-* 후보자를 등록한다.
-* 투표를 시작한다.
-* 첫 번째 학생이 투표한다.
-* 투표 완료 후 입력이 차단된다.
-* 다음 학생으로 이동한다.
-* 특정 학생을 미참여/무투표 처리한다.
-* 학생 투표 화면에서 새로고침해도 현재 학생으로 복구된다.
-* 교사 진행 화면에서 새로고침해도 현재 상태가 유지된다.
-* 브라우저를 닫고 다시 로그인해도 진행 중인 위치로 복구된다.
-* 투표 완료 버튼을 빠르게 두 번 눌러도 득표수가 한 번만 오른다.
-* 모든 학생을 처리한 뒤 투표를 종료한다.
-* 결과 화면에서 후보별 득표수가 표시된다.
+* 담당 Classroom의 Student 명단과 draft Poll을 준비한다.
+* PollSession을 시작하고 첫 학생 ballot을 연다.
+* 제출·기권·미참여와 다음 학생 진행을 확인한다.
+* 새로고침·재로그인 뒤 DB의 현재 위치로 복구되는지 확인한다.
+* 중복 또는 stale 제출이 집계를 바꾸지 않는지 확인한다.
+* 모든 학생 처리 뒤 Session을 종료하고 결과를 확인한다.
+* 중단과 replacement 재투표가 source 이력을 보존하는지 확인한다.
+* school-managed Poll의 학급 Session과 parent 종료 흐름을 확인한다.
+
+Cable 단절이나 deadlock을 매번 수동으로 재현하는 절차는 필수 smoke 항목으로 두지 않는다.
 
 ---
 
@@ -344,25 +260,25 @@ system spec은 초기에는 최소화한다.
 * 구현 세부사항에 과하게 결합된 테스트
 * 낮은 가치의 단순 마크업 고정 테스트
 * request/system 테스트의 과도한 중복
-* helper/shared_context 남용으로 읽기 어려워진 테스트
-* 아직 확정되지 않은 spec을 성급히 고정하는 테스트
+* helper/shared context 남용으로 읽기 어려워진 테스트
+* 확정되지 않은 정책을 성급히 고정하는 테스트
 * 수동으로 자주 바꾸는 UI 문구나 Tailwind class만 검증하는 테스트
-* 브라우저에서만 확인 가능한 문제를 억지로 request spec에 끼워 넣는 테스트
 * 모든 기능을 system spec으로만 검증하려는 테스트
+* DevTools Cable 단절이나 실제 deadlock 재현에 의존하는 flaky 테스트
 
 ---
 
 ## 문서와 테스트의 관계
 
-* 테스트는 `docs/specs/*.md`, `docs/architecture/current_system.md`, 관련 architecture 문서에 합의된 요구사항을 기준으로 작성한다.
-* spec이 부족한 기능은 먼저 현재 구현과 정책을 읽고, 필요한 경우 spec 문서를 보강한 뒤 테스트를 설계한다.
-* 문서가 구현과 충돌하면 문서를 먼저 의심하고, 실제 코드와 합의된 정책을 확인한 뒤 갱신한다.
-* archive/legacy 문서는 사용자가 요청하거나 현재 문서만으로 맥락을 알 수 없을 때만 참고한다.
-* 테스트는 과거 구현을 복제하기 위한 장치가 아니라, 현재 `쑥쑥교실투표`의 도메인 규칙과 사용자 흐름을 안전하게 고정하는 장치다.
+* 테스트는 `docs/specs/*.md`, `docs/architecture/current_system.md`, 관련 architecture 문서의 합의된 요구사항을 기준으로 작성한다.
+* spec이 부족한 기능은 현재 구현과 정책을 읽고 필요한 경우 spec 문서를 보강한 뒤 테스트를 설계한다.
+* 문서가 구현과 충돌하면 실제 코드와 합의된 정책을 확인한 뒤 문서를 갱신한다.
+* archive/legacy 문서는 현재 문서만으로 맥락을 알 수 없을 때만 참고한다.
+* 테스트는 과거 구현을 복제하는 장치가 아니라 현재 도메인 규칙과 사용자 흐름을 안전하게 고정하는 장치다.
 
 ---
 
 ## 한 줄 기준
 
 테스트는 coverage를 채우기 위한 작업이 아니라,
-`쑥쑥교실투표`의 투표 진행, 중단 복구, 중복 제출 방지, 권한 경계, 비밀투표 원칙을 안전하게 바꿀 수 있게 만드는 안전망이다.
+투표 진행, 중단 복구, 중복 제출 방지, 권한 경계와 비밀투표 원칙을 안전하게 바꿀 수 있게 만드는 안전망이다.
