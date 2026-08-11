@@ -1,8 +1,10 @@
 # 전교임원선거 배포 체크리스트
 
-> 역사 문서: 이 문서는 legacy Poll 기반 전교임원선거 운영 당시의 기록이며 현재
-> 운영 절차로 그대로 사용할 수 없다. 현재 구조와 운영 기준은
-> `docs/architecture/school_voting_platform.md`를 참고한다.
+> 역사 문서: 이 문서는 2026년 실제 전교임원선거 당시 `Election` / `ElectionSession` 기반
+> 배포·운영 기록이다. 현재 School/Classroom/Student + school-managed Poll/PollSession 운영 절차가
+> 아니며, 이 문서의 명령·route·체크 항목을 현재 production 절차로 그대로 사용하지 않는다.
+> 현재 구조는 `docs/architecture/current_system.md`와
+> `docs/architecture/school_voting_platform.md`를 우선 참고한다.
 
 ## 목적
 
@@ -129,7 +131,11 @@ production과 같은 브라우저·네트워크 조건에서 별도의 모의 �
 - [ ] 운영 중 발생한 중단, 재투표, 네트워크 장애를 별도 기록한다.
 - [ ] 백업 복구 가능성을 확인한 뒤 후속 정리 작업을 시작한다.
 
-## 선거 후 별도 리팩터링
+## 당시 선거 후 별도 리팩터링 계획
+
+아래는 당시 예정했던 후속 정리 계획이며 현재 TODO가 아니다. legacy `SchoolElection`
+runtime/model/service와 Poll 연결 제거는 현재 재구축 과정에서 완료됐다. 현재 남은 legacy 제거는
+`Election` / `ElectionSession` 및 `ParticipantGroup` / `ParticipantSlot` 전환 범위다.
 
 실제 선거 전에는 legacy Poll-backed `school_election` 코드를 제거하지 않는다.
 선거 완료와 백업·검산 이후 별도 브랜치에서 다음을 조사한다.

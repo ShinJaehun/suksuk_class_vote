@@ -219,5 +219,6 @@ Teacher의 stopped 세션 숨김은 실제 삭제가 아니다.
 
 ## 배포 기준
 
-운영 배포 전 점검은
-`docs/ops/school_council_election_deploy_checklist.md`를 따른다.
+2026년 실제 `Election` / `ElectionSession` 기반 운영 당시의 배포 기록은
+`docs/archive/legacy_election/school_council_election_deploy_checklist.md`를 참고한다.
+이 역사 문서를 현재 production 운영 절차로 사용하지 않는다.
