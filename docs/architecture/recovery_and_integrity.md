@@ -241,6 +241,23 @@ participation, tally, progress, event를 보존하고 read-only 상세만 제공
 재투표는 기존 세션을 `stopped` 이력으로 남기고 replacement `draft` 세션에서
 새로 시작한다. 자세한 운영 정책은 `docs/specs/school_council_election.md`를 따른다.
 
+### PollSession runtime 복구와 terminal 일관성
+
+PollSession 교사 operation 화면과 학생 ballot 화면은 ActionCable/Turbo Stream을 primary 갱신
+수단으로 사용한다. 연결 단절이나 broadcast 누락에 대비한 10초 간격 polling은 DB 상태로 화면을
+수렴시키는 safety net이며, 정상 상태에는 `204 No Content`를 반환하고 stale 또는 terminal 상태일
+때만 필요한 작은 Turbo Stream 영역을 교체한다. 투표 중인 ballot form 전체는 교체하지 않아 학생이
+선택 중인 값을 잃지 않게 한다.
+
+페이지가 hidden이면 polling callback만 건너뛰지 않고 interval timer 자체를 중단한다. 다시 visible이
+되면 즉시 한 번 확인하고 interval을 재시작한다. 따라서 WebSocket이 끊긴 상태에서 오래 열린 교사
+시작 화면이나 학생 제출 화면도 서버의 terminal 상태로 안전하게 복귀한다.
+
+전교투표 전체 종료·중단은 관련 operation과 ballot 화면을 terminal 상태로 갱신한다. 원본 종료로
+실행 중인 child Test Poll을 강제 중단할 때도 ballot을 잠그고 terminal 상태를 broadcast하며, 이미
+closed인 Session의 상태와 결과는 변경하지 않는다. 화면의 실시간 전달 여부와 관계없이 DB 상태가
+최종 source of truth다.
+
 `Polls::ResumeCurrentVoter`는 매우 제한적인 복구 액션이다.
 진행 중인 선거에서 `PollProgress`이 active이고, `current_poll_participant`가 비어 있으며,
 다른 무결성 문제가 없고, 미처리 학생이 남아 있을 때만 첫 미처리 학생을 현재 참여자로 지정한다.
@@ -511,6 +528,13 @@ transaction 안에서 `PollProgress`를 lock한 뒤 DB의 현재 참여자를 �
 - 한 선거 후보에 `PollOptionTally`는 하나만 존재
 - 제출, 기권, 미참여, 다음 학생 진행, 종료는 lock 이후 현재 참여자를 다시 확인
 - 후속 `VoteSession` 도입 시 open/submitted session 중복 방지 제약 검토
+
+PollSession runtime의 동일 Session 대상 주요 동시 작업은 `PollSession`을 먼저 잠그고 필요한
+`PollProgress`를 뒤에 잠근다. Session 종료와 ballot 제출은 `Session -> Progress`, 전교투표 중단은
+`parent Poll -> current PollSessions(id 순) -> Progress` 순서를 따른다. 전교투표의 current Session
+scope는 LEFT OUTER JOIN을 포함하므로 직접 `FOR UPDATE`하지 않고, 먼저 id를 선정한 뒤 base
+`PollSession` relation을 id 순으로 잠근다. 이 순서는 PostgreSQL outer join 잠금 제한을 피하고,
+재투표의 `Poll -> source Session` 순서와도 parent Poll 경계를 기준으로 일관된다.
 
 ---
 

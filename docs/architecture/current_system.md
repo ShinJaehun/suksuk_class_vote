@@ -58,7 +58,7 @@ runtime은 Election ID 6의 historical Poll 변환과 검증이 끝날 때까지
 
 전교투표 관리자는 Poll 정의, 항목과 선택지, 여러 Classroom PollSession을 구성하고 전체 Poll을
 시작·종료한다. 담당 교사는 parent Poll이 in_progress가 된 뒤 자기 PollSession을 운영한다.
-학급투표 사진, 전교 non-election 이미지, 중단·replacement·재투표는 후속 작업이다.
+학급투표 사진과 전교 non-election 이미지는 후속 작업이다.
 
 ## 배포 저장소 정책
 
@@ -181,11 +181,20 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
   `Content missing`을 피하며 기존 lifecycle, action, redirect, snapshot, event와 권한 정책은 바꾸지 않는다.
 - PollSession의 고정 학생 투표 창, 교사 ballot open 승인, Contest별 단계 제출과 복구, count-only tally·완료 기록, 미참여 처리와 명시적 다음 학생 진행 구현
 - PollSession 명시적 종료와 현재 Session tally·시작 당시 snapshot 기반 결과/투표자 명단 구현
-- PollSession 교사 operation 화면 Turbo Stream 갱신과 polling fallback 구현
+- 일반 학급투표 PollSession 중단·stopped 이력 보존과 replacement Poll/PollSession 재투표,
+  전교투표 학급 Session의 stopped/closed source를 보존하는 replacement 재투표 구현
+- PollSession 교사 operation·학생 ballot 화면은 Turbo Stream을 우선 사용하고, 10초 간격의 가벼운
+  recovery polling으로 누락된 stale/terminal 상태만 DB 기준으로 복구한다. hidden tab에서는 timer를
+  중단하고, 다시 visible이 되면 즉시 확인한 뒤 재시작한다.
 - `Polls::SessionStatusCheck`의 draft/in_progress/closed 단계 점검과 실제 PollSession action service 차단 연결
 - `/school_polls` 전교투표 정의·항목·여러 Classroom 배정·전체 결과 관리 구현
 - 전교투표 전체 준비 점검과 명시적 시작·종료, `Poll.started_at`/`closed_at`, Poll-level event 기록 구현
 - 전교투표 parent가 in_progress일 때만 담당 교사가 draft PollSession을 시작하도록 제한
+- 전교투표 종료·중단 시 operation과 ballot을 terminal 상태로 동기화하며, child Test Poll 강제 중단도
+  ballot lock과 terminal 갱신을 수행하고 이미 closed인 Session 상태·결과는 보존한다.
+- 전교투표 batch lifecycle의 Session별 aggregate broadcast를 transaction 동안 합치고 완료 뒤 최종 상태를
+  broadcast한다. 전체 종료 readiness는 non-closed Session을 먼저 빠르게 거르고, 모두 closed일 때만
+  preload된 association을 재사용하는 최종 무결성 검사를 수행한다.
 
 ### 전교 election 후보 UI
 
@@ -215,8 +224,8 @@ Classroom Session을 배정한다. 현재 runtime 경계는 다음과 같다.
 2. legacy ParticipantGroup 기반 Poll runtime: 기존 기록 호환을 위해 별도 경로가 남아 있다.
 3. 기존 Election/ElectionSession runtime: Classroom/ParticipantGroup dual-source로 운영 기록을 호환한다.
 
-아직 PollSession 중단·stopped 운영 이력·replacement·재투표와 historical/read_only Poll은
-구현되지 않았다. Election ID 6의 historical Poll·후보 사진 변환도 미구현이며 운영 데이터에는
+PollSession 중단·stopped 운영 이력과 일반·전교투표 replacement 재투표는 구현됐다.
+historical/read_only Poll과 Election ID 6의 historical Poll·후보 사진 변환은 미구현이며 운영 데이터에는
 Classroom 변환 task조차 아직 적용하지 않았다. 신규/legacy Poll runtime 서버 측 분리, 운영 Poll
 보존 범위 조사와 PollSession backfill 뒤 Election runtime/table과 ParticipantGroup·ParticipantSlot
 제거를 판단한다.
@@ -243,7 +252,7 @@ Classroom 변환 task조차 아직 적용하지 않았다. 신규/legacy Poll ru
 Session tally만 포함한다.
 
 기존 Election ID 6은 추후 historical Poll로 변환하고 검증한 뒤 Election runtime과 table을
-제거한다. 재투표와 historical/read_only 상태는 변환 전에 별도 구현한다.
+제거한다. historical/read_only 상태는 변환 전에 별도 구현한다.
 
 ---
 
@@ -308,15 +317,14 @@ Session tally만 포함한다.
 
 1. 운영 백업 복원본에서 Election ID 6 Classroom 변환 dry-run
 2. `APPLY=1` 리허설과 invariant·화면 결과 검산
-3. PollSession 중단·stopped·replacement·재투표
-4. historical/read_only 기반
-5. Election ID 6 historical Poll 변환과 후보 사진 이관
-6. 운영 DB의 기존 Poll 보존 범위 조사
-7. 필요한 legacy Poll의 PollSession backfill
-8. 신규 PollSession runtime과 legacy ParticipantGroup Poll runtime 분리
-9. Election runtime과 table 제거
-10. ParticipantGroup·ParticipantSlot 제거
-11. 전체 데이터 검산과 운영 전환
+3. historical/read_only 기반
+4. Election ID 6 historical Poll 변환과 후보 사진 이관
+5. 운영 DB의 기존 Poll 보존 범위 조사
+6. 필요한 legacy Poll의 PollSession backfill
+7. 신규 PollSession runtime과 legacy ParticipantGroup Poll runtime 분리
+8. Election runtime과 table 제거
+9. ParticipantGroup·ParticipantSlot 제거
+10. 전체 데이터 검산과 운영 전환
 
 현재 구현된 복구/무결성 화면:
 
