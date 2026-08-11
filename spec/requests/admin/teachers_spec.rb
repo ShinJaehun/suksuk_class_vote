@@ -48,6 +48,7 @@ RSpec.describe "Admin teachers", type: :request do
       expect(response.body).not_to include("초기 비밀번호는 별도로 교사에게 안내하세요.")
       expect(response.body).to include("초기 비밀번호")
       expect(response.body).to include("초기 비밀번호 확인")
+      expect(response.body).to include("로그인 ID", "이메일 (선택)")
       expect(response.body).to include("선생님 계정 생성")
       expect(response.body).to include("선생님 목록으로 돌아가기")
     end
@@ -61,6 +62,7 @@ RSpec.describe "Admin teachers", type: :request do
         post admin_teachers_path, params: {
           user: {
             name: "차단된 생성",
+            login_id: "blocked-teacher",
             email: "blocked-teacher@example.com",
             password: "password123!",
             password_confirmation: "password123!"
@@ -82,6 +84,7 @@ RSpec.describe "Admin teachers", type: :request do
         school_id: school.id,
         user: {
           name: "입력 유지 교사",
+          login_id: "invalid-teacher",
           email: "invalid-teacher@example.com",
           password: "password123!",
           password_confirmation: "different-password"
@@ -105,15 +108,18 @@ RSpec.describe "Admin teachers", type: :request do
         post admin_teachers_path, params: {
           user: {
             name: "새 교사",
-            email: "new-teacher@example.com",
+            login_id: "new-teacher",
+            email: nil,
             password: "password123!",
             password_confirmation: "password123!"
           }
         }
       end.to change(User.teacher, :count).by(1)
 
-      teacher = User.find_by!(email: "new-teacher@example.com")
+      teacher = User.find_by!(login_id: "new-teacher")
       expect(teacher).to be_teacher
+      expect(teacher.email).to be_nil
+      expect(teacher).to be_password_change_required
       expect(response).to redirect_to(admin_teachers_path)
     end
 
@@ -128,6 +134,7 @@ RSpec.describe "Admin teachers", type: :request do
           role: "manager",
           user: {
             name: "학교 소속 교사",
+            login_id: "school-teacher",
             email: "school-teacher@example.com",
             password: "password123!",
             password_confirmation: "password123!"
@@ -147,6 +154,7 @@ RSpec.describe "Admin teachers", type: :request do
         post admin_teachers_path, params: {
           user: {
             name: "권한 상승 시도",
+            login_id: "role-forced",
             email: "role-forced@example.com",
             password: "password123!",
             password_confirmation: "password123!",

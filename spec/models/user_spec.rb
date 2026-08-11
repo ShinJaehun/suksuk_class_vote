@@ -36,6 +36,40 @@ RSpec.describe User, type: :model do
       expect(user).not_to be_valid
       expect(user.errors[:name]).to be_present
     end
+
+    it "normalizes and requires a case-insensitively unique login id" do
+      create(:user, login_id: "tara0401")
+      user = build(:user, login_id: " TARA0401 ")
+
+      expect(user).not_to be_valid
+      expect(user.login_id).to eq("tara0401")
+      expect(user.errors[:login_id]).to be_present
+    end
+
+    it "allows a teacher without email" do
+      expect(build(:user, email: nil)).to be_valid
+    end
+
+    it "requires email for an admin" do
+      admin = build(:user, :admin, email: nil)
+
+      expect(admin).not_to be_valid
+      expect(admin.errors[:email]).to be_present
+    end
+
+    it "normalizes an optional email and stores blank teacher email as nil" do
+      teacher = build(:user, email: " ")
+
+      expect(teacher).to be_valid
+      expect(teacher.email).to be_nil
+    end
+
+    it "rejects a password equal to the login id" do
+      user = build(:user, login_id: "tara0401", password: "tara0401", password_confirmation: "tara0401")
+
+      expect(user).not_to be_valid
+      expect(user.errors[:password]).to include("는 로그인 ID와 달라야 합니다")
+    end
   end
 
   describe "school associations" do

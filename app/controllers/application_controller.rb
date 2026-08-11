@@ -1,6 +1,7 @@
 class ApplicationController < ActionController::Base
   include Pundit::Authorization
   rescue_from Pundit::NotAuthorizedError, with: :user_not_authorized
+  before_action :enforce_password_change
 
   # Only allow modern browsers supporting webp images, web push, badges, import maps, CSS nesting, and CSS :has.
   allow_browser versions: :modern
@@ -11,7 +12,17 @@ class ApplicationController < ActionController::Base
   private
 
   def after_sign_in_path_for(resource)
+    return edit_password_change_path if resource.password_change_required?
+
     default_landing_path_for(resource)
+  end
+
+  def enforce_password_change
+    return unless user_signed_in? && current_user.password_change_required?
+    return if controller_path == "password_changes"
+    return if devise_controller? && controller_name == "sessions" && action_name == "destroy"
+
+    redirect_to edit_password_change_path, alert: "비밀번호를 먼저 변경해 주세요."
   end
 
   def user_not_authorized

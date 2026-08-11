@@ -17,7 +17,10 @@
           <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div class="space-y-1">
               <h2 class="text-lg font-semibold"><%= teacher.name.presence || "이름 없음" %></h2>
-              <p class="text-sm text-stone-600"><%= teacher.email %></p>
+              <p class="text-sm text-stone-600">로그인 ID <%= teacher.login_id %></p>
+              <% if teacher.email.present? %>
+                <p class="text-sm text-stone-600">이메일 <%= teacher.email %></p>
+              <% end %>
               <p class="text-sm text-stone-600">소속 학교 <%= teacher.school&.name || "미소속" %> · 학교 역할 <%= teacher.school_membership&.manager? ? "대표 선생님" : (teacher.school_membership.present? ? "일반 선생님" : "-") %></p>
               <p class="text-sm text-stone-600">담당 교실 <%= teacher.classrooms.any? ? teacher.classrooms.map { |classroom| "#{classroom.school_year}학년도 #{classroom.grade}학년 #{classroom.formatted_class_label}" }.join(", ") : "없음" %></p>
             </div>

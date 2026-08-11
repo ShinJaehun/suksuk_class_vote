@@ -1,7 +1,7 @@
 module Admin
   class TeachersController < BaseController
     def index
-      @teachers = User.teacher.includes(:school, :school_membership, :classrooms).order(:name, :email)
+      @teachers = User.teacher.includes(:school, :school_membership, :classrooms).order(:name, :login_id)
     end
 
     def new
@@ -12,6 +12,7 @@ module Admin
     def create
       @teacher = User.new(teacher_params)
       @teacher.role = :teacher
+      @teacher.password_change_required = true
       @school = School.find_by(id: params[:school_id])
 
       if params[:school_id].present? && @school.blank?
@@ -38,7 +39,7 @@ module Admin
     private
 
     def teacher_params
-      params.require(:user).permit(:name, :email, :password, :password_confirmation)
+      params.require(:user).permit(:name, :login_id, :email, :password, :password_confirmation)
     end
 
     def prepare_schools
