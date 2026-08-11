@@ -23,7 +23,7 @@ Election과 Poll 양쪽의 의존을 모두 제거하여 `ParticipantGroup`·`Pa
 | 모델 | 현재 책임과 association | 상태·제약·삭제 |
 | --- | --- | --- |
 | `Poll` | `user`, optional `participant_group`; contests, options, participants, tallies, events, progress 소유 | `draft/in_progress/closed/stopped`; draft·stopped·미보관 closed만 삭제 가능; 삭제 시 하위 실행 기록 cascade |
-| `PollSession` | `poll`, `classroom`, 실제 `operator`, 학급·운영자 이름 snapshot | `draft/in_progress/closed/stopped`; 시작·감독형 진행·종료·결과 runtime 사용; 중단/replacement는 미구현 |
+| `PollSession` | `poll`, `classroom`, 실제 `operator`, 학급·운영자 이름 snapshot | `draft/in_progress/closed/stopped`; 시작·감독형 진행·종료·결과·중단과 stopped 이력 보존 사용; replacement 재투표 구현 |
 | `ParticipantGroup` | `user`, optional `school`, many slots/polls | Poll은 `teacher_personal` group만 생성 UI에서 선택; draft Poll이 사용 중이면 group 삭제 차단 |
 | `ParticipantSlot` | group의 번호·이름 명단 row | group 내 number unique; PollParticipant의 optional source, slot 삭제 시 FK `ON DELETE SET NULL` |
 | `PollParticipant` | Poll 시작 시 number·name snapshot, optional `source_participant_slot`, optional `poll_session` | legacy poll 또는 PollSession 안에서 number unique; participation/event/progress의 실행 기준 |
@@ -271,6 +271,10 @@ foundation rollback은 PollSession row가 있으면 기록 삭제 대신 명시�
 Classroom PollSession을 배정한다. 전교 Poll 전체 시작·종료와 closed Session만 포함한 전체 결과
 집계도 현재 구현됐다.
 
+신규 PollSession 중단과 stopped 운영 이력 보존, 일반 학급투표의 replacement Poll/PollSession
+재투표, 전교투표 학급 Session의 replacement 재투표도 구현됐다. source stopped/closed Session은
+운영 이력으로 보존한다.
+
 ### 단계 6: 기존 Poll 데이터 전환
 
 보존할 Poll 범위는 repository만으로 확정할 수 없다. **운영 백업의 Poll 목록·상태·
@@ -304,15 +308,14 @@ Classroom PollSession을 배정한다. 전교 Poll 전체 시작·종료와 clos
 
 1. 운영 백업 복원본에서 Election ID 6 Classroom 변환 dry-run을 수행한다.
 2. `APPLY=1` 리허설과 invariant·화면 결과를 검산한다.
-3. PollSession 중단·stopped 이력·replacement session·재투표를 구현한다.
-4. historical/read_only 기반을 구현한다.
-5. Election ID 6을 historical Poll로 변환하고 후보 사진을 이관한다. Classroom 변환과는 별도 작업이다.
-6. 운영 DB의 기존 Poll 보존 범위를 조사한다.
-7. 필요한 legacy Poll을 PollSession으로 backfill한다.
-8. 신규 Classroom/PollSession runtime과 legacy ParticipantGroup Poll runtime을 서버 측에서 분리한다.
-9. 검증된 historical Poll 변환 뒤 Election runtime과 table을 제거한다.
-10. 전환 검증 뒤 ParticipantGroup·ParticipantSlot을 제거한다.
-11. 전체 데이터를 검산하고 운영 전환한다.
+3. historical/read_only 기반을 구현한다.
+4. Election ID 6을 historical Poll로 변환하고 후보 사진을 이관한다. Classroom 변환과는 별도 작업이다.
+5. 운영 DB의 기존 Poll 보존 범위를 조사한다.
+6. 필요한 legacy Poll을 PollSession으로 backfill한다.
+7. 신규 Classroom/PollSession runtime과 legacy ParticipantGroup Poll runtime을 서버 측에서 분리한다.
+8. 검증된 historical Poll 변환 뒤 Election runtime과 table을 제거한다.
+9. 전환 검증 뒤 ParticipantGroup·ParticipantSlot을 제거한다.
+10. 전체 데이터를 검산하고 운영 전환한다.
 
 전환기에는 `Poll#poll_progress`, `PollOption#poll_option_tally`,
 `PollContest#poll_contest_tally` 단수 association이 legacy Poll runtime을 위해 남아 있다.
@@ -437,9 +440,9 @@ invariant로 만들지 않는다.
    1단계에서 확정해야 한다.
 7. **PollSession 이관 순서**: 신규 PollSession runtime과 기존 Poll runtime이 함께 존재한다.
    신규/legacy 서버 측 분리와 필요한 backfill·invariant 검증 없이 legacy runtime을 제거하지 않는다.
-8. **재투표 없음**: stopped Poll은 terminal이며 replacement/revote 관계도 없다.
-   `ResumeCurrentParticipant`는 in_progress pointer 복구일 뿐이다. Poll 재투표는 이 전환의 숨은 요구로
-   추가하지 않는다.
+8. **재투표 이력 보존**: 일반 학급투표와 전교투표 학급 Session의 replacement 재투표는
+   source stopped/closed Session을 운영 이력으로 보존한다. 같은 Session 안의 개별 학생 선택 재투표와
+   `ResumeCurrentParticipant`의 in_progress pointer 복구는 별개다.
 
 ### 낮음
 

@@ -16,7 +16,7 @@
 
 ## 1. 문서의 목적과 지위
 
-이 문서는 새 학교 조직 구조인 `Classroom`·향후 `Student`와 기존 명단 구조인
+이 문서는 새 학교 조직 구조인 `Classroom`·`Student`와 기존 명단 구조인
 `ParticipantGroup`·`ParticipantSlot`의 전환 정책을 확정하는 canonical architecture
 문서다. 최종 원본, snapshot 보존, 데이터 매핑과 legacy 명단 제거 순서를 정의한다.
 
@@ -26,7 +26,7 @@ association이나 table을 제거하지 않는다.
 
 ## 2. 현재 구조와 의존성
 
-현재 두 구조는 서로 직접 연결되지 않는다.
+현재 신규 runtime과 legacy runtime은 다음 경계로 함께 존재한다.
 
 ```text
 새 조직 구조                     현재 명단·투표 구조
@@ -36,26 +36,26 @@ School                           ParticipantGroup
 ```
 
 `Classroom`은 학교, 학년도, 학년, 반과 선택적 담임을 표현하고 `Student`는 해당
-학년도의 학생 명단을 가진다. Poll·Election runtime은 아직 `Classroom`을 참조하지 않는다.
+학년도의 학생 명단을 가진다. 신규 PollSession은 Classroom의 active Student를 시작 시
+snapshot으로 사용한다. ElectionSession은 Classroom 또는 기존 ParticipantGroup 중 정확히 하나를
+명단 source로 사용한다. Classroom 기반 session은 active Student를, legacy ParticipantGroup 기반
+session은 ParticipantSlot을 읽어 ElectionVoter snapshot을 만든다.
 
 `ParticipantGroup`은 `User`가 소유하며 일반 교사 명단과 학교 선거 명단을 구분한다.
 `ParticipantSlot`은 그룹 안에서 유일한 번호와 이름을 가진다. 현재 의존성은 다음과
 같다.
 
-- Poll 생성 화면과 권한은 교사가 소유한 `ParticipantGroup`을 선택한다.
-- `Polls::Start`는 그룹의 `ParticipantSlot`을 번호순으로 읽어 `PollParticipant`를
+- legacy Poll 생성·실행 경로는 교사가 소유한 `ParticipantGroup`을 사용한다.
+- legacy `Polls::Start`는 그룹의 `ParticipantSlot`을 번호순으로 읽어 `PollParticipant`를
   생성한다. `PollParticipant`는 번호와 이름 snapshot 및 선택적 원본 slot 참조를
   가진다.
-- `ElectionSession`은 `ParticipantGroup`을 필수 참조하며 학교 선거 목적 그룹만
-  허용한다. 세션 배정, 교사 소유권 검증과 관리자 명단 화면도 이 연결을 사용한다.
-- `Elections::StartSession`은 그룹의 slot을 번호순으로 읽어 `ElectionVoter`와
-  `ElectionParticipation`을 만든다. `ElectionVoter`는 번호, 이름, 순서와 선택적
-  원본 slot 참조를 가진다.
+- Classroom 기반 ElectionSession은 active Student를, legacy ElectionSession은 ParticipantSlot을
+  사용해 ElectionVoter snapshot을 만든다.
 - Poll과 Election의 controller, service, view, policy, factory와 spec 전반이 기존
   명단 구조에 의존한다. seed나 별도 import·운영 script의 직접 의존은 확인되지 않았다.
 
-따라서 `Student` 추가만으로 `ParticipantGroup`을 제거할 수 없다. 특히 필수
-`ElectionSession.participant_group_id`와 새 투표 생성·시작 경로를 먼저 전환해야 한다.
+따라서 신규 runtime 전환이 끝났더라도 legacy Poll 보존 범위 조사와 필요한 PollSession backfill,
+Election ID 6 변환과 legacy runtime 분리가 끝나기 전에는 ParticipantGroup·ParticipantSlot을 제거할 수 없다.
 
 ## 3. 최종 원본 구조
 
@@ -137,8 +137,8 @@ source 연결을 Poll 전환 단계에서 설계한다.
 - 시작 뒤 Student 이름, 출석번호나 학급이 바뀌어도 ElectionVoter의 번호, 이름과
   순서는 유지한다.
 
-현재 ElectionSession은 ParticipantGroup을 필수 참조하고 ElectionVoter는 선택적으로
-ParticipantSlot을 참조한다. 제거 전에 다음 중간 경계를 마련한다.
+현재 ElectionSession은 Classroom 또는 ParticipantGroup 중 정확히 하나를 직접 source로 사용하는
+dual-source 상태다. 신규 세션 전환은 완료됐으며 제거 전에는 다음 경계를 마무리한다.
 
 1. 새 세션의 대상과 교사 검증을 Classroom 기준으로 전환한다.
 2. 새 voter 생성 원본을 Student로 전환한다.
@@ -202,14 +202,14 @@ class_label
 - Student factory와 model spec 추가
 - 기존 Poll/Election runtime 유지
 
-### 3단계 — 기존 명단 import 또는 backfill
+### 3단계 — Election 변환 도구 구현, 운영 적용·legacy Poll backfill 미완료
 
 - ParticipantGroup에서 Classroom으로의 명시적 mapping
 - ParticipantSlot에서 Student 생성
 - 모호한 데이터 보고
 - 기존 Poll과 Election 기록 유지
 
-### 4단계 — Election 명단 전환
+### 4단계 — 신규 Election 명단 생성 경로 전환 — 완료
 
 - 새 ElectionSession이 Classroom을 참조
 - Classroom의 Student에서 ElectionVoter snapshot 생성
@@ -219,23 +219,24 @@ class_label
 ElectionSession과 voter snapshot의 구체적인 호환 구조 및 전환 순서는
 `docs/architecture/election_classroom_cutover_plan.md`를 따른다.
 
-### 5단계 — Poll 명단 전환
+### 5단계 — 신규 Poll 명단 생성 경로 전환 — 완료
 
 - 새 Poll이 Classroom의 Student에서 PollParticipant snapshot 생성
 - 기존 Poll 데이터 보존
 - ParticipantGroup 기반 새 Poll 생성 중단
 
-### 6단계 — legacy 명단 제거
+### 현재 남은 전환 순서
 
-- runtime 참조 재검색
-- controller, service, view, policy, factory와 spec 정리
-- ParticipantGroup·ParticipantSlot 제거 migration 작성
-- 기존 생성 migration 보존
-- 전체 테스트와 브라우저 운영 시나리오 확인
-
-ElectionSession의 필수 ParticipantGroup 의존이 Poll의 optional 연결보다 강하므로
-Election을 먼저 전환한다. 두 콘텐츠의 새 생성 경로와 역사 기록 조회가 모두 기존
-명단 없이 동작하기 전에는 6단계를 시작하지 않는다.
+1. 운영 백업 복원본에서 Election ID 6 Classroom 변환 dry-run
+2. `APPLY=1` 리허설과 invariant·화면 결과 검산
+3. historical/read_only 기반
+4. Election ID 6 historical Poll 변환과 후보 사진 이관
+5. 운영 DB의 기존 Poll 보존 범위 조사
+6. 필요한 legacy Poll의 PollSession backfill
+7. 신규 PollSession runtime과 legacy ParticipantGroup Poll runtime 분리
+8. Election runtime과 table 제거
+9. ParticipantGroup·ParticipantSlot 제거
+10. 전체 데이터 검산과 운영 전환
 
 ## 10. 금지 사항
 

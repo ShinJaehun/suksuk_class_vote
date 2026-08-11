@@ -16,8 +16,9 @@
 보존하는 기준을 정한다. 이 서비스는 학생의 장기 학적, 진급, 전학 이력을
 관리하는 학교 행정 시스템이 아니다.
 
-`Student`는 아직 Poll·Election runtime의 원본 명단으로 사용되지 않는다.
-기존 `ParticipantGroup`·`ParticipantSlot` 전환은
+신규 PollSession은 active Student 명단을 시작 시 snapshot으로 복사하며, Classroom 기반
+ElectionSession도 Student를 명단 원본으로 사용할 수 있다. 기존 `ParticipantGroup`·`ParticipantSlot`
+legacy 경로의 전환은
 `docs/architecture/classroom_participant_group_transition.md`를 따른다.
 
 ## 2. Classroom과 Student의 의미
@@ -58,7 +59,7 @@ Student.active
 사용하지 않는다는 뜻이다. 학교 전체 재학 상태, 진급, 전학 이력 또는 다음
 학년도 등록 여부를 나타내지 않는다.
 
-향후 현재 운영 명단은 `Classroom.active = true`와 `Student.active = true`를
+현재 운영 명단은 `Classroom.active = true`와 `Student.active = true`를
 모두 만족하는 학생으로 구성한다.
 
 ## 3. 새 학년도 운영
@@ -105,8 +106,8 @@ Student의 번호도 재사용하지 않으며, 다른 번호를 가진 동명�
 
 ## 6. Poll·Election snapshot
 
-Student는 향후 새 Poll·Election 명단의 원본이 된다. 활동 시작 시 Student의
-번호와 이름을 `PollParticipant` 또는 `ElectionVoter` snapshot으로 복사한다.
+Student는 신규 PollSession과 Classroom 기반 ElectionSession 명단의 원본이다. 활동 시작 시 active
+Student의 번호와 이름을 `PollParticipant` 또는 `ElectionVoter` snapshot으로 복사한다.
 
 - 시작 후 Student의 이름, 번호 또는 active가 바뀌어도 기존 snapshot은 바꾸지 않는다.
 - 완료되거나 중단된 Poll·Election 기록을 Student 현재값으로 다시 작성하지 않는다.
