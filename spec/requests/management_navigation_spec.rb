@@ -6,7 +6,7 @@ RSpec.describe "Management navigation", type: :request do
   it "shows School, Classroom, and Teacher resources to global admin" do
     sign_in create(:user, :admin)
     get polls_path
-    expect(response.body).to include(%(href="#{schools_path}"), %(href="#{classrooms_path}"), %(href="#{admin_teachers_path}"))
+    expect(response.body).to include(%(href="#{schools_path}"), %(href="#{classrooms_path}"), %(href="#{teachers_path}"))
     expect(response.body).not_to include("학교 교사", "교사 관리", "School.order")
   end
 
@@ -16,7 +16,7 @@ RSpec.describe "Management navigation", type: :request do
     create(:school_membership, :manager, school: school, user: manager)
     sign_in manager
     get polls_path
-    expect(response.body).to include(%(href="#{schools_path}"), %(href="#{classrooms_path}"), %(href="#{school_teacher_memberships_path(school)}"))
+    expect(response.body).to include(%(href="#{schools_path}"), %(href="#{classrooms_path}"), %(href="#{teachers_path}"))
   end
 
   it "shows only Classroom management to a regular teacher" do

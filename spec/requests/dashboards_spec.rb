@@ -31,7 +31,7 @@ RSpec.describe "Dashboards", type: :request do
 
       get root_path
 
-      expect(response).to redirect_to(admin_teachers_path)
+      expect(response).to redirect_to(teachers_path)
     end
   end
 
@@ -61,7 +61,7 @@ RSpec.describe "Dashboards", type: :request do
 
       get dashboard_path
 
-      expect(response).to redirect_to(admin_teachers_path)
+      expect(response).to redirect_to(teachers_path)
     end
   end
 end

@@ -51,13 +51,9 @@
               <%= link_to "교실",
                           classrooms_path,
                           class: "text-sm text-stone-600 hover:text-stone-900" %>
-              <% if current_user.admin? %>
+              <% if current_user.admin? || current_user.school_membership&.manager? %>
                 <%= link_to "선생님",
-                            admin_teachers_path,
-                            class: "text-sm text-stone-600 hover:text-stone-900" %>
-              <% elsif current_user.school_membership&.manager? %>
-                <%= link_to "선생님",
-                            school_teacher_memberships_path(current_user.school_membership.school),
+                            teachers_path,
                             class: "text-sm text-stone-600 hover:text-stone-900" %>
               <% end %>
               <% if current_user.admin? %>

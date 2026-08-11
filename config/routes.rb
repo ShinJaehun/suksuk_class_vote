@@ -80,6 +80,7 @@ Rails.application.routes.draw do
       end
     end
   end
+  resources :teachers, only: %i[index new create]
   resources :schools, only: %i[index show new create edit update] do
     resources :teacher_memberships,
               path: "teachers",
@@ -138,7 +139,6 @@ Rails.application.routes.draw do
         resources :election_candidates, path: "candidates", only: %i[new create edit update destroy]
       end
     end
-    resources :teachers, only: %i[index new create]
   end
 
   root "dashboards#show"

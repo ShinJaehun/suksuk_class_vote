@@ -543,7 +543,7 @@ RSpec.describe "Admin election sessions", type: :request do
         post revote_admin_election_election_session_path(old_session.election, old_session)
       end.not_to change(ElectionSession, :count)
 
-      expect(response).to redirect_to(admin_teachers_path)
+      expect(response).to redirect_to(teachers_path)
       expect(old_session.reload).to be_closed
     end
 

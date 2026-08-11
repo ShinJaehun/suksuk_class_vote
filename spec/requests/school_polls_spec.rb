@@ -885,7 +885,7 @@ RSpec.describe "School Poll management", type: :request do
         expect(headings).not_to include("전교투표 삭제")
 
         delete school_poll_path(poll), params: { confirmation_title: poll.title }
-        expect(response).to redirect_to(admin_teachers_path)
+        expect(response).to redirect_to(teachers_path)
         expect(poll.reload).to be_persisted
       end
     end

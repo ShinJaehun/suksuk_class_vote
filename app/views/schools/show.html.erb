@@ -90,12 +90,9 @@
       <p class="text-sm text-stone-500"><%= @memberships.size %>명</p>
     </div>
     <div class="flex gap-3 text-sm font-medium">
-      <%= link_to "선생님 전체 보기", school_teacher_memberships_path(@school), class: "underline" %>
-      <% if current_user.admin? %>
-        <%= link_to "선생님 추가", new_admin_teacher_path(school_id: @school.id), class: "underline" %>
-      <% else %>
-        <%= link_to "선생님 추가", new_school_teacher_membership_path(@school), class: "underline" %>
-      <% end %>
+      <%= link_to "선생님 전체 보기", teachers_path(school_id: @school.id), class: "underline" %>
+      <%= link_to "선생님 추가", new_teacher_path(school_id: @school.id), class: "underline" %>
+      <%= link_to "학교 소속 관리", school_teacher_memberships_path(@school), class: "underline" %>
     </div>
   </div>
   <% if @memberships.any? %>

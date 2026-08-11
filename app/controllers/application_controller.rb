@@ -30,6 +30,6 @@ class ApplicationController < ActionController::Base
   end
 
   def default_landing_path_for(user)
-    user&.admin? ? admin_teachers_path : polls_path
+    user&.admin? ? teachers_path : polls_path
   end
 end
