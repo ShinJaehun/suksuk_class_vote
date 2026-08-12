@@ -1,7 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = ["row", "count", "submit", "selection", "selectAll", "operationSubmit", "selectionCount"]
+  static targets = ["row", "count", "submit", "selection", "selectAll", "operationSubmit", "gradeSubmit", "gradeReason", "selectionCount"]
 
   connect() {
     this.submitting = false
@@ -96,7 +96,10 @@ export default class extends Controller {
 
   updateSelection() {
     const selected = this.selectionTargets.filter((checkbox) => checkbox.checked).length
+    const gradeIneligible = this.selectionTargets.some((checkbox) => checkbox.checked && checkbox.dataset.gradeEligible !== "true")
     this.operationSubmitTargets.forEach((button) => { button.disabled = selected === 0 })
+    this.gradeSubmitTargets.forEach((button) => { button.disabled = selected === 0 || gradeIneligible })
+    this.gradeReasonTargets.forEach((reason) => reason.classList.toggle("hidden", !gradeIneligible))
     if (this.hasSelectionCountTarget) this.selectionCountTarget.textContent = `${selected}명 선택`
     if (this.hasSelectAllTarget) {
       this.selectAllTarget.checked = selected > 0 && selected === this.selectionTargets.length

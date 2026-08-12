@@ -1,4 +1,4 @@
-<%= form_with model: classroom, class: "space-y-5 rounded-md border border-stone-200 bg-white p-6" do |form| %>
+<%= form_with model: classroom, class: "space-y-5 rounded-md border border-stone-200 bg-white p-6", data: { controller: "classroom-management" } do |form| %>
   <% if classroom.errors.any? %>
     <div class="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
       <ul class="list-disc pl-5">
@@ -9,64 +9,59 @@
     </div>
   <% end %>
 
-  <div>
-    <%= form.label :school_id, "학교", class: "block text-sm font-medium" %>
-    <% if current_user.admin? && classroom.new_record? %>
-      <%= form.collection_select :school_id, @schools, :id, :name, { prompt: "학교 선택" }, class: "mt-1 w-full rounded-md border-stone-300" %>
-    <% else %>
-      <p class="mt-1 rounded-md bg-stone-100 px-3 py-2"><%= classroom.school&.name || "학교 미지정" %></p>
-    <% end %>
-  </div>
-
-  <div class="grid gap-4 sm:grid-cols-3">
+  <div data-classroom-management-target="row">
+    <%= hidden_field_tag :school_context, true if @school_context %>
+    <%= hidden_field_tag :return_grade, params[:return_grade] if @school_context %>
     <div>
-      <%= form.label :school_year, "학년도", class: "block text-sm font-medium" %>
-      <%= form.number_field :school_year, class: "mt-1 w-full rounded-md border-stone-300" %>
-    </div>
-    <div>
-      <%= form.label :grade, "학년", class: "block text-sm font-medium" %>
-      <%= form.number_field :grade, min: 1, class: "mt-1 w-full rounded-md border-stone-300" %>
-    </div>
-    <div>
-      <%= form.label :class_label, "학급", class: "block text-sm font-medium" %>
-      <%= form.text_field :class_label,
-                          placeholder: "예: 1, 13, 생활교육실, A",
-                          class: "mt-1 w-full rounded-md border-stone-300" %>
-    </div>
-  </div>
-
-  <div>
-    <%= form.label :teacher_id, "담임", class: "block text-sm font-medium" %>
-    <% if classroom.school.present? && (current_user.admin? || current_user.school_membership&.manager?) %>
-      <p class="mb-2 text-xs text-stone-500">
-        <%= link_to "선생님 관리", school_teacher_memberships_path(classroom.school), class: "underline" %>에서 담임 후보를 추가할 수 있습니다.
-      </p>
-    <% end %>
-    <% if current_user.admin? || current_user.school_membership&.manager? %>
-      <% teacher_options = @teachers.map { |teacher| [current_user.admin? ? "#{teacher.school.name} · #{teacher.name}" : teacher.name, teacher.id] } %>
-      <%= form.select :teacher_id, options_for_select(teacher_options, classroom.teacher_id), { include_blank: "담임 미지정" }, class: "mt-1 w-full rounded-md border-stone-300" %>
-      <% if @teachers.empty? %>
-        <p class="mt-2 text-sm text-amber-700">해당 학교 소속 선생님이 없습니다. 선생님 관리에서 먼저 선생님을 추가해 주세요.</p>
+      <%= form.label :school_id, "학교", class: "block text-sm font-medium" %>
+      <% if current_user.admin? && classroom.new_record? && !@school_context %>
+        <%= form.collection_select :school_id, @schools, :id, :name, { prompt: "학교 선택" }, class: "mt-1 w-full rounded-md border-stone-300", data: { classroom_management_target: "school", action: "change->classroom-management#filterTeachers" } %>
+      <% else %>
+        <p class="mt-1 rounded-md bg-stone-100 px-3 py-2"><%= classroom.school&.name || "학교 미지정" %></p>
+        <%= form.hidden_field :school_id if current_user.admin? && classroom.new_record? %>
       <% end %>
-      <% if current_user.admin? %>
-        <p class="mt-1 text-xs text-stone-500">교사의 소속 학교와 선택한 학교가 같아야 합니다.</p>
+    </div>
+
+    <div class="mt-5 grid gap-4 sm:grid-cols-2">
+      <div>
+        <%= form.label :grade, "학년", class: "block text-sm font-medium" %>
+        <%= form.select :grade, options_for_select(1.upto(6).map { |grade| ["#{grade}학년", grade] }, classroom.grade), { prompt: "학년 선택" }, class: "mt-1 w-full rounded-md border-stone-300", data: { classroom_management_target: "grade", action: "change->classroom-management#filterTeachers" } %>
+      </div>
+      <div>
+        <%= form.label :class_label, "학급", class: "block text-sm font-medium" %>
+        <%= form.text_field :class_label, placeholder: "예: 1, 13, 생활교육실, A", class: "mt-1 w-full rounded-md border-stone-300" %>
+      </div>
+    </div>
+
+    <div class="mt-5">
+      <%= form.label :teacher_id, "담임", class: "block text-sm font-medium" %>
+      <% if current_user.admin? || current_user.school_membership&.manager? %>
+        <select name="classroom[teacher_id]" class="mt-1 w-full rounded-md border-stone-300" data-classroom-management-target="teacher">
+          <option value="">미배정</option>
+          <% @teachers.each do |teacher| %>
+            <% current_assignment = teacher.id == classroom.teacher_id %>
+            <% available = current_assignment || (teacher.active? && teacher.active_classroom.nil? && teacher.school_membership&.grade == classroom.grade && teacher.school_membership&.school_id == classroom.school_id) %>
+            <option value="<%= teacher.id %>" data-school-id="<%= teacher.school_membership&.school_id %>" data-grade="<%= teacher.school_membership&.grade %>" data-classroom-id="<%= teacher.active_classroom&.id %>" <%= "selected" if current_assignment %> <%= "hidden disabled" unless available %>><%= current_user.admin? ? "#{teacher.school.name} · #{teacher.name}" : teacher.name %></option>
+          <% end %>
+        </select>
+      <% else %>
+        <p class="mt-1 rounded-md bg-stone-100 px-3 py-2"><%= classroom.teacher&.name || "미배정" %></p>
       <% end %>
-    <% else %>
-      <p class="mt-1 rounded-md bg-stone-100 px-3 py-2"><%= classroom.teacher&.name || "담임 미지정" %></p>
-    <% end %>
-  </div>
+    </div>
 
-  <div>
-    <% if current_user.admin? || current_user.school_membership&.manager? %>
-      <label class="inline-flex items-center gap-2">
-        <%= form.check_box :active %>
-        <span class="text-sm font-medium">활성 교실</span>
-      </label>
-    <% else %>
-      <p class="text-sm font-medium">상태: <%= classroom.active? ? "활성" : "비활성" %></p>
+    <% unless classroom.new_record? %>
+      <div class="mt-5">
+        <% if current_user.admin? || current_user.school_membership&.manager? %>
+          <label class="inline-flex items-center gap-2">
+            <%= form.check_box :active %>
+            <span class="text-sm font-medium">활성 교실</span>
+          </label>
+        <% else %>
+          <p class="text-sm font-medium">상태: <%= classroom.active? ? "활성" : "비활성" %></p>
+        <% end %>
+      </div>
     <% end %>
-  </div>
 
-  <%= form.submit classroom.new_record? ? "교실 생성" : "설정 저장",
-                  class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+    <%= form.submit classroom.new_record? ? "교실 생성" : "설정 저장", class: "mt-5 rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+  </div>
 <% end %>

@@ -1,0 +1,8 @@
+<% if policy(classroom).manage_lifecycle? %>
+  <%= link_to classroom.active? ? "활성" : "비활성",
+              classroom.active? ? deactivate_classroom_path(classroom, school_id: @school.id, grade: @grade) : reactivate_classroom_path(classroom, school_id: @school.id, grade: @grade),
+              data: { turbo_method: :patch, turbo_frame: "_top" },
+              class: "inline-flex rounded-full border px-3 py-1 text-xs font-medium #{classroom.active? ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-stone-300 bg-stone-100 text-stone-700'}" %>
+<% else %>
+  <span class="inline-flex rounded-full border border-stone-300 bg-stone-100 px-3 py-1 text-xs font-medium text-stone-700"><%= classroom.active? ? "활성" : "비활성" %></span>
+<% end %>

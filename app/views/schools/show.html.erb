@@ -26,7 +26,7 @@
   <div class="mt-4 flex flex-wrap gap-2">
     <% [["전체", "all"], *1.upto(6).map { |grade| ["#{grade}학년", grade.to_s] }, ["미배정", "unassigned"]].each do |label, grade| %>
       <%= link_to label,
-                  school_path(@school, teacher_grade: grade),
+                  school_path(@school, teacher_grade: grade, classroom_grade: @classroom_grade),
                   class: "rounded-md border px-3 py-2 text-sm font-medium #{@teacher_grade == grade ? 'border-stone-900 bg-stone-900 text-white' : 'border-stone-300 bg-white'}" %>
     <% end %>
   </div>
@@ -34,34 +34,21 @@
 </section>
 
 <section class="rounded-md border border-stone-200 bg-white p-5">
-  <div class="flex flex-wrap items-center justify-between gap-3">
+  <div class="flex flex-wrap items-start justify-between gap-3">
     <div>
       <h2 class="text-lg font-semibold">교실</h2>
-      <p class="text-sm text-stone-500"><%= @classrooms.size %>개</p>
+      <p class="mt-1 text-sm text-stone-500">학교별 교실 현황을 확인합니다.</p>
     </div>
-    <div class="flex gap-3 text-sm font-medium">
-      <%= link_to "교실 전체 보기", classrooms_path(school_id: @school.id), class: "underline" %>
-      <% if policy(Classroom.new(school: @school)).create? %>
-        <%= link_to "새 교실 만들기", new_classroom_path(school_id: @school.id), class: "underline" %>
-      <% end %>
-    </div>
+    <%= link_to "교실 관리",
+                classrooms_path(school_id: @school.id, grade: @classroom_grade),
+                class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
   </div>
-  <% if @classrooms.any? %>
-    <ul class="mt-4 divide-y divide-stone-200">
-      <% @classrooms.each do |classroom| %>
-        <li class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p class="font-medium"><%= classroom.school_year %>학년도 <%= classroom.grade %>학년 <%= classroom.formatted_class_label %></p>
-            <p class="text-sm text-stone-600">담임 <%= classroom.teacher&.name || "미지정" %> · 학생 <%= @active_student_counts.fetch(classroom.id, 0) %>/<%= @student_counts.fetch(classroom.id, 0) %>명 · <%= classroom.active? ? "활성" : "비활성" %></p>
-          </div>
-          <div class="flex gap-3 text-sm font-medium">
-            <%= link_to "교실 설정", edit_classroom_path(classroom), class: "underline" %>
-            <%= link_to "학생 관리", classroom_students_path(classroom), class: "underline" %>
-          </div>
-        </li>
-      <% end %>
-    </ul>
-  <% else %>
-    <p class="mt-3 text-sm text-stone-600">등록된 교실이 없습니다.</p>
-  <% end %>
+  <div class="mt-4 flex flex-wrap gap-2">
+    <% [["전체", "all"], *1.upto(6).map { |grade| ["#{grade}학년", grade.to_s] }].each do |label, grade| %>
+      <%= link_to label,
+                  school_path(@school, teacher_grade: @teacher_grade, classroom_grade: grade),
+                  class: "rounded-md border px-3 py-2 text-sm font-medium #{@classroom_grade == grade ? 'border-stone-900 bg-stone-900 text-white' : 'border-stone-300 bg-white'}" %>
+    <% end %>
+  </div>
+  <%= render "classrooms/school_overview", classrooms: @classrooms, active_student_counts: @active_student_counts %>
 </section>

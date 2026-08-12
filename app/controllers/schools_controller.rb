@@ -17,9 +17,9 @@ class SchoolsController < ApplicationController
   end
 
   def prepare_show
-    @classrooms = @school.classrooms.includes(:teacher).in_school_order
+    prepare_classroom_scope
+    @classrooms = scoped_classrooms.includes(:teacher).in_school_order
     @active_student_counts = Student.where(classroom_id: @classrooms.select(:id), active: true).group(:classroom_id).count
-    @student_counts = Student.where(classroom_id: @classrooms.select(:id)).group(:classroom_id).count
     prepare_teacher_scope
     @teachers = ordered_teachers(scoped_teachers).includes(:school_membership, :active_classroom)
   end
@@ -54,6 +54,16 @@ class SchoolsController < ApplicationController
   end
 
   private
+
+  def prepare_classroom_scope
+    grade = params[:classroom_grade].to_s
+    @classroom_grade = grade.match?(/\A[1-6]\z/) ? grade : "all"
+  end
+
+  def scoped_classrooms
+    scope = policy_scope(Classroom).where(school_id: @school.id)
+    @classroom_grade == "all" ? scope : scope.where(grade: @classroom_grade.to_i)
+  end
 
   def prepare_teacher_scope
     grade = params[:teacher_grade].to_s

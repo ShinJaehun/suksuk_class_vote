@@ -66,6 +66,12 @@ RSpec.describe "Teachers", type: :request do
       expect(document.at_css("#bulk_edit_row_user_#{first.id} input[name$='[name]']")).to be_present
       expect(document.at_css("#bulk_edit_row_user_#{first.id} select[name$='[grade]']")).to be_present
       expect(document.at_css("#bulk_edit_row_user_#{first.id} select[name$='[classroom_id]']")).to be_present
+      expect(document.at_css("#bulk_edit_row_user_#{first.id} input[data-grade-eligible='true']")).to be_present
+      expect(document.at_css("button[data-teacher-bulk-target='gradeSubmit']")).to be_present
+      grade_reason = document.at_css("[data-teacher-bulk-target='gradeReason']")
+      expect(grade_reason.text).to include("담당 교실이 없는 활성 선생님")
+      expect(grade_reason.ancestors("form#teacher_selection_operation")).to be_empty
+      expect(grade_reason.parent.at_css("button[form='teacher_bulk_update']")).to be_present
       expect(document.at_css("a[href='#{new_teacher_path}']")).to be_present
       expect(document.at_css("a[href='#{bulk_setup_teachers_path}']")).to be_present
       expect(document.at_css("a[href*='school_context=true']")).to be_present
@@ -481,6 +487,65 @@ RSpec.describe "Teachers", type: :request do
 
 
   describe "bulk management" do
+    it "changes grade only when every selected teacher is active and has no active Classroom" do
+      sign_in create(:user, :admin)
+      first = create(:user)
+      second = create(:user)
+      assigned = create(:user)
+      inactive = create(:user, active: false)
+      [first, second, assigned, inactive].each { |teacher| add_to_school(teacher).update!(grade: 4) }
+      classroom = create(:classroom, school: school, grade: 4, teacher: assigned)
+      student = create(:student, classroom: classroom)
+
+      patch bulk_operation_teachers_path, params: { school_id: school.id, management_grade: "all", teacher_ids: [first.id, second.id], operation: "assign_grade", grade: 5 }
+      expect(first.school_membership.reload.grade).to eq(5)
+      expect(second.school_membership.reload.grade).to eq(5)
+
+      patch bulk_operation_teachers_path, params: { school_id: school.id, management_grade: "all", teacher_ids: [first.id, assigned.id], operation: "assign_grade", grade: 6 }
+      expect(first.school_membership.reload.grade).to eq(5)
+      expect(assigned.school_membership.reload.grade).to eq(4)
+      expect(classroom.reload).to have_attributes(grade: 4, teacher_id: assigned.id)
+      expect(student.reload.classroom_id).to eq(classroom.id)
+
+      patch bulk_operation_teachers_path, params: { school_id: school.id, management_grade: "all", teacher_ids: [first.id, inactive.id], operation: "assign_grade", grade: 6 }
+      expect(first.school_membership.reload.grade).to eq(5)
+      expect(inactive.school_membership.reload.grade).to eq(4)
+
+      outsider = create(:user)
+      add_to_school(outsider, other_school).update!(grade: 4)
+      patch bulk_operation_teachers_path, params: { school_id: school.id, management_grade: "all", teacher_ids: [first.id, outsider.id], operation: "assign_grade", grade: 6 }
+      expect(first.school_membership.reload.grade).to eq(5)
+      expect(outsider.school_membership.reload.grade).to eq(4)
+    end
+
+    it "bulk lifecycle operations unify mixed teacher states" do
+      sign_in create(:user, :admin)
+      active = create(:user, active: true)
+      inactive = create(:user, active: false)
+      [active, inactive].each { |teacher| add_to_school(teacher) }
+
+      patch bulk_operation_teachers_path, params: { school_id: school.id, management_grade: "all", teacher_ids: [active.id, inactive.id], operation: "activate" }
+      expect(active.reload).to be_active
+      expect(inactive.reload).to be_active
+
+      patch bulk_operation_teachers_path, params: { school_id: school.id, management_grade: "all", teacher_ids: [active.id, inactive.id], operation: "deactivate" }
+      expect(active.reload).not_to be_active
+      expect(inactive.reload).not_to be_active
+    end
+
+    it "rejects the whole bulk deactivation when a manager selects themself" do
+      manager = create(:user)
+      colleague = create(:user)
+      add_to_school(manager, school, role: :manager)
+      add_to_school(colleague)
+      sign_in manager
+
+      patch bulk_operation_teachers_path, params: { school_id: school.id, management_grade: "all", teacher_ids: [manager.id, colleague.id], operation: "deactivate" }
+
+      expect(manager.reload).to be_active
+      expect(colleague.reload).to be_active
+    end
+
     it "uses consistent wording on bulk setup" do
       sign_in create(:user, :admin)
       school

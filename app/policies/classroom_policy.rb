@@ -15,6 +15,14 @@ class ClassroomPolicy < ApplicationPolicy
     manageable?
   end
 
+  def manage_lifecycle?
+    user&.admin? || (user&.teacher? && user.school_membership&.manager? && user.school_membership.school_id == record.school_id)
+  end
+
+  def destroy?
+    manage_lifecycle?
+  end
+
   class Scope < ApplicationPolicy::Scope
     def resolve
       return scope.all if user&.admin?

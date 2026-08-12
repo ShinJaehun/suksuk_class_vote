@@ -55,6 +55,8 @@ admin은 다음 범위의 최고 관리 권한을 가진다.
 
 `/teachers`는 선생님 계정·학교·학년·담임·비밀번호·lifecycle의 단일 canonical 관리 화면이다. admin은 상단의 policy-scoped 학교 필터로 management Turbo Frame을 갱신하고, manager는 학교 선택기 없이 자기 학교 context만 사용한다. 전체·1~6학년·미배정 navigation도 같은 관리 영역을 필터링하며 editable bulk table을 사용한다. 학교 탐색·현황은 `/schools`가 담당하고, `/schools/:id`의 선생님 영역과 학년 navigation은 읽기 전용 현황·조회 filter이며 관리 링크가 현재 학교와 학년을 `/teachers`로 전달한다.
 
+`/schools/:id`의 교실 영역은 학년별 read-only 현황이고 `/classrooms`가 교실의 canonical 관리 화면이다. admin은 policy-scoped 학교를 선택하고 manager는 자기 학교만 관리하며, 학년·반·담임 수정과 선택 교실 활성화·비활성화를 기존 Classroom policy와 validation 범위에서 수행한다. Classroom은 학교·학년을 가진 실제 운영 단위이고 Student는 Classroom에 소속되며 Teacher는 조건에 맞는 Classroom의 담임으로 배정된다. `school_year`는 DB에 유지하지만 현재 관리 UI에서는 노출하거나 수정하지 않는다. 개별 교실의 주 작업 화면은 `/classrooms/:id/students`다.
+
 * 모든 School 조회·생성·수정
 * 모든 Classroom 조회·생성·수정과 Student 관리
 * `/teachers`의 모든 학교 교사 계정 목록·단일/bulk 생성과 학교·학년 단위 일괄 편집·담임 배정, 선택 학년 배정·활성화·비활성화와 삭제 조건을 충족한 계정의 삭제 시도
@@ -120,6 +122,10 @@ manager는 자기 profile과 비밀번호를 변경할 수 있지만 자기 계�
 Classroom 생성은 admin과 manager가 할 수 있다. 수정과 Student 관리는 admin, 같은 학교 manager,
 해당 Classroom 담임에게 허용된다. `ClassroomStudentsController`도 scope로 Classroom을 조회한 뒤
 `manage_students?`를 확인한다.
+
+선택 bulk operation은 scope·record 권한·조건을 전체 대상으로 검증하며 부분 적용하지 않는다. 활성화·비활성화는 inactive row도 선택할 수 있는 idempotent 작업이다. Classroom 학년 일괄 정정은 학생 존재 여부와 무관하게 담임 미배정인 활성 Classroom에만 허용하고, Teacher 학년 일괄 변경은 담당 활성 Classroom이 없는 활성 Teacher에만 허용한다. Teacher 학년 변경은 Classroom 학년이나 Student 소속을 함께 변경하지 않는다.
+
+Classroom 삭제는 admin 또는 같은 학교 manager가 inactive, 담임 미배정, 전체 Student 이력 0인 교실에만 시도할 수 있다. 다른 historical reference가 destroy를 막으면 관련 데이터를 cascade 삭제하지 않고 비활성 상태로 보존한다.
 
 ### SchoolMembership
 

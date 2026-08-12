@@ -1,6 +1,6 @@
 module Teachers
   class BulkUpdater
-    Entry = Struct.new(:line, :id, :name, :login_id, :grade, :classroom_id, :user, :membership, :errors, keyword_init: true)
+    Entry = Struct.new(:line, :id, :name, :login_id, :grade, :classroom_id, :classroom_submitted, :user, :membership, :errors, keyword_init: true)
 
     attr_reader :entries, :errors
 
@@ -17,7 +17,7 @@ module Teachers
         validate_entries
         raise ActiveRecord::Rollback if invalid?
 
-        current_classrooms.each { |classroom| classroom.update!(teacher: nil) }
+        release_changed_classrooms
         entries.each { |entry| entry.user.save! }
         entries.each { |entry| entry.membership.save! }
         assign_classrooms
@@ -51,6 +51,7 @@ module Teachers
           login_id: attributes["login_id"],
           grade: normalized_grade(attributes["grade"]),
           classroom_id: attributes["classroom_id"].presence,
+          classroom_submitted: attributes.key?("classroom_id"),
           user: user,
           membership: memberships[attributes["id"].to_i],
           errors: []
@@ -70,6 +71,7 @@ module Teachers
         next unless entry.user && entry.membership
 
         entry.errors << "학년은 미배정 또는 1~6학년이어야 합니다." if entry.grade == :invalid
+        entry.errors << "담당 교실 정보를 확인해 주세요." unless entry.classroom_submitted
         entry.user.assign_attributes(name: entry.name, login_id: entry.login_id)
         entry.membership.grade = entry.grade unless entry.grade == :invalid
         entry.user.valid?
@@ -109,6 +111,14 @@ module Teachers
 
     def current_classrooms
       @current_classrooms ||= Classroom.where(active: true, teacher_id: entries.filter_map { |entry| entry.user&.id }).order(:id).lock.to_a
+    end
+
+    def release_changed_classrooms
+      target_ids = entries.index_by { |entry| entry.user.id }
+      current_classrooms.each do |classroom|
+        target_id = target_ids.fetch(classroom.teacher_id).classroom_id&.to_i
+        classroom.update!(teacher: nil) unless classroom.id == target_id
+      end
     end
 
     def assign_classrooms

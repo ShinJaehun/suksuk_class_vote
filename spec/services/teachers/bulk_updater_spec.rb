@@ -18,25 +18,25 @@ RSpec.describe Teachers::BulkUpdater do
     expect(teacher.reload.active_classroom).to be_nil
   end
 
-  it "changes grade and releases the previous classroom" do
+  it "rejects a grade-only change while preserving the existing Classroom assignment" do
     membership.update!(grade: 4)
     old_classroom = create(:classroom, school: school, grade: 4, teacher: teacher)
 
-    result = described_class.new(scope: scope, rows: [row(grade: "5")]).call
+    result = described_class.new(scope: scope, rows: [row(grade: "5", classroom_id: old_classroom.id)]).call
+
+    expect(result).not_to be_success
+    expect(membership.reload.grade).to eq(4)
+    expect(old_classroom.reload.teacher).to eq(teacher)
+  end
+
+  it "changes grade after the Classroom is explicitly unassigned" do
+    membership.update!(grade: 4)
+    old_classroom = create(:classroom, school: school, grade: 4, teacher: teacher)
+
+    result = described_class.new(scope: scope, rows: [row(grade: "5", classroom_id: "")]).call
 
     expect(result).to be_success
     expect(membership.reload.grade).to eq(5)
-    expect(old_classroom.reload.teacher).to be_nil
-  end
-
-  it "clears grade and releases the previous classroom" do
-    membership.update!(grade: 4)
-    old_classroom = create(:classroom, school: school, grade: 4, teacher: teacher)
-
-    result = described_class.new(scope: scope, rows: [row(grade: "")]).call
-
-    expect(result).to be_success
-    expect(membership.reload.grade).to be_nil
     expect(old_classroom.reload.teacher).to be_nil
   end
 
@@ -74,5 +74,22 @@ RSpec.describe Teachers::BulkUpdater do
     expect(result).not_to be_success
     expect(classroom.reload.teacher).to eq(occupant)
     expect(membership.reload.grade).to be_nil
+  end
+
+  it "rolls back every row when one grade and Classroom combination is invalid" do
+    second = create(:user)
+    second_membership = create(:school_membership, school: school, user: second, grade: 4)
+    second_classroom = create(:classroom, school: school, grade: 4, teacher: second)
+    rows = [
+      row(grade: "5", classroom_id: ""),
+      { "id" => second.id, "name" => second.name, "login_id" => second.login_id, "grade" => "5", "classroom_id" => second_classroom.id }
+    ]
+
+    result = described_class.new(scope: User.where(id: [teacher.id, second.id]), rows: rows).call
+
+    expect(result).not_to be_success
+    expect(membership.reload.grade).to be_nil
+    expect(second_membership.reload.grade).to eq(4)
+    expect(second_classroom.reload.teacher).to eq(second)
   end
 end

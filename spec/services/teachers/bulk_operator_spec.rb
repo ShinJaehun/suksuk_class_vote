@@ -13,27 +13,26 @@ RSpec.describe Teachers::BulkOperator do
     described_class.new(school: school, scope: scope, teacher_ids: users.map(&:id), operation: operation, grade: grade)
   end
 
-  it "assigns grades atomically and releases only mismatched classrooms" do
-    changed = teacher(grade: 4)
-    unchanged = teacher(grade: 5)
-    old_classroom = create(:classroom, school: school, grade: 4, teacher: changed)
-    same_classroom = create(:classroom, school: school, grade: 5, teacher: unchanged)
+  it "assigns grades atomically when every teacher is active and has no active Classroom" do
+    first = teacher(grade: 4)
+    second = teacher(grade: 5)
 
-    result = service([changed, unchanged], operation: :assign_grade, grade: 5).call
+    result = service([first, second], operation: :assign_grade, grade: 6).call
 
     expect(result).to be_success
-    expect(changed.school_membership.reload.grade).to eq(5)
-    expect(old_classroom.reload.teacher).to be_nil
-    expect(same_classroom.reload.teacher).to eq(unchanged)
+    expect([first, second].map { |user| user.school_membership.reload.grade }).to eq([6, 6])
   end
 
-  it "clears classrooms when assigning no grade" do
-    user = teacher(grade: 3)
-    classroom = create(:classroom, school: school, grade: 3, teacher: user)
+  it "rejects the whole grade change when a teacher has an active Classroom" do
+    available = teacher(grade: 3)
+    assigned = teacher(grade: 3)
+    classroom = create(:classroom, school: school, grade: 3, teacher: assigned)
+    student = create(:student, classroom: classroom)
 
-    expect(service([user], operation: :assign_grade, grade: "").call).to be_success
-    expect(user.school_membership.reload.grade).to be_nil
-    expect(classroom.reload.teacher).to be_nil
+    expect(service([available, assigned], operation: :assign_grade, grade: "").call).not_to be_success
+    expect([available, assigned].map { |user| user.school_membership.reload.grade }).to eq([3, 3])
+    expect(classroom.reload).to have_attributes(grade: 3, teacher_id: assigned.id)
+    expect(student.reload.classroom_id).to eq(classroom.id)
   end
 
   it "rejects inactive or out-of-scope teachers without partial grade changes" do

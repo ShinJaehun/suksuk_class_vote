@@ -1,0 +1,35 @@
+<div class="mx-auto max-w-xl space-y-6">
+  <div>
+    <%= link_to "돌아가기", @school_context ? classrooms_path(school_id: @school.id, grade: params[:return_grade].presence || "all") : classrooms_path, class: "text-sm underline" %>
+    <h1 class="mt-2 text-3xl font-semibold">여러 교실 생성</h1>
+    <p class="mt-1 text-sm text-stone-600">학교, 기본 학년과 생성할 교실 수를 선택합니다.</p>
+  </div>
+
+  <% if @bulk_errors.present? %>
+    <div class="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><%= @bulk_errors.to_sentence %></div>
+  <% end %>
+
+  <%= form_with url: bulk_new_classrooms_path, method: :get, class: "space-y-4 rounded-md border border-stone-200 bg-white p-5" do |form| %>
+    <%= hidden_field_tag :school_context, true if @school_context %>
+    <%= hidden_field_tag :return_grade, params[:return_grade] if @school_context %>
+    <% if current_user.admin? && !@school_context %>
+      <div>
+        <%= form.label :school_id, "학교", class: "text-sm font-medium" %>
+        <%= form.select :school_id, options_from_collection_for_select(@schools, :id, :name, @school&.id), { prompt: "학교 선택" }, class: "mt-1 w-full rounded-md border-stone-300", required: true %>
+      </div>
+    <% else %>
+      <%= hidden_field_tag :school_id, @school.id %>
+      <p><span class="text-sm font-medium">학교</span><br><%= @school.name %></p>
+    <% end %>
+    <div>
+      <%= form.label :grade, "기본 학년", class: "text-sm font-medium" %>
+      <%= form.select :grade, options_for_select(1.upto(6).map { |grade| ["#{grade}학년", grade] }, @default_grade), { prompt: "학년 선택" }, class: "mt-1 w-full rounded-md border-stone-300", required: true %>
+    </div>
+    <div>
+      <%= form.label :count, "생성할 교실 수", class: "text-sm font-medium" %>
+      <%= form.number_field :count, value: @count, min: 1, max: 30, class: "mt-1 w-full rounded-md border-stone-300", required: true %>
+      <p class="mt-1 text-xs text-stone-500">한 번에 최대 30개까지 생성할 수 있습니다.</p>
+    </div>
+    <%= form.submit "교실 정보 입력", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+  <% end %>
+</div>

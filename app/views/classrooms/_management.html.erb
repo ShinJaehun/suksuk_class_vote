@@ -1,0 +1,124 @@
+<div class="space-y-4">
+  <% unless current_user.admin? %>
+    <p class="text-sm font-medium text-stone-600"><%= @school.name %></p>
+  <% end %>
+
+  <section class="rounded-md border border-stone-200 bg-white p-5">
+    <div class="flex flex-wrap gap-2">
+      <% [["전체", "all"], *1.upto(6).map { |grade| ["#{grade}학년", grade.to_s] }].each do |label, grade| %>
+        <%= link_to label,
+                    classrooms_path(school_id: @school.id, grade: grade),
+                    class: "rounded-md border px-3 py-2 text-sm font-medium #{@grade == grade ? 'border-stone-900 bg-stone-900 text-white' : 'border-stone-300 bg-white'}",
+                    data: { turbo_frame: "classroom_management", turbo_action: "advance" } %>
+      <% end %>
+    </div>
+
+    <div class="mt-5 space-y-4" data-controller="classroom-management">
+      <% if @bulk_errors.present? %>
+        <div class="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><%= @bulk_errors.to_sentence %></div>
+      <% end %>
+
+      <%= form_with url: bulk_update_classrooms_path, method: :patch, id: "classroom_bulk_update" do %>
+        <%= hidden_field_tag :school_id, @school.id %>
+        <%= hidden_field_tag :grade, @grade %>
+        <% if @classrooms.any? %>
+          <div class="overflow-x-auto rounded-md border border-stone-200">
+            <table class="min-w-full divide-y divide-stone-200 text-sm">
+              <thead class="bg-stone-50">
+                <tr>
+                  <th class="w-14 p-3 text-left">
+                    <% if current_user.admin? || current_user.school_membership&.manager? %>
+                      <%= check_box_tag :select_all_classrooms, "1", false, aria: { label: "모두 선택" }, data: { classroom_management_target: "selectAll", action: "change->classroom-management#toggleAll" } %>
+                    <% end %>
+                  </th>
+                  <th class="p-3 text-left">학년</th>
+                  <th class="p-3 text-left">반</th>
+                  <th class="p-3 text-left">담임</th>
+                  <th class="p-3 text-left">학생</th>
+                  <th class="p-3 text-left">상태</th>
+                  <th class="p-3 text-left">관리</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-stone-100">
+                <% @classrooms.each_with_index do |classroom, index| %>
+                  <% editable = policy(classroom).update? && classroom.active? %>
+                  <tr id="<%= dom_id(classroom, :management_row) %>" class="<%= 'bg-stone-50 text-stone-400' unless classroom.active? %>" data-classroom-management-target="row" data-track-dirty="true">
+                    <td class="w-14 p-3 align-middle">
+                      <% if policy(classroom).manage_lifecycle? %>
+                        <%= check_box_tag "classroom_ids[]", classroom.id, false, form: "classroom_selection_operation", aria: { label: "#{classroom.formatted_class_label} 선택" }, data: { classroom_management_target: "selection", grade_eligible: classroom.active? && classroom.teacher_id.nil?, action: "change->classroom-management#updateSelection" } %>
+                      <% end %>
+                    </td>
+                    <td class="p-3 align-middle">
+                      <%= hidden_field_tag "classrooms[rows][#{index}][id]", classroom.id, disabled: !editable %>
+                      <%= select_tag "classrooms[rows][#{index}][grade]", options_for_select(1.upto(6).map { |grade| ["#{grade}학년", grade] }, classroom.grade), disabled: !editable, class: "rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400", data: { classroom_management_target: "grade", action: "change->classroom-management#filterTeachers change->classroom-management#track" } %>
+                    </td>
+                    <td class="p-3 align-middle"><%= text_field_tag "classrooms[rows][#{index}][class_label]", classroom.class_label, disabled: !editable, class: "w-32 rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400", data: { action: "input->classroom-management#track" } %></td>
+                    <td class="p-3 align-middle">
+                      <% if current_user.admin? || current_user.school_membership&.manager? %>
+                        <select name="classrooms[rows][<%= index %>][teacher_id]" <%= "disabled" unless editable %> class="min-w-32 rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400" data-classroom-management-target="teacher" data-action="change->classroom-management#track">
+                          <option value="">미배정</option>
+                          <% @teachers.each do |teacher| %>
+                            <% available = teacher.id == classroom.teacher_id || (teacher.school_membership&.grade == classroom.grade && teacher.active_classroom.nil?) %>
+                            <option value="<%= teacher.id %>" data-grade="<%= teacher.school_membership&.grade %>" data-classroom-id="<%= teacher.active_classroom&.id %>" <%= "selected" if teacher.id == classroom.teacher_id %> <%= "hidden disabled" unless available %>><%= teacher.name %></option>
+                          <% end %>
+                        </select>
+                      <% else %>
+                        <%= classroom.teacher&.name || "미배정" %>
+                      <% end %>
+                    </td>
+                    <td class="p-3 align-middle"><%= @classroom_active_student_counts.fetch(classroom.id, 0) %>명</td>
+                    <td class="p-3 align-middle"><%= render "classrooms/status", classroom: classroom %></td>
+                    <td class="p-3 align-middle">
+                      <div class="flex flex-wrap gap-3 font-medium">
+                        <%= link_to "교실 바로가기", classroom_students_path(classroom), class: "underline", data: { turbo_frame: "_top" } %>
+                        <% if policy(classroom).destroy? && !classroom.active? && classroom.teacher_id.nil? && @classroom_student_counts.fetch(classroom.id, 0).zero? %>
+                          <%= link_to "삭제", classroom_path(classroom, school_id: @school.id, grade: @grade), class: "text-rose-700 underline", data: { turbo_method: :delete, turbo_confirm: "이 교실을 삭제하시겠습니까?", turbo_frame: "_top" } %>
+                        <% end %>
+                      </div>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% else %>
+          <div class="rounded-md border border-stone-200 py-10 text-center text-sm text-stone-500">교실이 없습니다.</div>
+        <% end %>
+      <% end %>
+
+      <% if current_user.admin? || current_user.school_membership&.manager? %>
+        <% contextual_grade = @grade.match?(/\A[1-6]\z/) ? @grade : nil %>
+        <%= form_with url: bulk_operation_classrooms_path, method: :patch, id: "classroom_selection_operation", class: "flex flex-wrap items-center justify-between gap-3 rounded-md border border-stone-200 bg-stone-50 p-3", data: { turbo_frame: "_top" } do %>
+          <%= hidden_field_tag :school_id, @school.id %>
+          <%= hidden_field_tag :grade, @grade %>
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="text-sm text-stone-500" data-classroom-management-target="selectionCount">0개 선택</span>
+            <div class="flex items-center gap-2 border-l border-stone-300 pl-3">
+              <%= label_tag :bulk_grade, "학년", class: "text-xs font-medium text-stone-600" %>
+              <%= select_tag :bulk_grade, options_for_select(1.upto(6).map { |grade| ["#{grade}학년", grade] }), prompt: "학년 선택", class: "rounded-md border border-stone-300 bg-white px-3 py-2 text-sm" %>
+              <%= button_tag "배정", name: :operation, value: "assign_grade", disabled: true, class: "rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-50", data: { classroom_management_target: "gradeSubmit", turbo_confirm: "선택한 담임 미배정 교실의 학년을 변경합니다." } %>
+            </div>
+            <div class="flex items-center gap-2 border-l border-stone-300 pl-3">
+              <span class="text-xs font-medium text-stone-600">교실 상태</span>
+              <%= button_tag "활성화", name: :operation, value: "activate", disabled: true, class: "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50", data: { classroom_management_target: "operationSubmit" } %>
+              <%= button_tag "비활성화", name: :operation, value: "deactivate", disabled: true, class: "rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50", data: { classroom_management_target: "operationSubmit" } %>
+            </div>
+          </div>
+          <div class="ml-auto flex items-center gap-2">
+            <%= link_to "교실 생성", new_classroom_path(school_id: @school.id, grade: contextual_grade, school_context: true, return_grade: @grade), class: "rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100", data: { turbo_frame: "_top" } %>
+            <%= link_to "여러 교실 생성", bulk_setup_classrooms_path(school_id: @school.id, grade: contextual_grade, school_context: true, return_grade: @grade), class: "rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100", data: { turbo_frame: "_top" } %>
+          </div>
+        <% end %>
+      <% end %>
+
+      <% if @classrooms.any? %>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <span class="hidden text-xs text-rose-700" data-classroom-management-target="gradeReason">담임 미배정인 활성 교실만 학년을 일괄 변경할 수 있습니다.</span>
+          <% if @classrooms.any?(&:active?) %>
+            <%= button_tag "변경 사항 저장", type: :submit, form: "classroom_bulk_update", class: "ml-auto rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50" %>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </section>
+</div>

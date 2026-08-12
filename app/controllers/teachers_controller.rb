@@ -38,7 +38,7 @@ class TeachersController < ApplicationController
     end
 
     scope = school_teachers
-    authorize_bulk_teacher_lifecycle(scope)
+    authorize_bulk_teacher_operation(scope)
     result = Teachers::BulkOperator.new(
       school: @school,
       scope: scope,
@@ -241,8 +241,8 @@ class TeachersController < ApplicationController
 
   private
 
-  def authorize_bulk_teacher_lifecycle(scope)
-    query = { "activate" => :reactivate?, "deactivate" => :deactivate? }[params[:operation].to_s]
+  def authorize_bulk_teacher_operation(scope)
+    query = { "assign_grade" => :update?, "activate" => :reactivate?, "deactivate" => :deactivate? }[params[:operation].to_s]
     return unless query
 
     scope.where(id: params[:teacher_ids]).find_each { |teacher| authorize teacher, query }

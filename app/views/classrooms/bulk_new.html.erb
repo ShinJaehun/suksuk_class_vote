@@ -1,0 +1,52 @@
+<div class="space-y-6" data-controller="classroom-management">
+  <div>
+    <%= link_to "여러 교실 생성 설정으로 돌아가기", bulk_setup_classrooms_path(school_id: @school&.id, grade: @default_grade, return_grade: params[:return_grade], school_context: @school_context), class: "text-sm underline" %>
+    <h1 class="mt-2 text-3xl font-semibold">여러 교실 정보 입력</h1>
+    <p class="mt-1 text-sm text-stone-600"><%= @school&.name %> · <span data-classroom-management-target="count"></span></p>
+  </div>
+
+  <% if @bulk_errors.present? %>
+    <div class="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><%= @bulk_errors.to_sentence %></div>
+  <% end %>
+
+  <%= form_with url: bulk_create_classrooms_path, method: :post, class: "space-y-4", data: { turbo: false, action: "submit->classroom-management#submitOnce" } do %>
+    <%= hidden_field_tag :school_id, @school&.id %>
+    <%= hidden_field_tag :school_context, true if @school_context %>
+    <%= hidden_field_tag :grade, @default_grade %>
+    <%= hidden_field_tag :return_grade, params[:return_grade] if @school_context %>
+    <div class="overflow-x-auto rounded-md border border-stone-200 bg-white">
+      <table class="min-w-full divide-y divide-stone-200 text-sm">
+        <thead class="bg-stone-50">
+          <tr>
+            <th class="p-3 text-left">학년</th>
+            <th class="p-3 text-left">학급</th>
+            <th class="p-3 text-left">담임</th>
+            <th class="p-3 text-left">제외</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-stone-100">
+          <% @entries.each_with_index do |entry, index| %>
+            <% value = ->(key) { entry.respond_to?(key) ? entry.public_send(key) : entry[key] || entry[key.to_s] } %>
+            <% entry_errors = entry.respond_to?(:errors) ? entry.errors : (entry[:errors] || []) %>
+            <tr data-classroom-management-target="row">
+              <td class="p-3 align-top"><%= select_tag "classrooms[rows][#{index}][grade]", options_for_select(1.upto(6).map { |grade| ["#{grade}학년", grade] }, value.call(:grade)), class: "rounded-md border border-stone-300 bg-white px-3 py-2", data: { classroom_management_target: "grade", action: "change->classroom-management#filterTeachers" } %></td>
+              <td class="p-3 align-top"><%= text_field_tag "classrooms[rows][#{index}][class_label]", value.call(:class_label), class: "w-40 rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm", required: true %></td>
+              <td class="p-3 align-top">
+                <select name="classrooms[rows][<%= index %>][teacher_id]" class="min-w-32 rounded-md border border-stone-300 bg-white px-3 py-2" data-classroom-management-target="teacher">
+                  <option value="">미배정</option>
+                  <% @teachers.each do |teacher| %>
+                    <% available = teacher.school_membership&.grade == value.call(:grade).to_i && teacher.active_classroom.nil? %>
+                    <option value="<%= teacher.id %>" data-school-id="<%= teacher.school_membership&.school_id %>" data-grade="<%= teacher.school_membership&.grade %>" data-classroom-id="<%= teacher.active_classroom&.id %>" <%= "selected" if teacher.id.to_s == value.call(:teacher_id).to_s %> <%= "hidden disabled" unless available %>><%= teacher.name %></option>
+                  <% end %>
+                </select>
+                <% if entry_errors.any? %><p class="mt-1 max-w-xs text-xs text-rose-700"><%= entry_errors.to_sentence %></p><% end %>
+              </td>
+              <td class="p-3 align-middle"><button type="button" class="text-sm font-medium text-rose-700 underline" data-action="classroom-management#removeRow">제외</button></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <%= submit_tag "여러 교실 생성", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60", data: { classroom_management_target: "submit" } %>
+  <% end %>
+</div>

@@ -240,14 +240,14 @@ RSpec.describe "School teacher memberships", type: :request do
     expect(membership.reload).to be_persisted
   end
 
-  it "feeds the new member into same-school Classroom settings and the teacher roster flow" do
-    school = create(:school)
+  it "feeds a same-school, same-grade member into Classroom settings and the teacher roster flow" do    school = create(:school)
     teacher = create(:user, name: "새담임")
     classroom = create(:classroom, school: school, teacher: nil)
     other_classroom = create(:classroom, school: create(:school), teacher: nil)
     admin = create(:user, :admin)
     sign_in admin
     post school_teacher_memberships_path(school), params: { school_membership: { user_id: teacher.id } }
+    teacher.reload.school_membership.update!(grade: classroom.grade)
 
     get edit_classroom_path(classroom)
     expect(response.body).to include(teacher.name)

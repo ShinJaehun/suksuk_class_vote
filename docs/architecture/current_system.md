@@ -90,8 +90,10 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - `/teachers`는 관리 가능한 교사 계정 목록과 개인 계정 설정 진입을 제공한다. 일반 teacher도 자신의 `/teachers/:id/edit`에서 이름·로그인 ID·이메일을 수정하고, 현재 비밀번호 확인 후 비밀번호를 직접 변경할 수 있다.
 - `User`는 `login_id`로 로그인하는 실제 사람의 계정이며 `active`, `password_change_required` 상태를 가진다. 과거 운영 기록이 연결된 계정은 단순 교체하거나 재사용하지 않는다. `SchoolMembership`은 한 User의 한 학교 소속, member/manager 역할과 nullable한 1~6학년을 나타내며 학교당 manager는 최대 한 명이다.
 - `/teachers`는 선생님 계정과 학교·학년 운영의 단일 canonical 관리 화면이다. admin은 상단의 policy-scoped 학교 필터를 변경해 `teacher_management` Turbo Frame을 갱신하고 새 학교는 전체 학년부터 관리한다. 학년 navigation도 같은 Frame을 갱신한다. manager는 학교 필터 없이 자기 학교의 전체 관리 내용을 바로 렌더링하며 query의 다른 학교 ID는 신뢰하지 않는다. 학교 자체의 탐색과 현황은 `/schools`가 담당한다.
-- 학교 집중 관리의 전체·1~6학년·미배정 탭은 모두 editable bulk table을 사용한다. 전체 탭은 해당 학교 모든 선생님을 관리하며, 각 탭에서 단일/bulk 생성, 이름·로그인 ID·학년·기존 Classroom 담당 배정, 임시 비밀번호 재발급과 활성화·비활성화를 제공한다. 담당 Classroom select의 후속 정리는 별도 Classroom 관리 작업에서 다룬다.
+- 학교 집중 관리의 전체·1~6학년·미배정 탭은 모두 editable bulk table을 사용한다. 전체 탭은 해당 학교 모든 선생님을 관리하며, 각 탭에서 단일/bulk 생성, 이름·로그인 ID·학년·기존 Classroom 담당 배정, 임시 비밀번호 재발급과 활성화·비활성화를 제공한다.
 - `/schools/:id`의 선생님 영역은 학교별 읽기 전용 운영 현황이다. 학년 navigation은 조회 filter이며 `선생님 관리` 링크가 학교와 학년 context를 `/teachers`로 전달한다.
+- `/schools/:id`의 교실 영역도 학년별 읽기 전용 현황이며 `교실 관리` 링크가 학교와 학년 context를 `/classrooms`로 전달한다. `/classrooms`는 학교·학년별 교실 정보와 담임, 활성 상태를 관리하는 canonical 화면이고, `/classrooms/:id/students`는 개별 교실의 주 작업 화면이다. Classroom은 학교와 학년을 가진 실제 운영 단위이고 Student는 Classroom에 소속되며, 조건에 맞는 선생님을 담임으로 배정한다.
+- 선생님·교실 bulk operation은 선택 전체의 scope·권한·조건을 검증한 뒤 모두 성공하거나 모두 실패한다. 비활성 row도 lifecycle 작업을 위해 선택할 수 있고 활성화·비활성화는 선택 대상을 목표 상태로 통일한다. 교실 학년 일괄 정정은 담임 미배정인 활성 Classroom만 허용하며 학생 존재 여부와 무관하다. 선생님 학년 일괄 변경은 담당 활성 Classroom이 없는 활성 선생님만 허용하고 Classroom이나 Student를 함께 이동시키지 않는다.
 - `/teachers`의 전체·학년·미배정 표에서는 선택한 선생님의 학년 배정·활성화·비활성화를 별도 원자적 작업으로 처리한다. 비활성화하면 현재 담당 Classroom을 해제하되 grade는 보존하며, 재활성화해도 Classroom을 자동 복원하지 않는다. 비활성 교사의 운영 필드는 편집하지 않으며, 비활성이고 학년·담임이 모두 미배정일 때만 삭제를 시도한다. 삭제 전 historical 사용처를 별도 탐색하지 않고 DB/model reference 보호를 따르므로 사용 이력이 있는 계정은 보통 비활성 상태로 보존된다. `login_id` uniqueness는 이 lifecycle과 별도로 유지한다.
 - 로그인 ID 자동 발급과 선택 교사 비밀번호 일괄 재발급은 제공하지 않는다.
 - teacher 본인은 현재 비밀번호 확인 후 자신의 비밀번호를 변경한다. admin/manager는 관리 대상 teacher의 영구 비밀번호를 직접 지정하거나 조회하지 않고, 개별 재발급한 8자리 임시 비밀번호만 해당 응답에서 전달한다. 재발급된 teacher는 다음 로그인 후 비밀번호를 변경해야 한다.
@@ -175,6 +177,7 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 
 - School·SchoolMembership·Classroom·Student 조직 기반 구현
 - `SchoolMembership.grade`는 학교 내 교사의 학년 소속, `Classroom.grade`는 교실 학년, `Classroom.teacher`는 실제 담임 배정의 기준으로 사용
+- Classroom 삭제는 inactive, 담임 미배정, Student 이력 0인 사용되지 않은 교실에만 허용하며 다른 historical reference가 있으면 비활성 상태로 보존
 - admin은 전체 학교, manager는 소속 학교, 일반 teacher는 담임 Classroom 범위에서 학급·학생을 관리
 - Student 단일·bulk 등록과 비활성화·복구 구현
 - PollSession foundation과 실행 기록의 nullable `poll_session_id` 연결 구현: 신규 기록은 `poll_id`와 `poll_session_id`를 함께, legacy 기록은 `poll_session_id = NULL`로 유지

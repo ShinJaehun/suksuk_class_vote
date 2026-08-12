@@ -63,16 +63,14 @@ module Teachers
     end
 
     def assign_grade(users, memberships)
-      unless users.all?(&:active?)
-        fail_with("비활성 선생님의 학년은 변경할 수 없습니다.")
+      classrooms = Classroom.where(active: true, teacher_id: ids).order(:id).lock.to_a
+      unless users.all?(&:active?) && classrooms.empty?
+        fail_with("담당 교실이 없는 활성 선생님만 학년을 일괄 변경할 수 있습니다.")
         raise ActiveRecord::Rollback
       end
 
       grade = normalized_grade
-      classrooms = Classroom.where(active: true, teacher_id: ids).order(:id).lock.index_by(&:teacher_id)
       users.each do |user|
-        classroom = classrooms[user.id]
-        classroom.update!(teacher: nil) if classroom && classroom.grade != grade
         memberships.fetch(user.id).update!(grade: grade)
       end
     end

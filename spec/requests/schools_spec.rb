@@ -26,11 +26,12 @@ RSpec.describe "Schools", type: :request do
     expect(response).to have_http_status(:ok)
     expect(response.body).to include("학교 기본 정보", "교실", "선생님", "대표")
     expect(response.body).not_to include("선생님 운영")
-    expect(response.body).to include(classroom.formatted_class_label, "학생 관리", "새 교실 만들기", "선생님 관리")
-    expect(response.body).to include(
-      school_path(school, teacher_grade: "all"),
-      school_path(school, teacher_grade: "4"),
-      school_path(school, teacher_grade: "unassigned")
+    expect(response.body).to include(classroom.formatted_class_label, "교실 바로가기", "교실 설정", "교실 관리", "선생님 관리")
+    document = Nokogiri::HTML(response.body)
+    expect(document.css("a").map { |link| link["href"] }).to include(
+      school_path(school, teacher_grade: "all", classroom_grade: "all"),
+      school_path(school, teacher_grade: "4", classroom_grade: "all"),
+      school_path(school, teacher_grade: "unassigned", classroom_grade: "all")
     )
     expect(response.body).not_to include("선생님 전체 보기", "학교 소속 관리")
 
@@ -70,7 +71,44 @@ RSpec.describe "Schools", type: :request do
 
     get school_path(school)
     expect(response.body).not_to include("대표 선생님 지정", "대표 선생님 지정 해제", "학교 정보 수정")
-    expect(response.body).to include(school_path(school, teacher_grade: "unassigned"))
+    expect(Nokogiri::HTML(response.body).css("a").map { |link| link["href"] }).to include(
+      school_path(school, teacher_grade: "unassigned", classroom_grade: "all")
+    )
+  end
+
+  it "shows filtered read-only Classroom status independently from the teacher filter" do
+    school = create(:school)
+    grade_four = create(:classroom, school: school, grade: 4, class_label: "4")
+    grade_five = create(:classroom, school: school, grade: 5, class_label: "5")
+    2.times { create(:student, classroom: grade_four, active: true) }
+    create(:student, classroom: grade_four, active: false)
+    create(:student, classroom: grade_five, active: true)
+    sign_in create(:user, :admin)
+
+    get school_path(school, teacher_grade: "unassigned", classroom_grade: 4)
+
+    document = Nokogiri::HTML(response.body)
+    classroom_section = document.css("section").find { |section| section.at_css("h2")&.text&.strip == "교실" }
+    links = classroom_section.css("a").index_by { |link| link.text.strip }
+    expect(links.keys).to include("전체", "1학년", "6학년", "교실 설정", "교실 바로가기", "교실 관리")
+    expect(links.keys).not_to include("미배정")
+    expect(classroom_section.css("th").map { |heading| heading.text.strip }).not_to include("학년도")
+    expect(classroom_section.text).to include(grade_four.formatted_class_label, "총 1학급 · 학생 2명")
+    expect(classroom_section.text).not_to include(grade_five.formatted_class_label)
+    expect(links["교실 바로가기"]["href"]).to eq(classroom_students_path(grade_four))
+    expect(links["교실 설정"]["href"]).to eq(edit_classroom_path(grade_four))
+    expect(links["교실 관리"]["href"]).to eq(classrooms_path(school_id: school.id, grade: "4"))
+    expect(links["전체"]["href"]).to eq(school_path(school, teacher_grade: "unassigned", classroom_grade: "all"))
+
+    teacher_section = document.css("section").find { |section| section.at_css("h2")&.text&.strip == "선생님" }
+    expect(teacher_section.css("a").find { |link| link.text.strip == "전체" }["href"]).to eq(
+      school_path(school, teacher_grade: "all", classroom_grade: "4")
+    )
+
+    get school_path(school, classroom_grade: "all")
+    document = Nokogiri::HTML(response.body)
+    classroom_section = document.css("section").find { |section| section.at_css("h2")&.text&.strip == "교실" }
+    expect(classroom_section.text).to include("총 2학급 · 학생 3명")
   end
 
   it "rejects regular and membershipless teachers" do
