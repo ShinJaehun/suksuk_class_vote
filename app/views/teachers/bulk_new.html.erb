@@ -18,7 +18,17 @@
     <%= hidden_field_tag :grade, @grade if @school_context %>
     <div class="overflow-x-auto rounded-md border border-stone-200 bg-white">
       <table class="min-w-full divide-y divide-stone-200 text-sm">
-        <thead class="bg-stone-50"><tr><th class="p-3 text-left">이름</th><th class="p-3 text-left">로그인 ID</th><% unless @school_context %><th class="p-3 text-left">학년</th><% end %><th class="p-3 text-left">담당 반</th><th class="p-3 text-left">제외</th></tr></thead>
+        <thead class="bg-stone-50">
+          <tr>
+            <th class="p-3 text-left">이름</th>
+            <th class="p-3 text-left">로그인 ID</th>
+            <% unless @school_context %>
+              <th class="p-3 text-left">학년</th>
+            <% end %>
+            <th class="p-3 text-left">담당 반</th>
+            <th class="p-3 text-left">제외</th>
+          </tr>
+        </thead>
         <tbody class="divide-y divide-stone-100">
           <% @bulk_entries.each_with_index do |entry, index| %>
             <% value = ->(key) { entry.respond_to?(key) ? entry.public_send(key) : entry[key] || entry[key.to_s] } %>
@@ -27,7 +37,9 @@
               <td class="p-3 align-top"><%= text_field_tag "teachers[rows][#{index}][name]", value.call(:name), class: "w-40 rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700", required: true %></td>
               <td class="p-3 align-top">
                 <%= text_field_tag "teachers[rows][#{index}][login_id]", value.call(:login_id), class: "w-40 rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700", required: true, autocomplete: "off" %>
-                <% if @school_context %><%= hidden_field_tag "teachers[rows][#{index}][grade]", value.call(:grade), data: { teacher_bulk_target: "grade" } %><% end %>
+                <% if @school_context %>
+                  <%= hidden_field_tag "teachers[rows][#{index}][grade]", value.call(:grade), data: { teacher_bulk_target: "grade" } %>
+                <% end %>
               </td>
               <% unless @school_context %>
                 <td class="p-3 align-top"><%= select_tag "teachers[rows][#{index}][grade]", options_for_select(1.upto(6).map { |grade| ["#{grade}학년", grade] }, value.call(:grade)), class: "rounded-md border border-stone-300 bg-white px-3 py-2 focus:border-stone-700 focus:ring-stone-700", data: { teacher_bulk_target: "grade", action: "change->teacher-bulk#filter" } %></td>
@@ -43,9 +55,13 @@
                     <% end %>
                   </select>
                 <% end %>
-                <% if entry_errors.any? %><p class="mt-1 max-w-xs text-xs text-rose-700"><%= entry_errors.to_sentence %></p><% end %>
+                <% if entry_errors.any? %>
+                  <p class="mt-1 max-w-xs text-xs text-rose-700"><%= entry_errors.to_sentence %></p>
+                <% end %>
               </td>
-              <td class="p-3 align-middle"><button type="button" class="inline-flex items-center text-sm font-medium text-rose-700 underline" data-action="teacher-bulk#removeRow">제외</button></td>
+              <td class="p-3 align-middle">
+                <button type="button" class="inline-flex items-center text-sm font-medium text-rose-700 underline" data-action="teacher-bulk#removeRow">제외</button>
+              </td>
             </tr>
           <% end %>
         </tbody>

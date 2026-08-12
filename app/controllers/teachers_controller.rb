@@ -295,12 +295,12 @@ class TeachersController < ApplicationController
   end
 
   def change_active_state(active)
-    authorize User, :update?
     prepare_school
     @teacher = policy_scope(User)
       .joins(:school_membership)
       .where(school_memberships: { school_id: @school&.id })
       .find(params[:id])
+    authorize @teacher, active ? :reactivate? : :deactivate?
 
     User.transaction do
       @teacher.lock!

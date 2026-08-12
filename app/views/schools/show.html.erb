@@ -25,14 +25,36 @@
     <% if @teachers.any? %>
       <div class="mt-5 overflow-x-auto rounded-md border border-stone-200">
         <table class="min-w-full table-fixed divide-y divide-stone-200 text-sm">
-          <colgroup><col class="w-[28%]"><col class="w-[22%]"><col class="w-[12%]"><col class="w-[16%]"><col class="w-[10%]"><col class="w-[12%]"></colgroup>
-          <thead class="bg-stone-50"><tr><th class="p-3 text-left">이름</th><th class="p-3 text-left">로그인 ID</th><th class="p-3 text-left">학년</th><th class="p-3 text-left">담당 반</th><th class="p-3 text-left">상태</th><th class="p-3 text-left">비밀번호</th></tr></thead>
+          <colgroup>
+            <col class="w-[28%]">
+            <col class="w-[22%]">
+            <col class="w-[12%]">
+            <col class="w-[16%]">
+            <col class="w-[10%]">
+            <col class="w-[12%]">
+          </colgroup>
+          <thead class="bg-stone-50">
+            <tr>
+              <th class="p-3 text-left">이름</th>
+              <th class="p-3 text-left">로그인 ID</th>
+              <th class="p-3 text-left">학년</th>
+              <th class="p-3 text-left">담당 반</th>
+              <th class="p-3 text-left">상태</th>
+              <th class="p-3 text-left">비밀번호</th>
+            </tr>
+          </thead>
           <tbody class="divide-y divide-stone-100">
             <% @teachers.each do |teacher| %>
               <% membership = teacher.school_membership %>
               <% classroom = teacher.active_classroom %>
               <tr id="<%= dom_id(teacher, :overview_row) %>">
-                <td class="break-words p-3 align-middle"><%= teacher.name %> <% if membership&.manager? %><span class="inline-block rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">대표 선생님</span><% end %></td><td class="break-words p-3 align-middle"><%= teacher.login_id %></td>
+                <td class="break-words p-3 align-middle">
+                  <%= teacher.name %>
+                  <% if membership&.manager? %>
+                    <span class="inline-block rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">대표 선생님</span>
+                  <% end %>
+                </td>
+                <td class="break-words p-3 align-middle"><%= teacher.login_id %></td>
                 <td class="p-3 align-middle"><%= membership&.grade ? "#{membership.grade}학년" : "미배정" %></td>
                 <td class="p-3 align-middle"><%= classroom ? classroom.formatted_class_label : "미배정" %></td>
                 <td class="p-3 align-middle"><%= teacher.active? ? "활성" : "비활성" %></td>

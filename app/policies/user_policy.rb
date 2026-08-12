@@ -11,12 +11,20 @@ class UserPolicy < ApplicationPolicy
     record == user || admin_or_manager?
   end
 
+  def deactivate?
+    lifecycle?
+  end
+
+  def reactivate?
+    lifecycle?
+  end
+
   def issue_temporary_password?
     admin_or_manager?
   end
 
   def destroy?
-    admin_or_manager?
+    lifecycle?
   end
 
   alias bulk_setup? create?
@@ -37,6 +45,10 @@ class UserPolicy < ApplicationPolicy
   end
 
   private
+
+  def lifecycle?
+    user&.admin? || (admin_or_manager? && record != user)
+  end
 
   def admin_or_manager?
     user&.admin? || (user&.teacher? && user.school_membership&.manager?)

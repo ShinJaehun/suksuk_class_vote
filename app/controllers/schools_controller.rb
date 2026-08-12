@@ -44,6 +44,7 @@ class SchoolsController < ApplicationController
     end
 
     school_scope = policy_scope(User).joins(:school_membership).where(school_memberships: { school_id: @school.id })
+    authorize_bulk_teacher_lifecycle(school_scope)
     result = Teachers::BulkOperator.new(
       school: @school,
       scope: school_scope,
@@ -98,6 +99,13 @@ class SchoolsController < ApplicationController
   end
 
   private
+
+  def authorize_bulk_teacher_lifecycle(scope)
+    query = { "activate" => :reactivate?, "deactivate" => :deactivate? }[params[:operation].to_s]
+    return unless query
+
+    scope.where(id: params[:teacher_ids]).find_each { |teacher| authorize teacher, query }
+  end
 
   def prepare_teacher_scope
     grade = params[:teacher_grade].to_s

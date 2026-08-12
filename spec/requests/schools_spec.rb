@@ -313,6 +313,12 @@ RSpec.describe "Schools", type: :request do
     patch bulk_teacher_operation_school_path(school), params: { teacher_grade: 3, teacher_ids: [selected.id], operation: "deactivate" }
     expect(selected.reload).not_to be_active
 
+    patch bulk_teacher_operation_school_path(school), params: { teacher_grade: "unassigned", teacher_ids: [manager.id], operation: "deactivate" }
+    expect(manager.reload).to be_active
+
+    patch bulk_teacher_operation_school_path(school), params: { teacher_grade: "unassigned", teacher_ids: [manager.id], operation: "assign_grade", grade: 4 }
+    expect(manager.school_membership.reload.grade).to eq(4)
+
     sign_out manager
     ordinary = add_teacher(school)
     sign_in ordinary

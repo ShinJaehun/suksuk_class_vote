@@ -36,9 +36,9 @@
       <% if teacher.active? && classroom %>
         <%= link_to "교실 바로가기", classroom_students_path(classroom), class: "inline-flex rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-100" %>
       <% end %>
-      <% if teacher.active? && teacher.school %>
+      <% if teacher.active? && teacher.school && policy(teacher).deactivate? %>
         <%= link_to "비활성화", deactivate_teacher_path(teacher, school_id: teacher.school.id), class: "inline-flex rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-700 hover:bg-rose-100", data: { turbo_method: :patch } %>
-      <% elsif teacher.school %>
+      <% elsif !teacher.active? && teacher.school && policy(teacher).reactivate? %>
         <%= link_to "활성화", reactivate_teacher_path(teacher, school_id: teacher.school.id), class: "inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100", data: { turbo_method: :patch } %>
         <% if policy(teacher).destroy? && membership&.grade.nil? && classroom.nil? %>
           <%= link_to "삭제", teacher_path(teacher, return_to: "teachers"), class: "inline-flex rounded-md border border-rose-300 bg-white px-3 py-1.5 text-sm font-medium text-rose-700 hover:bg-rose-50", data: { turbo_method: :delete, turbo_confirm: "#{teacher.name}(#{teacher.login_id}) 계정을 완전히 삭제합니다. 삭제한 계정은 복구할 수 없습니다. 계속하시겠습니까?" } %>

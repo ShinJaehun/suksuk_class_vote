@@ -133,6 +133,12 @@ RSpec.describe "Teachers", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include(colleague.name)
       expect(response.body).not_to include(outsider.name, "학교 선택")
+      manager_row = Nokogiri::HTML(response.body).at_css("#teacher_card_user_#{manager.id}")
+      colleague_row = Nokogiri::HTML(response.body).at_css("#teacher_card_user_#{colleague.id}")
+      expect(manager_row.text).to include("설정")
+      expect(manager_row.at_css("a[href^='#{deactivate_teacher_path(manager)}']")).to be_nil
+      expect(manager_row.at_css("a[data-turbo-method='delete']")).to be_nil
+      expect(colleague_row.at_css("a[href^='#{deactivate_teacher_path(colleague)}']")).to be_present
     end
 
     it "denies ordinary teachers" do
@@ -375,6 +381,16 @@ RSpec.describe "Teachers", type: :request do
       expect(other.reload.name).not_to eq("침범")
     end
 
+    it "lets a manager update their own profile" do
+      manager = create(:user, name: "변경 전", login_id: "manager-before")
+      add_to_school(manager, school, role: :manager)
+      sign_in manager
+
+      patch teacher_path(manager), params: { user: { name: "변경 후", login_id: "manager-after", email: "manager@example.com" } }
+
+      expect(manager.reload).to have_attributes(name: "변경 후", login_id: "manager-after", email: "manager@example.com")
+    end
+
     it "shows the same temporary-password management to a same-school manager" do
       target = create(:user)
       add_to_school(target, school)
@@ -521,6 +537,25 @@ RSpec.describe "Teachers", type: :request do
       delete teacher_path(target), params: { teacher_grade: "unassigned" }
       expect(User.exists?(target.id)).to be(true)
     end
+
+    it "does not let a manager deactivate or delete their own account" do
+      manager = create(:user)
+      add_to_school(manager, school, role: :manager)
+      colleague = create(:user)
+      add_to_school(colleague, school)
+      sign_in manager
+
+      patch deactivate_teacher_path(colleague), params: { school_id: school.id, teacher_grade: "unassigned" }
+      expect(colleague.reload).not_to be_active
+
+      patch deactivate_teacher_path(manager), params: { school_id: school.id, teacher_grade: "unassigned" }
+      expect(response).to redirect_to(polls_path)
+      expect(manager.reload).to be_active
+
+      delete teacher_path(manager), params: { teacher_grade: "unassigned" }
+      expect(response).to redirect_to(polls_path)
+      expect(User.exists?(manager.id)).to be(true)
+    end
   end
 
 
@@ -633,7 +668,7 @@ RSpec.describe "Teachers", type: :request do
 
       patch deactivate_teacher_path(target), params: { school_id: other_school.id, teacher_grade: "unassigned" }
 
-      expect(response).to redirect_to(polls_path)
+      expect(response).to have_http_status(:not_found)
       expect(target.reload).to be_active
     end
 

@@ -7,33 +7,45 @@
     <%= hidden_field_tag :teacher_grade, @teacher_grade %>
     <% if @bulk_entries.any? %>
       <div class="overflow-x-auto rounded-md border border-stone-200">
-      <table class="min-w-full divide-y divide-stone-200 text-sm">
-        <thead class="bg-stone-50">
-          <tr><th class="w-14 p-3 text-left"><%= check_box_tag :select_all_teachers, "1", false, aria: { label: "모두 선택" }, data: { teacher_bulk_target: "selectAll", action: "change->teacher-bulk#toggleAll" } %></th><th class="p-3 text-left">이름</th><th class="p-3 text-left">로그인 ID</th><th class="p-3 text-left">학년</th><th class="p-3 text-left">담당 반</th><th class="p-3 text-left">상태</th><th class="p-3 text-left">비밀번호</th></tr>
-        </thead>
-        <tbody class="divide-y divide-stone-100">
-          <% @bulk_entries.each_with_index do |entry, index| %>
-            <% value = ->(key) { entry.respond_to?(key) ? entry.public_send(key) : entry[key] || entry[key.to_s] } %>
-            <% teacher = entry.respond_to?(:user) ? entry.user : value.call(:user) %>
-            <% entry_errors = entry.respond_to?(:errors) ? entry.errors : (entry[:errors] || []) %>
-            <tr id="<%= dom_id(teacher, :bulk_edit_row) %>" class="<%= 'bg-stone-50 text-stone-400' unless teacher.active? %>" data-teacher-bulk-target="row">
-              <td class="w-14 p-3 align-middle"><%= check_box_tag "teacher_ids[]", teacher.id, false, form: "teacher_selection_operation", aria: { label: "#{teacher.name} 선택" }, data: { teacher_bulk_target: "selection", action: "change->teacher-bulk#updateSelection" } %></td>
-              <td class="p-3 align-middle"><%= hidden_field_tag "teachers[rows][#{index}][id]", value.call(:id), disabled: !teacher.active? %><%= text_field_tag "teachers[rows][#{index}][name]", value.call(:name), class: "w-36 rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400", required: true, disabled: !teacher.active?, data: { action: "input->teacher-bulk#track" } %></td>
-              <td class="p-3 align-middle"><%= text_field_tag "teachers[rows][#{index}][login_id]", value.call(:login_id), class: "w-36 rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400", required: true, disabled: !teacher.active?, data: { action: "input->teacher-bulk#track" } %></td>
-              <td class="p-3 align-middle"><%= select_tag "teachers[rows][#{index}][grade]", options_for_select([["미배정", ""], *1.upto(6).map { |grade| ["#{grade}학년", grade] }], value.call(:grade)), disabled: !teacher.active?, class: "rounded-md border border-stone-300 bg-white px-3 py-2 focus:border-stone-700 focus:ring-stone-700 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400", data: { teacher_bulk_target: "grade", action: "change->teacher-bulk#filter" } %></td>
-              <td class="p-3 align-middle">
-                <select name="teachers[rows][<%= index %>][classroom_id]" <%= "disabled" unless teacher.active? %> class="min-w-32 rounded-md border border-stone-300 bg-white px-3 py-2 focus:border-stone-700 focus:ring-stone-700 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400" data-teacher-bulk-target="classroom" data-action="change->teacher-bulk#track">
-                  <option value="">미배정</option>
-                  <% @teacher_classrooms.each do |classroom| %><option value="<%= classroom.id %>" data-grade="<%= classroom.grade %>" <%= "selected" if classroom.id.to_s == value.call(:classroom_id).to_s %>><%= classroom.formatted_class_label %></option><% end %>
-                </select>
-                <% if entry_errors.any? %><p class="mt-1 max-w-xs text-xs text-rose-700"><%= entry_errors.to_sentence %></p><% end %>
-              </td>
-              <td class="p-3 align-middle"><%= render "teachers/bulk_status", teacher: teacher, school: @school, teacher_grade: @teacher_grade %></td>
-              <td class="p-3 align-middle"><%= render "teachers/bulk_password_action", teacher: teacher, teacher_grade: @teacher_grade %></td>
+        <table class="min-w-full divide-y divide-stone-200 text-sm">
+          <thead class="bg-stone-50">
+            <tr>
+              <th class="w-14 p-3 text-left"><%= check_box_tag :select_all_teachers, "1", false, aria: { label: "모두 선택" }, data: { teacher_bulk_target: "selectAll", action: "change->teacher-bulk#toggleAll" } %></th>
+              <th class="p-3 text-left">이름</th>
+              <th class="p-3 text-left">로그인 ID</th>
+              <th class="p-3 text-left">학년</th>
+              <th class="p-3 text-left">담당 반</th>
+              <th class="p-3 text-left">상태</th>
+              <th class="p-3 text-left">비밀번호</th>
             </tr>
-          <% end %>
-        </tbody>
-      </table>
+          </thead>
+          <tbody class="divide-y divide-stone-100">
+            <% @bulk_entries.each_with_index do |entry, index| %>
+              <% value = ->(key) { entry.respond_to?(key) ? entry.public_send(key) : entry[key] || entry[key.to_s] } %>
+              <% teacher = entry.respond_to?(:user) ? entry.user : value.call(:user) %>
+              <% entry_errors = entry.respond_to?(:errors) ? entry.errors : (entry[:errors] || []) %>
+              <tr id="<%= dom_id(teacher, :bulk_edit_row) %>" class="<%= 'bg-stone-50 text-stone-400' unless teacher.active? %>" data-teacher-bulk-target="row">
+                <td class="w-14 p-3 align-middle"><%= check_box_tag "teacher_ids[]", teacher.id, false, form: "teacher_selection_operation", aria: { label: "#{teacher.name} 선택" }, data: { teacher_bulk_target: "selection", action: "change->teacher-bulk#updateSelection" } %></td>
+                <td class="p-3 align-middle"><%= hidden_field_tag "teachers[rows][#{index}][id]", value.call(:id), disabled: !teacher.active? %><%= text_field_tag "teachers[rows][#{index}][name]", value.call(:name), class: "w-36 rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400", required: true, disabled: !teacher.active?, data: { action: "input->teacher-bulk#track" } %></td>
+                <td class="p-3 align-middle"><%= text_field_tag "teachers[rows][#{index}][login_id]", value.call(:login_id), class: "w-36 rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400", required: true, disabled: !teacher.active?, data: { action: "input->teacher-bulk#track" } %></td>
+                <td class="p-3 align-middle"><%= select_tag "teachers[rows][#{index}][grade]", options_for_select([["미배정", ""], *1.upto(6).map { |grade| ["#{grade}학년", grade] }], value.call(:grade)), disabled: !teacher.active?, class: "rounded-md border border-stone-300 bg-white px-3 py-2 focus:border-stone-700 focus:ring-stone-700 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400", data: { teacher_bulk_target: "grade", action: "change->teacher-bulk#filter" } %></td>
+                <td class="p-3 align-middle">
+                  <select name="teachers[rows][<%= index %>][classroom_id]" <%= "disabled" unless teacher.active? %> class="min-w-32 rounded-md border border-stone-300 bg-white px-3 py-2 focus:border-stone-700 focus:ring-stone-700 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400" data-teacher-bulk-target="classroom" data-action="change->teacher-bulk#track">
+                    <option value="">미배정</option>
+                    <% @teacher_classrooms.each do |classroom| %>
+                      <option value="<%= classroom.id %>" data-grade="<%= classroom.grade %>" <%= "selected" if classroom.id.to_s == value.call(:classroom_id).to_s %>><%= classroom.formatted_class_label %></option>
+                    <% end %>
+                  </select>
+                  <% if entry_errors.any? %>
+                    <p class="mt-1 max-w-xs text-xs text-rose-700"><%= entry_errors.to_sentence %></p>
+                  <% end %>
+                </td>
+                <td class="p-3 align-middle"><%= render "teachers/bulk_status", teacher: teacher, school: @school, teacher_grade: @teacher_grade %></td>
+                <td class="p-3 align-middle"><%= render "teachers/bulk_password_action", teacher: teacher, teacher_grade: @teacher_grade %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
       </div>
     <% else %>
       <div class="rounded-md border border-stone-200 py-10 text-center text-sm text-stone-500">선생님이 없습니다.</div>
@@ -45,13 +57,26 @@
     <%= hidden_field_tag :teacher_grade, @teacher_grade %>
     <div class="flex flex-wrap items-center gap-3">
       <span class="text-sm text-stone-500" data-teacher-bulk-target="selectionCount">0명 선택</span>
-      <div class="flex items-center gap-2 border-l border-stone-300 pl-3"><%= label_tag :grade, "학년", class: "text-xs font-medium text-stone-600" %><%= select_tag :grade, options_for_select([["미배정", ""], *1.upto(6).map { |grade| ["#{grade}학년", grade] }]), class: "rounded-md border border-stone-300 bg-white px-3 py-2 text-sm" %><%= button_tag "배정", name: :operation, value: "assign_grade", disabled: true, class: "rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-50", data: { teacher_bulk_target: "operationSubmit", turbo_confirm: "선택한 선생님의 학년을 변경합니다." } %></div>
-      <div class="flex items-center gap-2 border-l border-stone-300 pl-3"><span class="text-xs font-medium text-stone-600">계정 상태</span><%= button_tag "활성화", name: :operation, value: "activate", disabled: true, class: "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50", data: { teacher_bulk_target: "operationSubmit" } %><%= button_tag "비활성화", name: :operation, value: "deactivate", disabled: true, class: "rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50", data: { teacher_bulk_target: "operationSubmit", turbo_confirm: "선택한 선생님을 비활성화합니다. 담당 반 배정은 해제됩니다." } %></div>
+      <div class="flex items-center gap-2 border-l border-stone-300 pl-3">
+        <%= label_tag :grade, "학년", class: "text-xs font-medium text-stone-600" %>
+        <%= select_tag :grade, options_for_select([["미배정", ""], *1.upto(6).map { |grade| ["#{grade}학년", grade] }]), class: "rounded-md border border-stone-300 bg-white px-3 py-2 text-sm" %>
+        <%= button_tag "배정", name: :operation, value: "assign_grade", disabled: true, class: "rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-50", data: { teacher_bulk_target: "operationSubmit", turbo_confirm: "선택한 선생님의 학년을 변경합니다." } %>
+      </div>
+      <div class="flex items-center gap-2 border-l border-stone-300 pl-3">
+        <span class="text-xs font-medium text-stone-600">계정 상태</span>
+        <%= button_tag "활성화", name: :operation, value: "activate", disabled: true, class: "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50", data: { teacher_bulk_target: "operationSubmit" } %>
+        <%= button_tag "비활성화", name: :operation, value: "deactivate", disabled: true, class: "rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50", data: { teacher_bulk_target: "operationSubmit", turbo_confirm: "선택한 선생님을 비활성화합니다. 담당 반 배정은 해제됩니다." } %>
+      </div>
     </div>
-    <div class="ml-auto flex items-center gap-2"><%= link_to "선생님 추가", new_teacher_path(school_id: @school.id, grade: creation_grade, school_context: true), class: "rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100" %><%= link_to "여러 선생님 추가", bulk_setup_teachers_path(school_id: @school.id, grade: creation_grade, school_context: true), class: "rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100" %></div>
+    <div class="ml-auto flex items-center gap-2">
+      <%= link_to "선생님 추가", new_teacher_path(school_id: @school.id, grade: creation_grade, school_context: true), class: "rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100" %>
+      <%= link_to "여러 선생님 추가", bulk_setup_teachers_path(school_id: @school.id, grade: creation_grade, school_context: true), class: "rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100" %>
+    </div>
   <% end %>
 
   <% if @bulk_entries.any? { |entry| (entry.respond_to?(:user) ? entry.user : entry[:user]).active? } %>
-    <div class="flex justify-end"><%= button_tag "변경 사항 저장", type: :submit, form: "teacher_bulk_update", class: "rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50" %></div>
+    <div class="flex justify-end">
+      <%= button_tag "변경 사항 저장", type: :submit, form: "teacher_bulk_update", class: "rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50" %>
+    </div>
   <% end %>
 </div>

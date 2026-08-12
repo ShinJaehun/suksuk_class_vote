@@ -37,6 +37,8 @@ teacher는 하나의 `SchoolMembership`을 통해 학교에 속할 수 있다.
 `manager`는 별도 global User 역할이 아니다. 한 학교에는 manager membership을 하나만 둘 수 있으며,
 manager 지정과 해제는 global admin만 수행한다.
 
+`User`는 `login_id` 기반으로 로그인하는 실제 사람의 계정이며 `active`, `password_change_required` 상태를 가진다. 과거 운영 기록 때문에 계정을 단순 재사용하거나 교체하지 않는다. 한 User는 한 학교 membership만 가지며, membership의 grade는 1~6 또는 미배정(nil)이다. `Classroom.teacher`는 현재 담임 배정으로 membership의 grade와 별개이며, 활성 teacher 한 명은 활성 Classroom 하나만 담당한다.
+
 ### Student와 guest
 
 `Student`는 Classroom의 학년도별 학생 명단 모델이며 로그인 계정이 아니다. 학생 계정, PIN,
@@ -79,6 +81,7 @@ manager 권한은 membership이 속한 학교로 한정된다.
 
 manager는 다른 학교 자원에 접근하지 못한다. manager 지정·해제는 할 수 없고, 담당 Classroom이 남은
 교사의 membership도 제거할 수 없다. legacy `Election` 관리 권한은 없으며 해당 기능은 admin-only다.
+manager는 자기 profile과 비밀번호를 변경할 수 있지만 자기 계정을 비활성화하거나 삭제할 수 없다. 자기 학교 일반 선생님의 lifecycle 관리는 기존 범위에서 가능하며, 자기 lifecycle 제한은 UI뿐 아니라 `UserPolicy`의 record authorization으로 강제한다. global admin의 기존 선생님 관리 권한은 유지된다.
 
 ### 일반 teacher/member
 
@@ -123,6 +126,8 @@ manager 승격·해제는 admin-only다. admin은 membership을 제거할 수 �
 member만 제거할 수 있다. controller는 담당 Classroom이 남아 있으면 제거를 추가로 차단한다.
 `SchoolMembership.grade`는 학교 내 학년 소속을 나타내며 nullable이다. `Classroom.grade`는 교실의
 학년이고 `Classroom.teacher`는 실제 담임 배정이므로, 학년 소속과 담당 반은 독립적으로 관리한다.
+
+선생님 비활성화는 현재 담당 Classroom을 해제하고 grade는 보존한다. 재활성화해도 Classroom을 자동 복원하지 않는다. 삭제는 inactive, grade nil, Classroom 없음 조건에서만 시도하며 기존 기록의 FK/restrict가 있으면 실패한다. `login_id` uniqueness는 비활성화·삭제 정책과 별도로 유지한다.
 
 ### 일반 Poll / PollSession
 
