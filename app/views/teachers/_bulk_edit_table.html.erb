@@ -3,8 +3,9 @@
     <div class="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><%= @bulk_errors.uniq.to_sentence %></div>
   <% end %>
 
-  <%= form_with url: bulk_update_teachers_school_path(@school), method: :patch, id: "teacher_bulk_update" do %>
-    <%= hidden_field_tag :teacher_grade, @teacher_grade %>
+  <%= form_with url: bulk_update_teachers_path, method: :patch, id: "teacher_bulk_update" do %>
+    <%= hidden_field_tag :school_id, @school.id %>
+    <%= hidden_field_tag :grade, @grade %>
     <% if @bulk_entries.any? %>
       <div class="overflow-x-auto rounded-md border border-stone-200">
         <table class="min-w-full divide-y divide-stone-200 text-sm">
@@ -40,8 +41,8 @@
                     <p class="mt-1 max-w-xs text-xs text-rose-700"><%= entry_errors.to_sentence %></p>
                   <% end %>
                 </td>
-                <td class="p-3 align-middle"><%= render "teachers/bulk_status", teacher: teacher, school: @school, teacher_grade: @teacher_grade %></td>
-                <td class="p-3 align-middle"><%= render "teachers/bulk_password_action", teacher: teacher, teacher_grade: @teacher_grade %></td>
+                <td class="p-3 align-middle"><%= render "teachers/bulk_status", teacher: teacher, school: @school, teacher_grade: @grade %></td>
+                <td class="p-3 align-middle"><%= render "teachers/bulk_password_action", teacher: teacher, teacher_grade: @grade %></td>
               </tr>
             <% end %>
           </tbody>
@@ -52,9 +53,10 @@
     <% end %>
   <% end %>
 
-  <% creation_grade = @teacher_grade.match?(/\A[1-6]\z/) ? @teacher_grade : "unassigned" %>
-  <%= form_with url: bulk_teacher_operation_school_path(@school), method: :patch, id: "teacher_selection_operation", class: "flex flex-wrap items-center justify-between gap-3 rounded-md border border-stone-200 bg-stone-50 p-3" do %>
-    <%= hidden_field_tag :teacher_grade, @teacher_grade %>
+  <% creation_grade = @grade.match?(/\A[1-6]\z/) ? @grade : "unassigned" %>
+  <%= form_with url: bulk_operation_teachers_path, method: :patch, id: "teacher_selection_operation", class: "flex flex-wrap items-center justify-between gap-3 rounded-md border border-stone-200 bg-stone-50 p-3" do %>
+    <%= hidden_field_tag :school_id, @school.id %>
+    <%= hidden_field_tag :management_grade, @grade %>
     <div class="flex flex-wrap items-center gap-3">
       <span class="text-sm text-stone-500" data-teacher-bulk-target="selectionCount">0명 선택</span>
       <div class="flex items-center gap-2 border-l border-stone-300 pl-3">
@@ -69,8 +71,8 @@
       </div>
     </div>
     <div class="ml-auto flex items-center gap-2">
-      <%= link_to "선생님 추가", new_teacher_path(school_id: @school.id, grade: creation_grade, school_context: true), class: "rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100" %>
-      <%= link_to "여러 선생님 추가", bulk_setup_teachers_path(school_id: @school.id, grade: creation_grade, school_context: true), class: "rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100" %>
+      <%= link_to "선생님 추가", new_teacher_path(school_id: @school.id, grade: creation_grade, return_grade: @grade, school_context: true), class: "rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100", data: { turbo_frame: "_top" } %>
+      <%= link_to "여러 선생님 추가", bulk_setup_teachers_path(school_id: @school.id, grade: creation_grade, return_grade: @grade, school_context: true), class: "rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100", data: { turbo_frame: "_top" } %>
     </div>
   <% end %>
 

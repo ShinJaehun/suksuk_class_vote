@@ -26,6 +26,14 @@ RSpec.describe "Classrooms", type: :request do
     expect(response).to have_http_status(:ok)
     expect(response.body).to include(first.formatted_class_label, "학교 필터", "교실 생성", "학생 1/1명")
     expect(response.body).not_to include(second.formatted_class_label)
+    document = Nokogiri::HTML(response.body)
+    selector = document.at_css("form[data-controller='autosubmit'][data-turbo-frame='classroom_management'][data-action='change->autosubmit#submit'] select[name='school_id']")
+    expect(selector.css("option").map(&:text)).to include("전체 학교", first_school.name, second_school.name)
+    expect(document.at_css("turbo-frame#classroom_management")).to be_present
+    expect(response.body).not_to include(">적용<")
+
+    get classrooms_path
+    expect(response.body).to include(first.formatted_class_label, second.formatted_class_label)
   end
 
   it "scopes managers and teachers and redirects a teacher with one Classroom" do

@@ -64,14 +64,17 @@ export default class extends Controller {
   }
 
   filterRow(row) {
+    const schoolField = row.querySelector("[data-teacher-bulk-target='school']")
     const gradeField = row.querySelector("[data-teacher-bulk-target='grade']")
     const classroom = row.querySelector("[data-teacher-bulk-target='classroom']")
     if (!gradeField || !classroom) return
 
     const grade = gradeField.value
+    const schoolId = schoolField?.value
 
     Array.from(classroom.options).forEach((option) => {
-      const available = option.value === "" || option.dataset.grade === grade
+      const matchesSchool = !schoolField || option.dataset.schoolId === schoolId
+      const available = option.value === "" || (matchesSchool && option.dataset.grade === grade)
       option.hidden = !available
       option.disabled = !available
     })

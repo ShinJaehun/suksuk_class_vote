@@ -1,68 +1,43 @@
 <div class="space-y-6">
-  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-    <div class="space-y-1">
-      <h1 class="text-3xl font-semibold">선생님</h1>
-      <p class="text-sm text-stone-600">계정, 학교 소속과 현재 담당 교실을 확인합니다.</p>
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold">선생님 관리</h1>
+      <p class="mt-1 text-sm text-stone-600">학교 선생님 정보를 관리합니다.</p>
     </div>
+
     <div class="flex flex-wrap gap-2">
-      <%= link_to "선생님 추가", new_teacher_path(school_id: @school_id), class: "inline-flex justify-center rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100" %>
-      <%= link_to "여러 선생님 추가", bulk_setup_teachers_path(school_id: @school_id), class: "inline-flex justify-center rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100" %>
+      <%= link_to "선생님 추가",
+                  new_teacher_path,
+                  class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+      <%= link_to "여러 선생님 추가",
+                  bulk_setup_teachers_path,
+                  class: "rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700" %>
     </div>
   </div>
 
-  <%= form_with url: teachers_path, method: :get, class: "grid gap-3 rounded-md border border-stone-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4" do |form| %>
-    <%= hidden_field_tag :sort, @teacher_sort %>
-    <% if current_user.admin? %>
-      <div class="space-y-1">
-        <%= form.label :school_id, "학교", class: "text-sm font-medium" %>
+  <% if current_user.admin? %>
+    <%= form_with url: teachers_path,
+                  method: :get,
+                  class: "flex max-w-xl items-end gap-3 rounded-md border border-stone-200 bg-white p-4",
+                  data: { controller: "autosubmit", turbo_frame: "teacher_management", turbo_action: "advance", action: "change->autosubmit#submit" } do |form| %>
+      <%= hidden_field_tag :grade, "all" %>
+      <div class="flex-1">
+        <%= form.label :school_id, "학교 필터", class: "block text-sm font-medium" %>
         <%= form.select :school_id,
-                        options_from_collection_for_select(@schools, :id, :name, @school_id),
-                        { include_blank: "전체 학교" },
-                        class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
+                        options_from_collection_for_select(@schools, :id, :name, @school&.id),
+                        { prompt: "학교를 선택하세요" },
+                        class: "mt-1 w-full rounded-md border-stone-300" %>
       </div>
     <% end %>
-    <div class="space-y-1">
-      <%= form.label :grade, "학년", class: "text-sm font-medium" %>
-      <%= form.select :grade,
-                      options_for_select([["전체", "all"], *1.upto(6).map { |grade| ["#{grade}학년", grade] }, ["미배정", "unassigned"]], @grade),
-                      {},
-                      class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
-    </div>
-    <div class="space-y-1">
-      <%= form.label :status, "상태", class: "text-sm font-medium" %>
-      <%= form.select :status,
-                      options_for_select([["활성", "active"], ["비활성", "inactive"], ["전체", "all"]], @status),
-                      {},
-                      class: "w-full rounded-md border border-stone-300 px-3 py-2" %>
-    </div>
-    <div class="space-y-1">
-      <%= form.label :query, "검색", class: "text-sm font-medium" %>
-      <div class="flex gap-2">
-        <%= form.text_field :query, value: @query, placeholder: "이름 또는 로그인 ID", class: "min-w-0 flex-1 rounded-md border border-stone-300 px-3 py-2" %>
-        <%= form.submit "조회", class: "rounded-md bg-stone-800 px-4 py-2 text-sm font-medium text-white" %>
-      </div>
-    </div>
   <% end %>
 
-  <nav id="teacher_sort_toolbar" class="flex flex-wrap items-center gap-2 text-sm" aria-label="선생님 정렬">
-    <span class="text-stone-500">정렬</span>
-    <% { "school" => "학교", "grade" => "학년", "login_id" => "로그인 ID", "created_at" => "생성일" }.each do |value, label| %>
-      <%= link_to label,
-                  teachers_path(request.query_parameters.merge(sort: value)),
-                  class: "rounded-md border px-3 py-1.5 font-medium #{@teacher_sort == value ? 'border-stone-800 bg-stone-800 text-white' : 'border-stone-300 bg-white text-stone-700 hover:bg-stone-50'}" %>
+  <%= turbo_frame_tag "teacher_management", data: { turbo_action: "advance" } do %>
+    <% if @school %>
+      <%= render "teachers/school_management" %>
+    <% else %>
+      <p class="rounded-md border border-dashed border-stone-300 bg-white p-8 text-center text-sm text-stone-600">관리할 학교를 선택해 주세요.</p>
     <% end %>
-  </nav>
-
-  <% if @teachers.any? %>
-    <section class="overflow-hidden rounded-md border border-stone-200 bg-white">
-      <div class="hidden grid-cols-[minmax(9rem,1fr)_minmax(7rem,0.8fr)_minmax(7rem,0.7fr)_minmax(10rem,1fr)_minmax(12rem,auto)] gap-4 bg-stone-50 px-4 py-2 text-xs font-medium text-stone-500 lg:grid">
-        <span>선생님</span><span>소속</span><span>역할</span><span>담당 교실</span><span>관리</span>
-      </div>
-      <ul class="divide-y divide-stone-200">
-        <%= render partial: "teachers/index_row", collection: @teachers, as: :teacher %>
-      </ul>
-    </section>
-  <% else %>
-    <p class="rounded-md border border-stone-200 bg-white py-10 text-center text-sm text-stone-500">선생님이 없습니다.</p>
   <% end %>
+
+  <%= turbo_frame_tag "temporary_password_modal" %>
 </div>

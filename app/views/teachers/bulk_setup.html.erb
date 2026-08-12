@@ -1,6 +1,6 @@
 <div class="mx-auto max-w-xl space-y-6">
   <div>
-    <%= link_to "돌아가기", @school_context ? school_path(@school, teacher_grade: @grade || "unassigned") : teachers_path, class: "text-sm underline" %>
+    <%= link_to "돌아가기", @school_context ? teachers_path(school_id: @school.id, grade: params[:return_grade].presence || @grade || "unassigned") : teachers_path, class: "text-sm underline" %>
     <h1 class="mt-2 text-3xl font-semibold">여러 선생님 추가</h1>
     <p class="mt-1 text-sm text-stone-600">학교, 학년과 추가할 인원을 먼저 선택합니다.</p>
   </div>
@@ -12,6 +12,7 @@
   <%= form_with url: bulk_new_teachers_path, method: :get, class: "space-y-4 rounded-md border border-stone-200 bg-white p-5" do |form| %>
     <%= hidden_field_tag :school_context, true if @school_context %>
     <%= hidden_field_tag :school_id, @school.id if @school_context %>
+    <%= hidden_field_tag :return_grade, params[:return_grade] if @school_context %>
     <% if current_user.admin? && !@school_context %>
       <div>
         <%= form.label :school_id, "학교", class: "text-sm font-medium" %>

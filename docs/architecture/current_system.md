@@ -89,9 +89,10 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - root와 `/dashboard`는 삭제하지 않고 역할별 기본 경로로 redirect하는 안전한 진입점으로 유지
 - `/teachers`는 관리 가능한 교사 계정 목록과 개인 계정 설정 진입을 제공한다. 일반 teacher도 자신의 `/teachers/:id/edit`에서 이름·로그인 ID·이메일을 수정하고, 현재 비밀번호 확인 후 비밀번호를 직접 변경할 수 있다.
 - `User`는 `login_id`로 로그인하는 실제 사람의 계정이며 `active`, `password_change_required` 상태를 가진다. 과거 운영 기록이 연결된 계정은 단순 교체하거나 재사용하지 않는다. `SchoolMembership`은 한 User의 한 학교 소속, member/manager 역할과 nullable한 1~6학년을 나타내며 학교당 manager는 최대 한 명이다.
-- `/teachers`에서 admin은 전체 학교, manager는 자기 학교 선생님을 학교·학년·상태·이름/로그인 ID로 조회하고 학교·학년·로그인 ID·생성일로 정렬할 수 있다. 단일/bulk 생성, 학교·학년 기반 bulk 관리, 기존 Classroom에 대한 담임 배정, 활성화·비활성화를 제공한다.
-- 학교 상세에서는 학년·담임·활성 상태와 이름·로그인 ID를 운영 단위로 관리하고, 기존 교사의 임시 비밀번호는 행별 확인 modal에서 개별 재발급한다.
-- 학교 상세의 학년·미배정 표에서는 선택한 교사의 학년 배정·활성화·비활성화를 별도 원자적 작업으로 처리한다. 비활성화하면 현재 담당 Classroom을 해제하되 grade는 보존하며, 재활성화해도 Classroom을 자동 복원하지 않는다. 비활성 교사의 운영 필드는 편집하지 않으며, 비활성이고 학년·담임이 모두 미배정일 때만 삭제를 시도한다. 삭제 전 historical 사용처를 별도 탐색하지 않고 DB/model reference 보호를 따르므로 사용 이력이 있는 계정은 보통 비활성 상태로 보존된다. `login_id` uniqueness는 이 lifecycle과 별도로 유지한다.
+- `/teachers`는 선생님 계정과 학교·학년 운영의 단일 canonical 관리 화면이다. admin은 상단의 policy-scoped 학교 필터를 변경해 `teacher_management` Turbo Frame을 갱신하고 새 학교는 전체 학년부터 관리한다. 학년 navigation도 같은 Frame을 갱신한다. manager는 학교 필터 없이 자기 학교의 전체 관리 내용을 바로 렌더링하며 query의 다른 학교 ID는 신뢰하지 않는다. 학교 자체의 탐색과 현황은 `/schools`가 담당한다.
+- 학교 집중 관리의 전체·1~6학년·미배정 탭은 모두 editable bulk table을 사용한다. 전체 탭은 해당 학교 모든 선생님을 관리하며, 각 탭에서 단일/bulk 생성, 이름·로그인 ID·학년·기존 Classroom 담당 배정, 임시 비밀번호 재발급과 활성화·비활성화를 제공한다. 담당 Classroom select의 후속 정리는 별도 Classroom 관리 작업에서 다룬다.
+- `/schools/:id`의 선생님 영역은 학교별 읽기 전용 운영 현황이다. 학년 navigation은 조회 filter이며 `선생님 관리` 링크가 학교와 학년 context를 `/teachers`로 전달한다.
+- `/teachers`의 전체·학년·미배정 표에서는 선택한 선생님의 학년 배정·활성화·비활성화를 별도 원자적 작업으로 처리한다. 비활성화하면 현재 담당 Classroom을 해제하되 grade는 보존하며, 재활성화해도 Classroom을 자동 복원하지 않는다. 비활성 교사의 운영 필드는 편집하지 않으며, 비활성이고 학년·담임이 모두 미배정일 때만 삭제를 시도한다. 삭제 전 historical 사용처를 별도 탐색하지 않고 DB/model reference 보호를 따르므로 사용 이력이 있는 계정은 보통 비활성 상태로 보존된다. `login_id` uniqueness는 이 lifecycle과 별도로 유지한다.
 - 로그인 ID 자동 발급과 선택 교사 비밀번호 일괄 재발급은 제공하지 않는다.
 - teacher 본인은 현재 비밀번호 확인 후 자신의 비밀번호를 변경한다. admin/manager는 관리 대상 teacher의 영구 비밀번호를 직접 지정하거나 조회하지 않고, 개별 재발급한 8자리 임시 비밀번호만 해당 응답에서 전달한다. 재발급된 teacher는 다음 로그인 후 비밀번호를 변경해야 한다.
 - 대표 선생님은 자기 profile과 비밀번호를 변경할 수 있지만 자기 계정을 비활성화하거나 삭제할 수 없다. 자기 학교 일반 선생님과 global admin의 기존 관리 범위는 유지되며, 자기 lifecycle 제한은 서버의 policy에서 강제한다.

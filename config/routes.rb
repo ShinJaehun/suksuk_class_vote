@@ -85,6 +85,8 @@ Rails.application.routes.draw do
       get :bulk_setup
       get :bulk_new
       post :bulk_create
+      patch :bulk_update
+      patch :bulk_operation
     end
     member do
       patch :deactivate
@@ -94,10 +96,6 @@ Rails.application.routes.draw do
     end
   end
   resources :schools, only: %i[index show new create edit update] do
-    member do
-      patch :bulk_update_teachers
-      patch :bulk_teacher_operation
-    end
     resources :teacher_memberships,
               path: "teachers",
               controller: "school_teacher_memberships",

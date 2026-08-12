@@ -4,7 +4,54 @@ class TeachersController < ApplicationController
 
   def index
     authorize User
-    prepare_index
+    prepare_school
+    @schools = policy_scope(School).order(:name) if current_user.admin?
+    prepare_school_management if @school
+  end
+
+  def bulk_update
+    authorize User, :index?
+    prepare_school_management
+    unless editable_management_grade?
+      redirect_to teachers_path(school_id: @school.id, grade: "all"), alert: "학년 또는 미배정을 선택해 주세요."
+      return
+    end
+
+    result = Teachers::BulkUpdater.new(scope: filtered_school_teachers, rows: submitted_rows).call
+    if result.success?
+      redirect_to management_teachers_path, notice: "선생님 정보를 일괄 수정했습니다."
+    else
+      @bulk_entries = result.entries.select(&:user)
+      @bulk_errors = result.errors + result.entries.flat_map(&:errors)
+      prepare_school_management
+      render :index, status: :unprocessable_entity
+    end
+  end
+
+  def bulk_operation
+    authorize User, :index?
+    @grade = valid_grade_value(params[:management_grade])
+    prepare_school_management
+    unless editable_management_grade?
+      redirect_to teachers_path(school_id: @school.id, grade: "all"), alert: "학년 또는 미배정을 선택해 주세요."
+      return
+    end
+
+    scope = school_teachers
+    authorize_bulk_teacher_lifecycle(scope)
+    result = Teachers::BulkOperator.new(
+      school: @school,
+      scope: scope,
+      teacher_ids: params[:teacher_ids],
+      operation: params[:operation],
+      grade: params[:grade]
+    ).call
+
+    if result.success?
+      redirect_to management_teachers_path, notice: "선택한 선생님 정보를 변경했습니다."
+    else
+      redirect_to management_teachers_path, alert: result.error
+    end
   end
 
   def new
@@ -12,6 +59,7 @@ class TeachersController < ApplicationController
     @teacher = User.new(role: :teacher)
     prepare_school
     prepare_creation_context
+    prepare_creation_classrooms
   end
 
   def create
@@ -24,8 +72,10 @@ class TeachersController < ApplicationController
     @teacher.password_confirmation = temporary_password
     prepare_school
     prepare_creation_context
+    prepare_creation_classrooms
+    validate_creation_classroom
 
-    if @school.blank? || invalid_creation_grade?
+    if @school.blank? || invalid_creation_grade? || @teacher.errors.any?
       @teacher.errors.add(:base, "소속 학교를 선택해 주세요.") if @school.blank?
       @teacher.errors.add(:base, "학년은 미배정 또는 1~6학년이어야 합니다.") if invalid_creation_grade?
       render :new, status: :unprocessable_entity
@@ -33,8 +83,10 @@ class TeachersController < ApplicationController
     end
 
     User.transaction do
+      lock_creation_classroom
       @teacher.save!
       @school.school_memberships.create!(user: @teacher, role: :member, grade: @grade)
+      @classroom&.update!(teacher: @teacher)
     end
 
     @teacher.password = nil
@@ -47,6 +99,8 @@ class TeachersController < ApplicationController
   rescue ActiveRecord::RecordInvalid => e
     @teacher.errors.add(:base, e.record.errors.full_messages.to_sentence) unless e.record == @teacher
     prepare_school
+    prepare_creation_context
+    prepare_creation_classrooms
     render :new, status: :unprocessable_entity
   end
 
@@ -163,7 +217,13 @@ class TeachersController < ApplicationController
     authorize @teacher, :destroy?
     school = @teacher.school
     teacher_grade = params[:teacher_grade].presence || "unassigned"
-    return_path = params[:return_to] == "teachers" ? teachers_path : school_path(school, teacher_grade: teacher_grade)
+    return_path = if params[:return_to] == "teachers" && params[:school_id].present?
+      teachers_path(school_id: school.id, grade: teacher_grade)
+    elsif params[:return_to] == "teachers"
+      teachers_path
+    else
+      school_path(school, teacher_grade: teacher_grade)
+    end
     membership = @teacher.school_membership
     unless !@teacher.active? && membership.present? && membership.grade.nil? && @teacher.active_classroom.nil?
       redirect_to return_path, alert: "비활성 상태이며 학년과 담당 반이 미배정인 선생님만 삭제할 수 있습니다.", status: request.format.turbo_stream? ? :see_other : :found
@@ -172,7 +232,7 @@ class TeachersController < ApplicationController
 
     @teacher.destroy!
     respond_to do |format|
-      format.turbo_stream { render turbo_stream: turbo_stream.remove(view_context.dom_id(@teacher, :teacher_card)) }
+      format.turbo_stream { render turbo_stream: turbo_stream.remove(view_context.dom_id(@teacher, :bulk_edit_row)) }
       format.html { redirect_to return_path, notice: "선생님 계정을 삭제했습니다." }
     end
   rescue ActiveRecord::RecordNotDestroyed, ActiveRecord::InvalidForeignKey
@@ -180,6 +240,13 @@ class TeachersController < ApplicationController
   end
 
   private
+
+  def authorize_bulk_teacher_lifecycle(scope)
+    query = { "activate" => :reactivate?, "deactivate" => :deactivate? }[params[:operation].to_s]
+    return unless query
+
+    scope.where(id: params[:teacher_ids]).find_each { |teacher| authorize teacher, query }
+  end
 
   def teacher_params
     params.require(:user).permit(:name, :login_id, :email)
@@ -216,7 +283,10 @@ class TeachersController < ApplicationController
   end
 
   def creation_return_path
-    return school_path(@school, teacher_grade: @grade.presence || "unassigned") if @school_context
+    if @school_context
+      return_grade = valid_grade_value(params[:return_grade].presence || params[:grade].presence || @grade)
+      return teachers_path(school_id: @school.id, grade: return_grade)
+    end
 
     teachers_path
   end
@@ -229,43 +299,85 @@ class TeachersController < ApplicationController
     render :credentials, formats: formats || [:html]
   end
 
-  def prepare_index
-    @teacher_sort = %w[school grade login_id created_at].include?(filter_value(:sort)) ? filter_value(:sort) : "school"
-    @status = %w[active inactive all].include?(filter_value(:status)) ? filter_value(:status) : "active"
-    @grade = valid_grade_filter
-    @query = filter_value(:query).to_s.strip
-    @school_id = filter_value(:school_id).presence if current_user.admin?
-    @schools = School.order(:name) if current_user.admin?
-
-    teachers = policy_scope(User)
-      .left_outer_joins(school_membership: :school)
-      .includes(:school, :school_membership, active_classroom: :students)
-    teachers = filter_by_school(teachers)
-    teachers = filter_by_grade(teachers)
-    teachers = filter_by_status(teachers)
-    teachers = filter_by_query(teachers)
-    @teachers = order_teachers(teachers)
-  end
-
   def prepare_school
     if current_user.admin?
-      @schools = School.order(:name)
+      @schools = policy_scope(School).order(:name)
       school_id = params[:school_id].presence || params.dig(:filters, :school_id).presence
-      @school = School.find_by(id: school_id)
+      @school = policy_scope(School).find_by(id: school_id)
     else
       @school = current_user.school_membership&.school
     end
   end
 
+  def prepare_school_management
+    prepare_school unless defined?(@school)
+    raise ActiveRecord::RecordNotFound unless @school
+
+    @grade ||= valid_grade_filter
+    @teachers = management_ordered_teachers(filtered_school_teachers)
+      .includes(:school_membership, :active_classroom)
+    prepare_management_bulk_edit if editable_management_grade?
+  end
+
+  def school_teachers
+    policy_scope(User)
+      .joins(:school_membership)
+      .where(school_memberships: { school_id: @school.id })
+  end
+
+  def filtered_school_teachers
+    return school_teachers if @grade == "all"
+
+    membership_grade = @grade == "unassigned" ? nil : @grade.to_i
+    school_teachers.where(school_memberships: { grade: membership_grade })
+  end
+
+  def editable_management_grade?
+    @grade == "all" || @grade == "unassigned" || @grade.match?(/\A[1-6]\z/)
+  end
+
+  def management_ordered_teachers(scope)
+    manager_role = SchoolMembership.roles.fetch("manager")
+    scope
+      .joins("LEFT OUTER JOIN classrooms teacher_order_classrooms ON teacher_order_classrooms.teacher_id = users.id AND teacher_order_classrooms.active = TRUE")
+      .order(Arel.sql("CASE WHEN school_memberships.role = #{manager_role} THEN 0 WHEN users.active THEN 1 ELSE 2 END"))
+      .order(Arel.sql("school_memberships.grade ASC NULLS LAST"))
+      .order(Arel.sql("CASE WHEN teacher_order_classrooms.id IS NULL THEN 1 ELSE 0 END"))
+      .order(Arel.sql("teacher_order_classrooms.school_year ASC"))
+      .order(Arel.sql("CASE WHEN teacher_order_classrooms.class_label ~ '^[0-9]+$' THEN 0 ELSE 1 END"))
+      .order(Arel.sql("CASE WHEN teacher_order_classrooms.class_label ~ '^[0-9]+$' THEN teacher_order_classrooms.class_label::numeric END"))
+      .order(Arel.sql("teacher_order_classrooms.class_label ASC"))
+      .order(:login_id, :id)
+  end
+
+  def prepare_management_bulk_edit
+    @bulk_entries ||= @teachers.map do |teacher|
+      classroom = teacher.active_classroom
+      {
+        id: teacher.id, name: teacher.name, login_id: teacher.login_id,
+        grade: teacher.school_membership&.grade, classroom_id: classroom&.id, user: teacher, errors: []
+      }
+    end
+    @teacher_classrooms = @school.classrooms.where(active: true).in_school_order
+  end
+
+  def management_teachers_path
+    teachers_path(school_id: @school.id, grade: @grade)
+  end
+
   def valid_grade_filter
-    grade = filter_value(:grade).to_s
+    valid_grade_value(filter_value(:grade))
+  end
+
+  def valid_grade_value(value)
+    grade = value.to_s
     grade == "unassigned" || grade.match?(/\A[1-6]\z/) ? grade : "all"
   end
 
   def valid_setup_grade
     grade = params[:grade].to_s
     return grade if grade.match?(/\A[1-6]\z/)
-    return "unassigned" if @school_context && grade == "unassigned"
+    "unassigned" if @school_context && grade == "unassigned"
   end
 
   def prepare_creation_context
@@ -292,6 +404,41 @@ class TeachersController < ApplicationController
 
   def prepare_bulk_classrooms
     @classrooms = @school ? @school.classrooms.where(active: true).in_school_order : Classroom.none
+  end
+
+  def prepare_creation_classrooms
+    school_ids = if current_user.admin? && !@school_context
+      @schools.select(:id)
+    else
+      [@school&.id].compact
+    end
+    @classrooms = Classroom.where(school_id: school_ids, active: true, teacher_id: nil).in_school_order
+  end
+
+  def validate_creation_classroom
+    return if params[:classroom_id].blank?
+
+    @classroom = @classrooms.find_by(id: params[:classroom_id])
+    if @classroom.blank?
+      @teacher.errors.add(:base, "선택한 담당 교실을 사용할 수 없습니다.")
+    elsif @classroom.school_id != @school&.id || @classroom.grade != @grade
+      @teacher.errors.add(:base, "학년과 담당 교실을 확인해 주세요.")
+    elsif @classroom.teacher_id.present?
+      @teacher.errors.add(:base, "이미 다른 선생님이 담당하는 교실입니다.")
+    end
+  end
+
+  def lock_creation_classroom
+    return unless @classroom
+
+    locked_classroom = @school.classrooms.where(active: true).lock.find_by(id: @classroom.id)
+    if locked_classroom && locked_classroom.grade == @grade && locked_classroom.teacher_id.blank?
+      @classroom = locked_classroom
+      return
+    end
+
+    @teacher.errors.add(:base, "선택한 담당 교실을 사용할 수 없습니다.")
+    raise ActiveRecord::RecordInvalid, @teacher
   end
 
   def change_active_state(active)
@@ -325,65 +472,14 @@ class TeachersController < ApplicationController
             view_context.dom_id(@teacher, :bulk_password_action),
             partial: "teachers/bulk_password_action",
             locals: { teacher: @teacher, teacher_grade: @teacher_grade }
-          ),
-          turbo_stream.replace(
-            view_context.dom_id(@teacher, :teacher_card),
-            partial: "teachers/index_row",
-            locals: { teacher: @teacher }
           )
         ]
       end
-      format.html { redirect_to school_path(@school, teacher_grade: @teacher_grade) }
+      format.html { redirect_to teachers_path(school_id: @school.id, grade: @teacher_grade) }
     end
   end
 
   def filter_value(key)
     params[key].presence || params.dig(:filters, key).presence
-  end
-
-  def filter_by_school(scope)
-    return scope unless current_user.admin? && @school_id.present?
-
-    scope.joins(:school_membership).where(school_memberships: { school_id: @school_id })
-  end
-
-  def filter_by_grade(scope)
-    return scope if @grade == "all"
-
-    membership_grade = @grade == "unassigned" ? nil : @grade.to_i
-    scope.joins(:school_membership).where(school_memberships: { grade: membership_grade })
-  end
-
-  def filter_by_status(scope)
-    return scope if @status == "all"
-
-    scope.where(active: @status == "active")
-  end
-
-  def filter_by_query(scope)
-    return scope if @query.blank?
-
-    pattern = "%#{ActiveRecord::Base.sanitize_sql_like(@query)}%"
-    scope.where("users.name ILIKE :pattern OR users.login_id ILIKE :pattern", pattern: pattern)
-  end
-
-  def order_teachers(scope)
-    active_first = Arel.sql("CASE WHEN users.active THEN 0 ELSE 1 END")
-    school_last = Arel.sql("CASE WHEN schools.id IS NULL THEN 1 ELSE 0 END")
-    grade_last = Arel.sql("CASE WHEN school_memberships.grade IS NULL THEN 1 ELSE 0 END")
-    login_id = Arel.sql("LOWER(users.login_id) ASC")
-
-    ordered = scope.order(active_first)
-    ordered = case @teacher_sort
-              when "grade"
-                ordered.order(grade_last, "school_memberships.grade ASC", school_last, "schools.name ASC", login_id)
-              when "login_id"
-                ordered.order(login_id)
-              when "created_at"
-                ordered.order("users.created_at DESC", login_id)
-              else
-                ordered.order(school_last, "schools.name ASC", grade_last, "school_memberships.grade ASC", login_id)
-              end
-    ordered.order("users.id ASC")
   end
 end

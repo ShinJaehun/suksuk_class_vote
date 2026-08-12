@@ -53,6 +53,8 @@ manager 지정과 해제는 global admin만 수행한다.
 
 admin은 다음 범위의 최고 관리 권한을 가진다.
 
+`/teachers`는 선생님 계정·학교·학년·담임·비밀번호·lifecycle의 단일 canonical 관리 화면이다. admin은 상단의 policy-scoped 학교 필터로 management Turbo Frame을 갱신하고, manager는 학교 선택기 없이 자기 학교 context만 사용한다. 전체·1~6학년·미배정 navigation도 같은 관리 영역을 필터링하며 editable bulk table을 사용한다. 학교 탐색·현황은 `/schools`가 담당하고, `/schools/:id`의 선생님 영역과 학년 navigation은 읽기 전용 현황·조회 filter이며 관리 링크가 현재 학교와 학년을 `/teachers`로 전달한다.
+
 * 모든 School 조회·생성·수정
 * 모든 Classroom 조회·생성·수정과 Student 관리
 * `/teachers`의 모든 학교 교사 계정 목록·단일/bulk 생성과 학교·학년 단위 일괄 편집·담임 배정, 선택 학년 배정·활성화·비활성화와 삭제 조건을 충족한 계정의 삭제 시도

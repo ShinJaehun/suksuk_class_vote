@@ -1,6 +1,6 @@
 <div class="space-y-6" data-controller="teacher-bulk">
   <div>
-    <%= link_to "여러 선생님 추가 설정으로 돌아가기", bulk_setup_teachers_path(school_id: @school&.id, grade: @grade, school_context: @school_context), class: "text-sm underline" %>
+    <%= link_to "여러 선생님 추가 설정으로 돌아가기", bulk_setup_teachers_path(school_id: @school&.id, grade: @grade, return_grade: params[:return_grade], school_context: @school_context), class: "text-sm underline" %>
     <h1 class="mt-2 text-3xl font-semibold">여러 선생님 명단 입력</h1>
     <p class="mt-1 text-sm text-stone-600"><%= @school&.name %> · <%= @school_context ? (@grade == "unassigned" ? "미배정" : "#{@grade}학년") : "학년 개별 선택" %> · <span data-teacher-bulk-target="count"></span> · 임시 비밀번호는 자동으로 설정됩니다.</p>
   </div>
@@ -16,6 +16,7 @@
     <%= hidden_field_tag :school_id, @school&.id %>
     <%= hidden_field_tag :school_context, true if @school_context %>
     <%= hidden_field_tag :grade, @grade if @school_context %>
+    <%= hidden_field_tag :return_grade, params[:return_grade] if @school_context %>
     <div class="overflow-x-auto rounded-md border border-stone-200 bg-white">
       <table class="min-w-full divide-y divide-stone-200 text-sm">
         <thead class="bg-stone-50">

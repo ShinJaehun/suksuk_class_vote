@@ -1,0 +1,46 @@
+<div class="mt-5 overflow-x-auto rounded-md border border-stone-200">
+  <table class="min-w-full table-fixed divide-y divide-stone-200 text-sm">
+    <colgroup>
+      <col class="w-[32%]">
+      <col class="w-[24%]">
+      <col class="w-[12%]">
+      <col class="w-[20%]">
+      <col class="w-[12%]">
+    </colgroup>
+    <thead class="bg-stone-50">
+      <tr>
+        <th class="p-3 text-left">이름</th>
+        <th class="p-3 text-left">로그인 ID</th>
+        <th class="p-3 text-left">학년</th>
+        <th class="p-3 text-left">담당 반</th>
+        <th class="p-3 text-left">상태</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-stone-100">
+      <% teachers.each do |teacher| %>
+        <% membership = teacher.school_membership %>
+        <% classroom = teacher.active_classroom %>
+        <tr id="<%= dom_id(teacher, :overview_row) %>">
+          <td class="break-words p-3 align-middle">
+            <%= teacher.name %>
+            <% if membership&.manager? %>
+              <span class="inline-block rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">대표 선생님</span>
+            <% end %>
+          </td>
+          <td class="break-words p-3 align-middle"><%= teacher.login_id %></td>
+          <td class="p-3 align-middle"><%= membership&.grade ? "#{membership.grade}학년" : "미배정" %></td>
+          <td class="p-3 align-middle"><%= classroom ? classroom.formatted_class_label : "미배정" %></td>
+          <td class="p-3 align-middle"><%= teacher.active? ? "활성" : "비활성" %></td>
+        </tr>
+      <% end %>
+    </tbody>
+    <tfoot class="border-t border-stone-200 bg-stone-50">
+      <tr>
+        <td colspan="5" class="p-3 text-right text-sm font-medium text-stone-600">총 <%= teachers.size %>명</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+<% unless teachers.any? %>
+  <p class="mt-5 text-sm text-stone-600">조건에 맞는 선생님이 없습니다.</p>
+<% end %>

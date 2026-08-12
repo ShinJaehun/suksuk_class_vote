@@ -24,8 +24,9 @@ RSpec.describe "Schools", type: :request do
 
     get school_path(school)
     expect(response).to have_http_status(:ok)
-    expect(response.body).to include("학교 기본 정보", "교실", "선생님", "선생님 운영", "대표")
-    expect(response.body).to include(classroom.formatted_class_label, "학생 관리", "새 교실 만들기", "선생님 추가")
+    expect(response.body).to include("학교 기본 정보", "교실", "선생님", "대표")
+    expect(response.body).not_to include("선생님 운영")
+    expect(response.body).to include(classroom.formatted_class_label, "학생 관리", "새 교실 만들기", "선생님 관리")
     expect(response.body).to include(
       school_path(school, teacher_grade: "all"),
       school_path(school, teacher_grade: "4"),
@@ -35,13 +36,10 @@ RSpec.describe "Schools", type: :request do
 
     get school_path(school, teacher_grade: "unassigned")
     document = Nokogiri::HTML(response.body)
-    bulk_setup_path = bulk_setup_teachers_path(
-      school_id: school.id,
-      grade: "unassigned",
-      school_context: true
+    expect(document.css("a").map { |link| link["href"] }).to include(
+      teachers_path(school_id: school.id, grade: "unassigned")
     )
-    expect(document.css("a").map { |link| link["href"] }).to include(bulk_setup_path)
-    expect(response.body).to include("여러 선생님 추가")
+    expect(response.body).not_to include("선생님 추가", "여러 선생님 추가")
   end
 
   it "lets only global admin create and update a School" do
@@ -99,9 +97,10 @@ RSpec.describe "Schools", type: :request do
     table_headings = document.css("table th").map { |heading| heading.text.strip }
     expect(headings).not_to include("대표 선생님")
     expect(table_headings).not_to include("역할", "설정")
-    expect(table_headings).to include("비밀번호")
+    expect(table_headings).not_to include("비밀번호")
     expect(document.css("span").map { |span| span.text.strip }).not_to include("대표", "선생님")
-    expect(response.body).to include(teacher.name, "재발급", temporary_password_teacher_path(teacher))
+    expect(response.body).to include(teacher.name, teacher.login_id, "선생님 관리")
+    expect(response.body).not_to include("재발급", temporary_password_teacher_path(teacher))
     expect(response.body).not_to include("일반 선생님", "대표 선생님 변경", edit_teacher_path(teacher))
     expect(response.body).not_to include("대표 선생님 지정", "대표 선생님 지정 해제")
     patch promote_school_teacher_membership_path(school, membership)
@@ -114,7 +113,7 @@ RSpec.describe "Schools", type: :request do
   end
 
 
-  it "shows an overview for all and editable tables by membership grade" do
+  it "shows read-only teacher overviews filtered by membership grade" do
     school = create(:school)
     included = add_teacher(school, name: "사학년 교사", grade: 4)
     other_grade = add_teacher(school, name: "삼학년 교사", grade: 3)
@@ -128,46 +127,56 @@ RSpec.describe "Schools", type: :request do
     sign_in create(:user, :admin)
 
     get school_path(school)
-    expect(response.body).to include(included.name, other_grade.name, unassigned.name, classroom_only.name, "재발급")
-    expect(response.body).to include("학년", "담당 반", "상태", "비밀번호")
-    expect(response.body).not_to include(outsider.name, "변경 사항 저장")
+    expect(response.body).to include(included.name, other_grade.name, unassigned.name, classroom_only.name)
+    expect(response.body).to include("학년", "담당 반", "상태", "선생님 관리")
+    expect(response.body).not_to include(outsider.name, "비밀번호", "재발급", "변경 사항 저장")
+    document = Nokogiri::HTML(response.body)
+    teacher_section = document.css("section").find do |section|
+      section.at_css("h2")&.text&.strip == "선생님"
+    end
+    expect(teacher_section.at_css("tfoot").text.strip).to eq("총 4명")
+    expect(document.css("a").map { |link| link["href"] }).to include(
+      teachers_path(school_id: school.id, grade: "all")
+    )
 
     get school_path(school, teacher_grade: 4)
     document = Nokogiri::HTML(response.body)
     teacher_section = document.css("section").find do |section|
-      section.at_css("h2")&.text&.strip == "선생님 운영"
+      section.at_css("h2")&.text&.strip == "선생님"
     end
-    included_row = document.at_css("#bulk_edit_row_user_#{included.id}")
+    included_row = document.at_css("#overview_row_user_#{included.id}")
 
     expect(teacher_section).to be_present
+    expect(teacher_section.at_css("tfoot").text.strip).to eq("총 1명")
     expect(included_row).to be_present
-    expect(included_row.at_css(%(input[name$="[name]"]))["value"]).to eq(included.name)
-    expect(included_row.text).to include("재발급")
-    expect(included_row.at_css(%(select[name$="[grade]"]))).to be_present
-    expect(response.body).to include("변경 사항 저장")
-    expect(document.at_css("#bulk_edit_row_user_#{other_grade.id}")).to be_nil
-    expect(document.at_css("#bulk_edit_row_user_#{unassigned.id}")).to be_nil
-    expect(document.at_css("#bulk_edit_row_user_#{classroom_only.id}")).to be_nil
-    expect(document.at_css("#bulk_edit_row_user_#{outsider.id}")).to be_nil
-    expect(teacher_section.text).not_to include("일괄 편집", "목록 보기", "일반 선생님")
+    expect(teacher_section.css("input, select")).to be_empty
+    expect(document.css("a").map { |link| link["href"] }).to include(
+      teachers_path(school_id: school.id, grade: "4")
+    )
+    expect(document.at_css("#overview_row_user_#{other_grade.id}")).to be_nil
+    expect(document.at_css("#overview_row_user_#{unassigned.id}")).to be_nil
+    expect(document.at_css("#overview_row_user_#{classroom_only.id}")).to be_nil
+    expect(document.at_css("#overview_row_user_#{outsider.id}")).to be_nil
+    expect(teacher_section.text).not_to include("비밀번호", "재발급", "활성화", "비활성화", "삭제", "변경 사항 저장")
 
     get school_path(school, teacher_grade: "unassigned")
     document = Nokogiri::HTML(response.body)
     teacher_section = document.css("section").find do |section|
-      section.at_css("h2")&.text&.strip == "선생님 운영"
+      section.at_css("h2")&.text&.strip == "선생님"
     end
-    unassigned_row = document.at_css("#bulk_edit_row_user_#{unassigned.id}")
-    classroom_only_row = document.at_css("#bulk_edit_row_user_#{classroom_only.id}")
+    unassigned_row = document.at_css("#overview_row_user_#{unassigned.id}")
+    classroom_only_row = document.at_css("#overview_row_user_#{classroom_only.id}")
 
     expect(teacher_section).to be_present
+    expect(teacher_section.at_css("tfoot").text.strip).to eq("총 2명")
     expect(unassigned_row).to be_present
     expect(classroom_only_row).to be_present
-    expect(unassigned_row.at_css(%(input[name$="[name]"]))["value"]).to eq(unassigned.name)
-    expect(classroom_only_row.at_css(%(input[name$="[name]"]))["value"]).to eq(classroom_only.name)
-    expect(unassigned_row.at_css(%(select[name$="[grade]"]))).to be_present
-    expect(response.body).to include("변경 사항 저장")
-    expect(document.at_css("#bulk_edit_row_user_#{included.id}")).to be_nil
-    expect(document.at_css("#bulk_edit_row_user_#{other_grade.id}")).to be_nil
+    expect(teacher_section.css("input, select")).to be_empty
+    expect(document.css("a").map { |link| link["href"] }).to include(
+      teachers_path(school_id: school.id, grade: "unassigned")
+    )
+    expect(document.at_css("#overview_row_user_#{included.id}")).to be_nil
+    expect(document.at_css("#overview_row_user_#{other_grade.id}")).to be_nil
   end
 
   it "orders every teacher tab by manager, active state, grade, classroom, and login ID" do
@@ -199,12 +208,12 @@ RSpec.describe "Schools", type: :request do
 
     get school_path(school, teacher_grade: 4)
     document = Nokogiri::HTML(response.body)
-    ordered_ids = document.css("tr[id^='bulk_edit_row_user_']").map { |row| row["id"].delete_prefix("bulk_edit_row_user_").to_i }
+    ordered_ids = document.css("tr[id^='overview_row_user_']").map { |row| row["id"].delete_prefix("overview_row_user_").to_i }
     expect(ordered_ids).to eq([manager, class_two, class_ten, unassigned_a, unassigned_b, inactive_four].map(&:id))
-    expect(document.at_css("#bulk_edit_row_user_#{manager.id}").text).not_to include("대표 선생님")
+    expect(document.at_css("#overview_row_user_#{manager.id}").text).to include("대표 선생님")
   end
 
-  it "does not allow all-teacher edit mode or a manager to update outside their school scope" do
+  it "keeps the school overview read-only and rejects teacher updates outside manager scope" do
     school = create(:school)
     manager = add_teacher(school, role: :manager)
     outsider = add_teacher(create(:school), name: "변경 전")
@@ -213,8 +222,8 @@ RSpec.describe "Schools", type: :request do
     get school_path(school, teacher_grade: "all")
     expect(response.body).not_to include("변경 사항 저장", "일괄 편집", "목록 보기")
 
-    patch bulk_update_teachers_school_path(school), params: {
-      teacher_grade: "unassigned",
+    patch bulk_update_teachers_path, params: {
+      school_id: school.id, grade: "unassigned",
       teachers: { rows: { "0" => { id: outsider.id, name: "침범", login_id: "stolen", grade: "", classroom_id: "" } } }
     }
     expect(response).to have_http_status(:unprocessable_content)
@@ -226,22 +235,22 @@ RSpec.describe "Schools", type: :request do
     teacher = add_teacher(school, name: "미배정 교사")
     sign_in create(:user, :admin)
 
-    patch bulk_update_teachers_school_path(school), params: {
-      teacher_grade: "unassigned",
+    patch bulk_update_teachers_path, params: {
+      school_id: school.id, grade: "unassigned",
       teachers: { rows: { "0" => { id: teacher.id, name: teacher.name, login_id: teacher.login_id, grade: "1", classroom_id: "" } } }
     }
 
-    expect(response).to redirect_to(school_path(school, teacher_grade: "unassigned"))
+    expect(response).to redirect_to(teachers_path(school_id: school.id, grade: "unassigned"))
     expect(teacher.reload.school_membership.grade).to eq(1)
     expect(teacher.reload.active_classroom).to be_nil
 
-    get school_path(school, teacher_grade: "unassigned")
+    get teachers_path(school_id: school.id, grade: "unassigned")
     expect(response.body).not_to include(teacher.name)
-    get school_path(school, teacher_grade: 1)
+    get teachers_path(school_id: school.id, grade: 1)
     expect(response.body).to include(teacher.name, "1학년", "미배정")
   end
 
-  it "shows selection operations only on editable teacher tabs and disables inactive fields" do
+  it "shows selection operations on teacher management tabs and disables inactive fields" do
     school = create(:school)
     active = add_teacher(school, name: "활성 교사", grade: 4)
     inactive = add_teacher(school, name: "비활성 교사", grade: 4)
@@ -249,11 +258,12 @@ RSpec.describe "Schools", type: :request do
     inactive.update!(active: false)
     sign_in create(:user, :admin)
 
-    get school_path(school, teacher_grade: 4)
+    get teachers_path(school_id: school.id, grade: 4)
     document = Nokogiri::HTML(response.body)
     inactive_row = document.at_css("#bulk_edit_row_user_#{inactive.id}")
     expect(response.body).to include("모두 선택", "0명 선택", "학년", "배정", "계정 상태", "활성화", "비활성화")
     expect(response.body).to include("여러 선생님 추가", %(id="teacher_bulk_update"), %(id="teacher_selection_operation"), %(form="teacher_bulk_update"))
+    expect(response.body).to include(bulk_update_teachers_path, bulk_operation_teachers_path)
     expect(response.body).to include("선택한 선생님의 학년을 변경합니다.", "data-teacher-active-state")
     expect(inactive_row.at_css(%(input[name$="[name]"]))["disabled"]).to be_present
     expect(inactive_row.at_css(%(input[name$="[login_id]"]))["disabled"]).to be_present
@@ -267,29 +277,29 @@ RSpec.describe "Schools", type: :request do
 
     removable = add_teacher(school, name: "삭제 가능")
     removable.update!(active: false)
-    get school_path(school, teacher_grade: "unassigned")
+    get teachers_path(school_id: school.id, grade: "unassigned")
     expect(response.body).to include(teacher_path(removable), "삭제")
 
-    get school_path(school, teacher_grade: "all")
-    expect(response.body).not_to include("계정 상태", "teacher_ids[]")
+    get teachers_path(school_id: school.id, grade: "all")
+    expect(response.body).to include("계정 상태", "teacher_ids[]")
   end
 
   it "shows an empty state and only shows save when an active teacher exists" do
     school = create(:school)
     sign_in create(:user, :admin)
 
-    get school_path(school, teacher_grade: 4)
+    get teachers_path(school_id: school.id, grade: 4)
     expect(response.body).to include("선생님이 없습니다.", "0명 선택", "학년", "계정 상태", "선생님 추가", "여러 선생님 추가")
     expect(response.body).not_to include("<table", "편집할 활성 선생님이 없습니다.", "변경 사항 저장")
 
     inactive = add_teacher(school, name: "비활성 교사", grade: 4)
     inactive.update!(active: false)
-    get school_path(school, teacher_grade: 4)
+    get teachers_path(school_id: school.id, grade: 4)
     expect(response.body).to include(inactive.name, "<table")
     expect(response.body).not_to include("편집할 활성 선생님이 없습니다.", "변경 사항 저장")
 
     add_teacher(school, name: "활성 교사", grade: 4)
-    get school_path(school, teacher_grade: 4)
+    get teachers_path(school_id: school.id, grade: 4)
     expect(response.body).to include("변경 사항 저장")
   end
 
@@ -301,28 +311,28 @@ RSpec.describe "Schools", type: :request do
     admin = create(:user, :admin)
     sign_in admin
 
-    patch bulk_teacher_operation_school_path(school), params: { teacher_grade: 2, teacher_ids: [selected.id], operation: "assign_grade", grade: 3 }
+    patch bulk_operation_teachers_path, params: { school_id: school.id, management_grade: "all", grade: 3, teacher_ids: [selected.id], operation: "assign_grade" }
     expect(selected.school_membership.reload.grade).to eq(3)
 
-    patch bulk_teacher_operation_school_path(school), params: { teacher_grade: 3, teacher_ids: [selected.id, outsider.id], operation: "deactivate" }
+    patch bulk_operation_teachers_path, params: { school_id: school.id, management_grade: "all", teacher_ids: [selected.id, outsider.id], operation: "deactivate" }
     expect(selected.reload).to be_active
     expect(outsider.reload).to be_active
 
     sign_out admin
     sign_in manager
-    patch bulk_teacher_operation_school_path(school), params: { teacher_grade: 3, teacher_ids: [selected.id], operation: "deactivate" }
+    patch bulk_operation_teachers_path, params: { school_id: outsider.school.id, management_grade: "all", teacher_ids: [selected.id], operation: "deactivate" }
     expect(selected.reload).not_to be_active
 
-    patch bulk_teacher_operation_school_path(school), params: { teacher_grade: "unassigned", teacher_ids: [manager.id], operation: "deactivate" }
+    patch bulk_operation_teachers_path, params: { school_id: school.id, management_grade: "all", teacher_ids: [manager.id], operation: "deactivate" }
     expect(manager.reload).to be_active
 
-    patch bulk_teacher_operation_school_path(school), params: { teacher_grade: "unassigned", teacher_ids: [manager.id], operation: "assign_grade", grade: 4 }
+    patch bulk_operation_teachers_path, params: { school_id: school.id, management_grade: "unassigned", grade: 4, teacher_ids: [manager.id], operation: "assign_grade" }
     expect(manager.school_membership.reload.grade).to eq(4)
 
     sign_out manager
     ordinary = add_teacher(school)
     sign_in ordinary
-    patch bulk_teacher_operation_school_path(school), params: { teacher_grade: 3, teacher_ids: [manager.id], operation: "deactivate" }
+    patch bulk_operation_teachers_path, params: { school_id: school.id, management_grade: 3, teacher_ids: [manager.id], operation: "deactivate" }
     expect(manager.reload).to be_active
   end
 end

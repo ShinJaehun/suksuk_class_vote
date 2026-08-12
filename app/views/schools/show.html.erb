@@ -12,8 +12,17 @@
 </div>
 
 <section class="rounded-md border border-stone-200 bg-white p-5">
-  <h2 class="text-lg font-semibold">선생님 운영</h2>
-  <p class="mt-1 text-sm text-stone-500">선생님 조회·추가와 학년별 담임 배정을 관리합니다.</p>
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <h2 class="text-lg font-semibold">선생님</h2>
+      <p class="mt-1 text-sm text-stone-500">학교별 선생님 현황을 확인합니다.</p>
+    </div>
+    <% if policy(User).index? %>
+      <%= link_to "선생님 관리",
+                  teachers_path(school_id: @school.id, grade: @teacher_grade),
+                  class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+    <% end %>
+  </div>
   <div class="mt-4 flex flex-wrap gap-2">
     <% [["전체", "all"], *1.upto(6).map { |grade| ["#{grade}학년", grade.to_s] }, ["미배정", "unassigned"]].each do |label, grade| %>
       <%= link_to label,
@@ -21,62 +30,8 @@
                   class: "rounded-md border px-3 py-2 text-sm font-medium #{@teacher_grade == grade ? 'border-stone-900 bg-stone-900 text-white' : 'border-stone-300 bg-white'}" %>
     <% end %>
   </div>
-  <% if @teacher_grade == "all" %>
-    <% if @teachers.any? %>
-      <div class="mt-5 overflow-x-auto rounded-md border border-stone-200">
-        <table class="min-w-full table-fixed divide-y divide-stone-200 text-sm">
-          <colgroup>
-            <col class="w-[28%]">
-            <col class="w-[22%]">
-            <col class="w-[12%]">
-            <col class="w-[16%]">
-            <col class="w-[10%]">
-            <col class="w-[12%]">
-          </colgroup>
-          <thead class="bg-stone-50">
-            <tr>
-              <th class="p-3 text-left">이름</th>
-              <th class="p-3 text-left">로그인 ID</th>
-              <th class="p-3 text-left">학년</th>
-              <th class="p-3 text-left">담당 반</th>
-              <th class="p-3 text-left">상태</th>
-              <th class="p-3 text-left">비밀번호</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-stone-100">
-            <% @teachers.each do |teacher| %>
-              <% membership = teacher.school_membership %>
-              <% classroom = teacher.active_classroom %>
-              <tr id="<%= dom_id(teacher, :overview_row) %>">
-                <td class="break-words p-3 align-middle">
-                  <%= teacher.name %>
-                  <% if membership&.manager? %>
-                    <span class="inline-block rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">대표 선생님</span>
-                  <% end %>
-                </td>
-                <td class="break-words p-3 align-middle"><%= teacher.login_id %></td>
-                <td class="p-3 align-middle"><%= membership&.grade ? "#{membership.grade}학년" : "미배정" %></td>
-                <td class="p-3 align-middle"><%= classroom ? classroom.formatted_class_label : "미배정" %></td>
-                <td class="p-3 align-middle"><%= teacher.active? ? "활성" : "비활성" %></td>
-                <td class="p-3 align-middle"><%= link_to "재발급", temporary_password_teacher_path(teacher, teacher_grade: @teacher_grade), class: "font-medium underline", data: { turbo_frame: "temporary_password_modal" } %></td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
-    <% else %>
-      <p class="mt-5 text-sm text-stone-600">조건에 맞는 선생님이 없습니다.</p>
-    <% end %>
-    <div class="mt-4 flex flex-wrap gap-2 rounded-md border border-stone-200 bg-stone-50 p-3">
-      <%= link_to "선생님 추가", new_teacher_path(school_id: @school.id, grade: "unassigned", school_context: true), class: "rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100" %>
-      <%= link_to "여러 선생님 추가", bulk_setup_teachers_path(school_id: @school.id, grade: "unassigned", school_context: true), class: "rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100" %>
-    </div>
-  <% else %>
-    <%= render "teachers/bulk_edit_table" %>
-  <% end %>
+  <%= render "teachers/school_overview", teachers: @teachers %>
 </section>
-
-<%= turbo_frame_tag "temporary_password_modal" %>
 
 <section class="rounded-md border border-stone-200 bg-white p-5">
   <div class="flex flex-wrap items-center justify-between gap-3">
