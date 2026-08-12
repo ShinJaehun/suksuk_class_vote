@@ -3,6 +3,8 @@ require "digest"
 class School < ApplicationRecord
   COLOR_KEYS = %w[rose amber emerald sky violet].freeze
 
+  scope :active, -> { where(active: true) }
+
   before_validation :assign_color_key, on: :create
 
   has_many :school_memberships, dependent: :destroy
@@ -13,6 +15,7 @@ class School < ApplicationRecord
 
   validates :name, presence: true, uniqueness: true
   validates :color_key, inclusion: { in: COLOR_KEYS }
+  validates :active, inclusion: { in: [true, false] }
 
   private
 

@@ -83,7 +83,7 @@ RSpec.describe "Classrooms", type: :request do
     expect(response.body).not_to include("학년도")
   end
 
-  it "scopes managers and teachers and redirects a teacher with one Classroom" do
+  it "scopes managers and redirects a homeroom teacher to their Classroom students" do
     school = create(:school)
     manager = create(:user)
     create(:school_membership, :manager, school: school, user: manager)
@@ -107,11 +107,10 @@ RSpec.describe "Classrooms", type: :request do
     expect(response).to redirect_to(classroom_students_path(own))
   end
 
-  it "shows an empty state to a membershipless teacher" do
+  it "denies a membershipless teacher" do
     sign_in create(:user)
     get classrooms_path
-    expect(response.body).to include("배정된 교실이 없습니다.")
-    expect(response.body).not_to include("교실 생성")
+    expect(response).to redirect_to(polls_path)
   end
 
   it "lets admin and manager create only with a teacher from the selected school" do
@@ -151,11 +150,32 @@ RSpec.describe "Classrooms", type: :request do
     expect(selected_option&.[]("value")).to eq(school.id.to_s)
   end
 
-  it "prevents a regular teacher from changing protected fields or leaving an invalid teacher-grade assignment" do
+  it "allows only admin and the same-school manager to edit Classroom structure" do
     school = create(:school)
-    teacher = teacher_for(school)
+    teacher = teacher_for(school, grade: 4)
     classroom = create(:classroom, school: school, teacher: teacher)
-    replacement = teacher_for(school, name: "다른 담임")
+    student = create(:student, classroom: classroom)
+    replacement = teacher_for(school, name: "다른 담임", grade: 4)
+    admin = create(:user, :admin)
+    sign_in admin
+
+    get edit_classroom_path(classroom)
+    expect(response).to have_http_status(:ok)
+    document = Nokogiri::HTML(response.body)
+    expect(document.at_css("select[name='classroom[grade]']")).to be_present
+    expect(document.at_css("input[name='classroom[class_label]']")).to be_present
+    expect(document.at_css("input[name='classroom[active]']")).to be_present
+    current_teacher_option = document.at_css("select[name='classroom[teacher_id]'] option[value='#{teacher.id}'][selected]")
+    expect(current_teacher_option.text.strip).to eq("#{teacher.name} (#{teacher.login_id})")
+
+    manager = create(:user)
+    create(:school_membership, :manager, school: school, user: manager)
+    sign_out admin
+    sign_in manager
+    get edit_classroom_path(classroom)
+    expect(response).to have_http_status(:ok)
+
+    sign_out manager
     sign_in teacher
     original_attributes = classroom.attributes.slice(
       "school_year",
@@ -165,19 +185,36 @@ RSpec.describe "Classrooms", type: :request do
       "teacher_id",
       "active"
     )
+    get edit_classroom_path(classroom)
+    expect(response).to redirect_to(polls_path)
     patch classroom_path(classroom), params: classroom_params(
       school: create(:school),
       teacher: replacement,
       overrides: { school_year: 2027, grade: 5, class_label: "생활교육실", active: false }
     )
 
-    expect(response).to have_http_status(:unprocessable_content)
+    expect(response).to redirect_to(polls_path)
     expect(
       classroom.reload.attributes.slice(
         "school_year", "grade", "class_label",
         "school_id", "teacher_id", "active"
       )
     ).to eq(original_attributes)
+
+    get classroom_students_path(classroom)
+    expect(response).to have_http_status(:ok)
+    document = Nokogiri::HTML(response.body)
+    expect(document.at_css("a[href='#{new_classroom_student_path(classroom)}']")).to be_present
+    expect(document.at_css("a[href='#{edit_classroom_student_path(classroom, student, status: 'active')}']")).to be_present
+    expect(document.at_css("a[href='#{edit_classroom_path(classroom)}']")).to be_nil
+    expect(document.css("a").find { |link| link.text.strip == "교실 목록" }).to be_nil
+
+    other_manager = create(:user)
+    create(:school_membership, :manager, school: create(:school), user: other_manager)
+    sign_out teacher
+    sign_in other_manager
+    get edit_classroom_path(classroom)
+    expect(response).to have_http_status(:not_found)
   end
 
   it "denies Classroom creation to a regular teacher" do

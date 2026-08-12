@@ -1,22 +1,25 @@
 class ClassroomPolicy < ApplicationPolicy
   def index?
-    user.present?
+    user&.admin? || active_school_member?
   end
 
   def create?
-    user&.admin? || user&.school_membership&.manager?
+    user&.admin? || (active_school_member? && user.school_membership.manager?)
   end
 
   def update?
-    manageable?
+    user&.admin? || settings_manager?
   end
 
   def manage_students?
-    manageable?
+    return true if user&.admin?
+    return false unless active_school_member? && user.school_membership.school_id == record.school_id
+
+    user.school_membership.manager? || record.teacher_id == user.id
   end
 
   def manage_lifecycle?
-    user&.admin? || (user&.teacher? && user.school_membership&.manager? && user.school_membership.school_id == record.school_id)
+    user&.admin? || settings_manager?
   end
 
   def destroy?
@@ -27,6 +30,7 @@ class ClassroomPolicy < ApplicationPolicy
     def resolve
       return scope.all if user&.admin?
       return scope.none unless user&.teacher? && user.school_membership.present?
+      return scope.none unless user.school_membership.school&.active?
 
       if user.school_membership.manager?
         scope.where(school_id: user.school_membership.school_id)
@@ -38,11 +42,11 @@ class ClassroomPolicy < ApplicationPolicy
 
   private
 
-  def manageable?
-    return false if user.blank?
-    return true if user.admin?
-    return false unless user.teacher? && user.school_membership&.school_id == record.school_id
+  def settings_manager?
+    active_school_member? && user.school_membership.manager? && user.school_membership.school_id == record.school_id
+  end
 
-    user.school_membership.manager? || record.teacher_id == user.id
+  def active_school_member?
+    user&.teacher? && user.school_membership&.school&.active?
   end
 end

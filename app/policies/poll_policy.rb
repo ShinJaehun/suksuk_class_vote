@@ -8,11 +8,11 @@ class PollPolicy < ApplicationPolicy
   end
 
   def create?
-    admin? || teacher?
+    admin? || (teacher? && operational_school_active?)
   end
 
   def school_index?
-    admin? || school_manager?
+    admin? || (school_manager? && operational_school_active?)
   end
 
   def school_create?
@@ -22,7 +22,7 @@ class PollPolicy < ApplicationPolicy
   def school_show?
     return false unless record.school_managed? && record.school_id.present?
 
-    admin? || manages_school?(record.school_id)
+    admin? || (record.school&.active? && manages_school?(record.school_id))
   end
 
   def school_edit?
@@ -144,7 +144,7 @@ class PollPolicy < ApplicationPolicy
       return school_polls if user&.admin?
 
       membership = user&.school_membership
-      return school_polls.where(school_id: membership.school_id) if membership&.manager?
+      return school_polls.where(school_id: membership.school_id) if membership&.manager? && membership.school&.active?
 
       school_polls.none
     end
@@ -169,7 +169,14 @@ class PollPolicy < ApplicationPolicy
   end
 
   def owner?
-    record.user == user
+    record.user == user && operational_school_active?
+  end
+
+  def operational_school_active?
+    return true if admin?
+
+    school = user&.school_membership&.school
+    school.nil? || school.active?
   end
 
   def classroom_session_policy_allows?(query)

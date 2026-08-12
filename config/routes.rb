@@ -106,7 +106,12 @@ Rails.application.routes.draw do
       post :issue_temporary_password
     end
   end
-  resources :schools, only: %i[index show new create edit update] do
+  resources :schools, only: %i[index show new create edit update destroy] do
+    patch :manager, on: :member, action: :update_manager
+    member do
+      patch :deactivate
+      patch :reactivate
+    end
     resources :teacher_memberships,
               path: "teachers",
               controller: "school_teacher_memberships",

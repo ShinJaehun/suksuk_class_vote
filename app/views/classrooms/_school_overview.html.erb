@@ -11,23 +11,29 @@
       </tr>
     </thead>
     <tbody class="divide-y divide-stone-100">
-      <% classrooms.each do |classroom| %>
-        <tr id="<%= dom_id(classroom, :overview_row) %>">
-          <td class="p-3"><%= classroom.grade %>학년</td>
-          <td class="p-3"><%= classroom.formatted_class_label %></td>
-          <td class="p-3"><%= classroom.teacher&.name || "미배정" %></td>
-          <td class="p-3"><%= active_student_counts.fetch(classroom.id, 0) %>명</td>
-          <td class="p-3"><%= classroom.active? ? "활성" : "비활성" %></td>
-          <td class="p-3">
-            <div class="flex flex-wrap gap-3 font-medium">
-              <% if policy(classroom).edit? %>
-                <%= link_to "교실 설정", edit_classroom_path(classroom), class: "underline" %>
-              <% end %>
-              <% if policy(classroom).manage_students? %>
-                <%= link_to "교실 바로가기", classroom_students_path(classroom), class: "underline" %>
-              <% end %>
-            </div>
-          </td>
+      <% if classrooms.any? %>
+        <% classrooms.each do |classroom| %>
+          <tr id="<%= dom_id(classroom, :overview_row) %>">
+            <td class="p-3"><%= classroom.grade %>학년</td>
+            <td class="p-3"><%= classroom.formatted_class_label %></td>
+            <td class="p-3"><%= classroom.teacher&.name || "미배정" %></td>
+            <td class="p-3"><%= active_student_counts.fetch(classroom.id, 0) %>명</td>
+            <td class="p-3"><%= classroom.active? ? "활성" : "비활성" %></td>
+            <td class="p-3">
+              <div class="flex flex-wrap gap-3 font-medium">
+                <% if policy(classroom).edit? %>
+                  <%= link_to "설정", edit_classroom_path(classroom), class: "underline" %>
+                <% end %>
+                <% if policy(classroom).manage_students? %>
+                  <%= link_to "교실 바로가기", classroom_students_path(classroom), class: "underline" %>
+                <% end %>
+              </div>
+            </td>
+          </tr>
+        <% end %>
+      <% else %>
+        <tr>
+          <td colspan="6" class="p-6 text-center text-sm text-stone-600">등록된 교실이 없습니다.</td>
         </tr>
       <% end %>
     </tbody>
@@ -40,6 +46,3 @@
     </tfoot>
   </table>
 </div>
-<% unless classrooms.any? %>
-  <p class="mt-3 text-sm text-stone-600">등록된 교실이 없습니다.</p>
-<% end %>

@@ -1,6 +1,6 @@
 class SchoolsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_school, only: %i[show edit update]
+  before_action :set_school, only: %i[show edit update update_manager deactivate reactivate destroy]
 
   def index
     authorize School
@@ -17,6 +17,7 @@ class SchoolsController < ApplicationController
   end
 
   def prepare_show
+    prepare_summary
     prepare_classroom_scope
     @classrooms = scoped_classrooms.includes(:teacher).in_school_order
     @active_student_counts = Student.where(classroom_id: @classrooms.select(:id), active: true).group(:classroom_id).count
@@ -42,6 +43,7 @@ class SchoolsController < ApplicationController
 
   def edit
     authorize @school
+    prepare_settings
   end
 
   def update
@@ -49,11 +51,74 @@ class SchoolsController < ApplicationController
     if @school.update(school_params)
       redirect_to @school, notice: "학교 정보를 수정했습니다."
     else
+      prepare_settings
       render :edit, status: :unprocessable_entity
     end
   end
 
+  def update_manager
+    authorize @school, :manage_manager?
+    result = Schools::ManagerUpdater.new(
+      school: @school,
+      membership_id: params[:school_membership_id]
+    ).call
+
+    if result.success?
+      redirect_to edit_school_path(@school), notice: "대표 선생님을 변경했습니다."
+    else
+      prepare_settings
+      flash.now[:alert] = result.error
+      render :edit, status: :unprocessable_entity
+    end
+  end
+
+  def deactivate
+    change_active_state(false)
+  end
+
+  def reactivate
+    change_active_state(true)
+  end
+
+  def destroy
+    authorize @school, :destroy?
+    unless !@school.active? && !@school.school_memberships.exists? && !@school.classrooms.exists?
+      redirect_to edit_school_path(@school), alert: "사용되지 않은 비활성 학교만 삭제할 수 있습니다."
+      return
+    end
+
+    @school.destroy!
+    redirect_to schools_path, notice: "학교를 삭제했습니다."
+  rescue ActiveRecord::RecordNotDestroyed, ActiveRecord::InvalidForeignKey, ActiveRecord::DeleteRestrictionError
+    redirect_to edit_school_path(@school), alert: "기존 기록이 있는 학교는 삭제할 수 없습니다. 비활성 상태로 보존됩니다."
+  end
+
   private
+
+  def change_active_state(active)
+    authorize @school, :manage_lifecycle?
+    @school.update!(active: active)
+    redirect_to edit_school_path(@school), notice: "학교 상태를 변경했습니다."
+  end
+
+  def prepare_summary
+    @manager = @school.school_memberships.includes(:user).find_by(role: :manager)&.user
+    @active_teacher_count = @school.school_memberships.joins(:user).where(users: { active: true }).count
+    active_classrooms = @school.classrooms.where(active: true)
+    @active_classroom_count = active_classrooms.count
+    @active_student_count = Student.where(classroom_id: active_classrooms.select(:id), active: true).count
+  end
+
+  def prepare_settings
+    @manager_memberships = @school.school_memberships
+      .joins(:user)
+      .where("users.active = TRUE OR school_memberships.role = ?", SchoolMembership.roles.fetch("manager"))
+      .includes(:user)
+      .order("users.name", :id)
+    @current_manager_membership = @manager_memberships.find(&:manager?)
+    @school_empty = !@school.school_memberships.exists? && !@school.classrooms.exists?
+    @school_delete_eligible = !@school.active? && @school_empty
+  end
 
   def prepare_classroom_scope
     grade = params[:classroom_grade].to_s

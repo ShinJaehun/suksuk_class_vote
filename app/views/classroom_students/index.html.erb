@@ -7,8 +7,10 @@
     <% if @return_poll_session %>
       <%= link_to "투표로 돌아가기", poll_poll_session_path(@return_poll_session.poll, @return_poll_session), class: "underline" %>
     <% end %>
-    <%= link_to "교실 설정", edit_classroom_path(@classroom), class: "underline" %>
-    <%= link_to "교실 목록", classrooms_path, class: "underline" %>
+    <% if policy(@classroom).edit? %>
+      <%= link_to "교실 설정", edit_classroom_path(@classroom), class: "underline" %>
+      <%= link_to "교실 목록", classrooms_path, class: "underline" %>
+    <% end %>
   </div>
 </div>
 

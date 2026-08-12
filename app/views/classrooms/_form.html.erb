@@ -15,7 +15,7 @@
     <div>
       <%= form.label :school_id, "학교", class: "block text-sm font-medium" %>
       <% if current_user.admin? && classroom.new_record? && !@school_context %>
-        <%= form.collection_select :school_id, @schools, :id, :name, { prompt: "학교 선택" }, class: "mt-1 w-full rounded-md border-stone-300", data: { classroom_management_target: "school", action: "change->classroom-management#filterTeachers" } %>
+        <%= form.collection_select :school_id, @schools, :id, :name, { prompt: "학교 선택" }, class: "mt-1 w-full rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700", data: { classroom_management_target: "school", action: "change->classroom-management#filterTeachers" } %>
       <% else %>
         <p class="mt-1 rounded-md bg-stone-100 px-3 py-2"><%= classroom.school&.name || "학교 미지정" %></p>
         <%= form.hidden_field :school_id if current_user.admin? && classroom.new_record? %>
@@ -25,23 +25,23 @@
     <div class="mt-5 grid gap-4 sm:grid-cols-2">
       <div>
         <%= form.label :grade, "학년", class: "block text-sm font-medium" %>
-        <%= form.select :grade, options_for_select(1.upto(6).map { |grade| ["#{grade}학년", grade] }, classroom.grade), { prompt: "학년 선택" }, class: "mt-1 w-full rounded-md border-stone-300", data: { classroom_management_target: "grade", action: "change->classroom-management#filterTeachers" } %>
+        <%= form.select :grade, options_for_select(1.upto(6).map { |grade| ["#{grade}학년", grade] }, classroom.grade), { prompt: "학년 선택" }, class: "mt-1 w-full rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700", data: { classroom_management_target: "grade", action: "change->classroom-management#filterTeachers" } %>
       </div>
       <div>
         <%= form.label :class_label, "학급", class: "block text-sm font-medium" %>
-        <%= form.text_field :class_label, placeholder: "예: 1, 13, 생활교육실, A", class: "mt-1 w-full rounded-md border-stone-300" %>
+        <%= form.text_field :class_label, placeholder: "예: 1, 13, 생활교육실, A", class: "mt-1 w-full rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700" %>
       </div>
     </div>
 
     <div class="mt-5">
       <%= form.label :teacher_id, "담임", class: "block text-sm font-medium" %>
       <% if current_user.admin? || current_user.school_membership&.manager? %>
-        <select name="classroom[teacher_id]" class="mt-1 w-full rounded-md border-stone-300" data-classroom-management-target="teacher">
+        <select name="classroom[teacher_id]" class="mt-1 w-full rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700" data-classroom-management-target="teacher">
           <option value="">미배정</option>
           <% @teachers.each do |teacher| %>
             <% current_assignment = teacher.id == classroom.teacher_id %>
             <% available = current_assignment || (teacher.active? && teacher.active_classroom.nil? && teacher.school_membership&.grade == classroom.grade && teacher.school_membership&.school_id == classroom.school_id) %>
-            <option value="<%= teacher.id %>" data-school-id="<%= teacher.school_membership&.school_id %>" data-grade="<%= teacher.school_membership&.grade %>" data-classroom-id="<%= teacher.active_classroom&.id %>" <%= "selected" if current_assignment %> <%= "hidden disabled" unless available %>><%= current_user.admin? ? "#{teacher.school.name} · #{teacher.name}" : teacher.name %></option>
+            <option value="<%= teacher.id %>" data-school-id="<%= teacher.school_membership&.school_id %>" data-grade="<%= teacher.school_membership&.grade %>" data-classroom-id="<%= teacher.active_classroom&.id %>" <%= "selected" if current_assignment %> <%= "hidden disabled" unless available %>><%= teacher.name %> (<%= teacher.login_id %>)</option>
           <% end %>
         </select>
       <% else %>
@@ -50,7 +50,7 @@
     </div>
 
     <% unless classroom.new_record? %>
-      <div class="mt-5">
+      <div class="mt-5 rounded-md border border-stone-200 bg-stone-50 p-3">
         <% if current_user.admin? || current_user.school_membership&.manager? %>
           <label class="inline-flex items-center gap-2">
             <%= form.check_box :active %>

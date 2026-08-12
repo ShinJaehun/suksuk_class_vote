@@ -33,11 +33,14 @@ class SchoolTeacherMembershipsController < ApplicationController
 
   def promote
     authorize @membership, :promote?
-    manager_changed = promote_to_manager!
-    notice = manager_changed ? "대표 선생님을 변경했습니다." : "대표 선생님으로 지정했습니다."
-    redirect_to school_path(@school), notice: notice
-  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique
-    redirect_to school_path(@school), alert: "대표 선생님을 변경할 수 없습니다."
+    manager_changed = @school.school_memberships.manager.where.not(id: @membership.id).exists?
+    result = Schools::ManagerUpdater.new(school: @school, membership_id: @membership.id).call
+    if result.success?
+      notice = manager_changed ? "대표 선생님을 변경했습니다." : "대표 선생님으로 지정했습니다."
+      redirect_to school_path(@school), notice: notice
+    else
+      redirect_to school_path(@school), alert: result.error
+    end
   end
 
   def demote
@@ -94,16 +97,4 @@ class SchoolTeacherMembershipsController < ApplicationController
     end
   end
 
-  def promote_to_manager!
-    manager_changed = false
-    @school.with_lock do
-      current_manager = @school.school_memberships.find_by(role: :manager)
-      if current_manager.present? && current_manager != @membership
-        current_manager.update!(role: :member)
-        manager_changed = true
-      end
-      @membership.update!(role: :manager) unless @membership.manager?
-    end
-    manager_changed
-  end
 end

@@ -32,6 +32,7 @@ class SchoolMembershipPolicy < ApplicationPolicy
   def same_school_manager?
     user&.teacher? &&
       user.school_membership&.manager? &&
+      user.school_membership.school&.active? &&
       user.school_membership.school_id == record.school_id
   end
 end

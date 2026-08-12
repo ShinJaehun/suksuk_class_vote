@@ -1,6 +1,73 @@
-<div>
-  <h1 class="text-2xl font-semibold">학교 정보 수정</h1>
-  <%= link_to "학교 상세로 돌아가기", school_path(@school), class: "text-sm underline" %>
+<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+  <div>
+    <h1 class="text-2xl font-semibold">학교 정보 수정</h1>
+    <p class="mt-1 text-sm text-stone-500"><%= @school.name %>의 기본 정보와 운영 정보를 관리합니다.</p>
+  </div>
+  <%= link_to "학교 상세로 돌아가기", school_path(@school), class: "text-sm font-medium underline" %>
 </div>
 
-<%= render "form", school: @school %>
+<section class="rounded-md border border-stone-200 bg-white p-6">
+  <h2 class="text-lg font-semibold">학교 기본 정보</h2>
+  <%= form_with model: @school, class: "mt-5 space-y-5" do |form| %>
+    <% if @school.errors.any? %>
+      <div class="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+        <ul class="list-disc pl-5">
+          <% @school.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+    <div>
+      <%= form.label :name, "학교 이름", class: "block text-sm font-medium" %>
+      <%= form.text_field :name, class: "mt-1 w-full rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700" %>
+    </div>
+    <%= form.submit "학교 정보 저장", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+  <% end %>
+</section>
+
+<section class="rounded-md border border-stone-200 bg-white p-6">
+  <h2 class="text-lg font-semibold">학교 운영 정보</h2>
+  <% if policy(@school).manage_manager? %>
+    <%= form_with url: manager_school_path(@school), method: :patch, class: "mt-5 space-y-5" do %>
+      <div>
+        <%= label_tag :school_membership_id, "대표 선생님", class: "block text-sm font-medium" %>
+        <%= select_tag :school_membership_id,
+                       options_from_collection_for_select(@manager_memberships, :id, ->(membership) { "#{membership.user.name} (#{membership.user.login_id})" }, @current_manager_membership&.id),
+                       class: "mt-1 w-full rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700" %>
+      </div>
+      <%= submit_tag "대표 선생님 변경", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+    <% end %>
+  <% else %>
+    <p class="mt-4 text-sm text-stone-600">대표 선생님: <%= @current_manager_membership ? "#{@current_manager_membership.user.name} (#{@current_manager_membership.user.login_id})" : "미지정" %></p>
+  <% end %>
+</section>
+
+<section class="rounded-md border border-stone-200 bg-white p-6">
+  <h2 class="text-lg font-semibold">학교 상태</h2>
+  <div class="mt-5 flex flex-wrap items-center justify-between gap-3">
+    <p class="text-sm">현재 상태: <span class="font-semibold"><%= @school.active? ? "활성" : "비활성" %></span></p>
+    <% if policy(@school).manage_lifecycle? %>
+      <% if @school.active? %>
+        <%= button_to "학교 비활성화", deactivate_school_path(@school), method: :patch, class: "rounded-md border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700", form: { data: { turbo_confirm: "학교를 비활성화하면 소속 선생님의 학교 운영 접근이 중단됩니다. 비활성화하시겠습니까?" } } %>
+      <% else %>
+        <%= button_to "학교 활성화", reactivate_school_path(@school), method: :patch, class: "rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700" %>
+      <% end %>
+    <% end %>
+  </div>
+</section>
+
+<% if policy(@school).destroy? %>
+  <section class="rounded-md border border-rose-200 bg-white p-6">
+    <h2 class="text-lg font-semibold text-rose-800">위험 영역</h2>
+    <div class="mt-4">
+      <% if @school_delete_eligible %>
+        <%= button_to "학교 삭제", school_path(@school), method: :delete, class: "rounded-md bg-rose-700 px-4 py-2 text-sm font-medium text-white", form: { data: { turbo_confirm: "이 학교를 삭제하시겠습니까?" } } %>
+      <% elsif @school.active? && @school_empty %>
+        <p class="text-sm text-stone-600">학교를 비활성화한 뒤 삭제할 수 있습니다.</p>
+      <% else %>
+        <p class="text-sm text-stone-600">등록된 구성원이나 교실이 있는 학교는 삭제할 수 없습니다.</p>
+      <% end %>
+    </div>
+  </section>
+<% end %>

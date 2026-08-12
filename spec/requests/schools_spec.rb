@@ -22,12 +22,21 @@ RSpec.describe "Schools", type: :request do
     get schools_path
     expect(response.body).to include(school.name, other_school.name, "학교 생성", "교실 1개", "소속 선생님 1명", manager.name)
 
+    inactive_teacher = add_teacher(school, name: "비활성 교사", active: false)
+    inactive_classroom = create(:classroom, school: school, class_label: "2", active: false)
+    create(:student, classroom: classroom, active: false)
+    create(:student, classroom: inactive_classroom, active: true)
+
     get school_path(school)
     expect(response).to have_http_status(:ok)
-    expect(response.body).to include("학교 기본 정보", "교실", "선생님", "대표")
+    expect(response.body).to include("학교 운영 현황", "교실", "선생님", "대표 선생님")
     expect(response.body).not_to include("선생님 운영")
-    expect(response.body).to include(classroom.formatted_class_label, "교실 바로가기", "교실 설정", "교실 관리", "선생님 관리")
+    expect(response.body).to include(classroom.formatted_class_label, "교실 바로가기", "설정", "교실 관리", "선생님 관리")
+    expect(response.body).not_to include("교실 설정")
     document = Nokogiri::HTML(response.body)
+    summary = document.css("section").find { |section| section.text.include?("학교 운영 현황") }
+    expect(summary.text.squish).to include(school.name, "선생님 1명", "교실 1학급", "학생 1명", "#{manager.name} 선생님")
+    expect(summary.text).not_to include(inactive_teacher.name)
     expect(document.css("a").map { |link| link["href"] }).to include(
       school_path(school, teacher_grade: "all", classroom_grade: "all"),
       school_path(school, teacher_grade: "4", classroom_grade: "all"),
@@ -43,7 +52,26 @@ RSpec.describe "Schools", type: :request do
     expect(response.body).not_to include("선생님 추가", "여러 선생님 추가")
   end
 
-  it "lets only global admin create and update a School" do
+  it "shows table-contained empty states and a missing-manager fallback" do
+    school = create(:school)
+    admin = create(:user, :admin)
+    sign_in admin
+
+    get school_path(school)
+
+    document = Nokogiri::HTML(response.body)
+    teacher_section = document.css("section").find { |section| section.at_css("h2")&.text&.strip == "선생님" }
+    classroom_section = document.css("section").find { |section| section.at_css("h2")&.text&.strip == "교실" }
+    expect(document.css("section").find { |section| section.text.include?("학교 운영 현황") }.text).to include("미지정")
+    expect(teacher_section.at_css("tbody td[colspan='6']").text).to include("등록된 선생님이 없습니다.")
+    expect(teacher_section.at_css("tfoot").text).to include("총 0명")
+    expect(teacher_section.at_css("tfoot td")['colspan']).to eq("6")
+    expect(classroom_section.at_css("tbody td[colspan='6']").text).to include("등록된 교실이 없습니다.")
+    expect(classroom_section.at_css("tfoot").text).to include("총 0학급 · 학생 0명")
+    expect(response.body).not_to include("조건에 맞는 선생님이 없습니다.")
+  end
+
+  it "lets admin create a School and lets its manager update basic information" do
     admin = create(:user, :admin)
     sign_in admin
     expect { post schools_path, params: { school: { name: "새학교" } } }.to change(School, :count).by(1)
@@ -56,6 +84,162 @@ RSpec.describe "Schools", type: :request do
     sign_in manager
     expect { post schools_path, params: { school: { name: "차단학교" } } }.not_to change(School, :count)
     expect(response).to redirect_to(polls_path)
+    get edit_school_path(school)
+    expect(response).to have_http_status(:ok)
+    expect(response.body).to include("학교 기본 정보", "학교 정보 저장")
+    expect(response.body).not_to include("대표 선생님 변경", "학교 비활성화", "학교 활성화", "위험 영역", "학교 삭제")
+    patch school_path(school), params: { school: { name: "대표수정학교" } }
+    expect(school.reload.name).to eq("대표수정학교")
+  end
+
+  it "lets only admin atomically change the representative teacher" do
+    school = create(:school)
+    old_manager = add_teacher(school, role: :manager, name: "기존 대표", grade: 4)
+    candidate = add_teacher(school, name: "새 대표", grade: 5)
+    old_classroom = create(:classroom, school: school, grade: 4, teacher: old_manager)
+    candidate_classroom = create(:classroom, school: school, grade: 5, teacher: candidate)
+    admin = create(:user, :admin)
+    sign_in admin
+
+    get edit_school_path(school)
+    document = Nokogiri::HTML(response.body)
+    expect(response.body).to include("학교 기본 정보", "학교 운영 정보", "대표 선생님")
+    expect(document.at_css("select[name='school_membership_id'] option[value='#{old_manager.school_membership.id}'][selected]")).to be_present
+    candidate_option = document.at_css("select[name='school_membership_id'] option[value='#{candidate.school_membership.id}']")
+    expect(candidate_option).to be_present
+    expect(candidate_option.text).to eq("#{candidate.name} (#{candidate.login_id})")
+    expect(response.body).not_to include("학년도", "초기화")
+
+    patch manager_school_path(school), params: { school_membership_id: candidate.school_membership.id }
+
+    expect(response).to redirect_to(edit_school_path(school))
+    expect(old_manager.school_membership.reload).to be_member
+    expect(candidate.school_membership.reload).to be_manager
+    expect(old_manager.school_membership.grade).to eq(4)
+    expect(candidate.school_membership.grade).to eq(5)
+    expect(old_classroom.reload.teacher).to eq(old_manager)
+    expect(candidate_classroom.reload.teacher).to eq(candidate)
+
+    foreign = add_teacher(create(:school), name: "외부 후보")
+    patch manager_school_path(school), params: { school_membership_id: foreign.school_membership.id }
+    expect(candidate.school_membership.reload).to be_manager
+    expect(old_manager.school_membership.reload).to be_member
+
+    inactive = add_teacher(school, name: "비활성 후보", active: false)
+    patch manager_school_path(school), params: { school_membership_id: inactive.school_membership.id }
+    expect(candidate.school_membership.reload).to be_manager
+    expect(inactive.school_membership.reload).to be_member
+
+    sign_out admin
+    sign_in candidate
+    patch manager_school_path(school), params: { school_membership_id: old_manager.school_membership.id }
+    expect(candidate.school_membership.reload).to be_manager
+    expect(old_manager.school_membership.reload).to be_member
+  end
+
+  it "lets only admin change School state without changing child records" do
+    school = create(:school)
+    expect(school).to be_active
+    manager = add_teacher(school, role: :manager)
+    classroom = create(:classroom, school: school, teacher: manager)
+    student = create(:student, classroom: classroom)
+    admin = create(:user, :admin)
+    sign_in admin
+
+    get edit_school_path(school)
+    expect(response.body).to include("학교 상태", "현재 상태", "활성", "학교 비활성화", "위험 영역")
+    document = Nokogiri::HTML(response.body)
+    expect(document.at_css("form[action='#{deactivate_school_path(school)}'][data-turbo-confirm]")["data-turbo-confirm"]).to include("학교 운영 접근이 중단")
+
+    patch deactivate_school_path(school)
+    expect(school.reload).not_to be_active
+    expect(manager.reload).to be_active
+    expect(manager.school_membership.reload).to be_manager
+    expect(classroom.reload).to be_active
+    expect(classroom.teacher).to eq(manager)
+    expect(student.reload).to be_active
+
+    get school_path(school)
+    expect(response).to have_http_status(:ok)
+    expect(response.body).to include("비활성")
+
+    patch reactivate_school_path(school)
+    expect(school.reload).to be_active
+    expect(manager.reload).to be_active
+    expect(classroom.reload).to be_active
+    expect(student.reload).to be_active
+
+    sign_out admin
+    sign_in manager
+    patch deactivate_school_path(school)
+    expect(school.reload).to be_active
+
+    ordinary = add_teacher(school)
+    sign_out manager
+    sign_in ordinary
+    patch deactivate_school_path(school)
+    expect(school.reload).to be_active
+  end
+
+  it "blocks inactive School operations for members while preserving admin access" do
+    school = create(:school, active: false)
+    manager = add_teacher(school, role: :manager)
+    teacher = add_teacher(school, grade: 4)
+    classroom = create(:classroom, school: school, grade: 4, teacher: teacher)
+
+    sign_in manager
+    get classrooms_path
+    expect(response).to redirect_to(polls_path)
+    get teachers_path
+    expect(response).to redirect_to(polls_path)
+    get school_path(school)
+    expect(response).to have_http_status(:not_found)
+
+    sign_out manager
+    sign_in teacher
+    get new_poll_path
+    expect(response).to redirect_to(polls_path)
+    get classroom_students_path(classroom)
+    expect(response).to have_http_status(:not_found)
+
+    sign_out teacher
+    sign_in create(:user, :admin)
+    get school_path(school)
+    expect(response).to have_http_status(:ok)
+    get edit_classroom_path(classroom)
+    expect(response).to have_http_status(:ok)
+  end
+
+  it "deletes only an unused inactive School" do
+    admin = create(:user, :admin)
+    sign_in admin
+    active = create(:school)
+    with_membership = create(:school, active: false)
+    member = add_teacher(with_membership)
+    with_classroom = create(:school, active: false)
+    classroom = create(:classroom, school: with_classroom)
+    deletable = create(:school, active: false)
+
+    get edit_school_path(deletable)
+    document = Nokogiri::HTML(response.body)
+    expect(document.at_css("form[action='#{school_path(deletable)}'][data-turbo-confirm='이 학교를 삭제하시겠습니까?']")).to be_present
+
+    expect { delete school_path(active) }.not_to change(School, :count)
+    expect { delete school_path(with_membership) }.not_to change(School, :count)
+    expect(member.reload.school).to eq(with_membership)
+    expect { delete school_path(with_classroom) }.not_to change(School, :count)
+    expect(classroom.reload.school).to eq(with_classroom)
+    expect { delete school_path(deletable) }.to change(School, :count).by(-1)
+
+    protected_school = create(:school, active: false)
+    create(:participant_group, school: protected_school)
+    expect { delete school_path(protected_school) }.not_to change(School, :count)
+
+    manager_school = create(:school, active: false)
+    manager = add_teacher(manager_school, role: :manager)
+    sign_out admin
+    sign_in manager
+    expect { delete school_path(manager_school) }.not_to change(School, :count)
   end
 
   it "redirects a manager to their School and hides other Schools" do
@@ -70,7 +254,8 @@ RSpec.describe "Schools", type: :request do
     expect(response).to have_http_status(:not_found)
 
     get school_path(school)
-    expect(response.body).not_to include("대표 선생님 지정", "대표 선생님 지정 해제", "학교 정보 수정")
+    expect(response.body).not_to include("대표 선생님 지정", "대표 선생님 지정 해제")
+    expect(response.body).to include("학교 정보 수정")
     expect(Nokogiri::HTML(response.body).css("a").map { |link| link["href"] }).to include(
       school_path(school, teacher_grade: "unassigned", classroom_grade: "all")
     )
@@ -90,13 +275,14 @@ RSpec.describe "Schools", type: :request do
     document = Nokogiri::HTML(response.body)
     classroom_section = document.css("section").find { |section| section.at_css("h2")&.text&.strip == "교실" }
     links = classroom_section.css("a").index_by { |link| link.text.strip }
-    expect(links.keys).to include("전체", "1학년", "6학년", "교실 설정", "교실 바로가기", "교실 관리")
+    expect(links.keys).to include("전체", "1학년", "6학년", "설정", "교실 바로가기", "교실 관리")
+    expect(links.keys).not_to include("교실 설정")
     expect(links.keys).not_to include("미배정")
     expect(classroom_section.css("th").map { |heading| heading.text.strip }).not_to include("학년도")
     expect(classroom_section.text).to include(grade_four.formatted_class_label, "총 1학급 · 학생 2명")
     expect(classroom_section.text).not_to include(grade_five.formatted_class_label)
     expect(links["교실 바로가기"]["href"]).to eq(classroom_students_path(grade_four))
-    expect(links["교실 설정"]["href"]).to eq(edit_classroom_path(grade_four))
+    expect(links["설정"]["href"]).to eq(edit_classroom_path(grade_four))
     expect(links["교실 관리"]["href"]).to eq(classrooms_path(school_id: school.id, grade: "4"))
     expect(links["전체"]["href"]).to eq(school_path(school, teacher_grade: "unassigned", classroom_grade: "all"))
 
@@ -139,7 +325,9 @@ RSpec.describe "Schools", type: :request do
     expect(document.css("span").map { |span| span.text.strip }).not_to include("대표", "선생님")
     expect(response.body).to include(teacher.name, teacher.login_id, "선생님 관리")
     expect(response.body).not_to include("재발급", temporary_password_teacher_path(teacher))
-    expect(response.body).not_to include("일반 선생님", "대표 선생님 변경", edit_teacher_path(teacher))
+    expect(response.body).not_to include("일반 선생님", "대표 선생님 변경")
+    expect(table_headings).to include("관리")
+    expect(document.at_css("#overview_row_user_#{teacher.id} a[href='#{edit_teacher_path(teacher)}']").text).to eq("설정")
     expect(response.body).not_to include("대표 선생님 지정", "대표 선생님 지정 해제")
     patch promote_school_teacher_membership_path(school, membership)
     expect(membership.reload).to be_manager
