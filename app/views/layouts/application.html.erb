@@ -95,21 +95,23 @@
         </p>
       <% end %>
 
-      <% if !content_for?(:hide_ballot_flash) && (notice.present? || alert.present?) %>
-        <div class="<%= content_for?(:ballot_screen_layout) ? "mx-auto mb-3 max-w-5xl space-y-2" : "space-y-2" %>">
-          <% if notice.present? %>
-            <p class="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
-              <%= notice %>
-            </p>
-          <% end %>
+      <div id="application_flash">
+        <% if !content_for?(:hide_ballot_flash) && (notice.present? || alert.present?) %>
+          <div class="<%= content_for?(:ballot_screen_layout) ? "mx-auto mb-3 max-w-5xl space-y-2" : "space-y-2" %>">
+            <% if notice.present? %>
+              <p class="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+                <%= notice %>
+              </p>
+            <% end %>
 
-          <% if alert.present? %>
-            <p class="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">
-              <%= alert %>
-            </p>
-          <% end %>
-        </div>
-      <% end %>
+            <% if alert.present? %>
+              <p class="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">
+                <%= alert %>
+              </p>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
 
       <%= yield %>
     </main>

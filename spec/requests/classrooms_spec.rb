@@ -534,6 +534,15 @@ RSpec.describe "Classrooms", type: :request do
     expect(response.body).to include("기본 학년", "생성할 교실 수")
     expect(response.body).not_to include("학년도")
 
+    get bulk_new_classrooms_path, params: { school_id: school.id, grade: 4, count: 31 }
+    message = "학교, 기본 학년과 생성할 교실 수를 확인해 주세요."
+    setup_document = Nokogiri::HTML(response.body)
+    expect(flash[:alert]).to eq(message)
+    expect(response.body.scan(message).size).to eq(1)
+    expect(setup_document.at_css("select[name='school_id'] option[selected]")["value"]).to eq(school.id.to_s)
+    expect(setup_document.at_css("select[name='grade'] option[selected]")["value"]).to eq("4")
+    expect(setup_document.at_css("input[name='count']")["value"]).to eq("31")
+
     get bulk_new_classrooms_path, params: { school_id: school.id, grade: 4, count: 2 }
     expect(response.body).to include("제외", "미배정")
     expect(response.body).not_to include("학년도")

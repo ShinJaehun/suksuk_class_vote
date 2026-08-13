@@ -147,7 +147,8 @@ class ClassroomsController < ApplicationController
     @count = valid_bulk_count
     unless @school && @default_grade && @count
       @bulk_errors = ["학교, 기본 학년과 생성할 교실 수를 확인해 주세요."]
-      @count ||= 10
+      flash.now[:alert] = @bulk_errors.to_sentence
+      @count = params[:count].presence || 10
       render :bulk_setup, status: :unprocessable_entity
       return
     end

@@ -563,6 +563,20 @@ RSpec.describe "Teachers", type: :request do
       expect(response.body).not_to include("여러 명 추가", "기본 학년")
     end
 
+    it "shows a bulk setup precondition error in the layout and preserves valid selections" do
+      sign_in create(:user, :admin)
+
+      get bulk_new_teachers_path, params: { school_id: school.id, grade: 4, count: 31 }
+
+      message = "학교, 학년과 추가할 인원을 올바르게 선택해 주세요."
+      document = Nokogiri::HTML(response.body)
+      expect(flash[:alert]).to eq(message)
+      expect(response.body.scan(message).size).to eq(1)
+      expect(document.at_css("select[name='school_id'] option[selected]")["value"]).to eq(school.id.to_s)
+      expect(document.at_css("select[name='grade'] option[selected]")["value"]).to eq("4")
+      expect(document.at_css("input[name='count']")["value"]).to eq("31")
+    end
+
     it "shows an admin the requested number of bulk input rows and formatted classroom labels" do
       sign_in create(:user, :admin)
       create(:classroom, school: school, grade: 4, class_label: "1반")

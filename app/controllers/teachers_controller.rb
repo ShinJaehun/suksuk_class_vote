@@ -132,6 +132,8 @@ class TeachersController < ApplicationController
 
     if @school.blank? || @grade.blank? || @count.blank?
       @bulk_errors = ["학교, 학년과 추가할 인원을 올바르게 선택해 주세요."]
+      flash.now[:alert] = @bulk_errors.to_sentence
+      @count = params[:count]
       @schools = School.order(:name) if current_user.admin?
       render :bulk_setup, status: :unprocessable_entity
       return

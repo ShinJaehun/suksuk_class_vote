@@ -123,9 +123,13 @@ RSpec.describe "School Poll definition management", type: :request do
       expect(response).to have_http_status(:unprocessable_content)
 
       post school_poll_contests_path(poll),
-           params: { poll_contest: { title: "" } }, as: :turbo_stream
+           params: { poll_contest: { title: "" } },
+           headers: { "ACCEPT" => "text/vnd.turbo-stream.html", "Turbo-Frame" => "school_poll_modal" }
       expect(response).to have_http_status(:unprocessable_content)
+      expect(response.media_type).to eq("text/html")
       expect(response.body).to include(%(id="school_poll_modal"), "poll_contest[title]")
+      expect(Nokogiri::HTML(response.body).css("turbo-frame#school_poll_modal").size).to eq(1)
+      expect(response.body).not_to include("<turbo-stream")
     end
 
     it "broadcasts the Poll status runtime after every successful Contest change" do
@@ -171,10 +175,13 @@ RSpec.describe "School Poll definition management", type: :request do
       )
 
       patch school_poll_contest_path(poll, contest),
-            params: { poll_contest: { title: "" } }, as: :turbo_stream
+            params: { poll_contest: { title: "" } },
+            headers: { "ACCEPT" => "text/vnd.turbo-stream.html", "Turbo-Frame" => "school_poll_modal" }
       expect(response).to have_http_status(:unprocessable_content)
+      expect(response.media_type).to eq("text/html")
       expect(response.body).to include(%(id="school_poll_modal"), "poll_contest[title]")
-      expect(Nokogiri::HTML(response.body).at_css("a[href='#{school_poll_path(poll)}']")["data-turbo-frame"]).to be_nil
+      expect(Nokogiri::HTML(response.body).css("turbo-frame#school_poll_modal").size).to eq(1)
+      expect(response.body).not_to include("<turbo-stream")
 
       delete school_poll_contest_path(poll, contest), as: :turbo_stream
       expect(response.body).to include(%(action="remove" target="poll_contest_#{contest.id}"))
@@ -250,9 +257,13 @@ RSpec.describe "School Poll definition management", type: :request do
       expect(response).to have_http_status(:unprocessable_content)
 
       post school_poll_contest_options_path(poll, contest),
-           params: { poll_option: { number: 1, name: "중복" } }, as: :turbo_stream
+           params: { poll_option: { number: 1, name: "중복" } },
+           headers: { "ACCEPT" => "text/vnd.turbo-stream.html", "Turbo-Frame" => "school_poll_modal" }
       expect(response).to have_http_status(:unprocessable_content)
+      expect(response.media_type).to eq("text/html")
       expect(response.body).to include(%(id="school_poll_modal"), "poll_option[number]")
+      expect(Nokogiri::HTML(response.body).css("turbo-frame#school_poll_modal").size).to eq(1)
+      expect(response.body).not_to include("<turbo-stream")
 
       other_contest = create(:poll_contest, poll: poll, position: 2)
       expect do
@@ -313,10 +324,13 @@ RSpec.describe "School Poll definition management", type: :request do
       )
 
       patch school_poll_contest_option_path(poll, contest, option),
-            params: { poll_option: { number: nil, name: "" } }, as: :turbo_stream
+            params: { poll_option: { number: nil, name: "" } },
+            headers: { "ACCEPT" => "text/vnd.turbo-stream.html", "Turbo-Frame" => "school_poll_modal" }
       expect(response).to have_http_status(:unprocessable_content)
+      expect(response.media_type).to eq("text/html")
       expect(response.body).to include(%(id="school_poll_modal"), "poll_option[name]")
-      expect(Nokogiri::HTML(response.body).at_css("a[href='#{school_poll_path(poll)}']")["data-turbo-frame"]).to be_nil
+      expect(Nokogiri::HTML(response.body).css("turbo-frame#school_poll_modal").size).to eq(1)
+      expect(response.body).not_to include("<turbo-stream")
 
       delete school_poll_contest_option_path(poll, contest, option), as: :turbo_stream
       expect(response.body).to include(%(action="remove" target="poll_option_#{option.id}"))
@@ -427,13 +441,30 @@ RSpec.describe "School Poll definition management", type: :request do
           name: "변환 실패 후보",
           photo: uploaded_photo
         }
-      }, headers: { "ACCEPT" => "text/vnd.turbo-stream.html" }
+      }, headers: { "ACCEPT" => "text/vnd.turbo-stream.html", "Turbo-Frame" => "school_poll_modal" }
 
-      expect(contest.poll_options.find_by!(number: 1).photo).to be_attached
-      expect(response).to redirect_to(school_poll_path(poll))
-      expect(flash[:alert]).to include("사진 변환에 실패")
-      follow_redirect!
-      expect(response.body).to include("사진 변환에 실패", "후보 사진")
+      option = contest.poll_options.find_by!(number: 1)
+      expect(option.photo).to be_attached
+      expect(response.body).to include(
+        %(action="update" target="application_flash"),
+        %(action="replace" target="contests_poll_#{poll.id}"),
+        %(action="update" target="school_poll_modal"),
+        "사진 변환에 실패", "변환 실패 후보"
+      )
+      expect(response.body).not_to include(%(action="refresh"))
+
+      patch school_poll_contest_option_path(poll, contest, option), params: {
+        poll_option: { number: 1, name: "변환 실패 수정 후보", photo: uploaded_photo(filename: "updated.jpg") }
+      }, headers: { "ACCEPT" => "text/vnd.turbo-stream.html", "Turbo-Frame" => "school_poll_modal" }
+
+      expect(option.reload.name).to eq("변환 실패 수정 후보")
+      expect(response.body).to include(
+        %(action="update" target="application_flash"),
+        %(action="replace" target="contests_poll_#{poll.id}"),
+        %(action="update" target="school_poll_modal"),
+        "사진 변환에 실패", "변환 실패 수정 후보"
+      )
+      expect(response.body).not_to include(%(action="refresh"))
     end
 
     it "rejects invalid and oversized photos without losing an existing attachment" do
@@ -598,6 +629,45 @@ RSpec.describe "School Poll definition management", type: :request do
       end.not_to change(PollOption, :count)
       expect(response).to redirect_to(school_poll_path(poll))
       expect(flash[:alert]).to be_present
+    end
+
+    it "escapes the modal with a global alert for a stale Option update" do
+      create(:poll_participant, poll: poll)
+      original_name = option.name
+
+      patch school_poll_contest_option_path(poll, contest, option),
+            params: { poll_option: { number: option.number, name: "수정 불가" } },
+            headers: { "ACCEPT" => "text/vnd.turbo-stream.html", "Turbo-Frame" => "school_poll_modal" }
+
+      expect(option.reload.name).to eq(original_name)
+      expect(response.media_type).to eq("text/vnd.turbo-stream.html")
+      expect(response.body).to include(
+        %(action="update" target="application_flash"),
+        %(action="replace" target="contests_poll_#{poll.id}"),
+        %(action="update" target="school_poll_modal"),
+        "투표가 진행된 뒤에는 후보자를 변경할 수 없습니다.",
+        "투표가 진행되어 투표 정의를 변경할 수 없습니다."
+      )
+      expect(response.body).not_to include(%(action="refresh"), "투표 항목 추가", ">수정<")
+    end
+
+    it "escapes the modal with a global alert for a stale Contest update" do
+      create(:poll_participant, poll: poll)
+      original_title = contest.title
+
+      patch school_poll_contest_path(poll, contest),
+            params: { poll_contest: { title: "수정 불가" } },
+            headers: { "ACCEPT" => "text/vnd.turbo-stream.html", "Turbo-Frame" => "school_poll_modal" }
+
+      expect(contest.reload.title).to eq(original_title)
+      expect(response.media_type).to eq("text/vnd.turbo-stream.html")
+      expect(response.body).to include(
+        %(action="update" target="application_flash"),
+        %(action="replace" target="contests_poll_#{poll.id}"),
+        %(action="update" target="school_poll_modal"),
+        "투표가 진행된 뒤에는 투표 항목을 변경할 수 없습니다."
+      )
+      expect(response.body).not_to include(%(action="refresh"))
     end
   end
 

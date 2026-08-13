@@ -30,8 +30,10 @@ class SchoolPollContestsController < ApplicationController
       end
     else
       respond_to do |format|
-        format.turbo_stream { render :new, formats: :html, status: :unprocessable_entity }
-        format.html { render :new, status: :unprocessable_entity }
+        format.turbo_stream do
+          render :new, formats: :html, content_type: "text/html", status: :unprocessable_content
+        end
+        format.html { render :new, status: :unprocessable_content }
       end
     end
   end
@@ -56,8 +58,10 @@ class SchoolPollContestsController < ApplicationController
       end
     else
       respond_to do |format|
-        format.turbo_stream { render :edit, formats: :html, status: :unprocessable_entity }
-        format.html { render :edit, status: :unprocessable_entity }
+        format.turbo_stream do
+          render :edit, formats: :html, content_type: "text/html", status: :unprocessable_content
+        end
+        format.html { render :edit, status: :unprocessable_content }
       end
     end
   end
@@ -95,7 +99,28 @@ class SchoolPollContestsController < ApplicationController
   def ensure_definition_editable!
     return if @poll.definition_editable?
 
-    redirect_to school_poll_path(@poll), alert: "투표가 진행된 뒤에는 투표 항목을 변경할 수 없습니다."
+    message = "투표가 진행된 뒤에는 투표 항목을 변경할 수 없습니다."
+    respond_to do |format|
+      format.turbo_stream { render_modal_escape(message) }
+      format.html { redirect_to school_poll_path(@poll), alert: message }
+    end
+  end
+
+  def render_modal_escape(message)
+    @poll.reload
+    render turbo_stream: [
+      turbo_stream.update(
+        "application_flash",
+        partial: "shared/application_alert",
+        locals: { message: message }
+      ),
+      turbo_stream.replace(
+        ActionView::RecordIdentifier.dom_id(@poll, :contests),
+        partial: "school_polls/contests",
+        locals: { poll: @poll, poll_contests: @poll.poll_contests.includes(:poll_options).order(:position, :id) }
+      ),
+      turbo_stream.update("school_poll_modal", "")
+    ]
   end
 
   def contest_params
