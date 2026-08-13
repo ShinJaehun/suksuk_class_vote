@@ -24,7 +24,7 @@
                 <% if policy(classroom).edit? %>
                   <%= link_to "설정", edit_classroom_path(classroom), class: "underline" %>
                 <% end %>
-                <% if policy(classroom).manage_students? %>
+                <% if policy(classroom).view_students? %>
                   <%= link_to "교실 바로가기", classroom_students_path(classroom), class: "underline" %>
                 <% end %>
               </div>

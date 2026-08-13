@@ -11,6 +11,16 @@ RSpec.describe "Schools", type: :request do
     teacher.reload
   end
 
+  def create_running_poll(school:, school_managed: false, class_label: "1")
+    teacher = add_teacher(school, grade: 4, name: "#{class_label}반 담임")
+    classroom = create(:classroom, school: school, grade: 4, class_label: class_label, teacher: teacher)
+    poll = create(:poll, user: teacher, school: school, school_managed: school_managed,
+                         participant_group: nil, status: :in_progress, started_at: 1.hour.ago)
+    session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
+                                    status: :in_progress, started_at: 1.hour.ago)
+    [poll, session]
+  end
+
   it "shows every School and resource summaries to global admin" do
     school = create(:school, name: "아라초")
     manager = add_teacher(school, role: :manager, name: "대표교사")
@@ -149,7 +159,7 @@ RSpec.describe "Schools", type: :request do
     get edit_school_path(school)
     expect(response.body).to include("학교 상태", "현재 상태", "활성", "학교 비활성화", "위험 영역")
     document = Nokogiri::HTML(response.body)
-    expect(document.at_css("form[action='#{deactivate_school_path(school)}'][data-turbo-confirm]")["data-turbo-confirm"]).to include("학교 운영 접근이 중단")
+    expect(document.at_css("form[action='#{deactivate_school_path(school)}'][data-turbo-confirm]")["data-turbo-confirm"]).to include("기존 정보를 조회")
 
     patch deactivate_school_path(school)
     expect(school.reload).not_to be_active
@@ -181,26 +191,44 @@ RSpec.describe "Schools", type: :request do
     expect(school.reload).to be_active
   end
 
-  it "blocks inactive School operations for members while preserving admin access" do
+  it "keeps an inactive School readable for members while blocking their writes" do
     school = create(:school, active: false)
     manager = add_teacher(school, role: :manager)
     teacher = add_teacher(school, grade: 4)
     classroom = create(:classroom, school: school, grade: 4, teacher: teacher)
+    student = create(:student, classroom: classroom)
 
     sign_in manager
     get classrooms_path
-    expect(response).to redirect_to(polls_path)
+    expect(response).to have_http_status(:ok)
+    expect(response.body).to include(classroom.class_label)
+    expect(response.body).not_to include("변경 사항 저장", "교실 생성")
     get teachers_path
-    expect(response).to redirect_to(polls_path)
+    expect(response).to have_http_status(:ok)
+    expect(response.body).to include(teacher.name)
+    expect(response.body).not_to include("변경 사항 저장", "선생님 추가")
     get school_path(school)
-    expect(response).to have_http_status(:not_found)
+    expect(response).to have_http_status(:ok)
+    expect(response.body).to include(
+      "현재 학교가 비활성 상태입니다. 기존 정보는 조회할 수 있지만 운영 내용은 변경할 수 없습니다."
+    )
 
     sign_out manager
     sign_in teacher
     get new_poll_path
     expect(response).to redirect_to(polls_path)
     get classroom_students_path(classroom)
-    expect(response).to have_http_status(:not_found)
+    expect(response).to have_http_status(:ok)
+    expect(response.body).to include(student.name, "현재 학교가 비활성 상태입니다")
+    expect(response.body).not_to include("학생 한 명 추가", "여러 학생 추가", "수정", "비활성화", "복구")
+    expect do
+      post classroom_students_path(classroom), params: { student: { number: 2, name: "추가 학생" } }
+    end.not_to change(Student, :count)
+    original_name = student.name
+    patch classroom_student_path(classroom, student), params: { student: { number: student.number, name: "변경 학생" } }
+    expect(student.reload.name).to eq(original_name)
+    patch deactivate_classroom_student_path(classroom, student)
+    expect(student.reload).to be_active
 
     sign_out teacher
     sign_in create(:user, :admin)
@@ -208,6 +236,72 @@ RSpec.describe "Schools", type: :request do
     expect(response).to have_http_status(:ok)
     get edit_classroom_path(classroom)
     expect(response).to have_http_status(:ok)
+    get new_classroom_student_path(classroom)
+    expect(response).to have_http_status(:ok)
+  end
+
+  it "refuses to deactivate a School with an in-progress Schoolwide Poll" do
+    school = create(:school)
+    poll, poll_session = create_running_poll(school: school, school_managed: true)
+    sign_in create(:user, :admin)
+
+    patch deactivate_school_path(school)
+
+    expect(school.reload).to be_active
+    expect(poll.reload).to be_in_progress
+    expect(poll_session.reload).to be_in_progress
+    expect(response).to redirect_to(edit_school_path(school))
+    expect(flash[:alert]).to include("진행 중인 전교투표")
+  end
+
+  it "stops running Classroom Polls before deactivating while preserving history" do
+    school = create(:school)
+    poll, poll_session = create_running_poll(school: school)
+    participant = create(:poll_participant, poll: poll, poll_session: poll_session,
+                                            source_participant_slot: nil)
+    sign_in create(:user, :admin)
+
+    patch deactivate_school_path(school)
+
+    expect(school.reload).not_to be_active
+    expect(poll.reload).to be_stopped
+    expect(poll_session.reload).to be_stopped
+    expect(poll_session.closed_at).to be_nil
+    expect(participant.reload).to be_present
+    expect(poll.poll_events.where(event_type: "poll_stopped")).to exist
+  end
+
+  it "stops every running Classroom Poll in only the deactivated School" do
+    school = create(:school)
+    first_poll, first_session = create_running_poll(school: school, class_label: "1")
+    second_poll, second_session = create_running_poll(school: school, class_label: "2")
+    other_school = create(:school)
+    other_poll, other_session = create_running_poll(school: other_school)
+    sign_in create(:user, :admin)
+
+    patch deactivate_school_path(school)
+
+    expect(school.reload).not_to be_active
+    expect([first_poll.reload, second_poll.reload]).to all(be_stopped)
+    expect([first_session.reload, second_session.reload]).to all(be_stopped)
+    expect(other_school.reload).to be_active
+    expect(other_poll.reload).to be_in_progress
+    expect(other_session.reload).to be_in_progress
+  end
+
+  it "does not stop a Classroom Poll when a Schoolwide Poll blocks deactivation" do
+    school = create(:school)
+    schoolwide_poll, schoolwide_session = create_running_poll(school: school, school_managed: true, class_label: "1")
+    classroom_poll, classroom_session = create_running_poll(school: school, class_label: "2")
+    sign_in create(:user, :admin)
+
+    patch deactivate_school_path(school)
+
+    expect(school.reload).to be_active
+    expect(schoolwide_poll.reload).to be_in_progress
+    expect(schoolwide_session.reload).to be_in_progress
+    expect(classroom_poll.reload).to be_in_progress
+    expect(classroom_session.reload).to be_in_progress
   end
 
   it "deletes only an unused inactive School" do

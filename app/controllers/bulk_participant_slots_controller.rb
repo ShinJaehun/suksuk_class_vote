@@ -6,13 +6,13 @@ class BulkParticipantSlotsController < ApplicationController
   before_action :set_safe_return_to
 
   def new
-    authorize @participant_group, :show?
+    authorize @participant_group, :manage_roster?
 
     prepare_form
   end
 
   def create
-    authorize @participant_group, :show?
+    authorize @participant_group, :manage_roster?
 
     @names = submitted_names
     @count = @names.size if @names.present?

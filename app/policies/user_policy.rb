@@ -1,6 +1,6 @@
 class UserPolicy < ApplicationPolicy
   def index?
-    admin_or_manager?
+    user&.admin? || manager?
   end
 
   def create?
@@ -38,7 +38,6 @@ class UserPolicy < ApplicationPolicy
 
       membership = user&.school_membership
       return teachers.none unless user
-      return teachers.none if user&.teacher? && membership&.school && !membership.school.active?
       return teachers.where(id: user.id) unless user&.teacher? && membership&.manager?
 
       teachers.joins(:school_membership).where(school_memberships: { school_id: membership.school_id })
@@ -52,6 +51,10 @@ class UserPolicy < ApplicationPolicy
   end
 
   def admin_or_manager?
-    user&.admin? || (user&.teacher? && user.school_membership&.manager? && user.school_membership.school&.active?)
+    user&.admin? || (manager? && user.school_membership.school&.active?)
+  end
+
+  def manager?
+    user&.teacher? && user.school_membership&.manager?
   end
 end

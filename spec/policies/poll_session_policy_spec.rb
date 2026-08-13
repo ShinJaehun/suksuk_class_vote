@@ -64,6 +64,19 @@ RSpec.describe PollSessionPolicy do
     expect(described_class.new(manager, poll_session)).not_to be_operate
   end
 
+  it "keeps an inactive School session readable but blocks runtime for teacher and admin" do
+    poll_session, teacher = create_poll_session
+    poll_session.classroom.school.update!(active: false)
+
+    [teacher, create(:user, :admin)].each do |actor|
+      policy = described_class.new(actor, poll_session)
+      expect(policy).to be_show
+      expect(policy).not_to be_start
+      expect(policy).not_to be_operate
+      expect(policy).not_to be_edit_definition
+    end
+  end
+
   it "rejects another teacher, another-school manager, and membershipless teacher" do
     poll_session, = create_poll_session
     other_teacher = create(:user)

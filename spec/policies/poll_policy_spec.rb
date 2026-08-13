@@ -54,6 +54,23 @@ RSpec.describe PollPolicy do
 
       expect(described_class.new(admin, poll)).to be_show
     end
+
+    it "keeps an inactive School Poll readable while blocking writes for every actor" do
+      school = create(:school)
+      teacher = create(:user)
+      create(:school_membership, school: school, user: teacher)
+      poll = create(:poll, user: teacher, school: school, participant_group: nil)
+      school.update!(active: false)
+
+      expect(described_class.new(teacher, poll)).to be_show
+      [teacher, create(:user, :admin)].each do |actor|
+        policy = described_class.new(actor, poll)
+        expect(policy).not_to be_update
+        expect(policy).not_to be_start
+        expect(policy).not_to be_close
+        expect(policy).not_to be_destroy
+      end
+    end
   end
 
   describe "#create?" do
@@ -147,6 +164,23 @@ RSpec.describe PollPolicy do
         expect(policy).not_to be_school_close
         expect(policy).not_to be_school_stop
       end
+    end
+
+    it "keeps inactive Schoolwide Polls readable but blocks lifecycle for manager and admin" do
+      school = create(:school)
+      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      manager = create(:user)
+      create(:school_membership, :manager, school: school, user: manager)
+      school.update!(active: false)
+
+      [manager, create(:user, :admin)].each do |actor|
+        policy = described_class.new(actor, poll)
+        expect(policy).to be_school_show
+        expect(policy).not_to be_school_edit
+        expect(policy).not_to be_school_start
+        expect(policy).not_to be_school_test
+      end
+      expect(described_class::SchoolScope.new(manager, Poll).resolve).to contain_exactly(poll)
     end
   end
 

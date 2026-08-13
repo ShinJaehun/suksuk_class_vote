@@ -85,7 +85,7 @@ class SchoolPollContestsController < ApplicationController
   end
 
   def authorize_poll
-    authorize @poll, :school_show?
+    authorize @poll, :school_edit?
   end
 
   def set_contest

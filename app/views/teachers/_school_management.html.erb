@@ -13,6 +13,10 @@
       <% end %>
     </div>
 
-    <%= render "teachers/bulk_edit_table" %>
+    <% if policy(User).create? %>
+      <%= render "teachers/bulk_edit_table" %>
+    <% else %>
+      <%= render "teachers/school_overview", teachers: @teachers %>
+    <% end %>
   </section>
 </div>

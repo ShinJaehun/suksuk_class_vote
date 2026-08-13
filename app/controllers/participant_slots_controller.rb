@@ -5,13 +5,13 @@ class ParticipantSlotsController < ApplicationController
   before_action :set_safe_return_to
 
   def new
-    authorize @participant_group, :show?
+    authorize @participant_group, :manage_roster?
 
     @participant_slot = @participant_group.participant_slots.build(number: next_number)
   end
 
   def create
-    authorize @participant_group, :show?
+    authorize @participant_group, :manage_roster?
 
     @participant_slot = @participant_group.participant_slots.build(participant_slot_params)
     @participant_slot.number = next_number
@@ -24,11 +24,11 @@ class ParticipantSlotsController < ApplicationController
   end
 
   def edit
-    authorize @participant_group, :show?
+    authorize @participant_group, :manage_roster?
   end
 
   def update
-    authorize @participant_group, :show?
+    authorize @participant_group, :manage_roster?
 
     if @participant_slot.update(participant_slot_params)
       redirect_to participant_group_return_path, notice: "투표자 정보를 수정했습니다."
@@ -38,7 +38,7 @@ class ParticipantSlotsController < ApplicationController
   end
 
   def destroy
-    authorize @participant_group, :show?
+    authorize @participant_group, :manage_roster?
 
     @participant_slot.destroy!
 

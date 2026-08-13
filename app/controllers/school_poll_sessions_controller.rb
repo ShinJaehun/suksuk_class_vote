@@ -3,7 +3,7 @@ class SchoolPollSessionsController < ApplicationController
 
   def create
     @poll = school_poll_scope.find(params[:school_poll_id])
-    authorize @poll, :school_show?
+    authorize @poll, :school_manage_sessions?
 
     result = Polls::AssignClassroomSessions.new(
       poll: @poll,
@@ -20,7 +20,7 @@ class SchoolPollSessionsController < ApplicationController
 
   def destroy
     @poll = school_poll_scope.find(params[:school_poll_id])
-    authorize @poll, :school_show?
+    authorize @poll, :school_manage_sessions?
     session = @poll.poll_sessions.find_by(id: params[:id])
     result = Polls::UnassignClassroomSessions.new(
       poll: @poll,
@@ -37,13 +37,13 @@ class SchoolPollSessionsController < ApplicationController
 
   def destroy_grade
     @poll = school_poll_scope.find(params[:school_poll_id])
-    authorize @poll, :school_show?
+    authorize @poll, :school_manage_sessions?
     grade = Integer(params[:grade], exception: false)
     sessions = if grade&.positive?
                  @poll.poll_sessions.joins(:classroom).where(classrooms: { grade: grade }).to_a
-               else
+    else
                  []
-               end
+    end
     result = Polls::UnassignClassroomSessions.new(
       poll: @poll,
       poll_sessions: sessions,

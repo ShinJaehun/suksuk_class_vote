@@ -5,9 +5,11 @@
     <%= link_to "보관된 투표",
                 archived_polls_path,
                 class: "text-sm font-medium text-stone-700 underline" %>
-    <%= link_to "새 투표",
-                new_poll_path,
-                class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+    <% if policy(Poll).create? %>
+      <%= link_to "새 투표",
+                  new_poll_path,
+                  class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+    <% end %>
   </div>
 </div>
 

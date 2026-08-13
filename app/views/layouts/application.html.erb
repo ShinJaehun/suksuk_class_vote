@@ -83,6 +83,18 @@
     <% end %>
 
     <main class="<%= content_for?(:ballot_screen_layout) ? "min-h-screen px-2 py-2" : "mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6 lg:px-8" %>">
+      <% inactive_school_message =
+           if user_signed_in? && current_user.admin? && @school.present? && !@school.active?
+             "현재 비활성 학교입니다. 투표 운영은 중단되며, 학교 정보와 구성원은 관리할 수 있습니다."
+           elsif user_signed_in? && current_user.school_membership&.school && !current_user.school_membership.school.active?
+             "현재 학교가 비활성 상태입니다. 기존 정보는 조회할 수 있지만 운영 내용은 변경할 수 없습니다."
+           end %>
+      <% if inactive_school_message.present? %>
+        <p class="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+          <%= inactive_school_message %>
+        </p>
+      <% end %>
+
       <% if !content_for?(:hide_ballot_flash) && (notice.present? || alert.present?) %>
         <div class="<%= content_for?(:ballot_screen_layout) ? "mx-auto mb-3 max-w-5xl space-y-2" : "space-y-2" %>">
           <% if notice.present? %>

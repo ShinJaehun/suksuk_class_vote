@@ -1,7 +1,7 @@
 class ClassroomStudentsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_classroom
-  before_action :authorize_student_management
+  before_action :authorize_student_access
   before_action :set_return_poll_session
   before_action :set_student, only: %i[edit update deactivate reactivate]
   helper_method :student_return_context_params
@@ -93,8 +93,8 @@ class ClassroomStudentsController < ApplicationController
     @classroom = policy_scope(Classroom).find(params[:classroom_id])
   end
 
-  def authorize_student_management
-    authorize @classroom, :manage_students?
+  def authorize_student_access
+    authorize @classroom, action_name == "index" ? :view_students? : :manage_students?
   end
 
   def set_student

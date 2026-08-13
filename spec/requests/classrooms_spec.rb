@@ -107,6 +107,21 @@ RSpec.describe "Classrooms", type: :request do
     expect(response).to redirect_to(classroom_students_path(own))
   end
 
+  it "redirects an unassigned ordinary teacher away from Classroom management" do
+    school = create(:school)
+    teacher = teacher_for(school)
+    sign_in teacher
+
+    get classrooms_path
+
+    expect(response).to redirect_to(polls_path)
+    follow_redirect!
+    expect(response.body).to include(
+      "현재 배정된 교실이 없습니다. 대표 선생님 또는 관리자에게 교실 배정을 요청해 주세요."
+    )
+    expect(response.body).not_to include("교실 관리")
+  end
+
   it "denies a membershipless teacher" do
     sign_in create(:user)
     get classrooms_path

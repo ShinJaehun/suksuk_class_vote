@@ -23,13 +23,13 @@
     </div>
 
     <div class="flex flex-wrap gap-2">
-      <% if @poll.in_progress? %>
+      <% if @poll.in_progress? && policy(@poll).open_current_participant_ballot? %>
         <%= link_to "투표 화면 열기",
                     ballot_poll_path(@poll),
                     target: "_blank",
                     rel: "noopener",
                     class: "inline-flex rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
-      <% elsif @poll.closed? && @poll.archived_at.blank? %>
+      <% elsif @poll.closed? && @poll.archived_at.blank? && policy(@poll).archive? %>
         <%= button_to "보관",
                       archive_poll_path(@poll),
                       method: :post,
@@ -37,7 +37,7 @@
                       class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
       <% end %>
 
-      <% if @poll.destroyable_by_status? %>
+      <% if policy(@poll).destroy? %>
         <%= button_to "투표 삭제",
                       poll_path(@poll),
                       method: :delete,
@@ -47,7 +47,7 @@
     </div>
   </div>
 
-  <%= render "poll_options", poll: @poll if @poll.draft? || @poll.in_progress? %>
+  <%= render "poll_options", poll: @poll if policy(@poll).update? && (@poll.draft? || @poll.in_progress?) %>
   <% if @poll.closed? %>
     <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
       <%= render "closed_result", result_summary: @result_summary %>
@@ -57,11 +57,11 @@
       <h2 class="text-xl font-semibold">투표가 중단되었습니다.</h2>
       <p class="text-sm text-stone-600">중단된 투표는 다시 시작할 수 없습니다.</p>
     </section>
-  <% else %>
+  <% elsif policy(@poll).update? %>
     <%= render "progress", poll: @poll %>
   <% end %>
   <%= render "event_log", poll: @poll, poll_events: @poll_events unless @poll.draft? %>
-  <% if @poll.draft? %>
+  <% if @poll.draft? && policy(@poll).start? %>
     <%= render "readiness", poll: @poll, integrity_report: @integrity_report %>
   <% elsif @poll.in_progress? || @poll.closed? %>
     <%= render "integrity_report", poll: @poll, integrity_report: @integrity_report %>

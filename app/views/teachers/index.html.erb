@@ -5,14 +5,16 @@
       <p class="mt-1 text-sm text-stone-600">학교 선생님 정보를 관리합니다.</p>
     </div>
 
-    <div class="flex flex-wrap gap-2">
-      <%= link_to "선생님 추가",
-                  new_teacher_path,
-                  class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
-      <%= link_to "여러 선생님 추가",
-                  bulk_setup_teachers_path,
-                  class: "rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700" %>
-    </div>
+    <% if policy(User).create? %>
+      <div class="flex flex-wrap gap-2">
+        <%= link_to "선생님 추가",
+                    new_teacher_path,
+                    class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+        <%= link_to "여러 선생님 추가",
+                    bulk_setup_teachers_path,
+                    class: "rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700" %>
+      </div>
+    <% end %>
   </div>
 
   <% if current_user.admin? %>

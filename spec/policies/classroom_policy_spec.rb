@@ -45,13 +45,19 @@ RSpec.describe ClassroomPolicy do
     expect(described_class.new(create(:user), classroom)).not_to be_update
   end
 
-  it "blocks non-admin operations for an inactive School" do
+  it "keeps inactive School Classrooms readable while blocking non-admin writes" do
     manager = create(:user)
     create(:school_membership, :manager, school: school, user: manager)
     school.update!(active: false)
 
+    expect(described_class.new(manager, Classroom)).to be_index
     expect(described_class.new(manager, classroom)).not_to be_update
+    expect(described_class.new(manager, classroom)).to be_view_students
     expect(described_class.new(teacher, classroom)).not_to be_manage_students
-    expect(described_class::Scope.new(manager, Classroom).resolve).to be_empty
+    expect(described_class.new(teacher, classroom)).to be_view_students
+    expect(described_class::Scope.new(manager, Classroom).resolve).to contain_exactly(classroom)
+    expect(described_class::Scope.new(teacher, Classroom).resolve).to contain_exactly(classroom)
+    expect(described_class.new(create(:user, :admin), classroom)).to be_update
+    expect(described_class.new(create(:user, :admin), classroom)).to be_manage_students
   end
 end

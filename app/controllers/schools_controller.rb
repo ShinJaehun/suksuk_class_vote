@@ -97,8 +97,18 @@ class SchoolsController < ApplicationController
 
   def change_active_state(active)
     authorize @school, :manage_lifecycle?
-    @school.update!(active: active)
-    redirect_to edit_school_path(@school), notice: "학교 상태를 변경했습니다."
+    if active
+      @school.update!(active: true)
+      redirect_to edit_school_path(@school), notice: "학교 상태를 변경했습니다."
+      return
+    end
+
+    result = Schools::Deactivate.new(school: @school, actor: current_user).call
+    if result.success?
+      redirect_to edit_school_path(@school), notice: "학교 상태를 변경했습니다."
+    else
+      redirect_to edit_school_path(@school), alert: result.error
+    end
   end
 
   def prepare_summary

@@ -12,21 +12,25 @@ class PollPolicy < ApplicationPolicy
   end
 
   def school_index?
-    admin? || (school_manager? && operational_school_active?)
+    admin? || school_manager?
   end
 
   def school_create?
-    school_index?
+    admin? || (school_manager? && operational_school_active?)
   end
 
   def school_show?
     return false unless record.school_managed? && record.school_id.present?
 
-    admin? || (record.school&.active? && manages_school?(record.school_id))
+    admin? || manages_school?(record.school_id)
   end
 
   def school_edit?
-    school_show? && !record.test_run?
+    school_show? && record.school.active? && !record.test_run?
+  end
+
+  def school_manage_sessions?
+    school_show? && record.school.active?
   end
 
   def school_update?
@@ -41,27 +45,27 @@ class PollPolicy < ApplicationPolicy
   end
 
   def school_start?
-    school_show? && record.schoolwide_runtime_available?
+    school_show? && record.school.active? && record.schoolwide_runtime_available?
   end
 
   def school_close?
-    school_show? && record.in_progress?
+    school_show? && record.school.active? && record.in_progress?
   end
 
   def school_stop?
-    school_show? && record.in_progress? && record.archived_at.blank?
+    school_show? && record.school.active? && record.in_progress? && record.archived_at.blank?
   end
 
   def school_test?
-    school_show? && record.draft? && record.archived_at.blank? && !record.test_run?
+    school_show? && record.school.active? && record.draft? && record.archived_at.blank? && !record.test_run?
   end
 
   def reset_schoolwide?
-    school_show? && record.schoolwide_resettable? && record.schoolwide_runtime_available?
+    school_show? && record.school.active? && record.schoolwide_resettable? && record.schoolwide_runtime_available?
   end
 
   def destroy_schoolwide?
-    return false unless school_show?
+    return false unless school_show? && record.school.active?
     return false if !record.test_run? && (record.closed? || record.archived?)
     return true if admin?
 
@@ -73,61 +77,61 @@ class PollPolicy < ApplicationPolicy
   end
 
   def mock_candidates?
-    user&.admin?
+    user&.admin? && record.school&.active?
   end
 
   def update?
-    admin? || owner?
+    (admin? || owner?) && operational_school_active?
   end
 
   def start?
-    admin? || owner?
+    (admin? || owner?) && operational_school_active?
   end
 
   def submit_vote?
-    admin? || owner?
+    (admin? || owner?) && operational_school_active?
   end
 
   def open_current_participant_ballot?
-    admin? || owner?
+    (admin? || owner?) && operational_school_active?
   end
 
   def record_participation_outcome?
-    admin? || owner?
+    (admin? || owner?) && operational_school_active?
   end
 
   def record_next_participant_absent?
-    admin? || owner?
+    (admin? || owner?) && operational_school_active?
   end
 
   def advance_current_participant?
-    admin? || owner?
+    (admin? || owner?) && operational_school_active?
   end
 
   def resume_current_participant?
-    admin? || owner?
+    (admin? || owner?) && operational_school_active?
   end
 
   def close?
-    admin? || owner?
+    (admin? || owner?) && operational_school_active?
   end
 
   def stop?
-    (admin? || owner?) && record.in_progress?
+    (admin? || owner?) && operational_school_active? && record.in_progress?
   end
 
   def archive?
     return false if record.school_managed?
     return classroom_session_policy_allows?(:archive_poll?) if record.classroom_based?
 
-    (admin? || owner?) && record.closed? && record.archived_at.blank?
+    (admin? || owner?) && operational_school_active? && record.closed? && record.archived_at.blank?
   end
 
   def destroy?
     return false if record.school_managed?
     return classroom_session_policy_allows?(:destroy_poll?) if record.classroom_based?
 
-    (admin? || owner?) && record.destroyable_by_status?
+    (admin? || owner?) && operational_school_active? && record.destroyable_by_status?
   end
 
   class Scope < ApplicationPolicy::Scope
@@ -144,7 +148,7 @@ class PollPolicy < ApplicationPolicy
       return school_polls if user&.admin?
 
       membership = user&.school_membership
-      return school_polls.where(school_id: membership.school_id) if membership&.manager? && membership.school&.active?
+      return school_polls.where(school_id: membership.school_id) if membership&.manager?
 
       school_polls.none
     end
@@ -169,13 +173,13 @@ class PollPolicy < ApplicationPolicy
   end
 
   def owner?
-    record.user == user && operational_school_active?
+    record.user == user
   end
 
   def operational_school_active?
-    return true if admin?
-
-    school = user&.school_membership&.school
+    school = record.respond_to?(:school) ? record.school : nil
+    school ||= record.poll_sessions.first&.classroom&.school if record.respond_to?(:poll_sessions)
+    school ||= user&.school_membership&.school
     school.nil? || school.active?
   end
 

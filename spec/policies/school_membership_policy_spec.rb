@@ -33,6 +33,17 @@ RSpec.describe SchoolMembershipPolicy do
     expect(described_class.new(manager, manager_membership)).not_to be_destroy
   end
 
+  it "blocks membership writes for an inactive School manager" do
+    manager = create(:user)
+    create(:school_membership, :manager, school: school, user: manager)
+    school.update!(active: false)
+    policy = described_class.new(manager, membership)
+
+    expect(policy).not_to be_index
+    expect(policy).not_to be_create
+    expect(policy).not_to be_destroy
+  end
+
   it "rejects another-school manager, regular teacher, and membershipless teacher" do
     other_manager = create(:user)
     create(:school_membership, :manager, school: create(:school), user: other_manager)

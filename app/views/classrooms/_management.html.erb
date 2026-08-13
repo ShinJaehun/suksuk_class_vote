@@ -27,7 +27,7 @@
               <thead class="bg-stone-50">
                 <tr>
                   <th class="w-14 p-3 text-left">
-                    <% if current_user.admin? || current_user.school_membership&.manager? %>
+                    <% if policy(Classroom).create? %>
                       <%= check_box_tag :select_all_classrooms, "1", false, aria: { label: "모두 선택" }, data: { classroom_management_target: "selectAll", action: "change->classroom-management#toggleAll" } %>
                     <% end %>
                   </th>
@@ -54,7 +54,7 @@
                     </td>
                     <td class="p-3 align-middle"><%= text_field_tag "classrooms[rows][#{index}][class_label]", classroom.class_label, disabled: !editable, class: "w-32 rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400", data: { action: "input->classroom-management#track" } %></td>
                     <td class="p-3 align-middle">
-                      <% if current_user.admin? || current_user.school_membership&.manager? %>
+                      <% if policy(classroom).update? %>
                         <select name="classrooms[rows][<%= index %>][teacher_id]" <%= "disabled" unless editable %> class="min-w-32 rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400" data-classroom-management-target="teacher" data-action="change->classroom-management#track">
                           <option value="">미배정</option>
                           <% @teachers.each do |teacher| %>
@@ -86,7 +86,7 @@
         <% end %>
       <% end %>
 
-      <% if current_user.admin? || current_user.school_membership&.manager? %>
+      <% if policy(Classroom).create? %>
         <% contextual_grade = @grade.match?(/\A[1-6]\z/) ? @grade : nil %>
         <%= form_with url: bulk_operation_classrooms_path, method: :patch, id: "classroom_selection_operation", class: "flex flex-wrap items-center justify-between gap-3 rounded-md border border-stone-200 bg-stone-50 p-3", data: { turbo_frame: "_top" } do %>
           <%= hidden_field_tag :school_id, @school.id %>
@@ -111,7 +111,7 @@
         <% end %>
       <% end %>
 
-      <% if @classrooms.any? %>
+      <% if @classrooms.any? && policy(Classroom).create? %>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <span class="hidden text-xs text-rose-700" data-classroom-management-target="gradeReason">담임 미배정인 활성 교실만 학년을 일괄 변경할 수 있습니다.</span>
           <% if @classrooms.any?(&:active?) %>

@@ -8,19 +8,23 @@ class ParticipantGroupPolicy < ApplicationPolicy
   end
 
   def create?
-    admin? || teacher?
+    admin? || (teacher? && operational_school_active?)
   end
 
   def update?
     return true if admin?
 
-    owner? && record.teacher_personal?
+    owner? && record.teacher_personal? && operational_school_active?
   end
 
   def destroy?
     return true if admin?
 
-    owner? && record.teacher_personal?
+    owner? && record.teacher_personal? && operational_school_active?
+  end
+
+  def manage_roster?
+    admin? || (owner? && operational_school_active?)
   end
 
   class Scope < ApplicationPolicy::Scope
@@ -44,5 +48,11 @@ class ParticipantGroupPolicy < ApplicationPolicy
 
   def owner?
     record.user == user
+  end
+
+  def operational_school_active?
+    school = record.respond_to?(:school) ? record.school : nil
+    school ||= user&.school_membership&.school
+    school.nil? || school.active?
   end
 end

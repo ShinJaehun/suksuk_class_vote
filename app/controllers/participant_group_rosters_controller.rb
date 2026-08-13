@@ -4,12 +4,12 @@ class ParticipantGroupRostersController < ApplicationController
   before_action :set_safe_return_to
 
   def edit
-    authorize @participant_group, :show?
+    authorize @participant_group, :manage_roster?
     prepare_rows
   end
 
   def update
-    authorize @participant_group, :show?
+    authorize @participant_group, :manage_roster?
 
     result = ParticipantGroups::UpdateRoster.new(
       participant_group: @participant_group,

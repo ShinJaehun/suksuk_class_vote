@@ -6,9 +6,14 @@ class ClassroomsController < ApplicationController
     authorize Classroom
     prepare_management
 
-    if current_user.teacher? && !current_user.school_membership&.manager? && @classrooms.one?
-      redirect_to classroom_students_path(@classrooms.first)
-      return
+    if current_user.teacher? && !current_user.school_membership&.manager?
+      if @classrooms.one?
+        redirect_to classroom_students_path(@classrooms.first)
+      else
+        redirect_to polls_path,
+                    alert: "현재 배정된 교실이 없습니다. 대표 선생님 또는 관리자에게 교실 배정을 요청해 주세요."
+      end
+      nil
     end
   end
 

@@ -1,17 +1,26 @@
 class PollSessionPolicy < ApplicationPolicy
   def show?
-    start?
+    return false if user.blank?
+    return true if user.admin?
+    return false unless user.teacher?
+
+    membership = user.school_membership
+    return false unless membership&.school == record.classroom.school
+
+    (record.poll.school_managed? && membership.manager?) ||
+      record.operator == user || record.classroom.teacher == user
   end
 
   def start?
     return false if user.blank?
+    return false unless record.classroom.school.active?
     return true if user.admin?
     return false unless user.teacher?
 
     return classroom_lifecycle_actor? unless record.poll.school_managed?
 
     membership = user.school_membership
-    return false if membership.blank? || !record.classroom.school.active? || membership.school != record.classroom.school
+    return false if membership.blank? || membership.school != record.classroom.school
 
     membership.manager? || record.classroom.teacher == user
   end
@@ -19,7 +28,7 @@ class PollSessionPolicy < ApplicationPolicy
   def operate?
     return false if user.blank?
 
-    user.admin? || (record.classroom.school.active? && record.operator == user)
+    record.classroom.school.active? && (user.admin? || record.operator == user)
   end
 
   def edit_definition?
@@ -77,7 +86,7 @@ class PollSessionPolicy < ApplicationPolicy
   end
 
   def lifecycle_actor_allowed?
-    user.admin? || classroom_lifecycle_actor?
+    record.classroom.school.active? && (user.admin? || classroom_lifecycle_actor?)
   end
 
   def classroom_lifecycle_actor?
@@ -94,6 +103,7 @@ class PollSessionPolicy < ApplicationPolicy
 
   def school_lifecycle_actor?
     return false if user.blank?
+    return false unless record.poll.school.active?
     return true if user.admin?
 
     membership = user.school_membership

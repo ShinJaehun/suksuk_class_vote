@@ -18,7 +18,7 @@
       <% end %>
     </div>
     <div class="flex flex-wrap items-center gap-3" data-testid="schoolwide-status-actions">
-      <% if poll.draft? && status_check.startable? && poll.schoolwide_runtime_available? %>
+      <% if poll.school.active? && poll.draft? && status_check.startable? && poll.schoolwide_runtime_available? %>
         <% if !poll.test_run? && poll.archived_at.blank? %>
           <%= link_to "테스트투표 만들기", school_poll_test_polls_path(poll),
                       data: { turbo_method: :post },
@@ -28,11 +28,11 @@
                     data: { turbo_method: :post, turbo_confirm: "#{lifecycle_name}를 시작할까요? 시작 후 항목과 학급 배정을 변경할 수 없습니다." },
                     class: "rounded-md bg-emerald-600 px-5 py-3 text-sm font-semibold text-white" %>
       <% elsif poll.in_progress? %>
-        <% if status_check.closable? %>
+        <% if poll.school.active? && status_check.closable? %>
           <%= link_to "#{lifecycle_name} 종료", close_school_poll_path(poll),
                       data: { turbo_method: :post, turbo_confirm: "모든 학급 결과를 확인하고 #{lifecycle_name}를 종료할까요?" },
                       class: "rounded-md bg-stone-900 px-5 py-3 text-sm font-semibold text-white" %>
-        <% elsif poll.archived_at.blank? %>
+        <% elsif poll.school.active? && poll.archived_at.blank? %>
           <%= link_to "#{lifecycle_name} 중단", stop_school_poll_path(poll),
                       data: { turbo_method: :post, turbo_frame: "_top", turbo_confirm: "#{lifecycle_name}를 중단할까요? 정상 종료되지 않은 학급 투표도 함께 중단됩니다." },
                       class: "rounded-md bg-rose-700 px-4 py-2 text-sm font-semibold text-white" %>

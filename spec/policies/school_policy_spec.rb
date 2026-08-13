@@ -15,15 +15,18 @@ RSpec.describe SchoolPolicy do
     expect(described_class::Scope.new(admin, School).resolve).to include(school)
   end
 
-  it "keeps inactive Schools admin-only" do
+  it "keeps an inactive School readable but not writable for its manager" do
     school.update!(active: false)
     manager = create(:user)
     create(:school_membership, :manager, school: school, user: manager)
 
     expect(described_class.new(create(:user, :admin), school)).to be_show
-    expect(described_class.new(manager, school)).not_to be_show
-    expect(described_class.new(manager, school)).not_to be_manage_lifecycle
-    expect(described_class::Scope.new(manager, School).resolve).to be_empty
+    manager_policy = described_class.new(manager, school)
+    expect(manager_policy).to be_index
+    expect(manager_policy).to be_show
+    expect(manager_policy).not_to be_update
+    expect(manager_policy).not_to be_manage_lifecycle
+    expect(described_class::Scope.new(manager, School).resolve).to contain_exactly(school)
   end
 
   it "allows a manager to see only their School" do

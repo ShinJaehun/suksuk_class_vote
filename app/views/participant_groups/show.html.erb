@@ -67,17 +67,19 @@
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <h2 class="text-xl font-semibold">투표자</h2>
 
-      <div class="flex flex-wrap items-center gap-2">
-        <%= link_to "명단 수정",
-                    edit_participant_group_roster_path(@participant_group, return_to: @safe_return_to),
-                    class: "rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700" %>
-        <%= link_to "투표자 1명 추가",
-                    new_participant_group_participant_slot_path(@participant_group, return_to_poll_id: @return_poll&.id, return_to: @safe_return_to),
-                    class: "rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white" %>
-        <%= link_to "여러 명 추가",
-                    new_participant_group_bulk_participant_slots_path(@participant_group, return_to_poll_id: @return_poll&.id, return_to: @safe_return_to),
-                    class: "rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700" %>
-      </div>
+      <% if policy(@participant_group).manage_roster? %>
+        <div class="flex flex-wrap items-center gap-2">
+          <%= link_to "명단 수정",
+                      edit_participant_group_roster_path(@participant_group, return_to: @safe_return_to),
+                      class: "rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700" %>
+          <%= link_to "투표자 1명 추가",
+                      new_participant_group_participant_slot_path(@participant_group, return_to_poll_id: @return_poll&.id, return_to: @safe_return_to),
+                      class: "rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white" %>
+          <%= link_to "여러 명 추가",
+                      new_participant_group_bulk_participant_slots_path(@participant_group, return_to_poll_id: @return_poll&.id, return_to: @safe_return_to),
+                      class: "rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700" %>
+        </div>
+      <% end %>
     </div>
 
     <% if @participant_group.participant_slots.any? %>

@@ -82,6 +82,19 @@ RSpec.describe ParticipantGroupPolicy do
 
       expect(described_class.new(admin, participant_group)).to be_update
     end
+
+    it "keeps an inactive School teacher's group readable but not mutable" do
+      school = create(:school, active: false)
+      teacher = create(:user)
+      create(:school_membership, school: school, user: teacher)
+      participant_group = create(:participant_group, user: teacher)
+      policy = described_class.new(teacher, participant_group)
+
+      expect(policy).to be_show
+      expect(policy).not_to be_update
+      expect(policy).not_to be_manage_roster
+      expect(described_class.new(create(:user, :admin), participant_group)).to be_manage_roster
+    end
   end
 
   describe "#destroy?" do

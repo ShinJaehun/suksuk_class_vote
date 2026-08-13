@@ -33,6 +33,12 @@ class SchoolPollsController < ApplicationController
       return
     end
 
+    unless school.active?
+      prepare_new_form(["비활성 학교에서는 투표를 만들 수 없습니다."])
+      render :new, status: :unprocessable_entity
+      return
+    end
+
     result = Polls::CreateSchoolDefinition.new(
       actor: current_user,
       school: school,
@@ -309,7 +315,7 @@ class SchoolPollsController < ApplicationController
   end
 
   def prepare_new_form(errors = [])
-    @available_schools = current_user.admin? ? School.order(:name) : School.none
+    @available_schools = current_user.admin? ? School.active.order(:name) : School.none
     @school = current_user.school_membership&.school unless current_user.admin?
     @poll = Poll.new(poll_params.to_h)
     errors.each { |message| @poll.errors.add(:base, message) }
