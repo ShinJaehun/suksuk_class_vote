@@ -15,7 +15,7 @@
                   else
                     {}
                   end %>
-<%= turbo_frame_tag dom_id(poll_session, :teacher_progress), data: polling_data do %>
+<%= turbo_frame_tag dom_id(poll_session, :teacher_progress), class: "block", data: polling_data do %>
   <div class="space-y-6">
     <% if poll_session.closed? || poll_session.stopped? %>
       <span class="hidden" data-poll-session-terminal></span>
