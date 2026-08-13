@@ -33,9 +33,9 @@ class SchoolPollOptionsController < ApplicationController
     else
       respond_to do |format|
         format.turbo_stream do
-          render :new, formats: :html, content_type: "text/html", status: :unprocessable_entity
+          render :new, formats: :html, content_type: "text/html", status: :unprocessable_content
         end
-        format.html { render :new, status: :unprocessable_entity }
+        format.html { render :new, status: :unprocessable_content }
       end
     end
   end
@@ -65,9 +65,9 @@ class SchoolPollOptionsController < ApplicationController
     else
       respond_to do |format|
         format.turbo_stream do
-          render :edit, formats: :html, content_type: "text/html", status: :unprocessable_entity
+          render :edit, formats: :html, content_type: "text/html", status: :unprocessable_content
         end
-        format.html { render :edit, status: :unprocessable_entity }
+        format.html { render :edit, status: :unprocessable_content }
       end
     end
   end
@@ -156,10 +156,15 @@ class SchoolPollOptionsController < ApplicationController
     option.photo.variant(:thumbnail).processed
     true
   rescue StandardError => error
-    Rails.logger.error(
-      "PollOption photo variant processing failed " \
-      "option_id=#{option.id} error=#{error.class}: #{error.message}"
-    )
+    app_location = Array(error.backtrace)
+      .find { |line| line.include?("/app/") }
+      &.sub(/\A.*?(app\/)/, '\1')
+    Rails.logger.error([
+      "PollOption photo variant processing failed",
+      "option_id=#{option.id}",
+      "error_class=#{error.class}",
+      ("location=#{app_location}" if app_location)
+    ].compact.join(" "))
     false
   end
 

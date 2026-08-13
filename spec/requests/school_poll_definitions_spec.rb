@@ -467,6 +467,27 @@ RSpec.describe "School Poll definition management", type: :request do
       expect(response.body).not_to include(%(action="refresh"))
     end
 
+    it "logs photo variant failures without the exception message" do
+      secret = "secret candidate filename student-name.jpg"
+      error = StandardError.new(secret)
+      error.set_backtrace(["/app/controllers/school_poll_options_controller.rb:157:in `process_photo_variants'"])
+      photo = double("photo")
+      option = instance_double(PollOption, id: 123, photo: photo)
+      allow(photo).to receive(:variant).and_raise(error)
+
+      expect(Rails.logger).to receive(:error) do |message|
+        expect(message).to include(
+          "PollOption photo variant processing failed",
+          "option_id=123",
+          "error_class=StandardError",
+          "location=app/controllers/school_poll_options_controller.rb:157"
+        )
+        expect(message).not_to include(secret)
+      end
+
+      expect(SchoolPollOptionsController.new.send(:process_photo_variants, option)).to be(false)
+    end
+
     it "rejects invalid and oversized photos without losing an existing attachment" do
       option = create(:poll_option, poll: poll, poll_contest: contest)
       option.photo.attach(io: StringIO.new("old"), filename: "old.jpg", content_type: "image/jpeg")
