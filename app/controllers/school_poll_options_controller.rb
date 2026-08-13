@@ -19,9 +19,10 @@ class SchoolPollOptionsController < ApplicationController
     if @option.save
       broadcast_schoolwide_status
       if photo_uploaded && !process_photo_variants(@option)
+        message = "#{option_label}는 추가했지만 사진 변환에 실패했습니다. 사진을 다시 확인해 주세요."
         respond_to do |format|
-          format.turbo_stream { render_updated_contest }
-          format.html { redirect_to school_poll_path(@poll), alert: "#{option_label}는 추가했지만 사진 변환에 실패했습니다. 사진을 다시 확인해 주세요." }
+          format.turbo_stream { redirect_to school_poll_path(@poll), alert: message, status: :see_other }
+          format.html { redirect_to school_poll_path(@poll), alert: message }
         end
       else
         respond_to do |format|
@@ -48,9 +49,10 @@ class SchoolPollOptionsController < ApplicationController
       @option.photo.purge if remove_photo && @option.photo.attached?
       broadcast_schoolwide_status
       if photo_uploaded && !process_photo_variants(@option)
+        message = "#{option_label}는 수정했지만 사진 변환에 실패했습니다. 사진을 다시 확인해 주세요."
         respond_to do |format|
-          format.turbo_stream { render_updated_option }
-          format.html { redirect_to school_poll_path(@poll), alert: "#{option_label}는 수정했지만 사진 변환에 실패했습니다. 사진을 다시 확인해 주세요." }
+          format.turbo_stream { redirect_to school_poll_path(@poll), alert: message, status: :see_other }
+          format.html { redirect_to school_poll_path(@poll), alert: message }
         end
       else
         respond_to do |format|

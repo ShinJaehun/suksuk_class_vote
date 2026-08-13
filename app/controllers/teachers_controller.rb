@@ -154,6 +154,7 @@ class TeachersController < ApplicationController
 
     if @school.blank? || @bulk_entries.blank? || @bulk_entries.size > 30 || (@school_context && invalid_creation_grade?)
       @bulk_errors = ["학교와 1명 이상 30명 이하의 명단을 확인해 주세요."]
+      flash.now[:alert] = @bulk_errors.to_sentence
       prepare_bulk_classrooms
       render :bulk_new, status: :unprocessable_entity
       return
@@ -171,6 +172,8 @@ class TeachersController < ApplicationController
         return_path: creation_return_path
       )
     else
+      flash.now[:alert] = @bulk_errors.presence&.to_sentence ||
+        "선생님 명단을 등록하지 못했습니다. 입력 내용을 확인해 주세요."
       render :bulk_new, status: :unprocessable_entity
     end
   end

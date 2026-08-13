@@ -404,6 +404,32 @@ RSpec.describe "School Poll management", type: :request do
       expect(closed_history_link.ancestors("div").first.text.squish).to include("종료")
     end
 
+    it "shows a Turbo revote failure in the global alert without changing the Session" do
+      poll, session, manager, = create_schoolwide_lifecycle
+      session.update!(status: :closed, closed_at: Time.current)
+      original_status = session.status
+      sign_in manager
+
+      failure = Polls::RevoteSchoolSession::Result.new(
+        success?: false,
+        poll_session: nil,
+        errors: ["학급 재투표를 준비할 수 없습니다."]
+      )
+      allow_any_instance_of(Polls::RevoteSchoolSession).to receive(:call).and_return(failure)
+
+      expect do
+        post revote_school_poll_poll_session_path(poll, session),
+             headers: { "ACCEPT" => "text/vnd.turbo-stream.html" }
+      end.not_to change(PollSession, :count)
+
+      expect(response).to redirect_to(school_poll_path(poll))
+      expect(flash[:alert]).to eq("학급 재투표를 준비할 수 없습니다.")
+      expect(session.reload).to have_attributes(status: original_status, replacement_session: nil)
+      message = flash[:alert]
+      follow_redirect!
+      expect(response.body).to include(message)
+    end
+
     it "allows the manager to replace a closed classroom while the School Poll is running" do
       poll, session, manager, = create_schoolwide_lifecycle
       closed_at = Time.current
@@ -1300,6 +1326,24 @@ RSpec.describe "School Poll management", type: :request do
         post school_poll_poll_sessions_path(poll), params: { classroom_ids: [classroom.id] }
       end.not_to change(PollSession, :count)
       expect(flash[:alert]).to include("준비 상태")
+    end
+
+    it "shows a Turbo assignment failure in the global alert and keeps the Classroom checklist" do
+      school = create(:school)
+      classroom = create_eligible_classroom(school: school, teacher: create(:user))
+      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      sign_in create(:user, :admin)
+
+      expect do
+        post school_poll_poll_sessions_path(poll),
+             headers: { "ACCEPT" => "text/vnd.turbo-stream.html" }
+      end.not_to change(PollSession, :count)
+
+      expect(response).to redirect_to(school_poll_path(poll))
+      expect(flash[:alert]).to include("배정할 학급을 선택해 주세요.")
+      follow_redirect!
+      expect(response.body).to include("배정할 학급을 선택해 주세요.", classroom.formatted_class_label)
+      expect(response.body).to include(%(name="classroom_ids[]"))
     end
   end
 end

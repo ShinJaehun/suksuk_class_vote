@@ -5,10 +5,6 @@
     <p class="mt-1 text-sm text-stone-600"><%= @school&.name %> · <span data-classroom-management-target="count"></span></p>
   </div>
 
-  <% if @bulk_errors.present? %>
-    <div class="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><%= @bulk_errors.to_sentence %></div>
-  <% end %>
-
   <%= form_with url: bulk_create_classrooms_path, method: :post, class: "space-y-4", data: { turbo: false, action: "submit->classroom-management#submitOnce" } do %>
     <%= hidden_field_tag :school_id, @school&.id %>
     <%= hidden_field_tag :school_context, true if @school_context %>

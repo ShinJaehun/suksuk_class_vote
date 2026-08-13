@@ -205,7 +205,30 @@ RSpec.describe "Classroom students", type: :request do
       expect(response).to have_http_status(:unprocessable_content)
       expect(classroom.students.count).to eq(original_count)
       rows.each_value { |row| expect(response.body).to include(row[:number], row[:name]) }
+      expect(flash[:alert]).to eq("학생 명단을 등록하지 못했습니다. 입력 내용을 확인해 주세요.")
+      expect(response.body).to include(flash[:alert])
+      expect(flash[:alert]).not_to include("번째 행", "학생 번호")
     end
+  end
+
+  it "shows a global alert for a bulk transaction failure without folding row details into it" do
+    classroom, teacher = classroom_with_teacher
+    failed_student = build(:student, classroom: classroom)
+    failed_student.errors.add(:number, "을 확인해 주세요")
+    row_error = failed_student.errors.full_messages.to_sentence
+    allow_any_instance_of(Student).to receive(:save!).and_raise(ActiveRecord::RecordInvalid.new(failed_student))
+    sign_in teacher
+
+    expect do
+      post bulk_create_classroom_students_path(classroom), params: {
+        students: { rows: { "0" => { number: "7", name: "입력 학생" } } }
+      }
+    end.not_to change(Student, :count)
+
+    expect(response).to have_http_status(:unprocessable_content)
+    expect(flash[:alert]).to eq("학생 명단을 등록하지 못했습니다. 입력 내용을 확인해 주세요.")
+    expect(flash[:alert]).not_to include(row_error)
+    expect(response.body).to include(flash[:alert], "입력 학생", "7", row_error)
   end
 
   it "does not create legacy roster records and makes an active Classroom eligible for Poll creation" do

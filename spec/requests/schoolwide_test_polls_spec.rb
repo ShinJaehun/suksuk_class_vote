@@ -248,9 +248,10 @@ RSpec.describe "Schoolwide test Polls", type: :request do
            params: { classroom_ids: [other_school_classroom.id] },
            as: :turbo_stream
     end.not_to change(test_poll.poll_sessions, :count)
-    expect(response).to have_http_status(:unprocessable_content)
+    expect(response).to redirect_to(school_poll_path(test_poll))
+    expect(flash[:alert]).to include("다른 학교의 학급은 배정할 수 없습니다.")
+    follow_redirect!
     expect(response.body).to include(
-      %(target="#{ActionView::RecordIdentifier.dom_id(test_poll, :sessions)}"),
       "다른 학교의 학급은 배정할 수 없습니다."
     )
     expect do

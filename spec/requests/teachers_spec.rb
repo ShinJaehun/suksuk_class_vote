@@ -610,6 +610,34 @@ RSpec.describe "Teachers", type: :request do
       expect(User.where(login_id: %w[bulk-first bulk-second]).map { |user| user.school_membership.grade }).to all(eq(2))
     end
 
+    it "shows a global alert and keeps row errors and submitted values after bulk creation fails" do
+      sign_in create(:user, :admin)
+
+      expect do
+        post bulk_create_teachers_path, params: {
+          school_id: school.id,
+          teachers: { rows: {
+            "0" => { name: "첫 교사", login_id: "duplicate-login", grade: "2", classroom_id: "" },
+            "1" => { name: "둘 교사", login_id: "duplicate-login", grade: "2", classroom_id: "" }
+          } }
+        }
+      end.not_to change(User, :count)
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(flash[:alert]).to eq("선생님 명단을 등록하지 못했습니다. 입력 내용을 확인해 주세요.")
+      expect(response.body).to include(flash[:alert], "첫 교사", "둘 교사", "duplicate-login")
+      expect(response.body.scan("로그인 ID가 입력 안에서 중복되었습니다.").size).to eq(2)
+    end
+
+    it "preserves the specific global precondition error in the layout alert" do
+      sign_in create(:user, :admin)
+
+      post bulk_create_teachers_path, params: { school_id: school.id, teachers: { rows: {} } }
+
+      expect(flash[:alert]).to eq("학교와 1명 이상 30명 이하의 명단을 확인해 주세요.")
+      expect(response.body).to include(flash[:alert])
+    end
+
     it "fixes selected-school bulk input to its grade context, including unassigned" do
       sign_in create(:user, :admin)
 

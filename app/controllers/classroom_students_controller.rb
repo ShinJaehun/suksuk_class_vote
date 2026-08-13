@@ -47,6 +47,7 @@ class ClassroomStudentsController < ApplicationController
     validate_bulk_rows(rows)
 
     if @bulk_errors.any?
+      flash.now[:alert] = "학생 명단을 등록하지 못했습니다. 입력 내용을 확인해 주세요."
       render :bulk_new, status: :unprocessable_entity
       return
     end
@@ -56,6 +57,7 @@ class ClassroomStudentsController < ApplicationController
     redirect_to classroom_students_path(@classroom, **student_return_context_params), notice: "#{rows.size}명의 학생을 등록했습니다."
   rescue ActiveRecord::RecordInvalid => e
     @bulk_errors << e.record.errors.full_messages.to_sentence
+    flash.now[:alert] = "학생 명단을 등록하지 못했습니다. 입력 내용을 확인해 주세요."
     render :bulk_new, status: :unprocessable_entity
   end
 

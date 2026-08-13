@@ -162,6 +162,7 @@ class ClassroomsController < ApplicationController
     @entries = submitted_creation_rows
     unless @school
       @bulk_errors = ["학교를 확인해 주세요."]
+      flash.now[:alert] = @bulk_errors.to_sentence
       @entries = []
       prepare_available_teachers(nil)
       render :bulk_new, status: :unprocessable_entity
@@ -175,6 +176,8 @@ class ClassroomsController < ApplicationController
     if result.success?
       redirect_to classrooms_path(school_id: @school.id, grade: params[:return_grade].presence || "all"), notice: "여러 교실을 생성했습니다."
     else
+      flash.now[:alert] = @bulk_errors.presence&.to_sentence ||
+        "교실 정보를 등록하지 못했습니다. 입력 내용을 확인해 주세요."
       render :bulk_new, status: :unprocessable_entity
     end
   end

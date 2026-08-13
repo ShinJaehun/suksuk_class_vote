@@ -4,8 +4,6 @@
 
   <% if local_assigns[:message].present? %>
     <p class="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800"><%= message %></p>
-  <% elsif local_assigns[:error_message].present? %>
-    <p class="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm font-medium text-rose-800"><%= error_message %></p>
   <% end %>
 
   <% if poll.draft? %>

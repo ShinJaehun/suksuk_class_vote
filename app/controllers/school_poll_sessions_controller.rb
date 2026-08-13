@@ -84,7 +84,9 @@ class SchoolPollSessionsController < ApplicationController
     else
       respond_to do |format|
         format.html { redirect_to school_poll_path(poll), alert: result.error_message }
-        format.turbo_stream { head :unprocessable_content }
+        format.turbo_stream do
+          redirect_to school_poll_path(poll), alert: result.error_message, status: :see_other
+        end
       end
     end
   end
@@ -101,11 +103,13 @@ class SchoolPollSessionsController < ApplicationController
   def respond_to_workspace_failure(message)
     respond_to do |format|
       format.html { redirect_to school_poll_path(@poll), alert: message }
-      format.turbo_stream { render_workspace_streams(error_message: message, status: :unprocessable_content) }
+      format.turbo_stream do
+        redirect_to school_poll_path(@poll), alert: message, status: :see_other
+      end
     end
   end
 
-  def render_workspace_streams(message: nil, error_message: nil, status: :ok)
+  def render_workspace_streams(message: nil, status: :ok)
     prepare_workspace
     render turbo_stream: [
       turbo_stream.replace(
@@ -137,8 +141,7 @@ class SchoolPollSessionsController < ApplicationController
           current_sessions: @current_poll_sessions,
           assignable_classrooms: @assignable_classrooms,
           assignable_classroom_student_counts: @assignable_classroom_student_counts,
-          message: message,
-          error_message: error_message
+          message: message
         }
       )
     ], status: status

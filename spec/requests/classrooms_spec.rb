@@ -555,6 +555,9 @@ RSpec.describe "Classrooms", type: :request do
         "1" => { grade: 7, class_label: "3", teacher_id: "" }
       } } }
     end.not_to change(Classroom, :count)
+    expect(flash[:alert]).to eq("교실 정보를 등록하지 못했습니다. 입력 내용을 확인해 주세요.")
+    expect(response.body).to include(flash[:alert], "value=\"2\"", "value=\"3\"")
+    expect(response.body).to include("학년은 1~6학년이어야 합니다.")
 
     duplicate_teacher = teacher_for(school, name: "중복 담임", grade: 4)
     expect do
@@ -570,5 +573,17 @@ RSpec.describe "Classrooms", type: :request do
         "0" => { grade: 4, class_label: "6", teacher_id: forged_teacher.id }
       } } }
     end.not_to change(Classroom, :count)
+  end
+
+  it "preserves the specific bulk creation precondition error in the layout alert" do
+    sign_in create(:user, :admin)
+
+    post bulk_create_classrooms_path, params: {
+      school_id: 0,
+      classrooms: { rows: { "0" => { grade: 4, class_label: "입력 반", teacher_id: "" } } }
+    }
+
+    expect(flash[:alert]).to eq("학교를 확인해 주세요.")
+    expect(response.body).to include(flash[:alert])
   end
 end

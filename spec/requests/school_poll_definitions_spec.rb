@@ -427,11 +427,13 @@ RSpec.describe "School Poll definition management", type: :request do
           name: "변환 실패 후보",
           photo: uploaded_photo
         }
-      }
+      }, headers: { "ACCEPT" => "text/vnd.turbo-stream.html" }
 
       expect(contest.poll_options.find_by!(number: 1).photo).to be_attached
       expect(response).to redirect_to(school_poll_path(poll))
       expect(flash[:alert]).to include("사진 변환에 실패")
+      follow_redirect!
+      expect(response.body).to include("사진 변환에 실패", "후보 사진")
     end
 
     it "rejects invalid and oversized photos without losing an existing attachment" do
