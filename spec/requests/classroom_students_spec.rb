@@ -226,6 +226,72 @@ RSpec.describe "Classroom students", type: :request do
     expect(response).to have_http_status(:not_found)
   end
 
+  it "redirects a reassigned teacher from a stale Classroom to the current active Classroom" do
+    old_classroom, teacher = classroom_with_teacher
+    old_student = create(:student, classroom: old_classroom, name: "이전 학생")
+    current_classroom = create(:classroom, school: old_classroom.school, teacher: nil)
+    sign_in teacher
+
+    get classroom_students_path(old_classroom)
+    expect(response.body).to include(old_student.name)
+
+    old_classroom.update!(teacher: nil)
+    current_classroom.update!(teacher: teacher)
+    get classroom_students_path(old_classroom)
+
+    expect(response).to redirect_to(classroom_students_path(current_classroom))
+    expect(response.body).not_to include(old_student.name)
+  end
+
+  it "redirects a teacher without a current active Classroom from a stale Classroom to Polls" do
+    classroom, teacher = classroom_with_teacher
+    sign_in teacher
+    classroom.update!(teacher: nil)
+
+    get classroom_students_path(classroom)
+
+    expect(response).to redirect_to(polls_path)
+    follow_redirect!
+    expect(response.body).to include(
+      "현재 배정된 교실이 없습니다. 대표 선생님 또는 관리자에게 교실 배정을 요청해 주세요."
+    )
+  end
+
+  it "keeps a nonexistent Classroom as not found" do
+    _classroom, teacher = classroom_with_teacher
+    sign_in teacher
+
+    get classroom_students_path(classroom_id: Classroom.maximum(:id).to_i + 1)
+
+    expect(response).to have_http_status(:not_found)
+  end
+
+  it "keeps another School Classroom as not found" do
+    _classroom, teacher = classroom_with_teacher
+    other_classroom, = classroom_with_teacher
+    sign_in teacher
+
+    get classroom_students_path(other_classroom)
+
+    expect(response).to have_http_status(:not_found)
+  end
+
+  it "blocks a stale Student mutation before redirecting to the current active Classroom" do
+    old_classroom, teacher = classroom_with_teacher
+    student = create(:student, classroom: old_classroom, name: "기존 이름")
+    current_classroom = create(:classroom, school: old_classroom.school, teacher: nil)
+    sign_in teacher
+    old_classroom.update!(teacher: nil)
+    current_classroom.update!(teacher: teacher)
+
+    patch classroom_student_path(old_classroom, student), params: {
+      student: { number: student.number, name: "변경된 이름" }
+    }
+
+    expect(response).to redirect_to(classroom_students_path(current_classroom))
+    expect(student.reload.name).to eq("기존 이름")
+  end
+
   it "returns 404 when the Student does not belong to the parent Classroom" do
     classroom, = classroom_with_teacher
     other_classroom, other_teacher = classroom_with_teacher

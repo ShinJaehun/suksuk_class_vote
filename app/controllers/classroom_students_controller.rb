@@ -91,6 +91,23 @@ class ClassroomStudentsController < ApplicationController
 
   def set_classroom
     @classroom = policy_scope(Classroom).find(params[:classroom_id])
+  rescue ActiveRecord::RecordNotFound
+    recover_stale_classroom_assignment
+  end
+
+  def recover_stale_classroom_assignment
+    membership = current_user.school_membership
+    requested_classroom = Classroom.find_by(id: params[:classroom_id])
+    raise unless current_user.teacher? && membership.present? && !membership.manager? &&
+                 requested_classroom&.school_id == membership.school_id
+
+    current_classroom = policy_scope(Classroom).where(active: true).first
+    if current_classroom
+      redirect_to classroom_students_path(current_classroom)
+    else
+      redirect_to polls_path,
+                  alert: "현재 배정된 교실이 없습니다. 대표 선생님 또는 관리자에게 교실 배정을 요청해 주세요."
+    end
   end
 
   def authorize_student_access
