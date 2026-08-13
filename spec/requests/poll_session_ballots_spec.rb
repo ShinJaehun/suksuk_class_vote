@@ -112,6 +112,7 @@ RSpec.describe "PollSession ballots", type: :request do
 
   it "opens and locks the current participant ballot" do
     poll, poll_session, progress, current, waiting, option, tally, operator = create_execution
+    ballot_stream = Turbo::StreamsChannel.send(:stream_name_from, [poll_session, :ballot_screen])
     sign_in operator
 
     patch open_ballot_poll_poll_session_path(poll, poll_session)
@@ -120,6 +121,13 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(progress.reload).to have_attributes(
       ballot_status: "ballot_open",
       current_poll_participant: current
+    )
+    open_ballot_payload = ActiveSupport::JSON.decode(broadcasts(ballot_stream).last)
+    expect(open_ballot_payload).to include(
+      %(target="ballot_poll_session_#{poll_session.id}"),
+      "#{current.number}번 #{current.name}",
+      option.name,
+      "투표 제출"
     )
 
     patch lock_ballot_poll_poll_session_path(poll, poll_session)
@@ -402,6 +410,7 @@ RSpec.describe "PollSession ballots", type: :request do
   it "submits a choice, keeps the completed current, and explicitly advances" do
     poll, poll_session, progress, current, waiting, option, tally, operator = create_execution
     progress.update!(ballot_status: :ballot_open)
+    ballot_stream = Turbo::StreamsChannel.send(:stream_name_from, [poll_session, :ballot_screen])
     operation_stream = Turbo::StreamsChannel.send(:stream_name_from, [poll_session, :operation_screen])
     sign_in operator
 
@@ -466,6 +475,13 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(progress.reload).to have_attributes(
       ballot_status: "ballot_open",
       current_poll_participant: waiting
+    )
+    advance_payload = ActiveSupport::JSON.decode(broadcasts(ballot_stream).last)
+    expect(advance_payload).to include(
+      %(target="ballot_poll_session_#{poll_session.id}"),
+      "#{waiting.number}번 #{waiting.name}",
+      option.name,
+      "투표 제출"
     )
   end
 

@@ -1,5 +1,9 @@
 <% participation = current_participant&.poll_participation %>
-<% recovery_token = local_assigns[:recovery_token] || poll_session_recovery_token(poll_session) %>
+<% recovery_token = if local_assigns.key?(:recovery_token)
+                      local_assigns[:recovery_token]
+                    else
+                      poll_session_recovery_token(poll_session)
+                    end %>
 <% polling_data = {
   controller: "poll-session-progress",
   poll_session_progress_interval_value: 5000,
