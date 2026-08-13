@@ -33,6 +33,7 @@ class User < ApplicationRecord
   validates :login_id, presence: true, uniqueness: { case_sensitive: false }
   validates :email, presence: true, if: :admin?
   validate :password_must_differ_from_login_id
+  validate :running_poll_operator_cannot_be_deactivated, on: :update
 
   def active_for_authentication?
     super && active?
@@ -47,6 +48,19 @@ class User < ApplicationRecord
   end
 
   private
+
+  def running_poll_operator_cannot_be_deactivated
+    return unless will_save_change_to_active? && !active?
+    sessions = operated_poll_sessions.current_execution.joins(:poll)
+    return unless sessions.where(status: :in_progress).or(
+      sessions.where(
+        status: %i[draft in_progress closed],
+        polls: { school_managed: true, status: Poll.statuses.fetch("in_progress") }
+      )
+    ).exists?
+
+    errors.add(:base, "진행 중인 투표가 있어 선생님을 비활성화할 수 없습니다.")
+  end
 
   def normalize_login_id
     self.login_id = login_id.to_s.strip.downcase.presence

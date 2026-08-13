@@ -237,7 +237,10 @@ RSpec.describe "Schools", type: :request do
     get edit_classroom_path(classroom)
     expect(response).to have_http_status(:ok)
     get new_classroom_student_path(classroom)
-    expect(response).to have_http_status(:ok)
+    expect(response).to redirect_to(teachers_path)
+    expect do
+      post classroom_students_path(classroom), params: { student: { number: 2, name: "관리자 추가" } }
+    end.not_to change(Student, :count)
   end
 
   it "refuses to deactivate a School with an in-progress Schoolwide Poll" do

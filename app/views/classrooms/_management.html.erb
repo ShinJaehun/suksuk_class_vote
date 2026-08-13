@@ -14,11 +14,7 @@
     </div>
 
     <div class="mt-5 space-y-4" data-controller="classroom-management">
-      <% if @bulk_errors.present? %>
-        <div class="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><%= @bulk_errors.to_sentence %></div>
-      <% end %>
-
-      <%= form_with url: bulk_update_classrooms_path, method: :patch, id: "classroom_bulk_update" do %>
+      <%= form_with url: bulk_update_classrooms_path, method: :patch, id: "classroom_bulk_update", data: { turbo_frame: "_top" } do %>
         <%= hidden_field_tag :school_id, @school.id %>
         <%= hidden_field_tag :grade, @grade %>
         <% if @classrooms.any? %>

@@ -25,5 +25,6 @@
   <%= render "ballot_content",
              poll_session: @poll_session,
              progress: @poll_session.poll_progress,
-             current_participant: @current_participant %>
+             current_participant: @current_participant,
+             runtime_fingerprint: ballot_runtime_fingerprint(@poll_session) %>
 </div>

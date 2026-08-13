@@ -19,7 +19,7 @@ class ClassroomPolicy < ApplicationPolicy
   end
 
   def manage_students?
-    user&.admin? || (record.school.active? && view_students?)
+    record.school.active? && record.active? && view_students?
   end
 
   def manage_lifecycle?

@@ -63,6 +63,20 @@ RSpec.describe Teachers::BulkOperator do
     expect(classroom.reload.teacher).to be_nil
   end
 
+  it "does not bulk deactivate a running Poll operator" do
+    operator = teacher(grade: 4)
+    classroom = create(:classroom, school: school, grade: 4, teacher: operator)
+    poll = create(:poll, school: school, user: operator, participant_group: nil)
+    create(:poll_session, poll: poll, classroom: classroom, operator: operator,
+                          status: :in_progress, started_at: Time.current)
+
+    result = service([operator], operation: :deactivate).call
+
+    expect(result).not_to be_success
+    expect(operator.reload).to be_active
+    expect(classroom.reload.teacher).to eq(operator)
+  end
+
   it "rejects invalid grades, duplicate ids, and unknown operations" do
     user = teacher(grade: 1)
 

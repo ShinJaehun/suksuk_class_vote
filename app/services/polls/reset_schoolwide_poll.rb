@@ -124,9 +124,12 @@ module Polls
     def broadcast_admin_runtime
       Polls::BroadcastSchoolwideSessionState.for_reset(poll: poll, actor: actor)
     rescue StandardError => error
-      Rails.logger.error(
-        "[schoolwide_poll_broadcast_failed] actor_id=#{actor.id} poll_id=#{poll.id} " \
-        "broadcast=\"reset_runtime\" error_class=#{error.class.name.inspect}"
+      RealtimeBroadcastFailure.log(
+        tag: "schoolwide_poll_broadcast_failed",
+        error: error,
+        actor_id: actor.id,
+        poll_id: poll.id,
+        broadcast: "reset_runtime"
       )
     end
 

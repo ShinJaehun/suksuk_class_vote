@@ -2,6 +2,14 @@ module Polls
   class BroadcastSchoolwideSessionState
     STREAM_NAME = :schoolwide_runtime
 
+    def self.stream_for(poll:, user:)
+      return unless poll&.school_managed? && user&.active?
+      return [poll, STREAM_NAME, user] if user.admin?
+
+      membership = user.school_membership
+      [poll, STREAM_NAME, user] if membership&.manager? && membership.school_id == poll.school_id
+    end
+
     def self.for_classroom(classroom:)
       PollSession.current_execution
         .joins(:poll)
@@ -43,9 +51,11 @@ module Polls
         session = poll.poll_sessions.current_execution.find_by(classroom: classroom)
         return unless session
 
-        broadcast_safely("classroom_runtime", session_id: session.id) { broadcast_session(session) }
+        broadcast_safely("classroom_runtime", session_id: session.id) do
+          broadcast_session(session, broadcast: "classroom_runtime")
+        end
       end
-      broadcast_safely("status_runtime") { broadcast_status_runtime }
+      broadcast_safely("status_runtime") { broadcast_status_runtime(broadcast: "status_runtime") }
     end
 
     def broadcast_revote_history
@@ -56,15 +66,12 @@ module Polls
         .includes(:poll_participants)
         .order(:created_at, :id)
 
-      Turbo::StreamsChannel.broadcast_replace_to(
-        poll,
-        STREAM_NAME,
+      broadcast_replace_to_recipients(
+        broadcast: "revote_history",
         target: ActionView::RecordIdentifier.dom_id(poll, :revote_history),
         partial: "school_polls/revote_history",
         locals: { poll: poll, history_sessions: history_sessions }
       )
-    rescue StandardError => error
-      log_broadcast_failure(error, broadcast: "revote_history")
     end
 
     def broadcast_reset
@@ -72,10 +79,10 @@ module Polls
 
       poll.poll_sessions.current_execution.includes(classroom: :students).find_each do |session|
         broadcast_safely("reset_classroom_runtime", session_id: session.id) do
-          broadcast_session(session)
+          broadcast_session(session, broadcast: "reset_classroom_runtime")
         end
       end
-      broadcast_safely("reset_status_runtime") { broadcast_status_runtime }
+      broadcast_safely("reset_status_runtime") { broadcast_status_runtime(broadcast: "reset_status_runtime") }
       broadcast_revote_history
     end
 
@@ -84,10 +91,10 @@ module Polls
 
       poll.poll_sessions.current_execution.includes(classroom: :students).find_each do |session|
         broadcast_safely("batch_classroom_runtime", session_id: session.id) do
-          broadcast_session(session)
+          broadcast_session(session, broadcast: "batch_classroom_runtime")
         end
       end
-      broadcast_safely("batch_status_runtime") { broadcast_status_runtime }
+      broadcast_safely("batch_status_runtime") { broadcast_status_runtime(broadcast: "batch_status_runtime") }
     end
 
     private
@@ -101,27 +108,27 @@ module Polls
     end
 
     def log_broadcast_failure(error, broadcast:, session_id: nil)
-      attributes = {
+      RealtimeBroadcastFailure.log(
+        tag: "schoolwide_poll_broadcast_failed",
+        error: error,
         actor_id: actor&.id,
         poll_id: poll.id,
         poll_session_id: session_id,
-        broadcast: broadcast,
-        error_class: error.class.name
-      }.compact
-      Rails.logger.error("[schoolwide_poll_broadcast_failed] #{attributes.map { |key, value| "#{key}=#{value.inspect}" }.join(" ")}")
+        broadcast: broadcast
+      )
     end
 
-    def broadcast_session(session)
-      Turbo::StreamsChannel.broadcast_replace_to(
-        poll,
-        STREAM_NAME,
+    def broadcast_session(session, broadcast:)
+      broadcast_replace_to_recipients(
+        broadcast: broadcast,
+        session_id: session.id,
         target: "school_poll_#{poll.id}_classroom_#{session.classroom_id}_runtime",
         partial: "school_polls/session_runtime",
         locals: { poll: poll, session: session }
       )
     end
 
-    def broadcast_status_runtime
+    def broadcast_status_runtime(broadcast:)
       sessions = poll.poll_sessions.current_execution.to_a
       counts = PollSession.statuses.keys.index_with do |status|
         sessions.count do |session|
@@ -130,9 +137,8 @@ module Polls
       end
       history_count = poll.poll_sessions.where.associated(:replacement_session).count
 
-      Turbo::StreamsChannel.broadcast_replace_to(
-        poll,
-        STREAM_NAME,
+      broadcast_replace_to_recipients(
+        broadcast: broadcast,
         target: ActionView::RecordIdentifier.dom_id(poll, :schoolwide_status_runtime),
         partial: "school_polls/status_runtime",
         locals: {
@@ -143,6 +149,33 @@ module Polls
           history_session_count: history_count
         }
       )
+    end
+
+    def broadcast_replace_to_recipients(broadcast:, session_id: nil, **rendering)
+      realtime_recipients.each do |recipient|
+        stream = self.class.stream_for(poll: poll, user: recipient)
+        next unless stream
+
+        broadcast_safely(broadcast, session_id: session_id) do
+          Turbo::StreamsChannel.broadcast_replace_to(
+            *stream,
+            **rendering
+          )
+        end
+      end
+    end
+
+    def realtime_recipients
+      admins = User.admin.where(active: true)
+      managers = User.teacher.where(active: true)
+        .joins(:school_membership)
+        .where(
+          school_memberships: {
+            school_id: poll.school_id,
+            role: SchoolMembership.roles.fetch("manager")
+          }
+        )
+      User.where(id: admins.select(:id)).or(User.where(id: managers.select(:id))).order(:id)
     end
 
   end

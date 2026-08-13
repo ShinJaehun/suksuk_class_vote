@@ -123,6 +123,11 @@ manager는 자기 profile과 비밀번호를 변경할 수 있지만 자기 계�
 
 Classroom 생성과 구조 설정(edit/update)은 admin과 active School의 manager가 할 수 있다. 일반 담임 teacher는 구조 설정을 할 수 없고, active School에서 자기 Classroom의 Student 운영만 할 수 있다. `ClassroomStudentsController`도 scope로 Classroom을 조회한 뒤 `manage_students?`를 확인한다.
 
+Student mutation은 School과 Classroom이 모두 active일 때만 허용하며 admin도 이 operational freeze를
+우회하지 않는다. 진행 중 일반 PollSession 또는 진행 중 전교투표의 current draft/in-progress/closed Session이
+연결된 Classroom은 담임·학년·비활성 전환을 막고, 해당 operator 비활성화도 막는다. 종료·중단 뒤에는
+기존 관리 정책에 따라 다시 변경할 수 있다.
+
 선택 bulk operation은 scope·record 권한·조건을 전체 대상으로 검증하며 부분 적용하지 않는다. 활성화·비활성화는 inactive row도 선택할 수 있는 idempotent 작업이다. Classroom 학년 일괄 정정은 학생 존재 여부와 무관하게 담임 미배정인 활성 Classroom에만 허용하고, Teacher 학년 일괄 변경은 담당 활성 Classroom이 없는 활성 Teacher에만 허용한다. Teacher 학년 변경은 Classroom 학년이나 Student 소속을 함께 변경하지 않는다.
 
 Classroom 삭제는 admin 또는 같은 학교 manager가 inactive, 담임 미배정, 전체 Student 이력 0인 교실에만 시도할 수 있다. 다른 historical reference가 destroy를 막으면 관련 데이터를 cascade 삭제하지 않고 비활성 상태로 보존한다.
@@ -203,6 +208,8 @@ legacy Poll/Election 기록과 직접 연결된 세부 권한은 해당 runtime 
 
 Pundit 권한 실패는 현재 사용자 역할의 기본 경로로 redirect하고 접근 권한 안내를 표시한다.
 Turbo/HTML 응답도 view 조건만으로 권한을 대체하지 않으며 각 controller action에서 서버측 검증을 유지한다.
+전교투표 realtime stream은 active admin과 현재 같은 학교 manager별 signed stream으로 발행한다.
+과거 정당한 관리 화면의 signed recovery는 현재 권한 상실 또는 삭제를 확인하면 안전한 최상위 화면으로 이동한다.
 
 ---
 

@@ -101,6 +101,10 @@ ParticipantGroup / ParticipantSlot 기반 Poll과 Election / ElectionSession은 
 * Turbo Stream / ActionCable을 primary 갱신 수단으로 유지한다.
 * recovery endpoint는 정상 상태에 `204 No Content`를 반환한다.
 * stale 또는 terminal 상태일 때만 필요한 작은 Turbo Stream 영역을 반환한다.
+* ballot form이 열린 상태에서 Cable 갱신을 놓쳐도 fingerprint recovery가 locked 상태와 다음 참여자로 수렴한다.
+* 전교투표 stream recipient는 현재 active admin과 같은 학교 manager로 제한하고 draft/in-progress 화면의 권한 상실 recovery를 검증한다.
+* inactive School/Classroom의 direct Student mutation과 진행 중 Session의 구조 변경 우회를 request/service spec으로 차단한다.
+* 진행 중 전교투표의 current closed Session은 재투표 가능 관계가 끝날 때까지 Classroom/operator 변경을 차단한다.
 * active ballot form과 학생이 선택 중인 값은 polling으로 교체하지 않는다.
 * stale teacher action과 student submit은 DB terminal 상태로 안전하게 수렴한다.
 * hidden tab의 polling timer 중단과 visible 복귀 직후 확인은 필요한 JS/browser 수준에서 검증한다.

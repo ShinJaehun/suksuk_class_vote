@@ -1,6 +1,6 @@
 class PollSessionsController < ApplicationController
   before_action :authenticate_user!
-  helper_method :poll_session_recovery_token
+  helper_method :poll_session_recovery_token, :ballot_runtime_fingerprint
 
   def show
     @poll_session = PollSession
@@ -87,7 +87,8 @@ class PollSessionsController < ApplicationController
            locals: {
              poll_session: @poll_session,
              progress: @poll_session.poll_progress,
-             current_participant: @current_participant
+             current_participant: @current_participant,
+             runtime_fingerprint: ballot_runtime_fingerprint(@poll_session)
            }
   rescue ActiveRecord::RecordNotFound
     render_stale_session_frame(:ballot, :operate?)
@@ -95,11 +96,32 @@ class PollSessionsController < ApplicationController
 
   def runtime_recovery
     presentation = runtime_recovery_presentation!
-    poll_session = PollSession.includes(:poll, :classroom, :operator)
+    poll_session = PollSession.includes(
+      :classroom,
+      :operator,
+      poll: :poll_contests,
+      poll_progress: {
+        current_poll_participant: %i[poll_participation poll_contest_completions]
+      }
+    )
       .find_by!(id: params[:id], poll_id: params[:poll_id])
-    authorize poll_session, presentation == :teacher ? :show? : :operate?
+    policy_query = presentation == :teacher ? :show? : :operate?
+    unless policy(poll_session).public_send(policy_query)
+      if presentation == :ballot && poll_session.operator == current_user &&
+         (!poll_session.classroom.active? || !poll_session.classroom.school.active?)
+        render_runtime_recovery_terminal(presentation, :inactive)
+        return
+      end
+      authorize poll_session, policy_query
+    end
 
-    return head :no_content if runtime_recovery_healthy?(poll_session, presentation)
+    if runtime_recovery_healthy?(poll_session, presentation)
+      return head :no_content unless presentation == :ballot
+      return head :no_content if params[:fingerprint].to_s == ballot_runtime_fingerprint(poll_session)
+
+      render_runtime_ballot(poll_session)
+      return
+    end
 
     render_runtime_recovery_terminal(presentation, runtime_terminal_reason(poll_session))
   rescue ActiveRecord::RecordNotFound
@@ -481,6 +503,38 @@ class PollSessionsController < ApplicationController
     end
   end
 
+  def ballot_runtime_fingerprint(poll_session)
+    progress = poll_session.poll_progress
+    participant = progress&.current_poll_participant
+    participation = participant&.poll_participation
+    contest = participant&.next_incomplete_poll_contest
+
+    [
+      poll_session.status,
+      poll_session.poll.status,
+      progress&.ballot_status,
+      participant&.id,
+      participation&.status,
+      contest&.id
+    ].map { |value| value.presence || "none" }.join(":")
+  end
+
+  def render_runtime_ballot(poll_session)
+    progress = poll_session.poll_progress
+    current_participant = progress&.current_poll_participant
+    render turbo_stream: turbo_stream.replace(
+      helpers.dom_id(poll_session, :ballot),
+      partial: "poll_sessions/ballot_content",
+      locals: {
+        poll_session: poll_session,
+        progress: progress,
+        current_participant: current_participant,
+        recovery_token: poll_session_recovery_token(poll_session),
+        runtime_fingerprint: ballot_runtime_fingerprint(poll_session)
+      }
+    )
+  end
+
   def runtime_terminal_reason(poll_session)
     return :stopped if poll_session.stopped? || poll_session.poll.stopped?
     return :closed if poll_session.closed? || poll_session.poll.closed?
@@ -504,6 +558,11 @@ class PollSessionsController < ApplicationController
 
   def runtime_terminal_message(reason, presentation)
     return terminal_session_message(reason, presentation) if reason.in?(%i[reset deleted])
+    if reason == :inactive
+      return "이 교실은 현재 비활성 상태입니다. 선생님의 안내를 기다려 주세요." if presentation == :ballot
+
+      return "이 교실은 현재 비활성 상태여서 투표를 운영할 수 없습니다."
+    end
     return "중단된 투표입니다. 선생님의 안내를 기다려 주세요." if presentation == :ballot && reason == :stopped
     return "투표가 종료되었습니다." if presentation == :ballot
     return "전교투표가 중단되어 이 투표 실행은 더 이상 진행할 수 없습니다." if reason == :stopped
@@ -603,7 +662,8 @@ class PollSessionsController < ApplicationController
         poll_session: poll_session,
         progress: progress,
         current_participant: current_participant,
-        recovery_token: poll_session_recovery_token(poll_session)
+        recovery_token: poll_session_recovery_token(poll_session),
+        runtime_fingerprint: ballot_runtime_fingerprint(poll_session)
       }
     )
   end
@@ -622,9 +682,13 @@ class PollSessionsController < ApplicationController
   def broadcast_realtime_safely(poll_session, broadcast:)
     yield
   rescue StandardError => error
-    Rails.logger.error(
-      "[poll_session_broadcast_failed] actor_id=#{current_user.id} poll_id=#{poll_session.poll_id} " \
-      "poll_session_id=#{poll_session.id} broadcast=#{broadcast.inspect} error_class=#{error.class.name.inspect}"
+    RealtimeBroadcastFailure.log(
+      tag: "poll_session_broadcast_failed",
+      error: error,
+      actor_id: current_user.id,
+      poll_id: poll_session.poll_id,
+      poll_session_id: poll_session.id,
+      broadcast: broadcast
     )
   end
 

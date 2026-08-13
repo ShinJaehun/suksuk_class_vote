@@ -249,6 +249,13 @@ PollSession 교사 operation 화면과 학생 ballot 화면은 ActionCable/Turbo
 때만 필요한 작은 Turbo Stream 영역을 교체한다. 투표 중인 ballot form 전체는 교체하지 않아 학생이
 선택 중인 값을 잃지 않게 한다.
 
+학생 ballot recovery는 화면의 Session·Poll·ballot·현재 참여자·참여 완료·현재 Contest fingerprint를
+서버 상태와 비교한다. 일치하면 `204`로 끝내고, Cable 갱신을 놓쳐 의미가 달라진 경우에만 ballot
+frame을 교체한다. 따라서 선택 중 form의 주기적 교체 없이 locked 전환과 다음 참여자 진행에 수렴한다.
+
+Realtime payload 렌더 실패는 투표 transaction을 되돌리지 않는다. 실패 로그에는 Poll/Session,
+broadcast 종류, 예외 class와 최초 애플리케이션 위치만 남기며 학생·선택 내용과 예외 message는 남기지 않는다.
+
 페이지가 hidden이면 polling callback만 건너뛰지 않고 interval timer 자체를 중단한다. 다시 visible이
 되면 즉시 한 번 확인하고 interval을 재시작한다. 따라서 WebSocket이 끊긴 상태에서 오래 열린 교사
 시작 화면이나 학생 제출 화면도 서버의 terminal 상태로 안전하게 복귀한다.
@@ -535,6 +542,9 @@ PollSession runtime의 동일 Session 대상 주요 동시 작업은 `PollSessio
 scope는 LEFT OUTER JOIN을 포함하므로 직접 `FOR UPDATE`하지 않고, 먼저 id를 선정한 뒤 base
 `PollSession` relation을 id 순으로 잠근다. 이 순서는 PostgreSQL outer join 잠금 제한을 피하고,
 재투표의 `Poll -> source Session` 순서와도 parent Poll 경계를 기준으로 일관된다.
+전교투표 시작도 `Poll -> current PollSessions(id 순) -> Classrooms(id 순)`으로 잠근 뒤,
+학급·담당 교사·Session 운영자의 활성 상태와 담당 교사/운영자 일치를 최종 확인한다.
+초안에서는 구조 변경을 허용하되 이 관계가 어긋난 전교투표는 시작하지 않는다.
 
 ---
 

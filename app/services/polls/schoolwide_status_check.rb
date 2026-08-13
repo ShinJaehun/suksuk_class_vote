@@ -2,8 +2,9 @@ module Polls
   class SchoolwideStatusCheck
     attr_reader :poll
 
-    def initialize(poll:)
+    def initialize(poll:, sessions: nil)
       @poll = poll
+      @sessions = sessions
     end
 
     def startable?
@@ -100,8 +101,18 @@ module Polls
       end
       issues << "배정된 학급 투표가 1개 이상 필요합니다." if sessions.empty?
       issues << "모든 학급 투표가 준비 상태여야 합니다." if sessions.any? { |session| !session.draft? }
-      if sessions.any? { |session| session.classroom&.teacher.blank? }
-        issues << "모든 학급에 담당 교사가 필요합니다."
+      if sessions.any? { |session| session.classroom.blank? || !session.classroom.active? }
+        issues << "모든 학급이 활성 상태여야 합니다."
+      end
+      if sessions.any? { |session| session.classroom&.teacher.blank? || !session.classroom&.teacher&.active? }
+        issues << "모든 학급에 활성 담당 교사가 필요합니다."
+      end
+      if sessions.any? do |session|
+           session.classroom&.school_id != poll.school_id ||
+             session.operator.blank? || !session.operator.active? ||
+             session.operator_id != session.classroom&.teacher_id
+         end
+        issues << "학급 담당 교사와 투표 운영자 정보를 확인해 주세요."
       end
 
       sessions.each do |poll_session|

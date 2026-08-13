@@ -1,10 +1,13 @@
 <div class="mx-auto max-w-5xl space-y-6">
-  <%= turbo_stream_from @poll, :schoolwide_runtime %>
-  <% if @poll.in_progress? %>
+  <%= turbo_stream_from(*Polls::BroadcastSchoolwideSessionState.stream_for(poll: @poll, user: current_user)) %>
+  <% if @poll.draft? || @poll.in_progress? %>
     <%= turbo_frame_tag dom_id(@poll, :runtime_recovery),
                         data: {
                           controller: "school-poll-runtime-recovery",
-                          school_poll_runtime_recovery_url_value: runtime_school_poll_path(@poll),
+                          school_poll_runtime_recovery_url_value: runtime_school_poll_path(
+                            @poll,
+                            recovery_token: school_poll_recovery_token
+                          ),
                           school_poll_runtime_recovery_interval_value: 10_000,
                           school_poll_runtime_recovery_pause_selector_value: "[data-school-poll-terminal]"
                         } %>

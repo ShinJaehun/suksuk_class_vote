@@ -79,7 +79,10 @@ RSpec.describe "Classroom students", type: :request do
     create(:poll_option, poll: poll, poll_contest: contest, number: 1)
     create(:poll_option, poll: poll, poll_contest: contest, number: 2)
     create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
-    stream = Turbo::StreamsChannel.send(:stream_name_from, [poll, :schoolwide_runtime])
+    stream = Turbo::StreamsChannel.send(
+      :stream_name_from,
+      Polls::BroadcastSchoolwideSessionState.stream_for(poll: poll, user: teacher)
+    )
     runtime_target = "school_poll_#{poll.id}_classroom_#{classroom.id}_runtime"
     status_target = ActionView::RecordIdentifier.dom_id(poll, :schoolwide_status_runtime)
     sign_in teacher
@@ -290,6 +293,57 @@ RSpec.describe "Classroom students", type: :request do
 
     expect(response).to redirect_to(classroom_students_path(current_classroom))
     expect(student.reload.name).to eq("기존 이름")
+  end
+
+  it "keeps an inactive Classroom readable but blocks Student mutations for every role" do
+    classroom, teacher = classroom_with_teacher
+    student = create(:student, classroom: classroom, name: "기존 학생")
+    manager = create(:user)
+    create(:school_membership, :manager, school: classroom.school, user: manager)
+    classroom.update!(active: false)
+
+    [teacher, manager, create(:user, :admin)].each do |actor|
+      sign_in actor
+      get classroom_students_path(classroom)
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include(student.name)
+
+      expect do
+        post classroom_students_path(classroom), params: { student: { number: 2, name: "추가 학생" } }
+      end.not_to change(Student, :count)
+      patch classroom_student_path(classroom, student), params: {
+        student: { number: student.number, name: "변경 학생" }
+      }
+      expect(student.reload.name).to eq("기존 학생")
+      sign_out actor
+    end
+  end
+
+  it "allows Student mutation again after the Classroom is reactivated" do
+    classroom, teacher = classroom_with_teacher
+    classroom.update!(active: false)
+    sign_in teacher
+    post classroom_students_path(classroom), params: { student: { number: 1, name: "차단 학생" } }
+    expect(classroom.students).to be_empty
+
+    classroom.update!(active: true)
+    post classroom_students_path(classroom), params: { student: { number: 1, name: "복구 학생" } }
+
+    expect(classroom.students.sole.name).to eq("복구 학생")
+  end
+
+  it "blocks direct bulk Student creation in an inactive Classroom" do
+    classroom, = classroom_with_teacher
+    classroom.update!(active: false)
+    sign_in create(:user, :admin)
+
+    expect do
+      post bulk_create_classroom_students_path(classroom), params: {
+        students: { rows: { "0" => { number: 1, name: "일괄 학생" } } }
+      }
+    end.not_to change(Student, :count)
+
+    expect(response).to redirect_to(teachers_path)
   end
 
   it "returns 404 when the Student does not belong to the parent Classroom" do

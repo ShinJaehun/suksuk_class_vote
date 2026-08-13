@@ -22,10 +22,12 @@ module Teachers
         entries.each { |entry| entry.membership.save! }
         assign_classrooms
       end
+      restore_persisted_entry_state if invalid?
       self
     rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => error
       errors << "저장 중 다른 변경과 충돌했습니다. 로그인 ID와 담당 교실을 다시 확인해 주세요."
       errors << error.record.errors.full_messages.to_sentence if error.respond_to?(:record) && error.record
+      restore_persisted_entry_state
       self
     end
 
@@ -125,6 +127,21 @@ module Teachers
       classrooms = Classroom.where(id: entries.filter_map(&:classroom_id)).index_by(&:id)
       entries.each do |entry|
         classrooms[entry.classroom_id.to_i]&.update!(teacher: entry.user)
+      end
+    end
+
+    def restore_persisted_entry_state
+      entries.each do |entry|
+        next unless entry.user && entry.membership
+
+        entry.user.reload
+        entry.membership.reload
+        entry.name = entry.user.name
+        entry.login_id = entry.user.login_id
+        entry.grade = entry.membership.grade
+        entry.classroom_id = Classroom
+          .where(active: true, teacher_id: entry.user.id)
+          .pick(:id)
       end
     end
 

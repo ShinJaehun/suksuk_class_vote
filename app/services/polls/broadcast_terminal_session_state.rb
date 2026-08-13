@@ -40,9 +40,13 @@ module Polls
         }
       )
     rescue StandardError => error
-      Rails.logger.error(
-        "[poll_session_broadcast_failed] actor_id=#{actor.id} poll_id=#{session.poll_id} " \
-        "poll_session_id=#{session.id} broadcast=#{stream.inspect} error_class=#{error.class.name.inspect}"
+      RealtimeBroadcastFailure.log(
+        tag: "poll_session_broadcast_failed",
+        error: error,
+        actor_id: actor.id,
+        poll_id: session.poll_id,
+        poll_session_id: session.id,
+        broadcast: stream
       )
     end
   end

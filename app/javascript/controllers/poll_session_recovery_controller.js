@@ -25,7 +25,12 @@ export default class extends Controller {
 
     this.checking = true
     try {
-      const response = await fetch(this.urlValue, {
+      const url = new URL(this.urlValue, window.location.origin)
+      const target = document.getElementById(this.targetIdValue)
+      if (target?.dataset.pollSessionRuntimeFingerprint) {
+        url.searchParams.set("fingerprint", target.dataset.pollSessionRuntimeFingerprint)
+      }
+      const response = await fetch(url, {
         headers: { Accept: "text/vnd.turbo-stream.html" },
         credentials: "same-origin"
       })
@@ -34,7 +39,6 @@ export default class extends Controller {
       const stream = await response.text()
       if (stream) {
         window.Turbo.renderStreamMessage(stream)
-        this.stop()
       }
     } catch (_error) {
       // A later probe can recover from a temporary network failure.

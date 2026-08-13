@@ -91,8 +91,9 @@ RSpec.describe "School Poll definition management", type: :request do
 
   describe "PollContest CRUD" do
     let(:poll) { school_poll }
+    let(:admin) { create(:user, :admin) }
 
-    before { sign_in create(:user, :admin) }
+    before { sign_in admin }
 
     it "creates ordered Contests, updates only title, and destroys dependent Options" do
       create(:poll_contest, poll: poll, position: 2)
@@ -128,7 +129,10 @@ RSpec.describe "School Poll definition management", type: :request do
     end
 
     it "broadcasts the Poll status runtime after every successful Contest change" do
-      stream = Turbo::StreamsChannel.send(:stream_name_from, [poll, :schoolwide_runtime])
+      stream = Turbo::StreamsChannel.send(
+        :stream_name_from,
+        Polls::BroadcastSchoolwideSessionState.stream_for(poll: poll, user: admin)
+      )
 
       expect do
         post school_poll_contests_path(poll), params: { poll_contest: { title: "방송 항목" } }
@@ -184,10 +188,11 @@ RSpec.describe "School Poll definition management", type: :request do
   end
 
   describe "PollOption CRUD" do
+    let(:admin) { create(:user, :admin) }
     let(:poll) { school_poll }
     let(:contest) { create(:poll_contest, poll: poll, position: 1) }
 
-    before { sign_in create(:user, :admin) }
+    before { sign_in admin }
 
     it "prefills the next Option number for election and non-election Polls" do
       create(:poll_option, poll: poll, poll_contest: contest, number: 2)
@@ -263,7 +268,10 @@ RSpec.describe "School Poll definition management", type: :request do
       create(:student, classroom: classroom)
       create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
       first = create(:poll_option, poll: poll, poll_contest: contest, number: 1)
-      stream = Turbo::StreamsChannel.send(:stream_name_from, [poll, :schoolwide_runtime])
+      stream = Turbo::StreamsChannel.send(
+        :stream_name_from,
+        Polls::BroadcastSchoolwideSessionState.stream_for(poll: poll, user: admin)
+      )
       target = ActionView::RecordIdentifier.dom_id(poll, :schoolwide_status_runtime)
 
       expect do

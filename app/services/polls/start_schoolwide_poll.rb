@@ -18,7 +18,11 @@ module Polls
 
       Poll.transaction do
         poll.with_lock do
-          check = Polls::SchoolwideStatusCheck.new(poll: poll)
+          current_session_ids = poll.current_poll_sessions.select(:id)
+          sessions = PollSession.where(id: current_session_ids).order(:id).lock.to_a
+          Classroom.where(id: sessions.map(&:classroom_id).compact.uniq).order(:id).lock.load
+
+          check = Polls::SchoolwideStatusCheck.new(poll: poll, sessions: sessions)
           errors.concat(check.start_issues)
           raise ActiveRecord::Rollback if errors.any?
 

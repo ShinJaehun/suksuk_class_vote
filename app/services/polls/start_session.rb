@@ -20,6 +20,7 @@ module Polls
 
       ActiveRecord::Base.transaction do
         poll_session.with_lock do
+          classroom.lock!
           validate_locked_start
           start_locked_session unless errors.any?
         end

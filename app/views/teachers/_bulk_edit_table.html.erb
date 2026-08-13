@@ -1,9 +1,5 @@
 <div class="mt-5 space-y-4" data-controller="teacher-bulk">
-  <% if @bulk_errors.present? %>
-    <div class="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><%= @bulk_errors.uniq.to_sentence %></div>
-  <% end %>
-
-  <%= form_with url: bulk_update_teachers_path, method: :patch, id: "teacher_bulk_update" do %>
+  <%= form_with url: bulk_update_teachers_path, method: :patch, id: "teacher_bulk_update", data: { turbo_frame: "_top" } do %>
     <%= hidden_field_tag :school_id, @school.id %>
     <%= hidden_field_tag :grade, @grade %>
     <% if @bulk_entries.any? %>
@@ -54,7 +50,7 @@
   <% end %>
 
   <% creation_grade = @grade.match?(/\A[1-6]\z/) ? @grade : "unassigned" %>
-  <%= form_with url: bulk_operation_teachers_path, method: :patch, id: "teacher_selection_operation", class: "flex flex-wrap items-center justify-between gap-3 rounded-md border border-stone-200 bg-stone-50 p-3" do %>
+  <%= form_with url: bulk_operation_teachers_path, method: :patch, id: "teacher_selection_operation", class: "flex flex-wrap items-center justify-between gap-3 rounded-md border border-stone-200 bg-stone-50 p-3", data: { turbo_frame: "_top" } do %>
     <%= hidden_field_tag :school_id, @school.id %>
     <%= hidden_field_tag :management_grade, @grade %>
     <div class="flex flex-wrap items-center gap-3">

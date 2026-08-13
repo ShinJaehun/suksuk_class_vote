@@ -1,5 +1,5 @@
 <%= turbo_frame_tag dom_id(@poll, :runtime_recovery) do %>
-  <% unless @poll.in_progress? %>
+  <% unless @poll.draft? || @poll.in_progress? %>
     <span hidden data-school-poll-terminal></span>
   <% end %>
 

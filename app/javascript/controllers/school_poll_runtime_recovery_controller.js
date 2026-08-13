@@ -9,8 +9,10 @@ export default class extends Controller {
 
   connect() {
     this.handleVisibilityChange = this.handleVisibilityChange.bind(this)
+    this.handleFrameMissing = this.handleFrameMissing.bind(this)
     this.syncPollingState = this.syncPollingState.bind(this)
     document.addEventListener("visibilitychange", this.handleVisibilityChange)
+    this.element.addEventListener("turbo:frame-missing", this.handleFrameMissing)
     this.element.addEventListener("turbo:frame-render", this.syncPollingState)
     this.syncPollingState()
   }
@@ -18,6 +20,7 @@ export default class extends Controller {
   disconnect() {
     this.stopPolling()
     document.removeEventListener("visibilitychange", this.handleVisibilityChange)
+    this.element.removeEventListener("turbo:frame-missing", this.handleFrameMissing)
     this.element.removeEventListener("turbo:frame-render", this.syncPollingState)
   }
 
@@ -42,6 +45,14 @@ export default class extends Controller {
 
     this.reloadFrame()
     this.startPolling()
+  }
+
+  handleFrameMissing(event) {
+    const location = event.detail.response.headers.get("X-Turbo-Recovery-Location")
+    if (!location) return
+
+    event.preventDefault()
+    event.detail.visit(location)
   }
 
   syncPollingState() {

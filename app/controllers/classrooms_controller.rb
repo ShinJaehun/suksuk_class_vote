@@ -26,7 +26,8 @@ class ClassroomsController < ApplicationController
     classrooms = @classrooms.where(id: requested_ids)
     unless raw_ids.present? && raw_ids.all? { |id| id.match?(/\A[1-9]\d*\z/) } && requested_ids.size == raw_ids.size && classrooms.count == requested_ids.size
       @bulk_errors = ["변경할 교실을 확인해 주세요."]
-      render :index, status: :unprocessable_entity
+      flash.now[:alert] = @bulk_errors.to_sentence
+      render :index, status: :unprocessable_content
       return
     end
     classrooms.each { |classroom| authorize classroom, :update? }
@@ -41,8 +42,9 @@ class ClassroomsController < ApplicationController
       redirect_to management_classrooms_path, notice: "교실 정보를 일괄 수정했습니다."
     else
       @bulk_errors = result.errors
+      flash.now[:alert] = @bulk_errors.to_sentence
       prepare_management
-      render :index, status: :unprocessable_entity
+      render :index, status: :unprocessable_content
     end
   end
 
@@ -184,14 +186,17 @@ class ClassroomsController < ApplicationController
 
   def update
     authorize @classroom
-    original_teacher_id = @classroom.teacher_id
-    original_grade = @classroom.grade
-    @classroom.assign_attributes(classroom_params)
-    assign_classroom_name
-    validate_classroom_grade(@classroom)
-    validate_teacher_assignment(@classroom, original_teacher_id: original_teacher_id, original_grade: original_grade)
+    @classroom.with_lock do
+      original_teacher_id = @classroom.teacher_id
+      original_grade = @classroom.grade
+      @classroom.assign_attributes(classroom_params)
+      assign_classroom_name
+      validate_classroom_grade(@classroom)
+      validate_teacher_assignment(@classroom, original_teacher_id: original_teacher_id, original_grade: original_grade)
+      @classroom.save if @classroom.errors.empty?
+    end
 
-    if @classroom.errors.empty? && @classroom.save
+    if @classroom.errors.empty?
       redirect_to edit_classroom_path(@classroom), notice: "교실 설정을 수정했습니다."
     else
       prepare_form_options
@@ -203,7 +208,7 @@ class ClassroomsController < ApplicationController
 
   def change_active_state(active)
     authorize @classroom, :manage_lifecycle?
-    if @classroom.update(active: active)
+    if @classroom.with_lock { @classroom.update(active: active) }
       redirect_to classrooms_path(school_id: @classroom.school_id, grade: valid_grade), notice: "교실 상태를 변경했습니다."
     else
       redirect_to classrooms_path(school_id: @classroom.school_id, grade: valid_grade), alert: @classroom.errors.full_messages.to_sentence

@@ -92,6 +92,44 @@ RSpec.describe Polls::StartSchoolwidePoll do
     expect(poll.started_at).to be_nil
   end
 
+  it "keeps the Poll draft when the Classroom teacher no longer matches the Session operator" do
+    admin = create(:user, :admin)
+    poll, poll_session = create_startable_poll(actor: admin)
+    replacement_teacher = create(:user)
+    create(:school_membership, school: poll.school, user: replacement_teacher)
+    poll_session.classroom.update!(teacher: replacement_teacher)
+
+    result = described_class.new(poll: poll, actor: admin).call
+
+    expect(result).not_to be_success
+    expect(result.error_message).to include("학급 담당 교사와 투표 운영자 정보를 확인해 주세요.")
+    expect(poll.reload).to be_draft
+  end
+
+  it "keeps the Poll draft when a Session operator is inactive" do
+    admin = create(:user, :admin)
+    poll, poll_session = create_startable_poll(actor: admin)
+    poll_session.operator.update!(active: false)
+
+    result = described_class.new(poll: poll, actor: admin).call
+
+    expect(result).not_to be_success
+    expect(result.error_message).to include("활성 담당 교사", "투표 운영자")
+    expect(poll.reload).to be_draft
+  end
+
+  it "keeps the Poll draft when a participating Classroom is inactive" do
+    admin = create(:user, :admin)
+    poll, poll_session = create_startable_poll(actor: admin)
+    poll_session.classroom.update!(active: false)
+
+    result = described_class.new(poll: poll, actor: admin).call
+
+    expect(result).not_to be_success
+    expect(result.error_message).to include("모든 학급이 활성 상태여야 합니다.")
+    expect(poll.reload).to be_draft
+  end
+
   it "rejects a child test Poll after its source is closed" do
     admin = create(:user, :admin)
     test_poll, = create_startable_poll(actor: admin)

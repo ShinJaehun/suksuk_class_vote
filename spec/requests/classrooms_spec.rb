@@ -13,6 +13,15 @@ RSpec.describe "Classrooms", type: :request do
     { classroom: { school_id: school.id, school_year: 2026, grade: 4, class_label: "1", teacher_id: teacher.id, active: true }.merge(overrides) }
   end
 
+  def running_session_for(classroom, school_managed: false)
+    poll = create(:poll, school: classroom.school, user: classroom.teacher,
+                         school_managed: school_managed, participant_group: nil,
+                         status: (school_managed ? :in_progress : :draft),
+                         started_at: (Time.current if school_managed))
+    create(:poll_session, poll: poll, classroom: classroom, operator: classroom.teacher,
+                          status: :in_progress, started_at: Time.current)
+  end
+
   it "shows an admin school filter and a selected-school editable management table" do
     first_school = create(:school, name: "가학교")
     second_school = create(:school, name: "나학교")
@@ -81,6 +90,90 @@ RSpec.describe "Classrooms", type: :request do
     expect(document.at_css("form#classroom_selection_operation a[href*='school_context=true'][data-turbo-frame='_top']")).to be_present
     expect(document.at_css("button[form='classroom_bulk_update']").text).to include("변경 사항 저장")
     expect(response.body).not_to include("학년도")
+  end
+
+  it "blocks operational Classroom changes during a running Poll but allows labels and later changes" do
+    school = create(:school)
+    teacher = teacher_for(school, grade: 4)
+    replacement = teacher_for(school, name: "교체 담임", grade: 4)
+    classroom = create(:classroom, school: school, teacher: teacher, grade: 4, class_label: "1")
+    session = running_session_for(classroom)
+    sign_in create(:user, :admin)
+
+    patch classroom_path(classroom), params: classroom_params(
+      school: school,
+      teacher: replacement,
+      overrides: { grade: 5, class_label: "새 이름", active: false }
+    )
+    expect(classroom.reload).to have_attributes(teacher_id: teacher.id, grade: 4, active: true, class_label: "1")
+
+    patch classroom_path(classroom), params: classroom_params(
+      school: school,
+      teacher: teacher,
+      overrides: { class_label: "표시 변경" }
+    )
+    expect(classroom.reload.class_label).to eq("표시 변경")
+
+    session.update!(status: :stopped, stopped_at: Time.current)
+    patch classroom_path(classroom), params: classroom_params(
+      school: school,
+      teacher: replacement,
+      overrides: { class_label: "완료 후 변경" }
+    )
+    expect(classroom.reload.teacher).to eq(replacement)
+  end
+
+  it "blocks bulk and lifecycle changes for a running Schoolwide participant Classroom" do
+    school = create(:school)
+    teacher = teacher_for(school, grade: 4)
+    classroom = create(:classroom, school: school, teacher: teacher, grade: 4)
+    running_session_for(classroom, school_managed: true)
+    sign_in create(:user, :admin)
+
+    patch bulk_update_classrooms_path, params: {
+      school_id: school.id,
+      grade: "all",
+      classrooms: { rows: { "0" => {
+        id: classroom.id, grade: 5, class_label: classroom.class_label, teacher_id: ""
+      } } }
+    }
+    expect(classroom.reload).to have_attributes(teacher_id: teacher.id, grade: 4)
+    expect(response).to have_http_status(:unprocessable_content)
+    expect(flash[:alert]).to include("진행 중인 투표가 있어 교실의 담임, 학년 또는 활성 상태를 변경할 수 없습니다.")
+    document = Nokogiri::HTML(response.body)
+    expect(document.at_css("form#classroom_bulk_update[data-turbo-frame='_top']")).to be_present
+    expect(document.at_css("select[name$='[teacher_id]'] option[selected]")&.[]("value")).to eq(teacher.id.to_s)
+
+    patch deactivate_classroom_path(classroom), params: { school_id: school.id, grade: "all" }
+    expect(classroom.reload).to be_active
+    expect(flash[:alert]).to include("진행 중인 투표가 있어 교실의 담임, 학년 또는 활성 상태를 변경할 수 없습니다.")
+  end
+
+  it "blocks changes to a closed Schoolwide Session that is still revoteable" do
+    school = create(:school)
+    teacher = teacher_for(school, grade: 4)
+    replacement = teacher_for(school, name: "교체 담임", grade: 4)
+    classroom = create(:classroom, school: school, teacher: teacher, grade: 4)
+    poll = create(:poll, school: school, user: teacher, school_managed: true,
+                         participant_group: nil, status: :in_progress, started_at: 1.hour.ago)
+    create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
+                          status: :closed, started_at: 1.hour.ago, closed_at: Time.current)
+    sign_in create(:user, :admin)
+
+    patch classroom_path(classroom), params: classroom_params(
+      school: school,
+      teacher: replacement,
+      overrides: { class_label: classroom.class_label }
+    )
+    expect(classroom.reload.teacher).to eq(teacher)
+
+    poll.update!(status: :stopped, stopped_at: Time.current)
+    patch classroom_path(classroom), params: classroom_params(
+      school: school,
+      teacher: replacement,
+      overrides: { class_label: classroom.class_label }
+    )
+    expect(classroom.reload.teacher).to eq(replacement)
   end
 
   it "scopes managers and redirects a homeroom teacher to their Classroom students" do

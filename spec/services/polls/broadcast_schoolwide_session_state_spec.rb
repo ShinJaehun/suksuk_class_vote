@@ -8,6 +8,13 @@ RSpec.describe Polls::BroadcastSchoolwideSessionState do
     Nokogiri::HTML.fragment(ActiveSupport::JSON.decode(payload))
   end
 
+  def runtime_stream(poll, user)
+    Turbo::StreamsChannel.send(
+      :stream_name_from,
+      described_class.stream_for(poll: poll, user: user)
+    )
+  end
+
   it "keeps Session lifecycle broadcasts scoped to the related School Poll" do
     school = create(:school)
     teacher = create(:user)
@@ -16,7 +23,8 @@ RSpec.describe Polls::BroadcastSchoolwideSessionState do
     create(:student, classroom: classroom)
     poll = create(:poll, school: school, school_managed: true, participant_group: nil)
     session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
-    stream = Turbo::StreamsChannel.send(:stream_name_from, [poll, :schoolwide_runtime])
+    admin = create(:user, :admin)
+    stream = runtime_stream(poll, admin)
     poll.update!(status: :in_progress, started_at: Time.current)
     status_check = instance_double(
       Polls::SchoolwideStatusCheck,
@@ -94,10 +102,11 @@ RSpec.describe Polls::BroadcastSchoolwideSessionState do
       create(:student, classroom: classroom)
       create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
     end
-    stream = Turbo::StreamsChannel.send(:stream_name_from, [poll, :schoolwide_runtime])
+    admin = create(:user, :admin)
+    stream = runtime_stream(poll, admin)
     previous_count = broadcasts(stream).size
 
-    described_class.for_batch(poll: poll, actor: create(:user, :admin))
+    described_class.for_batch(poll: poll, actor: admin)
 
     payloads = broadcasts(stream).drop(previous_count)
     sessions.each do |poll_session|
@@ -129,7 +138,7 @@ RSpec.describe Polls::BroadcastSchoolwideSessionState do
       closed_at: 10.minutes.ago
     )
     create(:poll_participant, poll: poll, poll_session: source, number: 1, name: "학생")
-    stream = Turbo::StreamsChannel.send(:stream_name_from, [poll, :schoolwide_runtime])
+    stream = runtime_stream(poll, manager)
 
     replacement = Polls::RevoteSchoolSession.new(poll_session: source, actor: manager).call.poll_session
     described_class.for_revote(poll: poll, classroom: classroom)
@@ -172,7 +181,8 @@ RSpec.describe Polls::BroadcastSchoolwideSessionState do
     create(:poll_option, poll: test_poll, poll_contest: contest, number: 1)
     create(:poll_option, poll: test_poll, poll_contest: contest, number: 2)
     create(:poll_session, poll: test_poll, classroom: classroom, operator: teacher)
-    stream = Turbo::StreamsChannel.send(:stream_name_from, [test_poll, :schoolwide_runtime])
+    admin = create(:user, :admin)
+    stream = runtime_stream(test_poll, admin)
 
     expect do
       described_class.for_classroom(classroom: classroom)
@@ -192,6 +202,7 @@ RSpec.describe Polls::BroadcastSchoolwideSessionState do
     poll = create(:poll, school: school, participant_group: nil)
     session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
     poll.update!(school_managed: true)
+    create(:user, :admin)
     session_target = "school_poll_#{poll.id}_classroom_#{classroom.id}_runtime"
     status_target = ActionView::RecordIdentifier.dom_id(poll, :schoolwide_status_runtime)
     attempted_targets = []
@@ -210,6 +221,40 @@ RSpec.describe Polls::BroadcastSchoolwideSessionState do
       'broadcast="classroom_runtime"', 'error_class="StandardError"'
     )
     expect(errors.join).not_to include("학생정보")
+  end
+
+  it "broadcasts only to active admins and the current same-School manager" do
+    school = create(:school)
+    poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+    former_manager = create(:user)
+    former_membership = create(:school_membership, :manager, school: school, user: former_manager)
+    next_manager = create(:user)
+    next_membership = create(:school_membership, school: school, user: next_manager)
+    foreign_manager = create(:user)
+    create(:school_membership, :manager, school: create(:school), user: foreign_manager)
+    admin = create(:user, :admin)
+    former_stream = runtime_stream(poll, former_manager)
+    next_stream = Turbo::StreamsChannel.send(:stream_name_from, [poll, :schoolwide_runtime, next_manager])
+    foreign_stream = Turbo::StreamsChannel.send(:stream_name_from, [poll, :schoolwide_runtime, foreign_manager])
+    admin_stream = runtime_stream(poll, admin)
+
+    next_count = broadcasts(next_stream).size
+    foreign_count = broadcasts(foreign_stream).size
+    expect do
+      described_class.for_poll(poll: poll)
+    end.to change { broadcasts(former_stream).size }.by(1)
+      .and change { broadcasts(admin_stream).size }.by(1)
+    expect(broadcasts(next_stream).size).to eq(next_count)
+    expect(broadcasts(foreign_stream).size).to eq(foreign_count)
+
+    former_membership.update!(role: :member)
+    next_membership.update!(role: :manager)
+
+    expect do
+      described_class.for_poll(poll: poll)
+    end.not_to change { broadcasts(former_stream).size }
+    expect(broadcasts(next_stream)).not_to be_empty
+    expect(broadcasts(foreign_stream)).to be_empty
   end
 
   it "does not surface a schoolwide after-commit broadcast failure" do

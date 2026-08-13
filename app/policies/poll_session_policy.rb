@@ -13,7 +13,7 @@ class PollSessionPolicy < ApplicationPolicy
 
   def start?
     return false if user.blank?
-    return false unless record.classroom.school.active?
+    return false unless record.classroom.school.active? && record.classroom.active?
     return true if user.admin?
     return false unless user.teacher?
 
@@ -28,7 +28,8 @@ class PollSessionPolicy < ApplicationPolicy
   def operate?
     return false if user.blank?
 
-    record.classroom.school.active? && (user.admin? || record.operator == user)
+    record.classroom.school.active? && record.classroom.active? &&
+      (user.admin? || record.operator == user)
   end
 
   def edit_definition?
@@ -86,11 +87,13 @@ class PollSessionPolicy < ApplicationPolicy
   end
 
   def lifecycle_actor_allowed?
-    record.classroom.school.active? && (user.admin? || classroom_lifecycle_actor?)
+    record.classroom.school.active? && record.classroom.active? &&
+      (user.admin? || classroom_lifecycle_actor?)
   end
 
   def classroom_lifecycle_actor?
-    record.classroom.school.active? && (record.operator == user || record.classroom.teacher == user)
+    record.classroom.school.active? && record.classroom.active? &&
+      (record.operator == user || record.classroom.teacher == user)
   end
 
   def replacement_definition_editable?
@@ -103,7 +106,7 @@ class PollSessionPolicy < ApplicationPolicy
 
   def school_lifecycle_actor?
     return false if user.blank?
-    return false unless record.poll.school.active?
+    return false unless record.poll.school.active? && record.classroom.active?
     return true if user.admin?
 
     membership = user.school_membership

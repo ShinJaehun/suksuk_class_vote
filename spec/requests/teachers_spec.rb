@@ -68,6 +68,9 @@ RSpec.describe "Teachers", type: :request do
       expect(document.at_css("#bulk_edit_row_user_#{first.id} select[name$='[classroom_id]']")).to be_present
       expect(document.at_css("#bulk_edit_row_user_#{first.id} input[data-grade-eligible='true']")).to be_present
       expect(document.at_css("button[data-teacher-bulk-target='gradeSubmit']")).to be_present
+      expect(document.at_css("form#teacher_bulk_update[data-turbo-frame='_top']")).to be_present
+      expect(document.at_css("form#teacher_selection_operation[data-turbo-frame='_top']")).to be_present
+      expect(document.at_css("#bulk_status_user_#{first.id} a[data-turbo-frame='_top']")).to be_present
       grade_reason = document.at_css("[data-teacher-bulk-target='gradeReason']")
       expect(grade_reason.text).to include("담당 교실이 없는 활성 선생님")
       expect(grade_reason.ancestors("form#teacher_selection_operation")).to be_empty
@@ -671,6 +674,58 @@ RSpec.describe "Teachers", type: :request do
       expect(teacher.reload).to be_active
       expect(classroom.reload.teacher).to be_nil
       expect(teacher.school_membership.reload.grade).to eq(4)
+    end
+
+    it "does not deactivate a running Poll operator" do
+      teacher = create(:user)
+      add_to_school(teacher, school).update!(grade: 4)
+      classroom = create(:classroom, school: school, teacher: teacher, grade: 4)
+      poll = create(:poll, school: school, user: teacher, participant_group: nil)
+      create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
+                            status: :in_progress, started_at: Time.current)
+      sign_in create(:user, :admin)
+
+      patch deactivate_teacher_path(teacher), params: { school_id: school.id, teacher_grade: 4 }
+
+      expect(teacher.reload).to be_active
+      expect(classroom.reload.teacher).to eq(teacher)
+      expect(response).to redirect_to(teachers_path(school_id: school.id, grade: "4"))
+      expect(flash[:alert]).to include("진행 중인 투표가 있어 교실의 담임, 학년 또는 활성 상태를 변경할 수 없습니다.")
+    end
+
+    it "does not deactivate a draft Session operator while its Schoolwide Poll is running" do
+      teacher = create(:user)
+      add_to_school(teacher, school).update!(grade: 4)
+      classroom = create(:classroom, school: school, teacher: teacher, grade: 4)
+      poll = create(:poll, school: school, user: teacher, school_managed: true,
+                           participant_group: nil, status: :in_progress, started_at: Time.current)
+      create(:poll_session, poll: poll, classroom: classroom, operator: teacher, status: :draft)
+      sign_in create(:user, :admin)
+
+      patch deactivate_teacher_path(teacher), params: { school_id: school.id, teacher_grade: 4 }
+
+      expect(teacher.reload).to be_active
+      expect(classroom.reload.teacher).to eq(teacher)
+    end
+
+    it "protects a closed Schoolwide Session operator while the Session is still revoteable" do
+      teacher = create(:user)
+      add_to_school(teacher, school).update!(grade: 4)
+      classroom = create(:classroom, school: school, teacher: teacher, grade: 4)
+      poll = create(:poll, school: school, user: teacher, school_managed: true,
+                           participant_group: nil, status: :in_progress, started_at: 1.hour.ago)
+      create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
+                            status: :closed, started_at: 1.hour.ago, closed_at: Time.current)
+      sign_in create(:user, :admin)
+
+      patch deactivate_teacher_path(teacher), params: { school_id: school.id, teacher_grade: 4 }
+      expect(teacher.reload).to be_active
+      expect(classroom.reload.teacher).to eq(teacher)
+
+      poll.update!(status: :closed, closed_at: Time.current)
+      patch deactivate_teacher_path(teacher), params: { school_id: school.id, teacher_grade: 4 }
+      expect(teacher.reload).not_to be_active
+      expect(classroom.reload.teacher).to be_nil
     end
 
     it "does not let an ordinary teacher change another teacher's active state" do

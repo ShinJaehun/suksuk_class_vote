@@ -139,6 +139,13 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(current.reload.poll_participation).to be_nil
     expect(waiting.reload.poll_participation).to be_nil
     expect(tally.reload.votes_count).to eq(0)
+    lock_payload = ActiveSupport::JSON.decode(broadcasts(ballot_stream).last)
+    expect(lock_payload).to include(
+      %(target="ballot_poll_session_#{poll_session.id}"),
+      "#{current.number}번 #{current.name}",
+      "선생님이 투표를 시작할 때까지 기다려 주세요."
+    )
+    expect(lock_payload).not_to include("투표 제출")
   end
 
   it "locks an open ballot when the student window closes" do
@@ -153,6 +160,7 @@ RSpec.describe "PollSession ballots", type: :request do
       ballot_status: "ballot_locked",
       current_poll_participant: current
     )
+
     expect(current.reload.poll_participation).to be_nil
     expect(waiting.reload.poll_participation).to be_nil
     expect(tally.reload.votes_count).to eq(0)
@@ -356,6 +364,52 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(ballot.to_html).not_to include("opacity-100")
   end
 
+  it "recovers a missed current participant broadcast without overwriting a matching ballot" do
+    poll, poll_session, progress, current, waiting, _option, _tally, operator = create_execution
+    progress.update!(ballot_status: :ballot_open)
+    sign_in operator
+    get ballot_poll_poll_session_path(poll, poll_session)
+    page = Nokogiri::HTML(response.body)
+    recovery_url = page
+      .at_css("[data-controller='poll-session-recovery']")["data-poll-session-recovery-url-value"]
+    fingerprint = page
+      .at_css("turbo-frame#ballot_poll_session_#{poll_session.id}")["data-poll-session-runtime-fingerprint"]
+
+    get recovery_url, params: { fingerprint: fingerprint }
+    expect(response).to have_http_status(:no_content)
+
+    progress.update!(current_poll_participant: waiting)
+    get recovery_url, params: { fingerprint: fingerprint }
+
+    replacement = Nokogiri::HTML(response.body)
+    frame = replacement.at_css("turbo-stream[target='ballot_poll_session_#{poll_session.id}'] template")
+    expect(frame.text.squish).to include("#{waiting.number}번 #{waiting.name}")
+    expect(frame.text.squish).not_to include("#{current.number}번 #{current.name}")
+  end
+
+  it "replaces a stale open form with the server's locked ballot state" do
+    poll, poll_session, progress, current, _waiting, option, _tally, operator = create_execution
+    progress.update!(ballot_status: :ballot_open)
+    sign_in operator
+    get ballot_poll_poll_session_path(poll, poll_session)
+    page = Nokogiri::HTML(response.body)
+    frame = page.at_css("turbo-frame#ballot_poll_session_#{poll_session.id}")
+    expect(frame.at_css("form[data-controller='poll-contest-ballot']")).to be_present
+    expect(frame.text.squish).to include(option.name)
+    fingerprint = frame["data-poll-session-runtime-fingerprint"]
+    recovery_url = page
+      .at_css("[data-controller='poll-session-recovery']")["data-poll-session-recovery-url-value"]
+
+    progress.update!(ballot_status: :ballot_locked)
+    get recovery_url, params: { fingerprint: fingerprint }
+
+    replacement = Nokogiri::HTML(response.body)
+      .at_css("turbo-stream[target='ballot_poll_session_#{poll_session.id}'] template")
+    expect(replacement.at_css("form[data-controller='poll-contest-ballot']")).to be_nil
+    expect(replacement.text.squish).to include("선생님이 투표를 시작할 때까지 기다려 주세요.")
+    expect(replacement.text.squish).to include("#{current.number}번 #{current.name}")
+  end
+
   it "uses the common ballot UI for non-Election Schoolwide Polls" do
     poll, poll_session, progress, _current, _waiting, option, _tally, operator = create_execution
     poll.update!(
@@ -431,6 +485,13 @@ RSpec.describe "PollSession ballots", type: :request do
       ballot_status: "ballot_locked",
       current_poll_participant: current
     )
+    submit_payload = ActiveSupport::JSON.decode(broadcasts(ballot_stream).last)
+    expect(submit_payload).to include(
+      %(target="ballot_poll_session_#{poll_session.id}"),
+      "#{current.number}번 #{current.name}",
+      "투표가 완료되었습니다."
+    )
+    expect(submit_payload).not_to include("투표 제출")
     teacher_update = ActiveSupport::JSON.decode(broadcasts(operation_stream).last)
     expect(teacher_update).to include(
       %(target="operation_poll_session_#{poll_session.id}"),
@@ -1060,10 +1121,12 @@ RSpec.describe "PollSession ballots", type: :request do
     poll, poll_session, progress, current, _waiting, option, tally, operator = create_execution
     progress.update!(ballot_status: :ballot_open)
     errors = []
+    render_error = StandardError.new("김학생")
+    render_error.set_backtrace([Rails.root.join("app/views/poll_sessions/_ballot_content.html.erb:2").to_s])
     allow(Turbo::StreamsChannel).to receive(:broadcast_replace_to)
-      .and_raise(StandardError, "김학생")
+      .and_raise(render_error)
     expect(Turbo::StreamsChannel).to receive(:broadcast_render_to)
-      .and_raise(StandardError, "김학생")
+      .and_raise(render_error)
     allow(Rails.logger).to receive(:error) { |message| errors << message }
     sign_in operator
 
@@ -1082,7 +1145,8 @@ RSpec.describe "PollSession ballots", type: :request do
       "actor_id=#{operator.id}", "poll_id=#{poll.id}",
       "poll_session_id=#{poll_session.id}",
       'broadcast="ballot_screen"', 'broadcast="operation_screen"',
-      'error_class="StandardError"'
+      'error_class="StandardError"',
+      'app_location="app/views/poll_sessions/_ballot_content.html.erb:2"'
     )
     expect(errors.join).not_to include("김학생")
   end
@@ -1097,6 +1161,27 @@ RSpec.describe "PollSession ballots", type: :request do
     post close_ballot_screen_poll_poll_session_path(poll, poll_session)
 
     expect(response).to have_http_status(:no_content)
+    expect(progress.reload).to be_ballot_locked
+  end
+
+  it "keeps an inactive Classroom ballot readable but blocks runtime mutation" do
+    poll, poll_session, progress, _current, _waiting, _option, _tally, operator = create_execution
+    sign_in operator
+    get ballot_poll_poll_session_path(poll, poll_session)
+    recovery_url = Nokogiri::HTML(response.body)
+      .at_css("[data-controller='poll-session-recovery']")["data-poll-session-recovery-url-value"]
+    poll_session.classroom.update_column(:active, false)
+
+    get poll_poll_session_path(poll, poll_session)
+    expect(response).to have_http_status(:ok)
+
+    get recovery_url
+    expect(response).to have_http_status(:ok)
+    expect(response.body).to include("이 교실은 현재 비활성 상태입니다.")
+
+    patch open_ballot_poll_poll_session_path(poll, poll_session)
+
+    expect(response).to redirect_to(polls_path)
     expect(progress.reload).to be_ballot_locked
   end
 end

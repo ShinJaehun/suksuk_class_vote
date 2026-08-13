@@ -9,6 +9,7 @@ class SchoolPollsController < ApplicationController
   ].freeze
 
   before_action :authenticate_user!
+  helper_method :school_poll_recovery_token
 
   def index
     authorize Poll, :school_index?
@@ -63,6 +64,8 @@ class SchoolPollsController < ApplicationController
     @poll = school_poll_scope.find(params[:id])
     authorize @poll, :school_show?
     prepare_runtime
+  rescue ActiveRecord::RecordNotFound
+    recover_stale_school_poll_runtime
   end
 
   def edit
@@ -296,6 +299,31 @@ class SchoolPollsController < ApplicationController
 
   def school_poll_scope
     PollPolicy::SchoolScope.new(current_user, Poll).resolve
+  end
+
+  def school_poll_recovery_token
+    Rails.application.message_verifier("school-poll-runtime-recovery").generate(
+      [@poll.id, @poll.school_id, current_user.id]
+    )
+  end
+
+  def recover_stale_school_poll_runtime
+    payload = Rails.application.message_verifier("school-poll-runtime-recovery")
+      .verified(params[:recovery_token])
+    expected = [params[:id].to_i, current_user.id]
+    raise ActiveRecord::RecordNotFound unless payload && [payload.first, payload.third] == expected
+
+    poll_id, school_id, = payload
+    poll = Poll.find_by(id: poll_id)
+    if poll
+      raise ActiveRecord::RecordNotFound unless poll.school_managed? && poll.school_id == school_id
+      raise ActiveRecord::RecordNotFound if policy(poll).school_show?
+    end
+    response.set_header("X-Turbo-Recovery-Location", default_landing_path_for(current_user))
+    render html: helpers.tag.span(
+      hidden: true,
+      data: { school_poll_runtime_recovery_stale: true }
+    ), status: :ok
   end
 
   def school_for_creation

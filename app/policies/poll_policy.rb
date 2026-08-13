@@ -8,7 +8,9 @@ class PollPolicy < ApplicationPolicy
   end
 
   def create?
-    admin? || (teacher? && operational_school_active?)
+    return operational_school_active? if admin?
+
+    teacher? && operational_school_active?
   end
 
   def school_index?

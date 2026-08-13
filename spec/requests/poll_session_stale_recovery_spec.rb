@@ -293,15 +293,25 @@ RSpec.describe "PollSession stale recovery", type: :request do
     poll, poll_session, teacher = create_running_schoolwide_session
     sign_in teacher
     get ballot_poll_poll_session_path(poll, poll_session)
-    recovery_url = Nokogiri::HTML(response.body)
+    page = Nokogiri::HTML(response.body)
+    recovery_url = page
       .at_css("[data-controller='poll-session-recovery']")["data-poll-session-recovery-url-value"]
+    fingerprint = page
+      .at_css("turbo-frame#ballot_poll_session_#{poll_session.id}")["data-poll-session-runtime-fingerprint"]
 
-    get recovery_url
+    get recovery_url, params: { fingerprint: fingerprint }
     expect(response).to have_http_status(:no_content)
     expect(response.body).to be_empty
 
+    poll_session.poll_progress.update!(ballot_status: :ballot_open)
+    get recovery_url, params: { fingerprint: fingerprint }
+    replacement = Nokogiri::HTML(response.body)
+    expect(
+      replacement.at_css("turbo-stream[target='ballot_poll_session_#{poll_session.id}']")
+    ).to be_present
+
     poll_session.update!(status: :stopped, stopped_at: Time.current)
-    get recovery_url
+    get recovery_url, params: { fingerprint: fingerprint }
     terminal = Nokogiri::HTML(response.body)
     expect(response).to have_http_status(:ok)
     expect(response.media_type).to eq("text/vnd.turbo-stream.html")

@@ -122,7 +122,10 @@ RSpec.describe Polls::ResetSchoolwidePoll do
     source.update!(status: :stopped, stopped_at: Time.current)
     replacement = create(:poll_session, poll: poll, classroom: classroom,
                                          operator: classroom.teacher, replacement_of: source)
-    stream = Turbo::StreamsChannel.send(:stream_name_from, [poll, :schoolwide_runtime])
+    stream = Turbo::StreamsChannel.send(
+      :stream_name_from,
+      Polls::BroadcastSchoolwideSessionState.stream_for(poll: poll, user: admin)
+    )
     previous_broadcast_count = broadcasts(stream).size
 
     result = described_class.new(poll: poll, actor: admin).call
@@ -292,7 +295,7 @@ RSpec.describe Polls::ResetSchoolwidePoll do
     poll, session, classroom = create_target(status: :in_progress)
     participant = create(:poll_participant, poll: poll, poll_session: session,
                                             source_participant_slot: nil)
-    classroom.update!(teacher: nil)
+    classroom.update_column(:teacher_id, nil)
 
     result = described_class.new(poll: poll, actor: admin).call
 

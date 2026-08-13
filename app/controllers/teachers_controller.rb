@@ -23,6 +23,7 @@ class TeachersController < ApplicationController
     else
       @bulk_entries = result.entries.select(&:user)
       @bulk_errors = result.errors + result.entries.flat_map(&:errors)
+      flash.now[:alert] = @bulk_errors.uniq.to_sentence
       prepare_school_management
       render :index, status: :unprocessable_entity
     end
@@ -477,6 +478,9 @@ class TeachersController < ApplicationController
       end
       format.html { redirect_to teachers_path(school_id: @school.id, grade: @teacher_grade) }
     end
+  rescue ActiveRecord::RecordInvalid => error
+    redirect_to teachers_path(school_id: @school.id, grade: params[:teacher_grade]),
+                alert: error.record.errors.full_messages.to_sentence
   end
 
   def filter_value(key)

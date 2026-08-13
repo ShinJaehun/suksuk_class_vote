@@ -101,9 +101,12 @@ class PollSession < ApplicationRecord
 
     Polls::BroadcastSchoolwideSessionState.new(poll: poll, classroom: classroom).call
   rescue StandardError => error
-    Rails.logger.error(
-      "[poll_session_broadcast_failed] poll_id=#{poll_id} poll_session_id=#{id} " \
-      "broadcast=\"schoolwide_runtime_callback\" error_class=#{error.class.name.inspect}"
+    RealtimeBroadcastFailure.log(
+      tag: "poll_session_broadcast_failed",
+      error: error,
+      poll_id: poll_id,
+      poll_session_id: id,
+      broadcast: "schoolwide_runtime_callback"
     )
   end
 

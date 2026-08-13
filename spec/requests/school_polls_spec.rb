@@ -69,18 +69,118 @@ RSpec.describe "School Poll management", type: :request do
       page = Nokogiri::HTML(response.body)
       recovery_frames = page.css("turbo-frame[data-controller='school-poll-runtime-recovery']")
       expect(recovery_frames.size).to eq(1)
-      expect(recovery_frames.first["data-school-poll-runtime-recovery-url-value"]).to eq(runtime_school_poll_path(poll))
+      expect(recovery_frames.first["data-school-poll-runtime-recovery-url-value"]).to include(
+        runtime_school_poll_path(poll),
+        "recovery_token="
+      )
       expect(recovery_frames.first["data-school-poll-runtime-recovery-interval-value"]).to eq("10000")
       expect(page.at_css("turbo-cable-stream-source[channel='Turbo::StreamsChannel']")).to be_present
     end
 
-    it "does not poll when the School Poll is not running" do
-      poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil)
-      sign_in create(:user, :admin)
+    it "keeps signed recovery for draft and running Polls but not terminal Polls" do
+      school = create(:school)
+      manager = create(:user)
+      create(:school_membership, :manager, school: school, user: manager)
+      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      sign_in manager
 
+      get school_poll_path(poll)
+      draft_recovery = Nokogiri::HTML(response.body)
+        .at_css("[data-controller='school-poll-runtime-recovery']")
+      expect(draft_recovery["data-school-poll-runtime-recovery-url-value"]).to include("recovery_token=")
+
+      recovery_url = draft_recovery[
+        "data-school-poll-runtime-recovery-url-value"
+      ]
+      get recovery_url
+      expect(response).to have_http_status(:ok)
+      expect(
+        Nokogiri::HTML(response.body).at_css("[data-school-poll-terminal]")
+      ).to be_nil
+
+      poll.update!(status: :in_progress, started_at: Time.current)
+      get school_poll_path(poll)
+      expect(Nokogiri::HTML(response.body).at_css("[data-controller='school-poll-runtime-recovery']")).to be_present
+
+      poll.update!(status: :stopped, stopped_at: Time.current)
       get school_poll_path(poll)
 
       expect(Nokogiri::HTML(response.body).at_css("[data-controller='school-poll-runtime-recovery']")).to be_nil
+    end
+
+    it "moves a demoted manager out of a stale draft Schoolwide workspace" do
+      school = create(:school)
+      manager = create(:user)
+      create(:school_membership, :manager, school: school, user: manager)
+      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      sign_in manager
+      get school_poll_path(poll)
+      recovery_url = Nokogiri::HTML(response.body)
+        .at_css("[data-controller='school-poll-runtime-recovery']")["data-school-poll-runtime-recovery-url-value"]
+
+      manager.school_membership.update!(role: :member)
+      get recovery_url
+
+      expect(response).to have_http_status(:ok)
+      expect(response.headers["X-Turbo-Recovery-Location"]).to eq(polls_path)
+      expect(response.body).to include("data-school-poll-runtime-recovery-stale")
+
+      get runtime_school_poll_path(poll, recovery_token: "invalid")
+      expect(response).to have_http_status(:not_found)
+      foreign_poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil)
+      recovery_token = Rack::Utils.parse_query(recovery_url.split("?", 2).last)["recovery_token"]
+      get runtime_school_poll_path(foreign_poll, recovery_token: recovery_token)
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "moves a demoted manager out through only their signed runtime recovery" do
+      poll, _, manager, = create_schoolwide_lifecycle
+      sign_in manager
+      get school_poll_path(poll)
+      recovery_url = Nokogiri::HTML(response.body)
+        .at_css("[data-controller='school-poll-runtime-recovery']")["data-school-poll-runtime-recovery-url-value"]
+      recovery_token = Rack::Utils.parse_query(recovery_url.split("?", 2).last)["recovery_token"]
+      manager.school_membership.update!(role: :member)
+
+      get recovery_url
+
+      expect(response).to have_http_status(:ok)
+      expect(response.headers["X-Turbo-Recovery-Location"]).to eq(polls_path)
+
+      get runtime_school_poll_path(poll, recovery_token: "invalid")
+      expect(response).to have_http_status(:not_found)
+
+      foreign_poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil,
+                                   status: :in_progress, started_at: Time.current)
+      get runtime_school_poll_path(foreign_poll, recovery_token: recovery_token)
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "recovers signed management pages after membership removal or Poll deletion" do
+      poll, _, manager, = create_schoolwide_lifecycle
+      sign_in manager
+      get school_poll_path(poll)
+      recovery_url = Nokogiri::HTML(response.body)
+        .at_css("[data-controller='school-poll-runtime-recovery']")["data-school-poll-runtime-recovery-url-value"]
+
+      manager.school_membership.destroy!
+      get recovery_url
+      expect(response).to have_http_status(:ok)
+      expect(response.headers["X-Turbo-Recovery-Location"]).to eq(polls_path)
+
+      manager.create_school_membership!(school: create(:school), role: :manager)
+      get recovery_url
+      expect(response).to have_http_status(:ok)
+      manager.school_membership.destroy!
+
+      manager.create_school_membership!(school: poll.school, role: :manager)
+      get school_poll_path(poll)
+      deleted_recovery_url = Nokogiri::HTML(response.body)
+        .at_css("[data-controller='school-poll-runtime-recovery']")["data-school-poll-runtime-recovery-url-value"]
+      expect(Polls::DestroySchoolwidePoll.new(poll: poll, actor: create(:user, :admin)).call).to be_success
+      get deleted_recovery_url
+      expect(response).to have_http_status(:ok)
+      expect(response.headers["X-Turbo-Recovery-Location"]).to eq(polls_path)
     end
 
     it "refreshes aggregate, current classroom, and revote runtime from the lightweight endpoint" do
@@ -239,7 +339,10 @@ RSpec.describe "School Poll management", type: :request do
       second_session = create(:poll_session, poll: poll, classroom: second_classroom, operator: second_teacher,
                                              status: :closed, started_at: 1.hour.ago, closed_at: 10.minutes.ago)
       create(:poll_participant, poll: poll, poll_session: second_session, number: 1, name: "학생")
-      stream = Turbo::StreamsChannel.send(:stream_name_from, [poll, :schoolwide_runtime])
+      stream = Turbo::StreamsChannel.send(
+        :stream_name_from,
+        Polls::BroadcastSchoolwideSessionState.stream_for(poll: poll, user: manager)
+      )
       sign_in manager
 
       post revote_school_poll_poll_session_path(poll, session),

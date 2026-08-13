@@ -14,7 +14,8 @@
   ),
   poll_session_progress_pause_selector_value: "form[data-controller~='poll-contest-ballot'], [data-poll-session-terminal]"
 } %>
-<%= turbo_frame_tag dom_id(poll_session, :ballot), data: polling_data do %>
+<%= turbo_frame_tag dom_id(poll_session, :ballot),
+                    data: polling_data.merge(poll_session_runtime_fingerprint: runtime_fingerprint) do %>
   <header class="mx-auto mb-3 flex max-w-6xl items-end justify-between gap-4 rounded-md border border-stone-200 bg-white px-3 py-2"
           data-testid="poll-session-current-participant">
     <section>
