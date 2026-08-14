@@ -64,8 +64,8 @@
 
   <% unless status_check.phase == :draft %>
     <% counts = {
-         "전체 투표자" => status_check.total_count,
-         "투표 완료" => status_check.completed_count,
+         "투표 대상자" => status_check.total_count,
+         "투표 완료" => status_check.completed_count + status_check.abstained_count,
          "미참여" => status_check.absent_count,
          "대기" => status_check.pending_count
        } %>

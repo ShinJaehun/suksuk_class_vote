@@ -145,6 +145,7 @@ class PollSessionsController < ApplicationController
     @status_check = Polls::SessionStatusCheck.new(poll_session: @poll_session).call
     @total_count = @status_check.total_count
     @completed_count = @status_check.completed_count
+    @abstained_count = @status_check.abstained_count
     @absent_count = @status_check.absent_count
     prepare_closed_summary
   end
@@ -452,9 +453,9 @@ class PollSessionsController < ApplicationController
 
       reason = if Poll.exists?(id: payload.first)
                  signed_reset_session_reason!(payload, policy_query)
-               else
+      else
                  stale_poll_session_reason!(policy_query)
-               end
+      end
     else
       reason = stale_poll_session_reason!(policy_query)
       raise ActiveRecord::RecordNotFound unless reason == :deleted

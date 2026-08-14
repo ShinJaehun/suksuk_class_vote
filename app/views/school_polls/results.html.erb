@@ -1,77 +1,66 @@
 <div class="mx-auto max-w-5xl space-y-6">
-  <%= link_to "전교투표 상세로 돌아가기", school_poll_path(@poll), class: "text-sm font-medium text-stone-700 underline" %>
-  <div class="flex flex-wrap items-center gap-2">
-    <h1 class="text-3xl font-semibold"><%= @poll.title %> 결과 집계</h1>
-    <%= poll_badges(poll: @poll, status_record: @poll) %>
-  </div>
+  <%= link_to "전교투표 상세로 돌아가기", school_poll_path(@poll), class: "inline-block text-sm font-medium text-stone-700 underline" %>
 
-  <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
-    <h2 class="text-xl font-semibold">전체 진행 현황</h2>
-    <p class="mt-2 text-sm text-stone-600">종료된 학급만 전체 집계에 반영합니다.</p>
-    <dl class="mt-4 grid gap-3 sm:grid-cols-2">
-      <div class="rounded-md bg-stone-50 p-3">
-        <dt class="text-sm text-stone-500">전체 반영 학급</dt>
-        <dd class="mt-1 text-2xl font-semibold">
-          <%= @school_result_summary.closed_session_count %>개
-        </dd>
-      </div>
-      <div class="rounded-md bg-stone-50 p-3">
-        <dt class="text-sm text-stone-500">완료 학급</dt>
-        <dd class="mt-1 text-2xl font-semibold">
-          <%= @school_result_summary.closed_session_count %>/<%= @current_session_count %>
-        </dd>
-      </div>
+  <section class="space-y-4 rounded-xl border border-stone-200 bg-white p-6 shadow-sm" data-testid="school-poll-result-summary">
+    <div class="flex flex-wrap items-center gap-2">
+      <h1 class="text-3xl font-semibold"><%= @poll.title %> 결과 집계</h1>
+      <%= poll_badges(poll: @poll, status_record: @poll) %>
+    </div>
+    <% grade_label = @included_grades.one? ? "#{@included_grades.first}학년" : "#{@included_grades.join("·")}학년" %>
+    <% poll_time_labels = [@poll.started_at ? "시작 #{kst_datetime(@poll.started_at)}" : nil, @poll.closed_at ? "종료 #{kst_datetime(@poll.closed_at)}" : nil].compact %>
+    <p class="text-base font-medium text-stone-700 sm:text-lg"><%= [@academic_year ? "#{@academic_year}학년도" : nil, @poll.school.name, "#{grade_label} 대상", poll_time_labels.join(" · ")].compact_blank.join(" ") %></p>
+    <dl class="grid gap-3 sm:grid-cols-3">
+      <% { "투표 대상자" => "#{@total_count}명", "투표 완료" => "#{@completed_count}명", "미참여" => "#{@absent_count}명" }.each do |label, value| %>
+        <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+          <dt class="text-xs font-medium text-stone-500"><%= label %></dt>
+          <dd class="mt-1 font-semibold"><%= value %></dd>
+        </div>
+      <% end %>
+    </dl>
+    <dl class="grid gap-3 sm:grid-cols-2">
+      <% { "학급 세션" => @current_session_count, "완료" => "#{@included_sessions.size}/#{@current_session_count}" }.each do |label, value| %>
+        <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+          <dt class="text-xs font-medium text-stone-500"><%= label %></dt>
+          <dd class="mt-1 font-semibold"><%= value %></dd>
+        </div>
+      <% end %>
     </dl>
   </section>
 
-  <section class="space-y-4">
+  <section class="space-y-4" data-testid="school-poll-overall-results">
     <h2 class="text-xl font-semibold">전체 집계</h2>
     <% @school_result_summary.contest_results.each do |contest_result| %>
       <% total = contest_result.option_results.sum(&:votes_count) + contest_result.abstentions_count %>
       <% highest = contest_result.option_results.map(&:votes_count).max.to_i %>
       <% winners = highest.positive? ? contest_result.option_results.select { |result| result.votes_count == highest } : [] %>
       <article class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h3 class="text-lg font-semibold"><%= contest_result.poll_contest.title %></h3>
-            <p class="mt-1 text-sm text-stone-600">
-              <%= @poll.winner_label %>: <%= winners.any? ? winners.map { |result| "#{result.poll_option.number}번 #{result.poll_option.name}" }.join(", ") : "없음" %>
-            </p>
-          </div>
-          <span class="rounded-md bg-stone-100 px-2 py-1 text-sm font-medium">전체 집계 <%= total %>표</span>
-        </div>
-        <div class="mt-4 space-y-3">
+        <h3 class="text-xl font-semibold"><%= contest_result.poll_contest.title %></h3>
+        <p class="mt-2 text-sm font-medium text-stone-700">
+          최다 득표: <%= winners.any? ? winners.map { |result| "#{@poll.choice_number_label} #{result.poll_option.number}번 #{result.poll_option.name}" }.join(", ") : "없음" %>
+        </p>
+        <div class="mt-5 space-y-3">
           <% contest_result.option_results.each do |option_result| %>
             <% percentage = poll_result_percentage(option_result.votes_count, total) %>
-            <div class="rounded-md bg-stone-50 p-3">
+            <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
               <div class="flex items-center gap-3">
                 <% if @poll.election? %>
-                  <%= image_tag poll_option_photo_source(option_result.poll_option, variant: :thumbnail),
-                                alt: "",
-                                class: "h-12 w-12 rounded-md object-contain" %>
+                  <%= image_tag poll_option_photo_source(option_result.poll_option, variant: :thumbnail), alt: "#{option_result.poll_option.name} 후보 사진", class: "h-12 w-12 shrink-0 rounded-md object-contain" %>
                 <% end %>
-                <div class="flex-1">
-                  <div class="flex justify-between gap-3">
-                    <span class="font-medium"><%= option_result.poll_option.number %>번 <%= option_result.poll_option.name %></span>
-                    <span class="font-semibold"><%= option_result.votes_count %>표</span>
+                <div class="min-w-0 flex-1">
+                  <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+                    <p class="break-words font-medium"><%= @poll.choice_number_label %> <%= option_result.poll_option.number %>번 <%= option_result.poll_option.name %></p>
+                    <p class="font-semibold"><%= option_result.votes_count %>표</p>
                   </div>
-                  <div class="mt-2 h-2 overflow-hidden rounded-full bg-stone-200">
-                    <div class="h-full rounded-full bg-emerald-500" style="width: <%= percentage %>%"></div>
-                  </div>
+                  <div class="mt-2 h-2 overflow-hidden rounded-full bg-stone-200"><div class="h-full rounded-full bg-emerald-500" style="width: <%= percentage %>%"></div></div>
                   <p class="mt-1 text-xs text-stone-500"><%= percentage %>%</p>
                 </div>
               </div>
             </div>
           <% end %>
           <% abstention_percentage = poll_result_percentage(contest_result.abstentions_count, total) %>
-          <div class="rounded-md bg-stone-50 p-3">
-            <div class="flex justify-between">
-              <span class="font-medium">기권:</span>
-              <span class="font-semibold"><%= contest_result.abstentions_count %>표</span>
-            </div>
-            <div class="mt-2 h-2 overflow-hidden rounded-full bg-stone-200">
-              <div class="h-full rounded-full bg-stone-500" style="width: <%= abstention_percentage %>%"></div>
-            </div>
+          <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+            <div class="flex items-center justify-between gap-3"><p class="font-medium">기권</p><p class="font-semibold"><%= contest_result.abstentions_count %>표</p></div>
+            <div class="mt-2 h-2 overflow-hidden rounded-full bg-stone-200"><div class="h-full rounded-full bg-stone-500" style="width: <%= abstention_percentage %>%"></div></div>
             <p class="mt-1 text-xs text-stone-500"><%= abstention_percentage %>%</p>
           </div>
         </div>
@@ -79,26 +68,58 @@
     <% end %>
   </section>
 
-  <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+  <div class="flex justify-end">
+    <button type="button" onclick="window.print()" class="school-poll-result-print-button rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700">투표 결과 인쇄</button>
+  </div>
+
+  <%= render "school_polls/printable_results" %>
+
+  <section class="space-y-4" data-testid="school-poll-classroom-results">
     <h2 class="text-xl font-semibold">학급별 집계</h2>
-    <div class="mt-4 space-y-3">
-      <% @included_sessions.each do |session| %>
-        <article class="rounded-md bg-stone-50 p-3">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <h3 class="font-semibold"><%= session.classroom_name_snapshot %></h3>
-            <%= poll_session_status_badge(session) %>
-          </div>
-          <p class="mt-1 text-sm text-stone-600">참여 <%= session.poll_participants.count { |participant| participant.poll_participation.present? } %>/<%= session.poll_participants.size %>명</p>
-          <% @poll.poll_contests.order(:position, :id).each do |contest| %>
-            <% tallies = session.poll_option_tallies.select { |tally| tally.poll_option.poll_contest_id == contest.id }.sort_by { |tally| tally.poll_option.number } %>
-            <p class="mt-2 text-sm">
-              <span class="font-medium"><%= contest.title %></span>: <%= tallies.map { |tally| "#{tally.poll_option.number}번 #{tally.votes_count}표" }.join(" · ") %>
-              <% abstentions = session.poll_contest_tallies.find { |tally| tally.poll_contest_id == contest.id } %>
-              · 기권 <%= abstentions&.abstentions_count.to_i %>표
-            </p>
+    <% @included_sessions_by_grade.each do |grade, sessions| %>
+      <details open class="space-y-3" data-testid="school-poll-grade-results">
+        <summary class="cursor-pointer text-lg font-semibold text-stone-800"><%= grade.present? ? "#{grade}학년" : "학년 미상" %> · 투표 대상자 <%= sessions.sum { |session| session.poll_participants.size } %>명</summary>
+        <div class="space-y-3 pt-3">
+          <% sessions.each do |session| %>
+            <% enrolled = session.poll_participants.size %>
+            <% completed = session.poll_participants.count { |participant| participant.poll_participation.present? } %>
+            <% classroom_label = session.classroom&.grade.present? && session.classroom&.class_label.present? ? "#{session.classroom.grade}학년 #{session.classroom.class_label}반" : session.classroom_name_snapshot %>
+            <% operator_name = session.operator_name_snapshot.presence || session.operator&.name.presence || session.operator&.email %>
+            <article class="rounded-md border border-stone-200 bg-white p-4 shadow-sm">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="space-y-1">
+                  <h4 class="font-semibold"><%= classroom_label %></h4>
+                  <p class="text-sm text-stone-600">담당교사 <%= operator_name %> 선생님</p>
+                  <p class="text-sm font-medium text-stone-700">투표 대상자 <%= enrolled %>명 · 참여 <%= completed %>명 · 미참여 <%= enrolled - completed %>명</p>
+                  <p class="text-sm text-stone-600"><%= [session.started_at ? "시작 #{kst_datetime(session.started_at)}" : nil, session.closed_at ? "종료 #{kst_datetime(session.closed_at)}" : nil].compact.join(" · ") %></p>
+                </div>
+                <%= link_to "학급별 상세 결과", results_poll_poll_session_path(@poll, session, from: "school_poll_results"), class: "text-sm font-medium text-stone-700 underline" %>
+              </div>
+            </article>
           <% end %>
-        </article>
-      <% end %>
-    </div>
+        </div>
+      </details>
+    <% end %>
   </section>
 </div>
+
+<style>
+  @media print {
+    body * { visibility: hidden; }
+    .school-poll-result-print-area,
+    .school-poll-result-print-area * { visibility: visible; }
+    .school-poll-result-print-area {
+      background: #fff !important;
+      border-color: #000 !important;
+      font-size: 12px !important;
+      left: 0;
+      padding: 10mm !important;
+      position: absolute;
+      top: 0;
+      width: 100%;
+    }
+    .school-poll-result-print-contests { display: grid !important; gap: 8px !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .school-poll-result-print-options { column-gap: 8px !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; row-gap: 3px !important; }
+    .school-poll-result-print-button { display: none !important; }
+  }
+</style>

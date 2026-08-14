@@ -908,7 +908,7 @@ RSpec.describe "PollSession ballots", type: :request do
     get operation_frame_poll_poll_session_path(poll, poll_session)
     refresh_page = Nokogiri::HTML(response.body)
     expect(refresh_page.text.squish).to include(
-      "전체 투표자 2명", "투표 완료 1명", "미참여 1명", "대기 0명",
+      "투표 대상자 2명", "투표 완료 1명", "미참여 1명", "대기 0명",
       "모든 학생의 투표 처리가 끝났습니다.", "투표 종료"
     )
     expect(response.body).not_to include("다음 투표자는")
@@ -945,6 +945,18 @@ RSpec.describe "PollSession ballots", type: :request do
     create(:poll_participation, poll_participant: current, status: :completed)
     create_contest_completions(current)
     create(:poll_participation, poll_participant: waiting, status: :absent)
+    abstained = create(
+      :poll_participant,
+      poll: poll,
+      poll_session: poll_session,
+      source_participant_slot: nil,
+      number: 3,
+      name: "박학생"
+    )
+    create(:poll_participation, poll_participant: abstained, status: :abstained)
+    create_contest_completions(abstained)
+    poll_session.poll_contest_tallies.find_by!(poll_contest: option.poll_contest)
+      .update!(abstentions_count: 1)
     closed_at = Time.current
     poll_session.update!(status: :closed, closed_at: closed_at)
     progress.update!(status: :closed, closed_at: closed_at, ballot_status: :ballot_locked)
@@ -961,11 +973,16 @@ RSpec.describe "PollSession ballots", type: :request do
     ).map { |row| row.text.squish }
 
     expect(response.body).to include("결과 집계 보기", "투표자 명단", "보관")
+    expect(page.at_css("section dl").text.squish).to include("전체 투표자 2명 / 3명")
     expect(response.body).not_to include("학급 선거 결과", "data-testid=\"poll-session-results\"")
     expect(status_check.text.squish).to include(
       "상태점검 종료",
-      "이 학급 투표는 완료되었습니다."
+      "이 학급 투표는 완료되었습니다.",
+      "투표 대상자 3명",
+      "투표 완료 2명",
+      "미참여 1명"
     )
+    expect(status_check.text.squish).not_to include("전체 투표자 3명")
     expect(status_check.text).not_to include("기권", "보관")
     expect(roster_rows).to include(
       "#{current.number}번 #{current.name} · 투표 완료",
@@ -996,7 +1013,15 @@ RSpec.describe "PollSession ballots", type: :request do
       "최다 득표 후보: 기호 1번 김후보",
       "기호 1번 김후보",
       "1표",
-      "기권 0표"
+      "기권 1표"
+    )
+    expect(results_page.at_css("section.rounded-xl").text.squish).to include(
+      "투표 대상자 3명",
+      "투표 완료 2명",
+      "미참여 1명"
+    )
+    expect(results_page.at_css("[data-testid='poll-session-printable-results']").text.squish).to include(
+      "투표 대상자 3명"
     )
     expect(response.body).to include("투표 결과 인쇄", "data-testid=\"poll-session-printable-results\"")
     expect(response.body).not_to include("99표", "종료 학급 집계", "집계 포함")
@@ -1089,7 +1114,7 @@ RSpec.describe "PollSession ballots", type: :request do
     closed_at = Time.current
     poll_session.update!(status: :closed, closed_at: closed_at)
     progress.update!(status: :closed, closed_at: closed_at, ballot_status: :ballot_locked)
-    poll.update!(school_managed: true)
+    poll.update!(school_managed: true, status: :closed, started_at: 1.hour.ago, closed_at: Time.current)
 
     other_teacher = create(:user)
     create(:school_membership, school: poll.school, user: other_teacher)
@@ -1115,6 +1140,30 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(response.body).to include("2표", "1표", "기권", "25%")
     expect(response.body).not_to include("77표")
     expect(Nokogiri::HTML(response.body).at_css("a[href='#{detail_path}']")).to be_present
+
+    manipulated_path = results_poll_poll_session_path(
+      poll,
+      poll_session,
+      from: "school_poll_results"
+    )
+    get manipulated_path
+    expect(response.body).to include("학급투표 상세로 돌아가기")
+    expect(response.body).not_to include("전교투표 결과로 돌아가기")
+
+    sign_out operator
+    admin = create(:user, :admin)
+    sign_in admin
+    get manipulated_path
+    page = Nokogiri::HTML(response.body)
+    expect(page.at_css("a[href='#{results_school_poll_path(poll)}']").text.squish).to eq("전교투표 결과로 돌아가기")
+
+    sign_out admin
+    manager = create(:user)
+    create(:school_membership, :manager, school: poll.school, user: manager)
+    sign_in manager
+    get manipulated_path
+    page = Nokogiri::HTML(response.body)
+    expect(page.at_css("a[href='#{results_school_poll_path(poll)}']").text.squish).to eq("전교투표 결과로 돌아가기")
   end
 
   it "isolates ballot and operation broadcast failures after a successful submit" do

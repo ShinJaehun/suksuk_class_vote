@@ -1,9 +1,8 @@
 <div class="mx-auto max-w-5xl space-y-6">
-  <%= link_to "학급투표 상세로 돌아가기",
-              poll_poll_session_path(
-                @poll_session.poll,
-                @poll_session,
-                poll_session_context_params(@poll_session, from: params[:from])
+  <% school_results_context = params[:from] == "school_poll_results" && @poll_session.poll.school_managed? && policy(@poll_session.poll).school_results? %>
+  <%= link_to school_results_context ? "전교투표 결과로 돌아가기" : "학급투표 상세로 돌아가기",
+              school_results_context ? results_school_poll_path(@poll_session.poll) : poll_poll_session_path(
+                @poll_session.poll, @poll_session, poll_session_context_params(@poll_session, from: params[:from])
               ),
               class: "inline-block text-sm font-medium text-stone-700 underline" %>
 
@@ -17,7 +16,7 @@
       <%= ([@poll_session.classroom_name_snapshot] + session_time_labels).join(" · ") %>
     </p>
     <dl class="grid gap-3 sm:grid-cols-3">
-      <% { "전체 투표자" => @total_count, "투표 완료" => @completed_count, "미참여" => @absent_count }.each do |label, count| %>
+      <% { "투표 대상자" => @total_count, "투표 완료" => @completed_count + @abstained_count, "미참여" => @absent_count }.each do |label, count| %>
         <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
           <dt class="text-xs font-medium text-stone-500"><%= label %></dt>
           <dd class="mt-1 font-semibold"><%= count %>명</dd>

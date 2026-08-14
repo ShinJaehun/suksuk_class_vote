@@ -37,7 +37,7 @@
   </header>
 
   <dl class="grid gap-2 text-sm sm:grid-cols-3">
-    <% { "전체 투표자" => @total_count, "투표 완료" => @completed_count, "미참여" => @absent_count }.each do |label, count| %>
+    <% { "투표 대상자" => @total_count, "투표 완료" => @completed_count + @abstained_count, "미참여" => @absent_count }.each do |label, count| %>
       <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
         <dt class="text-stone-500"><%= label %></dt>
         <dd class="mt-1 font-semibold text-stone-900"><%= count %>명</dd>

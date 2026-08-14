@@ -101,10 +101,22 @@ class SchoolPollsController < ApplicationController
 
     authorize @poll, :school_results?
     @school_result_summary = Polls::SchoolResultSummary.new(@poll)
-    @current_session_count = @school_result_summary.session_results.count(&:included)
     @included_sessions = @poll.current_poll_sessions.closed
-      .includes(:poll_participants, poll_option_tallies: :poll_option, poll_contest_tallies: :poll_contest)
-      .order(:created_at, :id)
+      .joins(:classroom)
+      .merge(Classroom.in_school_order)
+      .includes(:classroom, :operator, poll_participants: :poll_participation,
+                poll_option_tallies: :poll_option, poll_contest_tallies: :poll_contest)
+    @total_count = @included_sessions.sum { |session| session.poll_participants.size }
+    @completed_count = @included_sessions.sum do |session|
+      session.poll_participants.count { |participant| participant.poll_participation.present? }
+    end
+    @absent_count = @total_count - @completed_count
+    @current_session_count = @poll.current_poll_sessions.count
+    @included_sessions_by_grade = @included_sessions.group_by { |session| session.classroom&.grade }
+    @included_grades = @included_sessions.filter_map { |session| session.classroom&.grade }.uniq.sort
+    result_time = (@poll.started_at || @poll.closed_at)&.in_time_zone("Asia/Seoul")
+    @result_date = result_time
+    @academic_year = result_time && (result_time.month < 3 ? result_time.year - 1 : result_time.year)
   end
 
   def start

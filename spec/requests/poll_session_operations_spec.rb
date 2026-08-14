@@ -190,7 +190,7 @@ RSpec.describe "PollSession operations", type: :request do
     )
     expect(refresh_page.at_css("[data-testid='poll-session-event-log']")).to be_nil
     expect(refresh_frame.text.squish).to include(
-      "전체 투표자 2명", "투표 완료 0명", "미참여 0명", "대기 2명"
+      "투표 대상자 2명", "투표 완료 0명", "미참여 0명", "대기 2명"
     )
   end
 
