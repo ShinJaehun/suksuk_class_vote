@@ -32,23 +32,17 @@
 
         <% if result[:tally_complete] %>
           <% if result[:winners].any? %>
-            <% winner_label = result[:winners].one? ? @poll_session.poll.winner_label : "공동 #{@poll_session.poll.winner_label}" %>
             <p class="mt-2 text-sm font-medium text-stone-700">
-              <%= winner_label %>:
+              <%= result[:winner_label] %>:
               <%= result[:winners].map { |option| "#{@poll_session.poll.choice_number_label} #{option.number}번 #{option.name}" }.join(", ") %>
             </p>
           <% else %>
             <p class="mt-2 text-sm text-stone-600">집계 기록이 없습니다.</p>
           <% end %>
 
-          <% option_votes = result[:option_results].sum { |option_result| option_result[:tally].votes_count } %>
-          <% abstentions = result[:contest_tally].abstentions_count %>
-          <% total = option_votes + abstentions %>
           <div class="mt-5 space-y-3">
             <% result[:option_results].each do |option_result| %>
               <% option = option_result[:option] %>
-              <% votes = option_result[:tally].votes_count %>
-              <% percentage = poll_result_percentage(votes, total) %>
               <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
                 <div class="flex items-center gap-3">
                   <% if @poll_session.poll.election? && option.photo.attached? %>
@@ -59,26 +53,25 @@
                   <div class="min-w-0 flex-1">
                     <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
                       <p class="break-words font-medium"><%= @poll_session.poll.choice_number_label %> <%= option.number %>번 <%= option.name %></p>
-                      <p class="font-semibold"><%= votes %>표</p>
+                      <p class="font-semibold"><%= option_result[:votes_count] %>표</p>
                     </div>
                     <div class="mt-2 h-2 overflow-hidden rounded-full bg-stone-200">
-                      <div class="h-full rounded-full bg-emerald-500" style="width: <%= percentage %>%"></div>
+                      <div class="h-full rounded-full bg-emerald-500" style="width: <%= option_result[:percentage] %>%"></div>
                     </div>
-                    <p class="mt-1 text-xs text-stone-500"><%= percentage %>%</p>
+                    <p class="mt-1 text-xs text-stone-500"><%= option_result[:percentage] %>%</p>
                   </div>
                 </div>
               </div>
             <% end %>
-            <% abstention_percentage = poll_result_percentage(abstentions, total) %>
             <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
               <div class="flex items-center justify-between gap-3">
                 <p class="font-medium">기권</p>
-                <p class="font-semibold"><%= abstentions %>표</p>
+                <p class="font-semibold"><%= result[:abstentions_count] %>표</p>
               </div>
               <div class="mt-2 h-2 overflow-hidden rounded-full bg-stone-200">
-                <div class="h-full rounded-full bg-stone-500" style="width: <%= abstention_percentage %>%"></div>
+                <div class="h-full rounded-full bg-stone-500" style="width: <%= result[:abstention_percentage] %>%"></div>
               </div>
-              <p class="mt-1 text-xs text-stone-500"><%= abstention_percentage %>%</p>
+              <p class="mt-1 text-xs text-stone-500"><%= result[:abstention_percentage] %>%</p>
             </div>
           </div>
         <% else %>

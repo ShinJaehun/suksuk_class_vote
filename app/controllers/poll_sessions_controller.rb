@@ -628,24 +628,45 @@ class PollSessionsController < ApplicationController
     options = contest.poll_options.sort_by { |option| [option.number, option.id] }
     option_results = options.map do |option|
       tallies = @session_option_tallies_by_option_id.fetch(option.id, [])
-      { option: option, tally: tallies.one? ? tallies.first : nil }
+      tally = tallies.one? ? tallies.first : nil
+      { option: option, tally: tally, votes_count: tally&.votes_count }
     end
-    highest_vote_count = option_results.filter_map { |result| result[:tally]&.votes_count }.max
+    highest_vote_count = option_results.filter_map { |result| result[:votes_count] }.max
     winners = if highest_vote_count.to_i.positive?
                 option_results.select do |result|
-                  result[:tally]&.votes_count == highest_vote_count
+                  result[:votes_count] == highest_vote_count
                 end.map { |result| result[:option] }
     else
                 []
     end
     contest_tallies = @session_contest_tallies_by_contest_id.fetch(contest.id, [])
+    contest_tally = contest_tallies.one? ? contest_tallies.first : nil
+    tally_complete = option_results.all? { |result| result[:tally].present? } && contest_tally.present?
+    abstentions_count = contest_tally&.abstentions_count
+    total_votes = if tally_complete
+      option_results.sum { |result| result[:votes_count] } + abstentions_count
+    end
+    if tally_complete
+      option_results.each do |result|
+        result[:percentage] = helpers.poll_result_percentage(result[:votes_count], total_votes)
+      end
+    end
+    winner_label = if winners.one?
+      @poll_session.poll.winner_label
+    elsif winners.any?
+      "공동 #{@poll_session.poll.winner_label}"
+    end
 
     {
       contest: contest,
       option_results: option_results,
       winners: winners,
-      contest_tally: contest_tallies.one? ? contest_tallies.first : nil,
-      tally_complete: option_results.all? { |result| result[:tally].present? } && contest_tallies.one?
+      winner_label: winner_label,
+      contest_tally: contest_tally,
+      abstentions_count: abstentions_count,
+      total_votes: total_votes,
+      abstention_percentage: tally_complete ? helpers.poll_result_percentage(abstentions_count, total_votes) : nil,
+      tally_complete: tally_complete
     }
   end
 

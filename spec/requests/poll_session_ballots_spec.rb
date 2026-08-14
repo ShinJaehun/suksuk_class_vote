@@ -1020,9 +1020,8 @@ RSpec.describe "PollSession ballots", type: :request do
       "투표 완료 2명",
       "미참여 1명"
     )
-    expect(results_page.at_css("[data-testid='poll-session-printable-results']").text.squish).to include(
-      "투표 대상자 3명"
-    )
+    printable_results = results_page.at_css("[data-testid='poll-session-printable-results']").text.squish
+    expect(printable_results).to include("투표 대상자 3명", "기호 1번 김후보 1표", "기권 1표")
     expect(response.body).to include("투표 결과 인쇄", "data-testid=\"poll-session-printable-results\"")
     expect(response.body).not_to include("99표", "종료 학급 집계", "집계 포함")
   end
