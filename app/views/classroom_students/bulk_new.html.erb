@@ -1,51 +1,53 @@
-<div>
-  <h1 class="text-2xl font-semibold">여러 학생 추가</h1>
-  <p class="mt-1 text-stone-600"><%= @classroom.school_year %>학년도 <%= @classroom.grade %>학년 <%= @classroom.formatted_class_label %></p>
-  <%= link_to "학생 관리로 돌아가기",
-              classroom_students_path(@classroom, **student_return_context_params),
-              class: "text-sm underline" %>
-</div>
-
-<%= form_with url: bulk_create_classroom_students_path(@classroom), method: :post, class: "space-y-5 rounded-md border border-stone-200 bg-white p-6" do |form| %>
-  <% student_return_context_params.each do |key, value| %>
-    <%= hidden_field_tag key, value %>
-  <% end %>
-  <% if @bulk_errors.any? %>
-    <div class="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-      <ul class="list-disc pl-5">
-        <% @bulk_errors.each do |message| %>
-          <li><%= message %></li>
-        <% end %>
-      </ul>
-    </div>
-  <% end %>
-
+<div class="space-y-6">
   <div>
-    <h2 class="font-semibold">학생 명단</h2>
-    <p class="mt-1 text-sm text-stone-600">번호와 이름을 행별로 입력하세요. 완전히 빈 행은 무시됩니다.</p>
+    <%= link_to "학생 관리로 돌아가기", classroom_students_path(@classroom, **student_return_context_params), class: "text-sm underline" %>
+    <h1 class="mt-2 text-2xl font-semibold">여러 학생 추가</h1>
+    <p class="mt-1 text-stone-600"><%= @classroom.grade %>학년 <%= @classroom.formatted_class_label %></p>
   </div>
 
-  <div class="space-y-2">
-    <div class="grid grid-cols-[6rem_1fr] gap-3 text-sm font-medium text-stone-600">
-      <span>번호</span>
-      <span>이름</span>
-    </div>
-    <% @student_rows.each_with_index do |row, index| %>
-      <div class="grid grid-cols-[6rem_1fr] gap-3">
-        <%= number_field_tag "students[rows][#{index}][number]",
-                             row["number"],
-                             min: 1,
-                             class: "w-full rounded-md border-stone-300",
-                             aria: { label: "#{index + 1}번째 학생 번호" } %>
-        <%= text_field_tag "students[rows][#{index}][name]",
-                           row["name"],
-                           class: "w-full rounded-md border-stone-300",
-                           aria: { label: "#{index + 1}번째 학생 이름" } %>
-        <%= hidden_field_tag "students[rows][#{index}][default_number]",
-                             row["default_number"] %>
+  <% unless @student_rows %>
+    <%= form_with url: bulk_new_classroom_students_path(@classroom), method: :get, class: "space-y-5 rounded-md border border-stone-200 bg-white p-6" do |form| %>
+      <% student_return_context_params.each do |key, value| %><%= hidden_field_tag key, value %><% end %>
+      <% if @bulk_errors.any? %><p class="text-sm text-rose-700"><%= @bulk_errors.to_sentence %></p><% end %>
+      <div>
+        <%= form.label :count, "추가할 학생 수", class: "text-sm font-medium" %>
+        <%= form.number_field :count, min: 1, max: 30, class: "mt-1 w-full rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700", required: true %>
+        <p class="mt-1 text-xs text-stone-500">한 번에 최대 30명까지 추가할 수 있습니다.</p>
       </div>
+      <%= form.button "학생 명단 입력", name: nil, class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
     <% end %>
-  </div>
-
-  <%= form.submit "여러 학생 등록", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
-<% end %>
+  <% else %>
+    <%= form_with url: bulk_create_classroom_students_path(@classroom), method: :post, class: "space-y-5 rounded-md border border-stone-200 bg-white p-6", data: { controller: "student-rows" } do |form| %>
+      <% student_return_context_params.each do |key, value| %><%= hidden_field_tag key, value %><% end %>
+      <div>
+        <h2 class="font-semibold">학생 명단</h2>
+      </div>
+      <div class="space-y-2" data-student-rows-target="list">
+        <% @student_rows.each_with_index do |row, index| %>
+          <% number_errors = @row_errors.dig(index, :number) || [] %>
+          <% name_errors = @row_errors.dig(index, :name) || [] %>
+          <div class="grid gap-3 rounded-md border border-stone-300 bg-white p-3 shadow-sm sm:grid-cols-[5rem_1fr_auto] sm:items-center" data-student-rows-target="row">
+            <%= hidden_field_tag "students[rows][#{index}][position]", index, data: { student_rows_target: "position" } %>
+            <div>
+              <%= label_tag "students_rows_#{index}_number", "번호", class: "text-xs text-stone-500 sm:hidden" %>
+              <%= number_field_tag "students[rows][#{index}][number]", row["number"], id: "students_rows_#{index}_number", min: 1, step: 1, class: "w-full rounded-md border bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700 #{number_errors.any? ? 'border-rose-400' : 'border-stone-400'}", data: { student_rows_target: "number" } %>
+              <%= hidden_field_tag "students[rows][#{index}][default_number]", row["default_number"] %>
+              <% number_errors.each do |message| %><p class="mt-1 text-xs text-rose-700" data-row-error="<%= index %>" data-field-error="number"><%= message %></p><% end %>
+            </div>
+            <div>
+              <%= label_tag "students_rows_#{index}_name", "이름", class: "text-xs text-stone-500 sm:hidden" %>
+              <%= text_field_tag "students[rows][#{index}][name]", row["name"], id: "students_rows_#{index}_name", class: "w-full rounded-md border bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700 #{name_errors.any? ? 'border-rose-400' : 'border-stone-400'}", aria: { label: "#{index + 1}번째 학생 이름" } %>
+              <% name_errors.each do |message| %><p class="mt-1 text-xs text-rose-700" data-row-error="<%= index %>" data-field-error="name"><%= message %></p><% end %>
+            </div>
+            <div class="flex gap-2">
+              <button type="button" class="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-50" data-action="student-rows#up" data-student-rows-target="up">↑</button>
+              <button type="button" class="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-50" data-action="student-rows#down" data-student-rows-target="down">↓</button>
+              <button type="button" class="rounded-md border border-stone-300 bg-stone-50 px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100" data-action="student-rows#remove">제외</button>
+            </div>
+          </div>
+        <% end %>
+      </div>
+      <%= form.submit "여러 학생 등록", class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+    <% end %>
+  <% end %>
+</div>

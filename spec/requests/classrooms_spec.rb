@@ -43,7 +43,7 @@ RSpec.describe "Classrooms", type: :request do
     expect(document.at_css("#management_row_classroom_#{second.id}")).to be_nil
     expect(document.at_css("input[name='grade'][value='all']")).to be_present
     expect(document.css("turbo-frame#classroom_management a[data-turbo-frame='classroom_management']").map(&:text)).to include("전체", "1학년", "6학년")
-    expect(document.at_css("a[href='#{classroom_students_path(first)}'][data-turbo-frame='_top']")).to be_present
+    expect(document.at_css("a[href='#{classroom_students_path(first, return_to: "classrooms")}'][data-turbo-frame='_top']")).to be_present
     expect(document.at_css("a[href='#{deactivate_classroom_path(first, school_id: first_school.id, grade: 'all')}'][data-turbo-frame='_top']")).to be_present
     expect(document.at_css("input[data-classroom-management-target='selection'][data-grade-eligible='false']")).to be_present
     expect(document.at_css("button[data-classroom-management-target='gradeSubmit']")).to be_present
@@ -313,7 +313,7 @@ RSpec.describe "Classrooms", type: :request do
     expect(response).to have_http_status(:ok)
     document = Nokogiri::HTML(response.body)
     expect(document.at_css("a[href='#{new_classroom_student_path(classroom)}']")).to be_present
-    expect(document.at_css("a[href='#{edit_classroom_student_path(classroom, student, status: 'active')}']")).to be_present
+    expect(document.at_css("a[href='#{edit_classroom_student_path(classroom, student)}']")).to be_present
     expect(document.at_css("a[href='#{edit_classroom_path(classroom)}']")).to be_nil
     expect(document.css("a").find { |link| link.text.strip == "교실 목록" }).to be_nil
 

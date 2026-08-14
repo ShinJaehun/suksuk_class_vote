@@ -378,7 +378,9 @@ RSpec.describe "Schools", type: :request do
     expect(classroom_section.css("th").map { |heading| heading.text.strip }).not_to include("학년도")
     expect(classroom_section.text).to include(grade_four.formatted_class_label, "총 1학급 · 학생 2명")
     expect(classroom_section.text).not_to include(grade_five.formatted_class_label)
-    expect(links["교실 바로가기"]["href"]).to eq(classroom_students_path(grade_four))
+    expect(links["교실 바로가기"]["href"]).to eq(
+      classroom_students_path(grade_four, return_to: "school", teacher_grade: "unassigned", classroom_grade: "4")
+    )
     expect(links["설정"]["href"]).to eq(edit_classroom_path(grade_four))
     expect(links["교실 관리"]["href"]).to eq(classrooms_path(school_id: school.id, grade: "4"))
     expect(links["전체"]["href"]).to eq(school_path(school, teacher_grade: "unassigned", classroom_grade: "all"))

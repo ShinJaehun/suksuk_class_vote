@@ -1,0 +1,61 @@
+<%= turbo_frame_tag "student_management", class: "block space-y-5" do %>
+  <section class="rounded-md border border-stone-200 bg-white p-5">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <p class="text-sm font-medium text-stone-500"><%= @classroom.school.name %></p>
+        <h1 class="mt-1 text-2xl font-semibold"><%= @classroom.grade %>학년 <%= @classroom.formatted_class_label %></h1>
+      </div>
+      <div class="flex flex-wrap gap-3 text-sm font-medium">
+        <% if @return_poll_session %>
+          <%= link_to "투표로 돌아가기", poll_poll_session_path(@return_poll_session.poll, @return_poll_session), class: "underline", data: { turbo_frame: "_top" } %>
+        <% elsif student_return_path %>
+          <%= link_to student_return_label, student_return_path, class: "underline", data: { turbo_frame: "_top" } %>
+        <% end %>
+        <% if policy(@classroom).edit? %>
+          <%= link_to "교실 설정", edit_classroom_path(@classroom), class: "underline", data: { turbo_frame: "_top" } %>
+        <% end %>
+      </div>
+    </div>
+    <dl class="mt-5 grid gap-3 sm:grid-cols-2">
+      <div class="rounded-md bg-stone-50 p-4">
+        <dt class="text-sm text-stone-500">담당 교사</dt>
+        <dd class="mt-1 text-lg font-semibold"><%= @classroom.teacher ? "#{@classroom.teacher.name} 선생님" : "미배정" %></dd>
+      </div>
+      <div class="rounded-md bg-stone-50 p-4">
+        <dt class="text-sm text-stone-500">학생</dt>
+        <dd class="mt-1 text-lg font-semibold">활성 <%= @student_counts[:active] %>명 · 전체 <%= @student_counts[:all] %>명</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section class="space-y-4 rounded-md border border-stone-200 bg-white p-4">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <nav class="flex flex-wrap gap-2" aria-label="학생 상태 필터">
+        <% { "active" => "활성", "inactive" => "비활성", "all" => "전체" }.each do |status, label| %>
+          <%= link_to "#{label} #{@student_counts[status.to_sym]}", classroom_students_path(@classroom, **student_status_context_params(status), **student_return_context_params), class: "rounded-md border px-3 py-2 text-sm font-medium #{@status == status ? 'border-stone-900 bg-stone-900 text-white' : 'border-stone-300 bg-white'}", aria: { current: (@status == status ? "page" : nil) } %>
+        <% end %>
+      </nav>
+      <% if policy(@classroom).manage_students? %>
+        <div class="flex flex-wrap gap-2">
+          <%= link_to "학생 정보 편집", bulk_edit_classroom_students_path(@classroom, **student_status_context_params(@status), **student_return_context_params), class: "rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-medium", data: { turbo_frame: "_top" } %>
+          <%= link_to "학생 한 명 추가", new_classroom_student_path(@classroom, **student_return_context_params), class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium", data: { turbo_frame: "new_student" } %>
+          <%= link_to "여러 학생 추가", bulk_new_classroom_students_path(@classroom, **student_return_context_params), class: "rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white", data: { turbo_frame: "_top" } %>
+        </div>
+      <% end %>
+    </div>
+
+    <%= turbo_frame_tag "new_student", class: "block" %>
+
+    <% if @students.any? %>
+      <div class="space-y-2">
+        <% @students.each do |student| %>
+          <%= render "classroom_students/student", student: student %>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="rounded-md border border-dashed border-stone-300 p-8 text-center">
+        <p class="font-medium"><%= @student_counts[:all].zero? ? "등록된 학생이 없습니다." : "이 상태의 학생이 없습니다." %></p>
+      </div>
+    <% end %>
+  </section>
+<% end %>

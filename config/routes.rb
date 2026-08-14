@@ -84,6 +84,8 @@ Rails.application.routes.draw do
       collection do
         get :bulk_new
         post :bulk_create
+        get :bulk_edit
+        patch :bulk_update
       end
       member do
         patch :deactivate

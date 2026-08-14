@@ -66,7 +66,9 @@
                     <td class="p-3 align-middle"><%= render "classrooms/status", classroom: classroom %></td>
                     <td class="p-3 align-middle">
                       <div class="flex flex-wrap gap-3 font-medium">
-                        <%= link_to "교실 바로가기", classroom_students_path(classroom), class: "underline", data: { turbo_frame: "_top" } %>
+                        <% return_context = { return_to: "classrooms" } %>
+                        <% return_context[:return_grade] = @grade if @grade.present? && @grade != "all" %>
+                        <%= link_to "교실 바로가기", classroom_students_path(classroom, **return_context), class: "underline", data: { turbo_frame: "_top" } %>
                         <% if policy(classroom).destroy? && !classroom.active? && classroom.teacher_id.nil? && @classroom_student_counts.fetch(classroom.id, 0).zero? %>
                           <%= link_to "삭제", classroom_path(classroom, school_id: @school.id, grade: @grade), class: "text-rose-700 underline", data: { turbo_method: :delete, turbo_confirm: "이 교실을 삭제하시겠습니까?", turbo_frame: "_top" } %>
                         <% end %>
