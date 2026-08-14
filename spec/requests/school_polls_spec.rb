@@ -1046,7 +1046,7 @@ RSpec.describe "School Poll management", type: :request do
       )
       first_closed.classroom.update!(grade: 5, class_label: "2")
       second_closed.classroom.update!(grade: 4, class_label: "1")
-      third_closed.classroom.update!(grade: 6, class_label: "1")
+      third_closed.classroom.update!(grade: 6, class_label: "달님반")
       participants = 4.times.map do |index|
         create(
           :poll_participant,
@@ -1178,7 +1178,8 @@ RSpec.describe "School Poll management", type: :request do
       expect(result_text).to match(/회장 선거.*기권 3표/)
       expect(result_text).not_to include("100표", "200표", "다른 투표 학급")
 
-      expect(result_text).to include("4학년 1반", "5학년 2반", "6학년 1반", "결과 집계", "63%")
+      expect(result_text).to include("4학년 1반", "5학년 2반", "6학년 달님반", "결과 집계", "63%")
+      expect(result_text).not_to include("달님반반")
       expect(result_text).not_to include("준비 3반", "진행 4반", "중단 5반")
 
       overall_text = page.at_css('[data-testid="school-poll-overall-results"]').text.squish
@@ -1216,7 +1217,7 @@ RSpec.describe "School Poll management", type: :request do
         "5학년 2반",
         "투표 대상자 4명 · 참여 2명 · 미참여 1명",
         "6학년 · 투표 대상자 0명",
-        "6학년 1반",
+        "6학년 달님반",
         "담당교사 종료 1반 담임 선생님",
         "시작",
         "종료"

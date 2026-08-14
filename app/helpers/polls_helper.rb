@@ -83,6 +83,39 @@ module PollsHelper
     [[((count.to_f / total) * 100).round, 0].max, 100].min
   end
 
+  def school_poll_grade_label(grades)
+    grades.one? ? "#{grades.first}학년" : "#{grades.join("·")}학년"
+  end
+
+  def school_poll_result_time_labels(poll)
+    labels = []
+    labels << "시작 #{kst_datetime(poll.started_at)}" if poll.started_at.present?
+    labels << "종료 #{kst_datetime(poll.closed_at)}" if poll.closed_at.present?
+    labels
+  end
+
+  def school_poll_result_classroom_label(poll_session)
+    classroom = poll_session.classroom
+    if classroom&.grade.present? && classroom.class_label.present?
+      "#{classroom.grade}학년 #{classroom.formatted_class_label}"
+    else
+      poll_session.classroom_name_snapshot
+    end
+  end
+
+  def school_poll_result_operator_name(poll_session)
+    poll_session.operator_name_snapshot.presence ||
+      poll_session.operator&.name.presence ||
+      poll_session.operator&.email
+  end
+
+  def school_poll_result_session_time_labels(poll_session)
+    labels = []
+    labels << "시작 #{kst_datetime(poll_session.started_at)}" if poll_session.started_at.present?
+    labels << "종료 #{kst_datetime(poll_session.closed_at)}" if poll_session.closed_at.present?
+    labels
+  end
+
   private
 
   def badge(label, color_class)

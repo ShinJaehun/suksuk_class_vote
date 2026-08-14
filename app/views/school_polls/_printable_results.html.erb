@@ -1,8 +1,7 @@
 <section class="school-poll-result-print-area space-y-5 rounded-md border border-stone-200 bg-white p-4" data-testid="school-poll-printable-results">
   <header class="space-y-2">
     <h2 class="text-2xl font-semibold text-stone-900"><%= @poll.title %> 투표 결과</h2>
-    <% grade_label = @included_grades.one? ? "#{@included_grades.first}학년" : "#{@included_grades.join("·")}학년" %>
-    <p class="text-sm font-semibold text-stone-700"><%= [@poll.school.name, "#{grade_label} 대상", (@result_date ? "#{@result_date.month}월 #{@result_date.day}일 시행" : nil)].compact.join(" ") %></p>
+    <p class="text-sm font-semibold text-stone-700"><%= [@poll.school.name, "#{school_poll_grade_label(@included_grades)} 대상", (@result_date ? "#{@result_date.month}월 #{@result_date.day}일 시행" : nil)].compact.join(" ") %></p>
   </header>
 
   <dl class="grid gap-2 text-sm sm:grid-cols-3">
