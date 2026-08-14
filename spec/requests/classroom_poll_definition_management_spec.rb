@@ -206,11 +206,13 @@ RSpec.describe "Classroom Poll definition management", type: :request do
 
     roster_link = page.css("[data-testid='poll-session-roster'] a").find { |link| link.text.include?("투표자 명단 수정") }
     expect(roster_link).to be_present
-    expect(roster_link["href"]).to include(
-      classroom_students_path(classroom),
-      "return_poll_id=#{poll.id}",
-      "return_poll_session_id=#{poll_session.id}"
+    expect(roster_link["href"]).to eq(
+      classroom_students_path(
+        classroom,
+        return_poll_session_id: poll_session.id
+      )
     )
+    expect(roster_link["href"]).not_to include("return_poll_id")
     expect(roster_link["data-turbo-frame"]).to eq("_top")
     expect(page.at_css("[data-testid='poll-session-roster']").text).to include("투표를 시작할 때 이 학급의 활성 학생 명단이 투표자로 확정됩니다.")
 

@@ -739,19 +739,25 @@ RSpec.describe "Classroom students", type: :request do
     student = create(:student, classroom: classroom, number: 1, name: "기존 학생")
     poll = create(:poll, user: teacher, school: classroom.school, participant_group: nil)
     poll_session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
-    context = { return_poll_id: poll.id, return_poll_session_id: poll_session.id }
+    context = { return_poll_session_id: poll_session.id }
     sign_in teacher
     expect_return_context = lambda do |body|
       page = Nokogiri::HTML(body)
 
-      expect(page.at_css('input[name="return_poll_id"]')&.[]("value")).to eq(poll.id.to_s)
+      expect(page.at_css('input[name="return_poll_id"]')).to be_nil
       expect(page.at_css('input[name="return_poll_session_id"]')&.[]("value")).to eq(poll_session.id.to_s)
     end
+
+    get poll_poll_session_path(poll, poll_session)
+    roster_link = Nokogiri::HTML(response.body).at_xpath('//a[contains(normalize-space(.), "투표자 명단 수정")]')
+    expect(roster_link["href"]).to eq(classroom_students_path(classroom, **context))
+    expect(roster_link["href"]).not_to include("return_poll_id")
 
     get classroom_students_path(classroom, **context)
     page = Nokogiri::HTML(response.body)
     expect(page.at_css(%(a[href="#{poll_poll_session_path(poll, poll_session)}"])).text).to include("투표로 돌아가기")
-    expect(response.body).to include("return_poll_id=#{poll.id}", "return_poll_session_id=#{poll_session.id}")
+    expect(response.body).to include("return_poll_session_id=#{poll_session.id}")
+    expect(response.body).not_to include("return_poll_id")
 
     get new_classroom_student_path(classroom, **context)
     expect_return_context.call(response.body)
@@ -779,14 +785,11 @@ RSpec.describe "Classroom students", type: :request do
     classroom, teacher = classroom_with_teacher
     other_classroom = create(:classroom, school: classroom.school)
     poll = create(:poll, user: teacher, school: classroom.school, participant_group: nil)
-    same_classroom_session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
     other_session = create(:poll_session, poll: poll, classroom: other_classroom, operator: teacher)
-    other_poll = create(:poll, user: teacher, school: classroom.school, participant_group: nil)
     sign_in teacher
 
     [
-      { return_poll_id: poll.id, return_poll_session_id: other_session.id },
-      { return_poll_id: other_poll.id, return_poll_session_id: same_classroom_session.id },
+      { return_poll_session_id: other_session.id },
       { return_to: "https://example.com" }
     ].each do |context|
       get classroom_students_path(classroom, **context)

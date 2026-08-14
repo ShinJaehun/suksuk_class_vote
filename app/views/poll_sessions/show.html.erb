@@ -121,7 +121,6 @@
             <% elsif @poll_session.draft? && !@poll_session.replacement? && policy(@poll_session.classroom).manage_students? %>
               <%= link_to "투표자 명단 수정",
                           classroom_students_path(@poll_session.classroom,
-                            return_poll_id: @poll_session.poll_id,
                             return_poll_session_id: @poll_session.id),
                           data: { turbo_frame: "_top" },
                           class: "rounded-md border border-stone-300 px-3 py-2 text-sm font-medium" %>

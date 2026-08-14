@@ -227,11 +227,10 @@ class ClassroomStudentsController < ApplicationController
   end
 
   def set_return_poll_session
-    return if params[:return_poll_id].blank? || params[:return_poll_session_id].blank?
+    return if params[:return_poll_session_id].blank?
 
     poll_session = PollSession.find_by(
       id: params[:return_poll_session_id],
-      poll_id: params[:return_poll_id],
       classroom_id: @classroom.id
     )
     @return_poll_session = poll_session if poll_session && policy(poll_session).show?
@@ -240,7 +239,6 @@ class ClassroomStudentsController < ApplicationController
   def student_return_context_params
     context = if @return_poll_session
       {
-      return_poll_id: @return_poll_session.poll_id,
       return_poll_session_id: @return_poll_session.id
       }
     else

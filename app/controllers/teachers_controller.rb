@@ -222,11 +222,9 @@ class TeachersController < ApplicationController
   def destroy
     authorize @teacher, :destroy?
     school = @teacher.school
-    teacher_grade = params[:teacher_grade].presence || "unassigned"
-    return_path = if params[:return_to] == "teachers" && params[:school_id].present?
+    teacher_grade = valid_grade_value(params[:teacher_grade].presence || "unassigned")
+    return_path = if params[:return_to] == "teachers"
       teachers_path(school_id: school.id, grade: teacher_grade)
-    elsif params[:return_to] == "teachers"
-      teachers_path
     else
       school_path(school, teacher_grade: teacher_grade)
     end
@@ -272,7 +270,10 @@ class TeachersController < ApplicationController
   def teacher_return_path
     return teachers_path if @return_context == "teachers"
     if @return_context == "school" && @teacher.school
-      return school_path(@teacher.school, teacher_grade: params[:teacher_grade].presence || "all")
+      teacher_grade = valid_grade_value(params[:teacher_grade])
+      return school_path(@teacher.school) if teacher_grade == "all"
+
+      return school_path(@teacher.school, teacher_grade: teacher_grade)
     end
 
     return polls_path if current_user == @teacher

@@ -36,7 +36,8 @@
             <td class="p-3 align-middle"><%= teacher.active? ? "활성" : "비활성" %></td>
             <td class="p-3 align-middle">
               <% if policy(teacher).edit? && (current_user.admin? || membership&.school&.active?) %>
-                <%= link_to "설정", edit_teacher_path(teacher), class: "font-medium underline" %>
+                <% edit_context = @teacher_grade.present? ? { return_to: "school", **(@teacher_grade == "all" ? {} : { teacher_grade: @teacher_grade }) } : {} %>
+                <%= link_to "설정", edit_teacher_path(teacher, **edit_context), class: "font-medium underline" %>
               <% end %>
             </td>
           </tr>

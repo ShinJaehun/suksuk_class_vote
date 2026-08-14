@@ -269,7 +269,7 @@ RSpec.describe "Teachers", type: :request do
       patch teacher_path(teacher), params: { return_to: "school", teacher_grade: "all", user: { name: "변경 후", login_id: "after-id", role: "admin" } }
 
       expect(teacher.reload).to have_attributes(name: "변경 후", login_id: "after-id", role: "teacher")
-      expect(response).to redirect_to(school_path(school, teacher_grade: "all"))
+      expect(response).to redirect_to(school_path(school))
     end
 
     it "does not let a manager edit a teacher from another school" do
@@ -425,9 +425,29 @@ RSpec.describe "Teachers", type: :request do
 
       removable = create(:user, active: false)
       add_to_school(removable, school)
-      delete teacher_path(removable), params: { return_to: "teachers" }, headers: { "ACCEPT" => "text/vnd.turbo-stream.html" }
+      get teachers_path(school_id: school.id, grade: "unassigned")
+      delete_link = Nokogiri::HTML(response.body).at_css("#bulk_password_action_user_#{removable.id} a")
+      expect(delete_link["href"]).to eq(
+        teacher_path(removable, teacher_grade: "unassigned", return_to: "teachers")
+      )
+      expect(delete_link["href"]).not_to include("school_id")
+
+      delete teacher_path(removable), params: { return_to: "teachers", teacher_grade: "unassigned" }, headers: { "ACCEPT" => "text/vnd.turbo-stream.html" }
       expect(User.exists?(removable.id)).to be(false)
       expect(response.body).to include(%(action="remove"), %(target="bulk_edit_row_user_#{removable.id}"))
+    end
+
+    it "derives the school-scoped return path when deleting a teacher" do
+      teacher = create(:user, active: false)
+      add_to_school(teacher, school)
+      sign_in create(:user, :admin)
+
+      delete teacher_path(teacher), params: {
+        return_to: "teachers", teacher_grade: "unassigned", school_id: other_school.id
+      }
+
+      expect(response).to redirect_to(teachers_path(school_id: school.id, grade: "unassigned"))
+      expect(User.exists?(teacher.id)).to be(false)
     end
 
     it "preserves an otherwise removable teacher when model references restrict deletion" do
@@ -439,6 +459,7 @@ RSpec.describe "Teachers", type: :request do
       delete teacher_path(teacher), params: { return_to: "teachers" }, headers: { "ACCEPT" => "text/vnd.turbo-stream.html" }
 
       expect(User.exists?(teacher.id)).to be(true)
+      expect(response).to redirect_to(teachers_path(school_id: school.id, grade: "unassigned"))
       expect(flash[:alert]).to eq("기존 기록이 있어 삭제할 수 없습니다.")
       expect(response.body).not_to include(%(action="remove"), "bulk_edit_row_user_#{teacher.id}")
     end

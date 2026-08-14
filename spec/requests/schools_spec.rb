@@ -432,7 +432,7 @@ RSpec.describe "Schools", type: :request do
     expect(response.body).not_to include("재발급", temporary_password_teacher_path(teacher))
     expect(response.body).not_to include("일반 선생님", "대표 선생님 변경")
     expect(table_headings).to include("관리")
-    expect(document.at_css("#overview_row_user_#{teacher.id} a[href='#{edit_teacher_path(teacher)}']").text).to eq("설정")
+    expect(document.at_css("#overview_row_user_#{teacher.id} a[href='#{edit_teacher_path(teacher, return_to: "school")}']").text).to eq("설정")
     expect(response.body).not_to include("대표 선생님 지정", "대표 선생님 지정 해제")
     patch promote_school_teacher_membership_path(school, membership)
     expect(membership.reload).to be_manager
@@ -480,10 +480,17 @@ RSpec.describe "Schools", type: :request do
     expect(teacher_section).to be_present
     expect(teacher_section.at_css("tfoot").text.strip).to eq("총 1명")
     expect(included_row).to be_present
+    expect(included_row.at_css("a")["href"]).to eq(
+      edit_teacher_path(included, return_to: "school", teacher_grade: "4")
+    )
     expect(teacher_section.css("input, select")).to be_empty
     expect(document.css("a").map { |link| link["href"] }).to include(
       teachers_path(school_id: school.id, grade: "4")
     )
+    patch teacher_path(included), params: {
+      return_to: "school", teacher_grade: "4", user: { name: included.name }
+    }
+    expect(response).to redirect_to(school_path(school, teacher_grade: "4"))
     expect(document.at_css("#overview_row_user_#{other_grade.id}")).to be_nil
     expect(document.at_css("#overview_row_user_#{unassigned.id}")).to be_nil
     expect(document.at_css("#overview_row_user_#{classroom_only.id}")).to be_nil
