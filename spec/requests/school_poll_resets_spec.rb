@@ -68,6 +68,25 @@ RSpec.describe "School Poll reset", type: :request do
     expect(poll.poll_sessions.count).to eq(1)
   end
 
+  it "logs reset exceptions without their raw messages" do
+    poll, = create_target
+    sign_in create(:user, :admin)
+    messages = []
+    allow(Polls::ResetSchoolwidePoll).to receive(:new).and_raise(
+      RuntimeError, "민감한 DB 값"
+    )
+    allow(Rails.logger).to receive(:error) { |message| messages << message }
+
+    post reset_school_poll_path(poll), params: { confirmation_title: poll.title }
+
+    expect(response).to redirect_to(school_poll_path(poll))
+    expect(flash[:alert]).to eq("전교투표를 초기화하지 못했습니다. 다시 시도해 주세요.")
+    expect(messages.sole).to include(
+      "[schoolwide_poll_reset]", "poll_id=#{poll.id}", 'error_class="RuntimeError"'
+    )
+    expect(messages.sole).not_to include("민감한 DB 값")
+  end
+
   it "does not reset a regular classroom Poll through the School Poll route" do
     poll = create(:poll)
     sign_in create(:user, :admin)

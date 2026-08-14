@@ -489,6 +489,21 @@ RSpec.describe "Classroom students", type: :request do
     expect(flash[:notice]).to eq("3명의 학생을 등록했습니다.")
   end
 
+  it "rejects more than 30 submitted bulk rows without creating any students" do
+    classroom, teacher = classroom_with_teacher
+    sign_in teacher
+    rows = 31.times.to_h do |index|
+      [index.to_s, { number: (index + 1).to_s, name: "학생 #{index + 1}" }]
+    end
+
+    expect do
+      post bulk_create_classroom_students_path(classroom), params: { students: { rows: rows } }
+    end.not_to change(Student, :count)
+
+    expect(response).to have_http_status(:unprocessable_content)
+    expect(flash[:alert]).to eq("학생 명단을 등록하지 못했습니다. 입력 내용을 확인해 주세요.")
+  end
+
   it "bulk creates non-contiguous numbers and reports every invalid row inline without partial creation" do
     classroom, teacher = classroom_with_teacher
     sign_in teacher

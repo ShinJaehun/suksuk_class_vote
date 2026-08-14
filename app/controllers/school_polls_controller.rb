@@ -187,7 +187,9 @@ class SchoolPollsController < ApplicationController
     begin
       result = Polls::ResetSchoolwidePoll.new(poll: poll, actor: current_user).call
     rescue StandardError => e
-      Rails.logger.error("[schoolwide_poll_reset] poll_id=#{poll.id} #{e.class}: #{e.message}")
+      Rails.logger.error(
+        "[schoolwide_poll_reset] poll_id=#{poll.id} error_class=#{e.class.name.inspect}"
+      )
       redirect_to school_poll_path(poll), alert: "전교투표를 초기화하지 못했습니다. 다시 시도해 주세요."
       return
     end

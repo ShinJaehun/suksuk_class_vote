@@ -1,4 +1,6 @@
 class ClassroomStudentsController < ApplicationController
+  BULK_ROW_LIMIT = 30
+
   before_action :authenticate_user!
   before_action :set_classroom
   before_action :authorize_student_access
@@ -65,7 +67,7 @@ class ClassroomStudentsController < ApplicationController
     @bulk_errors = []
     @row_errors = {}
     @bulk_count = Integer(params[:count], exception: false)
-    if params[:count].present? && !@bulk_count&.between?(1, 30)
+    if params[:count].present? && !@bulk_count&.between?(1, BULK_ROW_LIMIT)
       @bulk_errors << "추가할 학생 수는 1명 이상 30명 이하로 입력해 주세요."
       @bulk_count = nil
     end
@@ -76,8 +78,13 @@ class ClassroomStudentsController < ApplicationController
     @bulk_errors = []
     @row_errors = {}
     @student_rows = submitted_bulk_rows
-    rows = completed_bulk_rows
-    validate_bulk_rows(rows)
+    rows = []
+    if @student_rows.size > BULK_ROW_LIMIT
+      @bulk_errors << "한 번에 추가할 학생은 최대 30명입니다."
+    else
+      rows = completed_bulk_rows
+      validate_bulk_rows(rows)
+    end
 
     if @bulk_errors.any? || @row_errors.any?
       flash.now[:alert] = "학생 명단을 등록하지 못했습니다. 입력 내용을 확인해 주세요."
@@ -322,7 +329,7 @@ class ClassroomStudentsController < ApplicationController
 
   def prepare_bulk_rows
     first_number = @classroom.students.maximum(:number).to_i + 1
-    @student_rows = Array.new(@bulk_count || 30) do |index|
+    @student_rows = Array.new(@bulk_count || BULK_ROW_LIMIT) do |index|
       number = first_number + index
       { "number" => number, "name" => "", "default_number" => number.to_s }
     end
