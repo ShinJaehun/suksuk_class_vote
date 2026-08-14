@@ -1236,7 +1236,12 @@ RSpec.describe "School Poll management", type: :request do
       expect(classroom_text.index("5학년")).to be < classroom_text.index("6학년")
 
       print_button = page.at_xpath('//button[contains(normalize-space(.), "투표 결과 인쇄")]')
-      expect(print_button["onclick"]).to eq("window.print()")
+      expect(print_button["onclick"]).to be_nil
+      expect(print_button["data-controller"]).to eq("print")
+      expect(print_button["data-action"]).to eq("click->print#print")
+      expect(page.at_css('progress.result-progress-option[value="63"][max="100"]')).to be_present
+      expect(page.at_css('progress.result-progress-abstention[value="38"][max="100"]')).to be_present
+      expect(page.css("progress[style]")).to be_empty
       printable = page.at_css('[data-testid="school-poll-printable-results"]')
       expect(printable.at_css("img")).to be_nil
       expect(printable.text.squish).to include(

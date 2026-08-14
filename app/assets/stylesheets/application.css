@@ -8,3 +8,65 @@
  *
  * Consider organizing styles into separate files for maintainability.
  */
+
+.result-progress {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #e7e5e4;
+  border: 0;
+  border-radius: 9999px;
+  display: block;
+  height: 0.5rem;
+  overflow: hidden;
+  width: 100%;
+}
+
+.result-progress::-webkit-progress-bar {
+  background: #e7e5e4;
+  border-radius: 9999px;
+}
+
+.result-progress::-webkit-progress-value { border-radius: 9999px; }
+.result-progress-option::-webkit-progress-value { background: #10b981; }
+.result-progress-abstention::-webkit-progress-value { background: #78716c; }
+.result-progress-option::-moz-progress-bar { background: #10b981; }
+.result-progress-abstention::-moz-progress-bar { background: #78716c; }
+
+@media print {
+  body * { visibility: hidden; }
+
+  .poll-session-result-print-area,
+  .poll-session-result-print-area *,
+  .school-poll-result-print-area,
+  .school-poll-result-print-area * { visibility: visible; }
+
+  .poll-session-result-print-area,
+  .school-poll-result-print-area {
+    background: #fff !important;
+    border-color: #000 !important;
+    font-size: 12px !important;
+    left: 0;
+    padding: 10mm !important;
+    position: absolute;
+    top: 0;
+    width: 100%;
+  }
+
+  .poll-session-result-print-contests,
+  .school-poll-result-print-contests {
+    display: grid !important;
+    gap: 8px !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .poll-session-result-print-options,
+  .school-poll-result-print-options {
+    column-gap: 8px !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    row-gap: 3px !important;
+  }
+
+  .poll-session-result-print-button,
+  .school-poll-result-print-button { display: none !important; }
+}

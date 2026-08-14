@@ -45,7 +45,7 @@
                     <p class="break-words font-medium"><%= @poll.choice_number_label %> <%= option_result.poll_option.number %>번 <%= option_result.poll_option.name %></p>
                     <p class="font-semibold"><%= option_result.votes_count %>표</p>
                   </div>
-                  <div class="mt-2 h-2 overflow-hidden rounded-full bg-stone-200"><div class="h-full rounded-full bg-emerald-500" style="width: <%= option_result.percentage %>%"></div></div>
+                  <progress class="result-progress result-progress-option mt-2" value="<%= option_result.percentage %>" max="100"></progress>
                   <p class="mt-1 text-xs text-stone-500"><%= option_result.percentage %>%</p>
                 </div>
               </div>
@@ -53,7 +53,7 @@
           <% end %>
           <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
             <div class="flex items-center justify-between gap-3"><p class="font-medium">기권</p><p class="font-semibold"><%= contest_result.abstentions_count %>표</p></div>
-            <div class="mt-2 h-2 overflow-hidden rounded-full bg-stone-200"><div class="h-full rounded-full bg-stone-500" style="width: <%= contest_result.abstention_percentage %>%"></div></div>
+            <progress class="result-progress result-progress-abstention mt-2" value="<%= contest_result.abstention_percentage %>" max="100"></progress>
             <p class="mt-1 text-xs text-stone-500"><%= contest_result.abstention_percentage %>%</p>
           </div>
         </div>
@@ -62,7 +62,7 @@
   </section>
 
   <div class="flex justify-end">
-    <button type="button" onclick="window.print()" class="school-poll-result-print-button rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700">투표 결과 인쇄</button>
+    <button type="button" data-controller="print" data-action="click->print#print" class="school-poll-result-print-button rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700">투표 결과 인쇄</button>
   </div>
 
   <%= render "school_polls/printable_results" %>
@@ -98,24 +98,3 @@
     <% end %>
   </section>
 </div>
-
-<style>
-  @media print {
-    body * { visibility: hidden; }
-    .school-poll-result-print-area,
-    .school-poll-result-print-area * { visibility: visible; }
-    .school-poll-result-print-area {
-      background: #fff !important;
-      border-color: #000 !important;
-      font-size: 12px !important;
-      left: 0;
-      padding: 10mm !important;
-      position: absolute;
-      top: 0;
-      width: 100%;
-    }
-    .school-poll-result-print-contests { display: grid !important; gap: 8px !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-    .school-poll-result-print-options { column-gap: 8px !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; row-gap: 3px !important; }
-    .school-poll-result-print-button { display: none !important; }
-  }
-</style>

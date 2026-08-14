@@ -1022,7 +1022,14 @@ RSpec.describe "PollSession ballots", type: :request do
     )
     printable_results = results_page.at_css("[data-testid='poll-session-printable-results']").text.squish
     expect(printable_results).to include("투표 대상자 3명", "기호 1번 김후보 1표", "기권 1표")
-    expect(response.body).to include("투표 결과 인쇄", "data-testid=\"poll-session-printable-results\"")
+    print_button = results_page.at_xpath('//button[contains(normalize-space(.), "투표 결과 인쇄")]')
+    expect(print_button["onclick"]).to be_nil
+    expect(print_button["data-controller"]).to eq("print")
+    expect(print_button["data-action"]).to eq("click->print#print")
+    expect(results_page.at_css('progress.result-progress-option[value="50"][max="100"]')).to be_present
+    expect(results_page.at_css('progress.result-progress-abstention[value="50"][max="100"]')).to be_present
+    expect(results_page.css("progress[style]")).to be_empty
+    expect(response.body).to include("data-testid=\"poll-session-printable-results\"")
     expect(response.body).not_to include("99표", "종료 학급 집계", "집계 포함")
   end
 

@@ -55,9 +55,7 @@
                       <p class="break-words font-medium"><%= @poll_session.poll.choice_number_label %> <%= option.number %>번 <%= option.name %></p>
                       <p class="font-semibold"><%= option_result[:votes_count] %>표</p>
                     </div>
-                    <div class="mt-2 h-2 overflow-hidden rounded-full bg-stone-200">
-                      <div class="h-full rounded-full bg-emerald-500" style="width: <%= option_result[:percentage] %>%"></div>
-                    </div>
+                    <progress class="result-progress result-progress-option mt-2" value="<%= option_result[:percentage] %>" max="100"></progress>
                     <p class="mt-1 text-xs text-stone-500"><%= option_result[:percentage] %>%</p>
                   </div>
                 </div>
@@ -68,9 +66,7 @@
                 <p class="font-medium">기권</p>
                 <p class="font-semibold"><%= result[:abstentions_count] %>표</p>
               </div>
-              <div class="mt-2 h-2 overflow-hidden rounded-full bg-stone-200">
-                <div class="h-full rounded-full bg-stone-500" style="width: <%= result[:abstention_percentage] %>%"></div>
-              </div>
+              <progress class="result-progress result-progress-abstention mt-2" value="<%= result[:abstention_percentage] %>" max="100"></progress>
               <p class="mt-1 text-xs text-stone-500"><%= result[:abstention_percentage] %>%</p>
             </div>
           </div>
@@ -82,7 +78,7 @@
   </section>
 
   <div class="flex justify-end">
-    <button type="button" onclick="window.print()"
+    <button type="button" data-controller="print" data-action="click->print#print"
             class="poll-session-result-print-button rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700">
       투표 결과 인쇄
     </button>
