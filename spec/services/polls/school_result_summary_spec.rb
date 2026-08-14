@@ -31,6 +31,31 @@ RSpec.describe Polls::SchoolResultSummary do
     described_class.new(poll).contest_results.sole.option_results.map(&:votes_count)
   end
 
+  it "prepares winners and percentages including abstentions" do
+    school = create(:school)
+    classrooms = 3.times.map { create_result_classroom(school) }
+
+    poll, options = create_result_poll(school: school, title: "단독 승자")
+    session = add_closed_result(poll: poll, classroom: classrooms[0], options: options, votes: [5, 2])
+    create(:poll_contest_tally, poll: poll, poll_session: session,
+                                poll_contest: options.first.poll_contest, abstentions_count: 1)
+
+    result = described_class.new(poll).contest_results.sole
+    expect(result.winners).to eq([result.option_results.first])
+    expect(result.total_votes).to eq(8)
+    expect(result.abstentions_count).to eq(1)
+    expect(result.option_results.map(&:percentage)).to eq([63, 25])
+    expect(result.abstention_percentage).to eq(13)
+
+    tied_poll, tied_options = create_result_poll(school: school, title: "공동 승자")
+    add_closed_result(poll: tied_poll, classroom: classrooms[1], options: tied_options, votes: [3, 3])
+    expect(described_class.new(tied_poll).contest_results.sole.winners.map(&:poll_option)).to eq(tied_options)
+
+    zero_poll, zero_options = create_result_poll(school: school, title: "득표 없음")
+    add_closed_result(poll: zero_poll, classroom: classrooms[2], options: zero_options, votes: [0, 0])
+    expect(described_class.new(zero_poll).contest_results.sole.winners).to be_empty
+  end
+
   it "excludes a closed source and includes only its closed replacement tally" do
     school = create(:school)
     teacher = create(:user)

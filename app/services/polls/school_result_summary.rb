@@ -1,7 +1,10 @@
 module Polls
   class SchoolResultSummary
-    OptionResult = Data.define(:poll_option, :votes_count)
-    ContestResult = Data.define(:poll_contest, :option_results, :abstentions_count)
+    OptionResult = Data.define(:poll_option, :votes_count, :percentage)
+    ContestResult = Data.define(
+      :poll_contest, :option_results, :abstentions_count, :total_votes,
+      :abstention_percentage, :winners
+    )
     SessionResult = Data.define(:poll_session, :included)
     ParticipationResult = Data.define(:total_count, :completed_count, :absent_count, :pending_count)
 
@@ -15,13 +18,7 @@ module Polls
       @contest_results ||= poll.poll_contests
         .includes(:poll_options)
         .order(:position, :id)
-        .map do |contest|
-          ContestResult.new(
-            poll_contest: contest,
-            option_results: option_results_for(contest),
-            abstentions_count: contest_abstention_counts.fetch(contest.id, 0)
-          )
-        end
+        .map { |contest| contest_result_for(contest) }
     end
 
     def session_results
@@ -92,13 +89,43 @@ module Polls
       end
     end
 
-    def option_results_for(contest)
-      contest.poll_options.sort_by { |option| [option.number, option.id] }.map do |option|
-        OptionResult.new(
-          poll_option: option,
-          votes_count: option_vote_counts.fetch(option.id, 0)
-        )
+    def contest_result_for(contest)
+      abstentions_count = contest_abstention_counts.fetch(contest.id, 0)
+      option_counts = contest.poll_options.to_h do |option|
+        [option, option_vote_counts.fetch(option.id, 0)]
       end
+      total_votes = option_counts.values.sum + abstentions_count
+      highest_vote_count = option_counts.values.max.to_i
+      option_results = contest.poll_options
+        .sort_by { |option| [option.number, option.id] }
+        .map do |option|
+          votes_count = option_counts.fetch(option)
+          OptionResult.new(
+            poll_option: option,
+            votes_count: votes_count,
+            percentage: percentage(votes_count, total_votes)
+          )
+        end
+      winners = if highest_vote_count.positive?
+        option_results.select { |result| result.votes_count == highest_vote_count }
+      else
+        []
+      end
+
+      ContestResult.new(
+        poll_contest: contest,
+        option_results: option_results,
+        abstentions_count: abstentions_count,
+        total_votes: total_votes,
+        abstention_percentage: percentage(abstentions_count, total_votes),
+        winners: winners
+      )
+    end
+
+    def percentage(count, total)
+      return 0 unless total.to_i.positive?
+
+      [[((count.to_f / total) * 100).round, 0].max, 100].min
     end
 
     def option_vote_counts

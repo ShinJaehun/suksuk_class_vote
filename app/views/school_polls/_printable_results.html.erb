@@ -15,9 +15,7 @@
     <% @school_result_summary.contest_results.each do |contest_result| %>
       <article class="rounded-md border border-stone-200 p-3">
         <h3 class="font-semibold"><%= contest_result.poll_contest.title %></h3>
-        <% highest = contest_result.option_results.map(&:votes_count).max.to_i %>
-        <% winners = highest.positive? ? contest_result.option_results.select { |result| result.votes_count == highest } : [] %>
-        <p class="mt-1 text-sm font-medium">최다 득표: <%= winners.any? ? winners.map { |result| "#{@poll.choice_number_label} #{result.poll_option.number}번 #{result.poll_option.name}" }.join(", ") : "없음" %></p>
+        <p class="mt-1 text-sm font-medium">최다 득표: <%= contest_result.winners.any? ? contest_result.winners.map { |result| "#{@poll.choice_number_label} #{result.poll_option.number}번 #{result.poll_option.name}" }.join(", ") : "없음" %></p>
         <div class="school-poll-result-print-options mt-3 grid gap-2 sm:grid-cols-2">
           <% contest_result.option_results.each do |option_result| %>
             <div class="grid grid-cols-[max-content_minmax(0,1fr)_max-content] gap-2 rounded-md bg-stone-50 px-2 py-1 text-sm">
