@@ -1047,7 +1047,7 @@ RSpec.describe "School Poll management", type: :request do
       first_closed.classroom.update!(grade: 5, class_label: "2")
       second_closed.classroom.update!(grade: 4, class_label: "1")
       third_closed.classroom.update!(grade: 6, class_label: "1")
-      participants = 3.times.map do |index|
+      participants = 4.times.map do |index|
         create(
           :poll_participant,
           poll: poll,
@@ -1056,7 +1056,9 @@ RSpec.describe "School Poll management", type: :request do
           name: "참가자 #{index + 1}"
         )
       end
-      participants.first(2).each { |participant| create(:poll_participation, poll_participant: participant) }
+      create(:poll_participation, poll_participant: participants[0], status: :completed)
+      create(:poll_participation, poll_participant: participants[1], status: :abstained)
+      create(:poll_participation, poll_participant: participants[2], status: :absent)
       draft = create_result_session(poll: poll, status: :draft, classroom_name: "준비 3반")
       in_progress = create_result_session(
         poll: poll,
@@ -1160,7 +1162,7 @@ RSpec.describe "School Poll management", type: :request do
       expect(summary_text).to include(
         "#{poll.title} 결과 집계",
         "2026학년도 #{poll.school.name} 4·5·6학년 대상 시작 2026-08-10 16:34 · 종료 2026-08-10 16:35",
-        "투표 대상자 3명",
+        "투표 대상자 4명",
         "투표 완료 2명",
         "미참여 1명",
         "학급 세션 6",
@@ -1203,16 +1205,16 @@ RSpec.describe "School Poll management", type: :request do
       expect(grade_summaries).to all(include("+", "−"))
       expect(grade_summaries.join(" ")).to include(
         "4학년 · 투표 대상자 0명",
-        "5학년 · 투표 대상자 3명",
+        "5학년 · 투표 대상자 4명",
         "6학년 · 투표 대상자 0명"
       )
       expect(classroom_text).to include(
         "4학년 · 투표 대상자 0명",
         "4학년 1반",
         "투표 대상자 0명 · 참여 0명 · 미참여 0명",
-        "5학년 · 투표 대상자 3명",
+        "5학년 · 투표 대상자 4명",
         "5학년 2반",
-        "투표 대상자 3명 · 참여 2명 · 미참여 1명",
+        "투표 대상자 4명 · 참여 2명 · 미참여 1명",
         "6학년 · 투표 대상자 0명",
         "6학년 1반",
         "담당교사 종료 1반 담임 선생님",
@@ -1251,7 +1253,7 @@ RSpec.describe "School Poll management", type: :request do
         ]
       end
       expect(printable_summary).to include(
-        "투표 대상자" => "3명",
+        "투표 대상자" => "4명",
         "투표 완료" => "2명",
         "미참여" => "1명"
       )

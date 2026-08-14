@@ -131,11 +131,6 @@ class SchoolPollsController < ApplicationController
       .merge(Classroom.in_school_order)
       .includes(:classroom, :operator, poll_participants: :poll_participation,
                 poll_option_tallies: :poll_option, poll_contest_tallies: :poll_contest)
-    @total_count = @included_sessions.sum { |session| session.poll_participants.size }
-    @completed_count = @included_sessions.sum do |session|
-      session.poll_participants.count { |participant| participant.poll_participation.present? }
-    end
-    @absent_count = @total_count - @completed_count
     @current_session_count = @poll.current_poll_sessions.count
     @included_sessions_by_grade = @included_sessions.group_by { |session| session.classroom&.grade }
     @included_grades = @included_sessions.filter_map { |session| session.classroom&.grade }.uniq.sort

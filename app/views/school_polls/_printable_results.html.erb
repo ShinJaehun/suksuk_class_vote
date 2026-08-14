@@ -6,7 +6,7 @@
   </header>
 
   <dl class="grid gap-2 text-sm sm:grid-cols-3">
-    <% { "투표 대상자" => "#{@total_count}명", "투표 완료" => "#{@completed_count}명", "미참여" => "#{@absent_count}명" }.each do |label, value| %>
+    <% { "투표 대상자" => "#{@school_result_summary.total_count}명", "투표 완료" => "#{@school_result_summary.completed_count}명", "미참여" => "#{@school_result_summary.absent_count}명" }.each do |label, value| %>
       <div class="rounded-md border border-stone-200 bg-stone-50 p-3"><dt class="text-stone-500"><%= label %></dt><dd class="mt-1 font-semibold text-stone-900"><%= value %></dd></div>
     <% end %>
   </dl>
