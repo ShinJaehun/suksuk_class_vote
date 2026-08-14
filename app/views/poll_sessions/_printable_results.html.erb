@@ -3,11 +3,17 @@
          data-testid="poll-session-printable-results">
   <header class="space-y-2">
     <h2 class="text-2xl font-semibold text-stone-900"><%= @poll_session.poll.title %> 투표 결과</h2>
-    <p class="text-lg font-semibold text-stone-700"><%= @poll_session.classroom_name_snapshot %> · <%= vote_date %> 시행</p>
+    <p class="text-lg font-semibold text-stone-700">
+      <%= @poll_session.classroom_name_snapshot %> · <%= vote_date %> 시행
+    </p>
   </header>
 
   <dl class="grid gap-2 text-sm sm:grid-cols-3">
-    <% { "투표 대상자" => @total_count, "투표 완료" => @completed_count + @abstained_count, "미참여" => @absent_count }.each do |label, count| %>
+    <% {
+         "투표 대상자" => @total_count,
+         "투표 완료" => @completed_count + @abstained_count,
+         "미참여" => @absent_count
+       }.each do |label, count| %>
       <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
         <dt class="text-stone-500"><%= label %></dt>
         <dd class="mt-1 font-semibold text-stone-900"><%= count %>명</dd>

@@ -1,8 +1,12 @@
 <div class="mx-auto max-w-5xl space-y-6">
-  <% school_results_context = params[:from] == "school_poll_results" && @poll_session.poll.school_managed? && policy(@poll_session.poll).school_results? %>
+  <% school_results_context = params[:from] == "school_poll_results" &&
+                              @poll_session.poll.school_managed? &&
+                              policy(@poll_session.poll).school_results? %>
   <%= link_to school_results_context ? "전교투표 결과로 돌아가기" : "학급투표 상세로 돌아가기",
               school_results_context ? results_school_poll_path(@poll_session.poll) : poll_poll_session_path(
-                @poll_session.poll, @poll_session, poll_session_context_params(@poll_session, from: params[:from])
+                @poll_session.poll,
+                @poll_session,
+                poll_session_context_params(@poll_session, from: params[:from])
               ),
               class: "inline-block text-sm font-medium text-stone-700 underline" %>
 
@@ -11,12 +15,18 @@
       <h1 class="text-3xl font-semibold"><%= @poll_session.poll.title %> 결과 집계</h1>
       <%= poll_badges(poll: @poll_session.poll, status_record: @poll_session) %>
     </div>
-    <% session_time_labels = poll_session_status_time_labels(@poll_session).map { |label| label.sub(/\A(?:재투표|투표) /, "") } %>
+    <% session_time_labels = poll_session_status_time_labels(@poll_session).map { |label|
+         label.sub(/\A(?:재투표|투표) /, "")
+       } %>
     <p class="text-sm text-stone-600">
       <%= ([@poll_session.classroom_name_snapshot] + session_time_labels).join(" · ") %>
     </p>
     <dl class="grid gap-3 sm:grid-cols-3">
-      <% { "투표 대상자" => @total_count, "투표 완료" => @completed_count + @abstained_count, "미참여" => @absent_count }.each do |label, count| %>
+      <% {
+           "투표 대상자" => @total_count,
+           "투표 완료" => @completed_count + @abstained_count,
+           "미참여" => @absent_count
+         }.each do |label, count| %>
         <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
           <dt class="text-xs font-medium text-stone-500"><%= label %></dt>
           <dd class="mt-1 font-semibold"><%= count %>명</dd>
@@ -34,7 +44,9 @@
           <% if result[:winners].any? %>
             <p class="mt-2 text-sm font-medium text-stone-700">
               <%= result[:winner_label] %>:
-              <%= result[:winners].map { |option| "#{@poll_session.poll.choice_number_label} #{option.number}번 #{option.name}" }.join(", ") %>
+              <%= result[:winners].map { |option|
+                    "#{@poll_session.poll.choice_number_label} #{option.number}번 #{option.name}"
+                  }.join(", ") %>
             </p>
           <% else %>
             <p class="mt-2 text-sm text-stone-600">집계 기록이 없습니다.</p>
@@ -55,7 +67,9 @@
                       <p class="break-words font-medium"><%= @poll_session.poll.choice_number_label %> <%= option.number %>번 <%= option.name %></p>
                       <p class="font-semibold"><%= option_result[:votes_count] %>표</p>
                     </div>
-                    <progress class="result-progress result-progress-option mt-2" value="<%= option_result[:percentage] %>" max="100"></progress>
+                    <progress class="result-progress result-progress-option mt-2"
+                              value="<%= option_result[:percentage] %>"
+                              max="100"></progress>
                     <p class="mt-1 text-xs text-stone-500"><%= option_result[:percentage] %>%</p>
                   </div>
                 </div>
@@ -66,7 +80,9 @@
                 <p class="font-medium">기권</p>
                 <p class="font-semibold"><%= result[:abstentions_count] %>표</p>
               </div>
-              <progress class="result-progress result-progress-abstention mt-2" value="<%= result[:abstention_percentage] %>" max="100"></progress>
+              <progress class="result-progress result-progress-abstention mt-2"
+                        value="<%= result[:abstention_percentage] %>"
+                        max="100"></progress>
               <p class="mt-1 text-xs text-stone-500"><%= result[:abstention_percentage] %>%</p>
             </div>
           </div>
@@ -78,12 +94,13 @@
   </section>
 
   <div class="flex justify-end">
-    <button type="button" data-controller="print" data-action="click->print#print"
+    <button type="button"
+            data-controller="print"
+            data-action="click->print#print"
             class="poll-session-result-print-button rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700">
       투표 결과 인쇄
     </button>
   </div>
 
   <%= render "poll_sessions/printable_results" %>
-
 </div>
