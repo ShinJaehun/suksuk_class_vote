@@ -42,14 +42,14 @@ RSpec.describe "PollSession lifecycle", type: :request do
     get poll_poll_session_path(session.poll, session)
     expect(response.body).to include("시작 #{started_label}")
     get polls_path
-    expect(response.body).to include("투표 시작", started_label)
+    expect(response.body).to include("시작 #{started_label}")
 
     Polls::StopSession.new(actor: teacher, poll_session: session).call
     stopped_label = ApplicationController.helpers.kst_datetime(session.reload.stopped_at)
     get poll_poll_session_path(session.poll, session)
     expect(response.body).to include("시작 #{started_label}", "중단 #{stopped_label}")
     get polls_path
-    expect(response.body).to include("투표 시작", "투표 중단", started_label, stopped_label)
+    expect(response.body).to include("시작 #{started_label}", "중단 #{stopped_label}")
 
     closed, closed_teacher = create_running_session
     closed_at = Time.current
@@ -59,7 +59,10 @@ RSpec.describe "PollSession lifecycle", type: :request do
     closed.reload
     expect(response.body).to include("시작 #{ApplicationController.helpers.kst_datetime(closed.started_at)}", "종료 #{ApplicationController.helpers.kst_datetime(closed.closed_at)}")
     get polls_path
-    expect(response.body).to include("투표 시작", "투표 종료")
+    expect(response.body).to include(
+      "시작 #{ApplicationController.helpers.kst_datetime(closed.started_at)}",
+      "종료 #{ApplicationController.helpers.kst_datetime(closed.closed_at)}"
+    )
   end
 
   it "uses top-level navigation and omits lifecycle explanations" do

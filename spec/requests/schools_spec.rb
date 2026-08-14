@@ -26,15 +26,21 @@ RSpec.describe "Schools", type: :request do
     manager = add_teacher(school, role: :manager, name: "대표교사")
     classroom = create(:classroom, school: school, teacher: manager)
     create(:student, classroom: classroom)
+    create(:student, classroom: classroom, active: false)
     other_school = create(:school, name: "다른초")
     sign_in create(:user, :admin)
 
     get schools_path
-    expect(response.body).to include(school.name, other_school.name, "학교 생성", "교실 1개", "소속 선생님 1명", manager.name)
+    expect(response.body).to include(
+      school.name,
+      other_school.name,
+      "학교 생성",
+      "1학급(2명) · 소속 선생님 1명",
+      "대표 선생님: #{manager.name}"
+    )
 
     inactive_teacher = add_teacher(school, name: "비활성 교사", active: false)
     inactive_classroom = create(:classroom, school: school, class_label: "2", active: false)
-    create(:student, classroom: classroom, active: false)
     create(:student, classroom: inactive_classroom, active: true)
 
     get school_path(school)

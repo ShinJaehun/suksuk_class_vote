@@ -23,6 +23,9 @@ RSpec.describe "Classroom students", type: :request do
     expect(response).to have_http_status(:ok)
     expect(response.body.index("하나")).to be < response.body.index("둘")
     expect(response.body).not_to include("셋")
+    management = Nokogiri::HTML(response.body).at_css("#student_management")
+    expect(management.css("dt").map { |label| label.text.squish }).to include("담당")
+    expect(management.css("dt").map { |label| label.text.squish }).not_to include("담당 교사")
     filter_labels = Nokogiri::HTML(response.body)
       .css("nav[aria-label='학생 상태 필터'] a").map { |link| link.text.squish }
     expect(filter_labels).to eq(["활성 2", "비활성 1", "전체 3"])
@@ -241,11 +244,15 @@ RSpec.describe "Classroom students", type: :request do
     get bulk_new_classroom_students_path(classroom, count: 3)
     expect(response.body.scan(/students\[rows\]\[\d+\]\[number\]/).size).to eq(3)
     expect(response.body.scan(/students\[rows\]\[\d+\]\[name\]/).size).to eq(3)
+    bulk_new_headers = Nokogiri::HTML(response.body).css('[data-student-rows-target="list"] > div').first.text.squish
+    expect(bulk_new_headers).to eq("번호 이름 관리")
     number_inputs = Nokogiri::HTML(response.body).css('input[type="number"][name*="[number]"]')
     expect(number_inputs).to all(satisfy { |input| input["readonly"].nil? && input["min"] == "1" && input["step"] == "1" })
 
     get bulk_edit_classroom_students_path(classroom)
-    edit_number = Nokogiri::HTML(response.body).at_css('input[type="number"][name*="[number]"]')
+    bulk_edit_page = Nokogiri::HTML(response.body)
+    expect(bulk_edit_page.css('[data-student-rows-target="list"] > div').first.text.squish).to eq("번호 이름 관리")
+    edit_number = bulk_edit_page.at_css('input[type="number"][name*="[number]"]')
     expect(edit_number["readonly"]).to be_nil
     expect([edit_number["min"], edit_number["step"]]).to eq(["1", "1"])
   end

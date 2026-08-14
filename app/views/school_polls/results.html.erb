@@ -77,9 +77,15 @@
   <section class="space-y-4" data-testid="school-poll-classroom-results">
     <h2 class="text-xl font-semibold">학급별 집계</h2>
     <% @included_sessions_by_grade.each do |grade, sessions| %>
-      <details open class="space-y-3" data-testid="school-poll-grade-results">
-        <summary class="cursor-pointer text-lg font-semibold text-stone-800"><%= grade.present? ? "#{grade}학년" : "학년 미상" %> · 투표 대상자 <%= sessions.sum { |session| session.poll_participants.size } %>명</summary>
-        <div class="space-y-3 pt-3">
+      <details open class="group rounded-lg border border-stone-300 bg-stone-50 p-4" data-testid="school-poll-grade-results">
+        <summary class="flex cursor-pointer list-none items-center justify-between gap-3 text-lg font-semibold marker:hidden">
+          <span><%= grade.present? ? "#{grade}학년" : "학년 미상" %> · 투표 대상자 <%= sessions.sum { |session| session.poll_participants.size } %>명</span>
+          <span aria-hidden="true">
+            <span class="group-open:hidden">+</span>
+            <span class="hidden group-open:inline">−</span>
+          </span>
+        </summary>
+        <div class="mt-3 space-y-3">
           <% sessions.each do |session| %>
             <% enrolled = session.poll_participants.size %>
             <% completed = session.poll_participants.count { |participant| participant.poll_participation.present? } %>

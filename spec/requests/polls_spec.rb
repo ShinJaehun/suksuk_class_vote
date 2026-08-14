@@ -27,7 +27,8 @@ RSpec.describe "Polls", type: :request do
         :poll_session,
         poll: poll,
         classroom: classroom,
-        operator: teacher
+        operator: teacher,
+        classroom_name_snapshot: "2025학년도 6학년 별반"
       )
       sign_in teacher
 
@@ -35,9 +36,14 @@ RSpec.describe "Polls", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include(poll.title)
-      expect(response.body).to include(poll_session.classroom_name_snapshot)
-      expect(response.body).to include("실행 전")
+      expect(response.body).to include("6학년 별반 (0명) 담당: #{teacher.name}")
+      expect(response.body).not_to include("2025학년도 6학년 별반", "#{classroom.grade}학년 #{classroom.class_label}반 담당")
+      expect(response.body).not_to include("실행 상태")
       expect(response.body).to include(poll_poll_session_path(poll, poll_session))
+      card = Nokogiri::HTML(response.body).at_css('li[data-school-managed-session="false"]')
+      expect(card.text).not_to include("선생님")
+      expect(card["class"]).to include("border-stone-200", "bg-white")
+      expect(card["class"]).not_to include("border-violet-200", "bg-violet-50/60")
       badges = Nokogiri::HTML(response.body).at_css('[data-testid="poll-badges"]')
       expect(badges.text.squish).to eq("학급 선거 준비")
     end
@@ -65,6 +71,8 @@ RSpec.describe "Polls", type: :request do
 
       expect(result).to be_success
       expect(response.body).to include(poll.title, poll_poll_session_path(poll, poll_session))
+      card = Nokogiri::HTML(response.body).at_css('li[data-school-managed-session="true"]')
+      expect(card["class"]).to include("border-violet-200", "bg-violet-50/60")
     end
 
     it "hides archived Sessions from the default list" do
@@ -491,31 +499,44 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).to include(new_poll_path)
     end
 
-    it "shows every operated Session separately and orders active work first" do
-      admin = create(:user, :admin)
+    it "shows every operated Session separately and orders newest creation first" do
+      admin = create(:user, :admin, name: "관리자")
       school = create(:school)
       poll = create(:poll, school: school, participant_group: nil, title: "여러 학급 투표")
-      first_classroom = create(:classroom, school: school)
-      second_classroom = create(:classroom, school: school)
-      closed_session = create(
+      first_classroom = create(:classroom, school: school, grade: 4, class_label: "1")
+      second_classroom = create(:classroom, school: school, grade: 4, class_label: "2")
+      active_session = create(
         :poll_session,
         poll: poll,
         classroom: first_classroom,
         operator: admin,
-        status: :closed,
-        started_at: 1.hour.ago,
-        closed_at: Time.current,
-        classroom_name_snapshot: "종료 학급"
+        status: :in_progress,
+        started_at: 2.hours.ago,
+        created_at: 2.hours.ago,
+        classroom_name_snapshot: "2026학년도 4학년 1반"
       )
-      active_session = create(
+      closed_session = create(
         :poll_session,
         poll: poll,
         classroom: second_classroom,
         operator: admin,
-        status: :in_progress,
-        started_at: Time.current,
-        classroom_name_snapshot: "진행 학급"
+        status: :closed,
+        started_at: 1.hour.ago,
+        closed_at: Time.current,
+        created_at: 1.hour.ago,
+        classroom_name_snapshot: "2026학년도 4학년 2반"
       )
+      %i[completed abstained absent pending].each_with_index do |status, index|
+        participant = create(
+          :poll_participant,
+          poll: poll,
+          poll_session: closed_session,
+          source_participant_slot: nil,
+          number: index + 1,
+          name: "학생 #{index + 1}"
+        )
+        create(:poll_participation, poll_participant: participant, status: status) unless status == :pending
+      end
       sign_in admin
 
       get polls_path
@@ -525,8 +546,16 @@ RSpec.describe "Polls", type: :request do
         poll_poll_session_path(poll, active_session),
         poll_poll_session_path(poll, closed_session)
       )
-      expect(response.body.index(active_session.classroom_name_snapshot))
-        .to be < response.body.index(closed_session.classroom_name_snapshot)
+      expect(response.body.index("4학년 2반 ("))
+        .to be < response.body.index("4학년 1반 (")
+      expect(response.body).to include(
+        "4학년 2반 (2명) 담당: 관리자",
+        "시작 #{ApplicationController.helpers.kst_datetime(closed_session.started_at)} · 종료 #{ApplicationController.helpers.kst_datetime(closed_session.closed_at)}"
+      )
+      expect(response.body).not_to include("실행 상태 종료", "투표 시작", "투표 종료")
+      closed_card = Nokogiri::HTML(response.body).css('li[data-school-managed-session="false"]')
+        .find { |card| card.text.include?("4학년 2반") }
+      expect(closed_card.text).not_to include("선생님")
     end
   end
 
@@ -620,16 +649,52 @@ RSpec.describe "Polls", type: :request do
                                          closed_at: 90.minutes.ago)
       replacement = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                                           replacement_of: superseded)
-      replacement.update!(status: :closed, started_at: 1.hour.ago, closed_at: 30.minutes.ago)
+      replacement.update!(status: :closed, started_at: 1.hour.ago, closed_at: 30.minutes.ago,
+                          classroom_name_snapshot: "2026학년도 4학년 1반")
+      %i[completed abstained absent pending].each_with_index do |status, index|
+        participant = create(:poll_participant, poll: poll, poll_session: replacement,
+                                                source_participant_slot: nil,
+                                                number: index + 1, name: "학생 #{index + 1}")
+        create(:poll_participation, poll_participant: participant, status: status) unless status == :pending
+      end
       archived_at = Time.current
       poll.update!(status: :closed, closed_at: archived_at, archived_at: archived_at)
       poll.poll_sessions.update_all(archived_at: archived_at)
+
+      classroom_poll = create(:poll, school: school, participant_group: nil,
+                                      title: "보관된 학급투표", status: :closed,
+                                      archived_at: archived_at)
+      classroom_session = create(:poll_session, poll: classroom_poll, classroom: classroom,
+                                                 operator: teacher, status: :closed,
+                                                 started_at: 2.hours.ago, closed_at: 1.hour.ago,
+                                                 archived_at: archived_at,
+                                                 classroom_name_snapshot: "2026학년도 4학년 일반반")
+      classroom_participant = create(:poll_participant, poll: classroom_poll,
+                                                        poll_session: classroom_session,
+                                                        source_participant_slot: nil,
+                                                        number: 1)
+      create(:poll_participation, poll_participant: classroom_participant, status: :completed)
       sign_in teacher
 
       get archived_polls_path
 
       expect(response.body).to include(poll.title, poll_poll_session_path(poll, replacement))
       expect(response.body).not_to include(poll_poll_session_path(poll, superseded))
+      page = Nokogiri::HTML(response.body)
+      school_card = page.at_css('li[data-school-managed-session="true"]')
+      classroom_card = page.at_css('li[data-school-managed-session="false"]')
+      expect(school_card["class"]).to include("border-violet-200", "bg-violet-50/60")
+      expect(classroom_card["class"]).to include("border-stone-200", "bg-white")
+      expect(school_card.text.squish).to include(
+        "4학년 1반 (2명) 담당: #{teacher.name}",
+        "시작 #{ApplicationController.helpers.kst_datetime(replacement.started_at)} · 종료 #{ApplicationController.helpers.kst_datetime(replacement.closed_at)}"
+      )
+      expect(classroom_card.text.squish).to include("4학년 일반반 (1명) 담당: #{teacher.name}")
+      school_card_metadata = school_card.css("p").map { |node| node.text.squish }.join(" ")
+      expect(school_card_metadata).not_to include("선생님")
+      expect(school_card_metadata).not_to include("실행 상태")
+      expect(school_card_metadata).not_to include("투표 시작")
+      expect(school_card_metadata).not_to include("투표 종료")
     end
 
     it "shows closed election sessions as archived vote results" do

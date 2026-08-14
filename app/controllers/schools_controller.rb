@@ -5,6 +5,10 @@ class SchoolsController < ApplicationController
   def index
     authorize School
     @schools = policy_scope(School).includes(:classrooms, school_memberships: :user).order(:name)
+    @school_student_counts = Student.joins(:classroom)
+      .where(classrooms: { school_id: @schools.map(&:id) })
+      .group("classrooms.school_id")
+      .count
 
     if current_user.school_membership&.manager? && @schools.one?
       redirect_to @schools.first

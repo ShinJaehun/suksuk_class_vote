@@ -64,21 +64,30 @@
     <div class="space-y-4">
       <h3 class="font-semibold">배정된 학급 세션</h3>
       <% current_sessions.group_by { |session| session.classroom.grade }.sort_by { |grade, _| grade }.each do |grade, sessions| %>
-        <section class="space-y-3 rounded-lg border border-stone-300 bg-stone-50 p-4">
+        <details open class="group rounded-lg border border-stone-300 bg-stone-50 p-4"
+                 data-testid="school-poll-assigned-grade-sessions">
           <% grade_unassignable = sessions.all?(&:unassignable_from_draft_poll?) %>
-          <div class="flex items-center justify-between gap-3">
-            <h4 class="text-lg font-semibold"><%= grade %>학년 전체</h4>
+          <summary class="flex cursor-pointer list-none items-center justify-between gap-3 text-lg font-semibold marker:hidden">
+            <span><%= grade %>학년</span>
+            <span aria-hidden="true">
+              <span class="group-open:hidden">+</span>
+              <span class="hidden group-open:inline">−</span>
+            </span>
+          </summary>
+          <div class="mt-3 space-y-3">
             <% if grade_unassignable %>
-              <%= button_to "#{grade}학년 배정 해제",
-                            destroy_grade_school_poll_poll_sessions_path(poll, grade: grade),
-                            method: :delete,
-                            class: "text-sm font-medium text-rose-700 underline" %>
+              <div class="flex justify-end">
+                <%= button_to "#{grade}학년 배정 해제",
+                              destroy_grade_school_poll_poll_sessions_path(poll, grade: grade),
+                              method: :delete,
+                              class: "text-sm font-medium text-rose-700 underline" %>
+              </div>
+            <% end %>
+            <% sessions.each do |session| %>
+              <%= render "school_polls/session_runtime", poll: poll, session: session %>
             <% end %>
           </div>
-          <% sessions.each do |session| %>
-            <%= render "school_polls/session_runtime", poll: poll, session: session %>
-          <% end %>
-        </section>
+        </details>
       <% end %>
     </div>
   <% else %>

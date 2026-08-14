@@ -10,6 +10,11 @@
       <%= hidden_field_tag :status, @status %>
       <% student_return_context_params.each do |key, value| %><%= hidden_field_tag key, value %><% end %>
       <div class="space-y-2" data-student-rows-target="list">
+        <div class="hidden grid-cols-[5rem_1fr_auto] gap-3 px-3 text-sm font-medium text-stone-600 sm:grid">
+          <span>번호</span>
+          <span>이름</span>
+          <span class="text-center">관리</span>
+        </div>
         <% @student_rows.each_with_index do |row, index| %>
           <% number_errors = @row_errors.dig(index, :number) || [] %>
           <% name_errors = @row_errors.dig(index, :name) || [] %>

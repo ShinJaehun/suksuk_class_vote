@@ -13,10 +13,35 @@ class SchoolPollsController < ApplicationController
 
   def index
     authorize Poll, :school_index?
-    @polls = school_poll_scope
-      .where(test_source_poll_id: nil)
-      .includes(:school, :user, :poll_sessions)
-      .order(created_at: :desc)
+    scope = school_poll_scope.where(test_source_poll_id: nil)
+    if current_user.admin?
+      @schools = policy_scope(School).order(:name)
+      @selected_school = @schools.find_by(id: params[:school_id]) if params[:school_id].present?
+      scope = scope.where(school_id: @selected_school&.id) if params[:school_id].present?
+    end
+    @polls = scope.includes(:school, :user).order(created_at: :desc)
+
+    current_sessions = PollSession.current_execution
+      .where(poll_id: @polls.map(&:id))
+      .includes(:poll_participants, :classroom)
+      .to_a
+    sessions_by_poll_id = current_sessions.group_by(&:poll_id)
+    draft_classrooms = current_sessions.select(&:draft?).map(&:classroom).uniq
+    active_student_counts = active_student_counts_for(draft_classrooms)
+    @poll_index_metadata = @polls.index_with do |poll|
+      sessions = sessions_by_poll_id.fetch(poll.id, [])
+      session_counts = sessions.map do |session|
+        if session.poll_participants.any?
+          session.poll_participants.size
+        elsif session.draft?
+          active_student_counts.fetch(session.classroom_id, 0)
+        end
+      end
+      {
+        grades: sessions.filter_map { |session| session.classroom&.grade }.uniq.sort,
+        target_count: sessions.any? && session_counts.all? ? session_counts.sum : nil
+      }
+    end
   end
 
   def new

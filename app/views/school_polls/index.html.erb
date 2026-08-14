@@ -8,11 +8,35 @@
     <% end %>
   </div>
 
+  <% if current_user.admin? %>
+    <%= form_with url: school_polls_path,
+                  method: :get,
+                  class: "flex max-w-xl items-end gap-3 rounded-md border border-stone-200 bg-white p-4",
+                  data: { controller: "autosubmit", action: "change->autosubmit#submit" } do |form| %>
+      <div class="flex-1">
+        <%= form.label :school_id, "학교 필터", class: "block text-sm font-medium" %>
+        <%= form.select :school_id,
+                        options_from_collection_for_select(@schools, :id, :name, @selected_school&.id),
+                        { include_blank: "전체 학교" },
+                        class: "mt-1 w-full rounded-md border-stone-300" %>
+      </div>
+    <% end %>
+  <% end %>
+
   <% if @polls.any? %>
     <ul class="space-y-3">
       <% @polls.each do |poll| %>
-        <% session_counts = poll.poll_sessions.group_by(&:status).transform_values(&:size) %>
-        <li class="rounded-md border border-stone-200 bg-white p-4">
+        <% metadata = @poll_index_metadata.fetch(poll) %>
+        <% grade_label = metadata[:grades].one? ? "#{metadata[:grades].first}학년" : "#{metadata[:grades].join("·")}학년" %>
+        <% school_card_classes = case poll.school.color_key
+                                 when "rose" then "border-rose-200 border-l-4 border-l-rose-400 bg-white"
+                                 when "amber" then "border-amber-200 border-l-4 border-l-amber-400 bg-white"
+                                 when "emerald" then "border-emerald-200 border-l-4 border-l-emerald-400 bg-white"
+                                 when "sky" then "border-sky-200 border-l-4 border-l-sky-400 bg-white"
+                                 when "violet" then "border-violet-200 border-l-4 border-l-violet-400 bg-white"
+                                 else "border-stone-200 border-l-4 border-l-stone-300 bg-white"
+                                 end %>
+        <li class="rounded-md border p-4 <%= school_card_classes %>" data-school-id="<%= poll.school_id %>">
           <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div class="space-y-1">
               <div class="flex flex-wrap items-center gap-2">
@@ -21,16 +45,12 @@
               </div>
               <p class="text-sm text-stone-600">
                 <%= poll.school.name %>
-                · 담당 교사: <%= poll.user.name.presence || poll.user.email %>
-                · 학급별 투표 <%= poll.poll_sessions.size %>개
+                <% if metadata[:grades].any? %>
+                  대상: <%= grade_label %><%= " (#{metadata[:target_count]}명)" if metadata[:target_count] %>
+                <% end %>
+                담당: <%= poll.user.name.presence || poll.user.email %>
               </p>
-              <p class="text-sm text-stone-600">
-                실행 전 <%= session_counts.fetch("draft", 0) %>
-                · 진행 중 <%= session_counts.fetch("in_progress", 0) %>
-                · 종료 <%= session_counts.fetch("closed", 0) %>
-                · 중단 <%= session_counts.fetch("stopped", 0) %>
-              </p>
-              <% poll_time_labels = poll_status_time_labels(poll) %>
+              <% poll_time_labels = poll_status_time_labels(poll).map { |label| label.sub(/\A(?:전교투표|테스트투표) /, "") } %>
               <% if poll_time_labels.any? %>
                 <p class="text-sm text-stone-600"><%= poll_time_labels.join(" · ") %></p>
               <% end %>

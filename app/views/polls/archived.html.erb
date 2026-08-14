@@ -10,7 +10,8 @@
     <ul class="space-y-3">
       <% @archived_poll_sessions.each do |poll_session| %>
         <% poll = poll_session.poll %>
-        <li class="rounded-md border border-stone-200 bg-white p-4">
+        <% card_classes = poll.school_managed? ? "border-violet-200 bg-violet-50/60" : "border-stone-200 bg-white" %>
+        <li class="rounded-md border p-4 <%= card_classes %>" data-school-managed-session="<%= poll.school_managed? %>">
           <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div class="space-y-1">
               <div class="flex flex-wrap items-center gap-2">
@@ -18,14 +19,14 @@
                 <%= poll_badges(poll: poll, status_record: poll_session) %>
               </div>
 
-              <p class="text-sm text-stone-600">
-                <%= poll_session.classroom_name_snapshot %>
-                · 실행 상태 <%= poll_session_status_label(poll_session) %>
-                <% session_time_labels = poll_session_status_time_labels(poll_session) %>
-                <% if session_time_labels.any? %>
-                  · <%= session_time_labels.join(" · ") %>                
-                <% end %>
-              </p>
+              <% classroom_label = poll_session.classroom_name_snapshot.to_s.sub(/\A\d{4}학년도\s+/, "").presence || (poll_session.classroom&.grade.present? && poll_session.classroom&.class_label.present? ? "#{poll_session.classroom.grade}학년 #{poll_session.classroom.class_label}반" : nil) %>
+              <% operator_name = poll_session.operator_name_snapshot.presence || poll_session.operator&.name.presence || poll_session.operator&.email %>
+              <% participation_count = poll_session.poll_participants.count { |participant| participant.poll_participation&.completed? || participant.poll_participation&.abstained? } %>
+              <p class="text-sm text-stone-700"><%= classroom_label %> (<%= participation_count %>명) 담당: <%= operator_name %></p>
+              <% session_time_labels = poll_session_status_time_labels(poll_session).map { |label| label.sub(/\A(?:재투표|투표) /, "") } %>
+              <% if session_time_labels.any? %>
+                <p class="text-sm text-stone-600"><%= session_time_labels.join(" · ") %></p>
+              <% end %>
             </div>
 
             <%= link_to "상세",

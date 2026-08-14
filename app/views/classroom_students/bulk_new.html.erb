@@ -23,6 +23,11 @@
         <h2 class="font-semibold">학생 명단</h2>
       </div>
       <div class="space-y-2" data-student-rows-target="list">
+        <div class="hidden grid-cols-[5rem_1fr_auto] gap-3 px-3 text-sm font-medium text-stone-600 sm:grid">
+          <span>번호</span>
+          <span>이름</span>
+          <span class="text-center">관리</span>
+        </div>
         <% @student_rows.each_with_index do |row, index| %>
           <% number_errors = @row_errors.dig(index, :number) || [] %>
           <% name_errors = @row_errors.dig(index, :name) || [] %>
