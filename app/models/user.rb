@@ -71,7 +71,7 @@ class User < ApplicationRecord
   end
 
   def password_must_differ_from_login_id
-    return if password.blank? || login_id.blank? || password != login_id
+    return if password.blank? || login_id.blank? || !password.casecmp?(login_id)
 
     errors.add(:password, "는 로그인 ID와 달라야 합니다")
   end

@@ -70,6 +70,13 @@ RSpec.describe User, type: :model do
       expect(user).not_to be_valid
       expect(user.errors[:password]).to include("는 로그인 ID와 달라야 합니다")
     end
+
+    it "rejects a password equal to the login id with different casing" do
+      user = build(:user, login_id: "tara0401", password: "TARA0401", password_confirmation: "TARA0401")
+
+      expect(user).not_to be_valid
+      expect(user.errors[:password]).to include("는 로그인 ID와 달라야 합니다")
+    end
   end
 
   describe "school associations" do
