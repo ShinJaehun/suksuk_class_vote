@@ -90,9 +90,9 @@ module Polls
       contest_attributes.each_with_index do |attributes, index|
         contest = if index.zero?
                     poll.default_poll_contest
-                  else
+        else
                     poll.poll_contests.create!(title: attributes[:title].presence || "기본", position: index + 1)
-                  end
+        end
 
         contest.update!(title: attributes[:title]) if attributes[:title].present?
         option_attributes(attributes).each do |option|
@@ -150,9 +150,9 @@ module Polls
     def normalize_attributes(attributes)
       source = if attributes.respond_to?(:to_unsafe_h)
                  attributes.to_unsafe_h
-               else
+      else
                  attributes.to_h
-               end
+      end
       source.deep_symbolize_keys
     end
 

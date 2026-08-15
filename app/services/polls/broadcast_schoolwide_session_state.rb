@@ -177,6 +177,5 @@ module Polls
         )
       User.where(id: admins.select(:id)).or(User.where(id: managers.select(:id))).order(:id)
     end
-
   end
 end

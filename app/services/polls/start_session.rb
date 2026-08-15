@@ -123,9 +123,9 @@ module Polls
     def execution_records_exist?
       participant_records_invalid = if poll_session.replacement?
                                       replacement_participation_records_exist?
-                                    else
+      else
                                       poll_session.poll_participants.exists?
-                                    end
+      end
 
       participant_records_invalid ||
         poll_session.poll_progress.present? ||
@@ -152,9 +152,9 @@ module Polls
       source = poll_session.replacement_of
       valid_replacement = if poll.school_managed?
                             source.poll == poll && poll.in_progress?
-                          else
+      else
                             !source.poll.school_managed? && poll.draft?
-                          end
+      end
       if source.classroom != classroom || !valid_replacement
         errors << "재투표 원본과 학급·투표 정보를 확인해 주세요."
       end

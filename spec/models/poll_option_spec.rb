@@ -163,5 +163,4 @@ RSpec.describe PollOption, type: :model do
     contest = create(:poll_contest, poll: poll)
     build(:poll_option, poll: poll, poll_contest: contest)
   end
-
 end

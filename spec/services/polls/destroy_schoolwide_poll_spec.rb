@@ -165,7 +165,7 @@ RSpec.describe Polls::DestroySchoolwidePoll do
                          create(:poll_session, poll: admin_target, classroom: classroom,
                                                operator: classroom.teacher, status: :closed,
                                                started_at: 1.hour.ago, closed_at: Time.current)
-                       end
+      end
       result = described_class.new(poll: admin_target, actor: admin).call
       expect(result.success?).to eq(status != :closed)
       expect(Poll.exists?(admin_target.id)).to eq(status == :closed)

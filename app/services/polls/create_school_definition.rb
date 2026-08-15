@@ -53,9 +53,9 @@ module Polls
     def normalize_attributes(attributes)
       source = if attributes.respond_to?(:to_unsafe_h)
                  attributes.to_unsafe_h
-               else
+      else
                  attributes.to_h
-               end
+      end
       source.deep_symbolize_keys
     end
 

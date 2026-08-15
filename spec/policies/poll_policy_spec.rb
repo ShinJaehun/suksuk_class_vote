@@ -145,7 +145,6 @@ RSpec.describe PollPolicy do
         expect(policy).to be_school_close
         expect(policy).to be_school_stop
       end
-
     end
 
     it "rejects a regular teacher and another School manager" do

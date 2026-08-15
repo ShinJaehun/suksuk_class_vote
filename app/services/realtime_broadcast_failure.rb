@@ -7,10 +7,10 @@ class RealtimeBroadcastFailure
     app_location = if location
                      path = location.absolute_path || location.path
                      "#{path.delete_prefix("#{Rails.root}/")}:#{location.lineno}"
-                   else
+    else
                      error.backtrace&.find { |line| line.start_with?(Rails.root.join("app").to_s) }
                        &.delete_prefix("#{Rails.root}/")
-                   end
+    end
     attributes = {
       actor_id: actor_id,
       poll_id: poll_id,

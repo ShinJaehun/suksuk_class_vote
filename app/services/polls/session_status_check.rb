@@ -71,12 +71,12 @@ module Polls
       end
       @completions = if completions_loaded
                        participants.flat_map(&:poll_contest_completions)
-                     else
+      else
                        PollContestCompletion
                          .where(poll_participant_id: participants.map(&:id))
                          .includes(:poll_contest)
                          .to_a
-                     end
+      end
       @completed_count = participations.count(&:completed?)
       @absent_count = participations.count(&:absent?)
       @abstained_count = participations.count(&:abstained?)
@@ -132,9 +132,9 @@ module Polls
       source = poll_session.replacement_of
       valid_replacement = if poll&.school_managed?
                             source&.poll == poll && poll.in_progress?
-                          else
+      else
                             source.present? && !source.poll.school_managed? && poll&.draft?
-                          end
+      end
       if source.blank? || source.classroom != classroom || !valid_replacement
         issues << "재투표 원본과 학급·투표 정보를 확인해 주세요."
       end

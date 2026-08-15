@@ -96,5 +96,4 @@ class SchoolTeacherMembershipsController < ApplicationController
       @membership.user = user
     end
   end
-
 end

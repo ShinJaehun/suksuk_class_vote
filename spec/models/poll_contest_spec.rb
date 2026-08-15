@@ -39,5 +39,4 @@ RSpec.describe PollContest, type: :model do
       expect(poll_contest.errors[:position]).to be_present
     end
   end
-
 end
