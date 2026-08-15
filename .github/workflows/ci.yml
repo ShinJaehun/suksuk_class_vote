@@ -3,7 +3,9 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - rebuild/school-voting-platform
 
 jobs:
   scan_ruby:
