@@ -5,6 +5,11 @@ RSpec.describe User, type: :model do
     it "does not allow public registration" do
       expect(described_class.devise_modules).not_to include(:registerable)
     end
+
+    it "does not expose Devise password recovery" do
+      expect(described_class.devise_modules).not_to include(:recoverable)
+      expect(Rails.application.routes.url_helpers).not_to respond_to(:new_user_password_path)
+    end
   end
 
   describe "roles" do
