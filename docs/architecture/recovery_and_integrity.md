@@ -1,5 +1,9 @@
 # Recovery and Integrity
 
+> 상태: 서버 DB를 source of truth로 삼는 복구·무결성 원칙은 현재도 유효하다. 아래의
+> ParticipantGroup, direct Poll service와 ElectionSession 구현 설명은 과거 MVP 기록이다.
+> 현재 PollSession runtime은 `current_system.md`, `school_voting_platform.md`, `docs/testing/rspec_strategy.md`를 따른다.
+
 ## 목적
 
 이 문서는 `쑥쑥교실투표`의 가장 중요한 품질 목표인 투표 도중 장애 복구와 데이터 무결성 원칙을 정의한다.

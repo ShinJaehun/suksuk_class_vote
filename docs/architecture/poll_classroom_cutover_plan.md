@@ -1,5 +1,9 @@
 # Poll Classroom·Student 전환 계획
 
+> 상태: 이 문서는 ParticipantGroup 기반 Poll에서 Classroom/PollSession으로 전환하던 당시의
+> 계획과 단계 기록이다. 전환은 완료됐으며 현재 runtime 구조는 `current_system.md`와
+> `school_voting_platform.md`를 따른다. 아래의 현재 구조와 legacy compatibility 설명은 당시 기록으로 보존한다.
+
 ## 1. 목적과 범위
 
 이 문서는 `Poll`의 명단 원본을 `ParticipantGroup`·`ParticipantSlot`에서

@@ -107,7 +107,7 @@ RSpec.describe Polls::StartSession do
   end
 
   describe "progress, tallies, and event" do
-    it "creates progress with the legacy initial semantics and shared start time" do
+    it "creates progress with the initial session state and shared start time" do
       poll_session, actor = create_startable_session
 
       described_class.new(actor: actor, poll_session: poll_session).call

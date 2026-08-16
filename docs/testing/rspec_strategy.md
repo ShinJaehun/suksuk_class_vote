@@ -19,7 +19,7 @@
 * 권한/소유권/학교 경계 고정
 * 출석번호 진행 상태와 후보 선택 결과 분리 원칙 검증
 * 수동 브라우저 테스트 의존도 감소
-* 신규 PollSession runtime과 남아 있는 legacy runtime의 회귀 방지
+* 현재 Poll/PollSession runtime의 복구·무결성 회귀 방지
 
 Coverage 수치 자체를 목표로 삼지 않는다.
 

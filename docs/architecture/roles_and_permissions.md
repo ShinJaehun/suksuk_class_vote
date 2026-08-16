@@ -42,8 +42,8 @@ manager 지정과 해제는 global admin만 수행한다.
 ### Student와 guest
 
 `Student`는 Classroom의 학년도별 학생 명단 모델이며 로그인 계정이 아니다. 학생 계정, PIN,
-개인 인증 scope를 두지 않으며 PollSession 또는 Classroom 기반 ElectionSession 시작 시 voter snapshot의
-원본이 될 수 있다. guest는 로그인·비밀번호 재설정 외 주요 관리·투표 기능에 접근하지 못한다.
+개인 인증 scope를 두지 않으며 PollSession 시작 시 voter snapshot의 원본이 된다. guest는
+로그인·비밀번호 재설정 외 주요 관리·투표 기능에 접근하지 못한다.
 
 ---
 
@@ -145,7 +145,6 @@ member만 제거할 수 있다. controller는 담당 Classroom이 남아 있으�
 
 * Poll 생성은 로그인한 admin 또는 teacher에게 허용된다.
 * `/polls` scope는 현재 사용자가 소유한 Poll을 반환하며 admin은 단건 policy로 다른 Poll에도 접근할 수 있다.
-* legacy 직접 실행 Poll action은 admin 또는 Poll owner에게 허용된다.
 * Classroom 기반 Poll lifecycle은 연결된 PollSession policy를 사용한다.
 * 일반 PollSession의 시작·중단·replacement 재투표·보관·삭제는 admin 또는 실제 operator/담임의
   lifecycle 권한과 상태 조건을 따른다.
@@ -170,7 +169,7 @@ school-managed Poll 전체 lifecycle과 학급 Session 운영은 분리한다.
 * teacher 로그인 및 권한 실패 기본 경로: `/polls`
 * 로그인 사용자는 내 투표와 권한 범위의 Classroom 화면에 접근한다.
 * admin과 manager는 학교·전교투표 메뉴를 사용한다.
-* admin은 global 교사 관리와 legacy 전교임원선거 메뉴를 사용한다.
+* admin은 global 교사 관리 메뉴를 사용한다.
 * manager는 `/teachers`의 자기 학교 교사 관리와 별도 membership 관리 기능을 사용한다.
 
 내비게이션 노출은 편의를 위한 것이며 실제 접근 권한은 controller와 policy가 결정한다.

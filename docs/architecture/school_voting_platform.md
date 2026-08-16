@@ -45,7 +45,7 @@ legacy `SchoolElection` 구조는 제거되었다.
 `Classroom`, `Student`로 표현한다. 모든 신규 학급투표와 전교투표는 `Poll` 정의와
 학급별 `PollSession`을 사용한다. 후보자 선거는 `Poll.kind = election`, 설문조사는
 `survey`, 토의는 `discussion`, 토론은 `debate`로 표현한다. 기존 `Election` runtime은
-제거됐으며 legacy DB table 제거 migration도 작성됐다. 과거 migration과 Election ID 6
+제거됐으며 legacy DB table도 제거 완료됐다. 과거 migration과 Election ID 6
 복원 계약은 유지한다.
 
 ## 3. 목표 조직 구조
@@ -171,7 +171,7 @@ membership 생성·manager 지정·담임 배정 시에도 사용자 role과 act
 `User.role = admin`인 global admin은 다음 권한을 가진다.
 
 - 모든 학교·교사·학급·학생 관리
-- 모든 Election·Poll 접근
+- 모든 Poll 접근
 - manager 지정과 해제
 - 긴급 운영, 복구 및 데이터 이관
 
@@ -185,7 +185,7 @@ global admin도 시작 후 불변조건과 역사 자료의 읽기 전용 제한
 - 교사와 membership 관리
 - 학급 관리와 담임 배정
 - 학생 관리
-- 학교 단위 Election·Poll 생성
+- 학교 단위 Poll 생성
 - 세션 진행 확인
 - 중단·재투표 관리
 - 자기 학교 전교투표의 draft/in_progress/stopped 실행 초기화
@@ -217,7 +217,7 @@ superseded 재투표 이력은 `/school_polls`에서만 확인한다. 테스트�
 
 - 자신의 담당 학급 열람
 - 자신의 학급 학생 관리
-- 자신의 학급 Election·Poll 생성 및 운영
+- 자신의 학급 Poll 생성 및 운영
 - 자신의 학급 결과 확인
 
 같은 학교의 다른 학급에는 접근할 수 없다. 담당 학급이 없으면 학급 단위 활동을
@@ -356,7 +356,7 @@ Voter에 저장할 수 있다.
 ## 9. 기존 Election 전환
 
 `Election`, `ElectionContest`, `ElectionCandidate`, `ElectionSession` runtime은 제거됐다.
-legacy DB table 제거 migration도 작성됐다. 후보 사진 변환, 재투표 관계와
+legacy DB table도 제거 완료됐다. 후보 사진 변환, 재투표 관계와
 historical/read_only 표시는 복원 계약에 따라 후속 작업에서 구현한다.
 
 ## 10. Poll 목표 구조
@@ -587,10 +587,9 @@ read_only: true
 7. Poll 정의와 PollSession을 분리하고 전교투표 생명주기를 구현한다.
 8. 아래 후속 순서에 따라 실제 데이터 리허설과 legacy 제거를 진행한다.
 
-현재 1~7단계의 신규 구조와 PollSession runtime까지 완료되었다. legacy `SchoolElection`
-관리자 runtime, `SchoolElections::*` service, Poll 연결, legacy 모델과 DB table을 제거했고,
-School·SchoolMembership·Classroom·Student 조직 기반과 ElectionSession의 Classroom·
-ParticipantGroup dual-source 전환을 구현했다. PollSession foundation, 신규 Poll 정의와 최초 draft
+현재 신규 구조와 PollSession runtime 전환 및 legacy schema 제거까지 완료되었다. legacy
+`SchoolElection` 관리자 runtime, `SchoolElections::*` service, Poll 연결과 legacy 모델·DB table을
+제거했다. School·SchoolMembership·Classroom·Student 조직 기반, PollSession foundation, 신규 Poll 정의와 최초 draft
 Session 생성, 여러 Classroom 배정, Student snapshot, 감독형 제출·count-only 집계·참여 기록·
 미참여·명시적 다음 학생·명시적 종료·Session별 결과, 담당 Session 목록, 전교투표 전체 결과,
 Turbo Stream/polling 갱신과 단계별 상태 점검도 구현됐다. Poll은 전체 시작·종료 시각과 Poll-level
@@ -609,14 +608,14 @@ historical/read_only는 목표 설계이며 현재 runtime에는 아직 구현�
 5. 운영 DB의 기존 Poll 보존 범위 조사
 6. 필요한 legacy Poll의 PollSession backfill
 7. legacy ParticipantGroup Poll runtime 제거 완료
-8. Election table 제거 migration 작성 완료(runtime 제거 완료, migration 적용 필요)
-9. ParticipantGroup·ParticipantSlot DB schema 제거 migration 작성 완료(runtime 제거 완료, migration 적용 필요)
+8. Election table 제거 완료
+9. ParticipantGroup·ParticipantSlot DB schema 제거 완료
 10. 전체 데이터 검산과 운영 전환
 
-따라서 실제 Election ID 6 운영 데이터 적용과 legacy DB schema migration 실행은 미완료다.
+따라서 실제 Election ID 6 운영 데이터 적용은 미완료다.
 
-`ParticipantGroup`/`ParticipantSlot` runtime은 제거됐고 관련 schema 제거 migration도 작성됐다.
-실제 적용 전에는 별도 backup과 복원 계약을 기준으로 보존 데이터를 검증한다.
+`ParticipantGroup`/`ParticipantSlot` runtime과 관련 schema는 제거 완료됐다. 보존 데이터는 별도
+backup과 복원 계약을 기준으로 검증한다.
 
 ## 14. 확정된 설계와 후속 검토 사항
 

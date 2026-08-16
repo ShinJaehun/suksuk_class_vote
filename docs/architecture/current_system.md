@@ -7,7 +7,7 @@
 모든 신규 학급투표와 전교투표는 `Poll` 정의와 학급별 `PollSession`으로 운영한다.
 `Poll.kind`는 선거, 설문조사, 토의, 토론을 표현한다. 기존 `Election`/`ElectionSession`
 runtime과 HTTP 경로는 제거됐다. 관련 legacy DB table과 ParticipantGroup/ParticipantSlot
-schema를 제거하는 migration도 작성됐으며, 과거 migration과 Election ID 6 복원 계약은 유지한다.
+schema도 제거 완료됐으며, 과거 migration과 Election ID 6 복원 계약은 유지한다.
 
 ---
 
@@ -80,7 +80,7 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - Rails 앱 생성
 - PostgreSQL 사용
 - Tailwind CSS 사용
-- 투표 도메인은 신규 Classroom/PollSession runtime까지 구현하고 legacy runtime을 단계적으로 전환 중
+- 투표 도메인은 Classroom/PollSession runtime으로 전환 완료
 - Devise 기반 `User` 인증 구조 추가
 - Devise `registerable` 미사용: 교사 공개 회원가입 없음
 - `User` role enum 추가: `teacher`, `admin`
@@ -226,7 +226,7 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 
 - HTTP route, controller, view, service, model, policy, helper와 전용 spec/factory 제거
 - `/polls`, `/polls/archived`의 ElectionSession compatibility 표시 제거
-- legacy DB table 제거 migration 작성; 과거 migration과 Election ID 6 복원 계약은 유지
+- legacy DB table 제거 완료; 과거 migration과 Election ID 6 복원 계약은 유지
 
 현재 PollSession 흐름은 교사 시작 → active Student snapshot과 첫 current 지정 → ballot locked → 학생
 투표 창 → 교사 승인으로 ballot open → Contest별 제출과 tally/completion 기록 → 모든 Contest 완료 뒤
@@ -243,8 +243,7 @@ Classroom Session을 배정한다. 현재 runtime 경계는 다음과 같다.
 
 PollSession 중단·stopped 운영 이력과 일반·전교투표 replacement 재투표는 구현됐다.
 historical/read_only Poll과 Election ID 6의 historical Poll·후보 사진 변환은 미구현이다.
-Election과 ParticipantGroup/ParticipantSlot runtime은 제거했다. 관련 DB table·column은
-`RemoveLegacyVotingSchema` migration으로 제거하며, 실제 적용과 검증은 별도로 수행한다.
+Election과 ParticipantGroup/ParticipantSlot runtime 및 관련 DB table·column은 제거 완료됐다.
 
 현재 `Poll` 상태 흐름:
 
@@ -267,7 +266,7 @@ Election과 ParticipantGroup/ParticipantSlot runtime은 제거했다. 관련 DB 
 운영하고, 모든 Session이 closed가 된 뒤 관리자가 전체 Poll을 종료한다. 전체 결과에는 closed
 Session tally만 포함한다.
 
-기존 Election ID 6은 추후 historical Poll로 변환하고 검증한 뒤 legacy table을 제거한다.
+기존 Election ID 6은 추후 검증된 backup을 기준으로 historical Poll로 변환한다.
 historical/read_only 상태는 변환 전에 별도 구현한다.
 
 ---
@@ -329,8 +328,8 @@ historical/read_only 상태는 변환 전에 별도 구현한다.
 5. 운영 DB의 기존 Poll 보존 범위 조사
 6. 필요한 legacy Poll의 PollSession backfill
 7. legacy ParticipantGroup Poll runtime 제거 완료
-8. Election table 제거 migration 작성 완료(runtime 제거 완료, migration 적용 필요)
-9. ParticipantGroup·ParticipantSlot DB schema 제거 migration 작성 완료(runtime 제거 완료, migration 적용 필요)
+8. Election table 제거 완료
+9. ParticipantGroup·ParticipantSlot DB schema 제거 완료
 10. 전체 데이터 검산과 운영 전환
 
 현재 구현된 복구/무결성 화면:

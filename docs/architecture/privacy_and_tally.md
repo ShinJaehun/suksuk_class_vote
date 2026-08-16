@@ -34,13 +34,12 @@
 `PollParticipant`가 저장하는 정보:
 
 - `poll_id`
-- `source_participant_slot_id`
+- `poll_session_id`
 - `number`
 - `name`
 
-`source_participant_slot_id`는 원본 `ParticipantSlot` 추적용 링크다.
-원본 slot 삭제 시 `nil`이 될 수 있으며, 비밀투표 판단이나 결과 표시 기준으로 사용하지 않는다.
-draft `Poll`이 참조 중인 원본 `ParticipantGroup` 자체 삭제 차단도 비밀투표 정책이 아니라, snapshot 생성 전 필수 명단 설정을 보호하기 위한 안전장치다.
+draft PollSession은 Classroom의 active Student를 명단 원본으로 사용한다. 시작 뒤에는
+`PollParticipant.number/name` snapshot을 진행과 표시 기준으로 사용한다.
 
 `PollParticipant`가 저장하지 않는 정보:
 
@@ -61,7 +60,7 @@ draft `Poll`이 참조 중인 원본 `ParticipantGroup` 자체 삭제 차단도 
 하지만 실제 표를 저장하는 모델이 `poll_participant_id`와 `poll_option_id`를 직접 함께 저장하면 누가 누구에게 투표했는지 연결될 수 있다.
 이 구조는 비밀투표 원칙에 맞지 않을 수 있으므로 신중히 피하거나, 별도의 정책 결정과 감사 목적을 명확히 해야 한다.
 
-`PollProgress`은 초기 MVP의 투표 진행 상태 모델이다.
+`PollProgress`은 PollSession의 투표 진행 상태 모델이다.
 `PollProgress`은 현재 투표 위치 복구를 위해 `current_poll_participant_id`를 저장하지만, 후보 선택 결과나 득표수, 익명 vote record는 저장하지 않는다.
 즉 `PollProgress`은 “지금 누구 차례인가”를 다루고, “그 학생이 누구에게 투표했는가”를 다루지 않는다.
 
@@ -84,8 +83,8 @@ VoteRecord
 
 ## 현재 집계 방향
 
-현재 MVP는 후보자별 count-only 집계를 사용한다.
-`PollParticipation`은 참여자별 완료/미참여/기권 여부만 저장하고, `PollOptionTally`는 후보별 득표수만 저장한다.
+현재 MVP는 PollSession별 count-only 집계를 사용한다. `PollParticipation`은 참여자별
+완료/미참여/기권 여부만 저장하고, `PollOptionTally`와 `PollContestTally`는 PollSession별 집계만 저장한다.
 두 모델은 같은 transaction에서 함께 처리될 수 있지만 학생별 후보 선택 결과를 직접 연결하지 않는다.
 
 후속 검토 후보:

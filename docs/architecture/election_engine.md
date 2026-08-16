@@ -1,5 +1,9 @@
 # Election Engine
 
+> 상태: 이 문서는 별도 Election 엔진을 사용하던 당시의 설계 기록이며 현재 기준을 대체하지 않는다.
+> Election runtime은 제거됐고 현재 선거는 `Poll(kind: election)`과 `PollSession`으로 운영한다.
+> 현재 구조는 `current_system.md`와 `school_voting_platform.md`를 따르며 아래 본문은 역사적 snapshot으로 보존한다.
+
 ## 목적
 
 이 문서는 `쑥쑥교실투표`의 선거 기능을 기존 `Poll` 확장이 아니라 별도 범용

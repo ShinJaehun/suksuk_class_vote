@@ -66,7 +66,7 @@ Student.active
 
 1. 교사가 새 Classroom을 생성한다.
 2. 해당 학년도 학생을 새 Student로 등록한다.
-3. 이 명단을 1년 동안 Poll·Election에 사용한다.
+3. 이 명단을 1년 동안 PollSession 실행의 명단 원본으로 사용한다.
 
 이전 학년도 Student를 복사하거나 이동하거나 연결하지 않는다. 같은 실제
 학생이 다음 학년도에도 있더라도 새 Classroom에 새 Student 행으로 등록하며,
