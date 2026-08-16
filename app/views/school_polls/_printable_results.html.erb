@@ -38,8 +38,12 @@
         </p>
         <div class="school-poll-result-print-options mt-3 grid gap-2 sm:grid-cols-2">
           <% contest_result.option_results.each do |option_result| %>
-            <div class="grid grid-cols-[max-content_minmax(0,1fr)_max-content] gap-2 rounded-md bg-stone-50 px-2 py-1 text-sm">
-              <span><%= @poll.choice_number_label %> <%= option_result.poll_option.number %>번</span><span class="break-words"><%= option_result.poll_option.name %></span><strong><%= option_result.votes_count %>표</strong>
+            <div class="rounded-md bg-stone-50 px-2 py-1 text-sm" data-testid="printable-option-result">
+              <p class="text-xs text-stone-500"><%= @poll.choice_number_label %> <%= option_result.poll_option.number %>번</p>
+              <div class="mt-0.5 grid grid-cols-[minmax(0,1fr)_max-content] gap-2">
+                <span class="break-words"><%= option_result.poll_option.name %></span>
+                <strong class="whitespace-nowrap"><%= option_result.votes_count %>표</strong>
+              </div>
             </div>
           <% end %>
         </div>

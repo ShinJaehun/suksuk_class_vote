@@ -28,8 +28,8 @@ RSpec.describe "Poll definition sessions", type: :request do
 
       page = Nokogiri::HTML(response.body)
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("새 학급투표", classroom.formatted_class_label, "담당 교사", "김교사 선생님", "현재 학생", "2명")
-      expect(response.body).not_to include("담임 교사")
+      expect(response.body).to include("새 학급투표", classroom.formatted_class_label, "담당", "김교사", "현재 학생", "2명")
+      expect(response.body).not_to include("담임 교사", "담당 교사", "김교사 선생님", "#{classroom.school_year}학년도")
       expect(page.at_css('[data-testid="poll-kind-selector"]')).to be_present
       expect(page.css('select[name="poll[kind]"] option').map { |node| node["value"] }).to eq(%w[election survey discussion debate])
       expect(response.body).not_to include("번호 표시")
@@ -41,7 +41,7 @@ RSpec.describe "Poll definition sessions", type: :request do
       create(:school_membership, school: school, user: teacher)
       sign_in teacher
       get new_poll_path
-      expect(response.body).to include("활성 담임 학급이 없어")
+      expect(response.body).to include("활성 교실이 없어")
       expect(response.body).not_to include("학급투표 초안 만들기")
 
       sign_out teacher
@@ -49,7 +49,7 @@ RSpec.describe "Poll definition sessions", type: :request do
       active_classroom_for(empty_teacher, students: 0)
       sign_in empty_teacher
       get new_poll_path
-      expect(response.body).to include("활성 학생이 있는 담임 학급")
+      expect(response.body).to include("활성 학생이 있는 교실")
       expect(response.body).not_to include("학급투표 초안 만들기")
     end
 

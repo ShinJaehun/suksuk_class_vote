@@ -6,9 +6,9 @@
         <% history_sessions.each do |session| %>
           <div class="flex items-center justify-between gap-3 rounded-md border border-stone-200 p-4">
             <div>
-              <span class="font-medium"><%= session.classroom_name_snapshot %></span>
+              <span class="font-medium"><%= poll_session_classroom_label(session) %></span>
               <%= poll_session_status_badge(session) %>
-              <p class="mt-1 text-sm text-stone-600">담당 교사 <%= session.operator_name_snapshot %> · 투표자 <%= session.poll_participants.size %>명</p>
+              <p class="mt-1 text-sm text-stone-600">담당 <%= session.operator_name_snapshot %> · 투표자 <%= session.poll_participants.size %>명</p>
               <% session_time_labels = poll_session_status_time_labels(session) %>
               <% if session_time_labels.any? %>
                 <p class="mt-1 text-sm text-stone-600"><%= session_time_labels.join(" · ") %></p>

@@ -34,7 +34,7 @@
     </div>
 
     <div class="mt-5">
-      <%= form.label :teacher_id, "담임", class: "block text-sm font-medium" %>
+      <%= form.label :teacher_id, "담당", class: "block text-sm font-medium" %>
       <% if current_user.admin? || current_user.school_membership&.manager? %>
         <select name="classroom[teacher_id]" class="mt-1 w-full rounded-md border border-stone-400 bg-white px-3 py-2 shadow-sm focus:border-stone-700 focus:ring-stone-700" data-classroom-management-target="teacher">
           <option value="">미배정</option>

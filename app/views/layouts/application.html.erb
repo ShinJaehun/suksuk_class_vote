@@ -33,22 +33,36 @@
               <span>쑥쑥교실투표</span>
             <% end %>
             <% if user_signed_in? %>
-              <%= link_to "내 투표",
-                          polls_path,
-                          class: "text-sm text-stone-600 hover:text-stone-900" %>
-              <span class="mx-1 hidden h-5 border-l border-stone-300 sm:inline-block"></span>
+              <% if current_user.teacher? %>
+                <% unless current_user.admin? %>
+                  <%= link_to "내 투표",
+                              polls_path,
+                              class: "text-sm text-stone-600 hover:text-stone-900" %>
+
+                  <% if current_user.active_classroom %>
+                    <%= link_to "내 교실",
+                                classroom_students_path(current_user.active_classroom),
+                                class: "text-sm text-stone-600 hover:text-stone-900" %>
+                  <% end %>              
+                <% end %>
+              <% end %>
               <% if current_user.admin? || current_user.school_membership&.manager? %>
-                <%= link_to "학교",
-                            schools_path,
-                            class: "text-sm text-stone-600 hover:text-stone-900" %>
+                <% if current_user.teacher? %>
+                  <% unless current_user.admin? %>
+                    <span class="mx-1 hidden h-5 border-l border-stone-300 sm:inline-block"
+                          data-testid="navigation-divider"></span>
+                  <% end %>                
+                <% end %>
                 <%= link_to "전교투표",
                             school_polls_path,
                             class: "text-sm text-stone-600 hover:text-stone-900" %>
-              <% end %>
-              <%= link_to "교실",
-                          classrooms_path,
-                          class: "text-sm text-stone-600 hover:text-stone-900" %>
-              <% if current_user.admin? || current_user.school_membership&.manager? %>
+                <span class="mx-1 hidden h-5 border-l border-stone-300 sm:inline-block" data-testid="navigation-divider"></span>
+                <%= link_to "학교",
+                            schools_path,
+                            class: "text-sm text-stone-600 hover:text-stone-900" %>
+                <%= link_to "교실",
+                            classrooms_path,
+                            class: "text-sm text-stone-600 hover:text-stone-900" %>
                 <%= link_to "선생님",
                             teachers_path,
                             class: "text-sm text-stone-600 hover:text-stone-900" %>
@@ -58,7 +72,10 @@
 
           <div class="flex flex-wrap items-center gap-3 text-sm text-stone-600">
             <% if user_signed_in? %>
-              <span><%= current_user.email %></span>
+              <%= link_to current_user.login_id,
+                          current_user.teacher? ? edit_teacher_path(current_user) : edit_password_change_path,
+                          class: "font-medium text-stone-700 underline",
+                          data: { testid: "current-user-account-link" } %>
               <%= button_to "로그아웃",
                             destroy_user_session_path,
                             method: :delete,

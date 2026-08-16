@@ -219,8 +219,14 @@ RSpec.describe "School Poll management", type: :request do
       expect(status_stream.text.squish).to include("전체 학급 2", "준비 2", "재투표 이력 1")
       expect(classroom_stream.text.squish).to include("재투표", "준비")
       expect(classroom_stream.inner_html).to include(poll_poll_session_path(poll, replacement, from: "school_poll"))
-      expect(second_classroom_stream.text.squish).to include(second_session.classroom_name_snapshot, "투표자 1명")
-      expect(history_stream.text.squish).to include("재투표 이력", session.classroom_name_snapshot)
+      expect(second_classroom_stream.text.squish).to include(
+        second_session.classroom_name_snapshot.sub(/\A\d+학년도\s+/, ""),
+        "투표자 1명"
+      )
+      expect(history_stream.text.squish).to include(
+        "재투표 이력",
+        session.classroom_name_snapshot.sub(/\A\d+학년도\s+/, "")
+      )
     end
 
     it "marks terminal runtime responses and rejects users outside the School" do
@@ -252,7 +258,19 @@ RSpec.describe "School Poll management", type: :request do
       lifecycle_times = Nokogiri::HTML(response.body).at_css("[data-testid='school-poll-lifecycle-times']").text
       expect(lifecycle_times).to include("시작", ApplicationController.helpers.kst_datetime(poll.started_at))
       expect(lifecycle_times).not_to include("전교투표")
-      expect(response.body).to include("투표 시작", ApplicationController.helpers.kst_datetime(session.started_at))
+      session_runtime = Nokogiri::HTML(response.body).at_css(
+        "#school_poll_#{poll.id}_classroom_#{session.classroom_id}_runtime"
+      ).text.squish
+      expect(session_runtime).to include("시작", ApplicationController.helpers.kst_datetime(session.started_at))
+      expect(session_runtime).not_to include("투표 시작", "투표 종료")
+      overview = Nokogiri::HTML(response.body).at_css("#school_overview_poll_#{poll.id}").text.squish
+      expect(overview).to include(
+        "대상 학교 #{poll.school.name}",
+        "대상 학급 #{session.classroom.grade}학년 1학급",
+        "학급 세션 1",
+        "담당 #{poll.user.name}"
+      )
+      expect(overview).not_to include("선택지 구성", "후보 구성", "#{poll.user.name} 선생님")
 
       sign_in teacher
       get poll_poll_session_path(poll, session)
@@ -267,8 +285,13 @@ RSpec.describe "School Poll management", type: :request do
       get school_poll_path(poll)
       lifecycle_times = Nokogiri::HTML(response.body).at_css("[data-testid='school-poll-lifecycle-times']").text
       expect(lifecycle_times).to include("중단", ApplicationController.helpers.kst_datetime(poll.stopped_at))
+      stopped_runtime = Nokogiri::HTML(response.body).at_css(
+        "#school_poll_#{poll.id}_classroom_#{session.classroom_id}_runtime"
+      ).text.squish
+      expect(stopped_runtime).to include("시작", "중단")
+      expect(stopped_runtime).not_to include("투표 시작", "투표 중단")
       expect(lifecycle_times).not_to include("전교투표")
-      expect(response.body).to include("투표 중단")
+      expect(response.body).to include("전교투표가 중단되었습니다.")
     end
 
     it "shows Schoolwide classroom revote only on the School Poll page" do
@@ -368,7 +391,7 @@ RSpec.describe "School Poll management", type: :request do
       history_payload = broadcasts(stream).reverse.find { |broadcast| broadcast.include?(history_target) }
       expect(history_payload).to include(
         "재투표 이력",
-        session.classroom_name_snapshot,
+        session.classroom_name_snapshot.sub(/\A\d+학년도\s+/, ""),
         poll_poll_session_path(poll, session)
       )
       history_links = turbo_stream_fragment(history_payload).css("a").map { |link| link["href"] }
@@ -783,7 +806,7 @@ RSpec.describe "School Poll management", type: :request do
       expect(assignable_ids).to include(eligible.id)
       expect(assignable_ids).not_to include(teacherless.id, inactive.id, other_school.id, assigned.id)
       eligible_label = page.at_css("input[value='#{eligible.id}']").parent.text.squish
-      expect(eligible_label).to include("학생 0명")
+      expect(eligible_label).to include("투표자 0명")
     end
 
     it "shows voter-aware draft badges and every runtime Session status" do
@@ -849,7 +872,7 @@ RSpec.describe "School Poll management", type: :request do
         expect(grade_details.at_css("a[href='#{poll_poll_session_path(poll, session, from: "school_poll")}']")).to be_present
       end
       assignable_group = page.at_css("input[value='#{assignable.id}']")
-        .ancestors("section[data-controller='classroom-group-picker']")
+        .ancestors("details[data-controller='classroom-group-picker']")
         .first
       expect(assignable_group).to be_present
       expect(assignable_group.text.squish).to include("1학년 전체")
@@ -912,6 +935,14 @@ RSpec.describe "School Poll management", type: :request do
       page = Nokogiri::HTML(response.body)
       overview = page.at_css("#school_overview_poll_#{polls[:draft].id}")
       expect(overview.text).not_to include("전교투표 목록으로 돌아가기")
+      expect(overview.text.squish).to include(
+        "대상 학교 #{school.name}",
+        "대상 학급 배정된 학급 없음",
+        "학급 세션 0",
+        "완료 0/0",
+        "담당 #{polls[:draft].user.name}"
+      )
+      expect(overview.text).not_to include("선택지 구성", "후보 구성", "#{polls[:draft].user.name} 선생님")
       expect(page.text.scan("전교투표 목록으로 돌아가기").size).to eq(1)
       expect(page.at_css("[data-testid='school-poll-lifecycle-times']")).to be_nil
       expect(page.text).not_to include("진행 시간")
@@ -1024,9 +1055,27 @@ RSpec.describe "School Poll management", type: :request do
         status: :closed,
         classroom_name: "종료 3반"
       )
+      fourth_closed = create_result_session(
+        poll: poll,
+        status: :closed,
+        classroom_name: "종료 4반"
+      )
       first_closed.classroom.update!(grade: 5, class_label: "2")
       second_closed.classroom.update!(grade: 4, class_label: "1")
       third_closed.classroom.update!(grade: 6, class_label: "달님반")
+      fourth_closed.classroom.update!(grade: 5, class_label: "3")
+      first_closed.update!(
+        classroom_name_snapshot: "2026학년도 5학년 2반"
+      )
+      second_closed.update!(
+        classroom_name_snapshot: "2026학년도 4학년 1반"
+      )
+      third_closed.update!(
+        classroom_name_snapshot: "2026학년도 6학년 달님반"
+      )
+      fourth_closed.update!(
+        classroom_name_snapshot: "2026학년도 5학년 3반"
+      )
       participants = 4.times.map do |index|
         create(
           :poll_participant,
@@ -1039,6 +1088,17 @@ RSpec.describe "School Poll management", type: :request do
       create(:poll_participation, poll_participant: participants[0], status: :completed)
       create(:poll_participation, poll_participant: participants[1], status: :abstained)
       create(:poll_participation, poll_participant: participants[2], status: :absent)
+      fourth_participants = 2.times.map do |index|
+        create(
+          :poll_participant,
+          poll: poll,
+          poll_session: fourth_closed,
+          number: index + 1,
+          name: "추가 참가자 #{index + 1}"
+        )
+      end
+      create(:poll_participation, poll_participant: fourth_participants[0], status: :completed)
+      create(:poll_participation, poll_participant: fourth_participants[1], status: :absent)
       draft = create_result_session(poll: poll, status: :draft, classroom_name: "준비 3반")
       in_progress = create_result_session(
         poll: poll,
@@ -1123,16 +1183,19 @@ RSpec.describe "School Poll management", type: :request do
       page = Nokogiri::HTML(response.body)
       expect(page.at_css('[data-testid="poll-badges"]').text.squish).to eq("전교 선거 종료")
       summary_text = page.at_css('[data-testid="school-poll-result-summary"]').text.squish
-      expect(page.at_css('[data-testid="school-poll-result-summary"] h1').text.squish).to eq("#{poll.title} 결과 집계")
+      expect(page.at_css('[data-testid="school-poll-result-summary"] h1').text.squish).to eq(poll.title)
       expect(summary_text).to include(
-        "#{poll.title} 결과 집계",
-        "2026학년도 #{poll.school.name} 4·5·6학년 대상 시작 2026-08-10 16:34 · 종료 2026-08-10 16:35",
-        "투표 대상자 4명",
-        "투표 완료 2명",
-        "미참여 1명",
-        "학급 세션 6",
-        "완료 3/6"
+        poll.title,
+        "시작 2026-08-10 16:34 · 종료 2026-08-10 16:35",
+        "대상 학교 #{poll.school.name}",
+        "대상 학급 4·5·6학년",
+        "학급 세션 7",
+        "완료 4/7",
+        "투표 대상자 6명",
+        "투표 완료 3명",
+        "미참여 2명"
       )
+      expect(summary_text).not_to include("#{poll.title} 결과 집계", "2026학년도")
       expect(summary_text).not_to include("전체 반영 학급", "완료 학급")
       expect(summary_text).not_to include("8월 10일 시행", "전체 투표자")
 
@@ -1143,7 +1206,13 @@ RSpec.describe "School Poll management", type: :request do
       expect(result_text).to match(/회장 선거.*기권 3표/)
       expect(result_text).not_to include("100표", "200표", "다른 투표 학급")
 
-      expect(result_text).to include("4학년 1반", "5학년 2반", "6학년 달님반", "결과 집계", "63%")
+      expect(result_text).to include("4학년 1반", "5학년 2반", "6학년 달님반", "63%")
+      grade_summaries = page.css('[data-testid="school-poll-grade-results"] summary').map { |summary| summary.text.squish }
+      expect(grade_summaries).to include(
+        a_string_including("4학년: 투표 대상자 0명 · 참여 0명 · 미참여 0명"),
+        a_string_including("5학년: 투표 대상자 6명 · 참여 3명 · 미참여 2명"),
+        a_string_including("6학년: 투표 대상자 0명 · 참여 0명 · 미참여 0명")
+      )
       expect(result_text).not_to include("달님반반")
       expect(result_text).not_to include("준비 3반", "진행 4반", "중단 5반")
 
@@ -1170,20 +1239,20 @@ RSpec.describe "School Poll management", type: :request do
       grade_summaries = grade_results.map { |details| details.at_css("summary").text.squish }
       expect(grade_summaries).to all(include("+", "−"))
       expect(grade_summaries.join(" ")).to include(
-        "4학년 · 투표 대상자 0명",
-        "5학년 · 투표 대상자 4명",
-        "6학년 · 투표 대상자 0명"
+        "4학년: 투표 대상자 0명 · 참여 0명 · 미참여 0명",
+        "5학년: 투표 대상자 6명 · 참여 3명 · 미참여 2명",
+        "6학년: 투표 대상자 0명 · 참여 0명 · 미참여 0명"
       )
       expect(classroom_text).to include(
-        "4학년 · 투표 대상자 0명",
+        "4학년: 투표 대상자 0명 · 참여 0명 · 미참여 0명",
         "4학년 1반",
         "투표 대상자 0명 · 참여 0명 · 미참여 0명",
-        "5학년 · 투표 대상자 4명",
+        "5학년: 투표 대상자 6명 · 참여 3명 · 미참여 2명",
         "5학년 2반",
         "투표 대상자 4명 · 참여 2명 · 미참여 1명",
-        "6학년 · 투표 대상자 0명",
+        "6학년: 투표 대상자 0명 · 참여 0명 · 미참여 0명",
         "6학년 달님반",
-        "담당교사 종료 1반 담임 선생님",
+        "담당 종료 1반 담임",
         "시작",
         "종료"
       )
@@ -1217,6 +1286,12 @@ RSpec.describe "School Poll management", type: :request do
         "5표",
         "기권 3표"
       )
+      printable_option = printable.css('[data-testid="printable-option-result"]').find do |option|
+        option.text.squish.include?("회장 후보")
+      end
+      expect(printable_option.at_css("p").text.squish).to eq("기호 2번")
+      expect(printable_option.at_css("div.grid").text.squish).to eq("회장 후보 5표")
+      expect(printable_option["class"]).not_to include("grid-cols-[max-content_minmax(0,1fr)_max-content]")
       printable_summary = printable.css("dl > div").to_h do |item|
         [
           item.at_css("dt").text.squish,
@@ -1224,9 +1299,9 @@ RSpec.describe "School Poll management", type: :request do
         ]
       end
       expect(printable_summary).to include(
-        "투표 대상자" => "4명",
-        "투표 완료" => "2명",
-        "미참여" => "1명"
+        "투표 대상자" => "6명",
+        "투표 완료" => "3명",
+        "미참여" => "2명"
       )
       expect(
         printable.css('[data-testid="school-poll-grade-results"]')
@@ -1268,8 +1343,13 @@ RSpec.describe "School Poll management", type: :request do
         .at_css('[data-testid="school-poll-result-summary"]')
         .text.squish
       expect(single_grade_summary).to include(
-        "2026학년도 아라짱초 4학년 대상 시작 2026-08-10 16:34 · 종료 2026-08-10 16:35"
+        "시작 2026-08-10 16:34 · 종료 2026-08-10 16:35",
+        "대상 학교 아라짱초",
+        "대상 학급 4학년",
+        "학급 세션 1",
+        "완료 1/1"
       )
+      expect(single_grade_summary).not_to include("2026학년도", "결과 집계")
 
       survey_poll = create(
         :poll,

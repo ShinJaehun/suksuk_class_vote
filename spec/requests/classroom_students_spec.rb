@@ -26,6 +26,8 @@ RSpec.describe "Classroom students", type: :request do
     management = Nokogiri::HTML(response.body).at_css("#student_management")
     expect(management.css("dt").map { |label| label.text.squish }).to include("담당")
     expect(management.css("dt").map { |label| label.text.squish }).not_to include("담당 교사")
+    expect(management.text).to include(teacher.name)
+    expect(management.text).not_to include("#{teacher.name} 선생님")
     filter_labels = Nokogiri::HTML(response.body)
       .css("nav[aria-label='학생 상태 필터'] a").map { |link| link.text.squish }
     expect(filter_labels).to eq(["활성 2", "비활성 1", "전체 3"])

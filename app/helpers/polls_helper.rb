@@ -59,9 +59,19 @@ module PollsHelper
   end
 
   def poll_classroom_option_label(classroom, student_count:)
-    teacher_name = classroom.teacher&.name.presence || "담임 미지정"
-    classroom_name = "#{classroom.school_year}학년도 #{classroom.grade}학년 #{classroom.formatted_class_label}"
+    teacher_name = classroom.teacher&.name.presence || "담당 미지정"
+    classroom_name = "#{classroom.grade}학년 #{classroom.formatted_class_label}"
     "#{classroom.school.name} · #{classroom_name} · #{teacher_name} · #{student_count}명"
+  end
+
+  def poll_session_classroom_label(poll_session)
+    snapshot = poll_session.classroom_name_snapshot.presence
+    return snapshot.sub(/\A\d+학년도\s+/, "") if snapshot
+
+    classroom = poll_session.classroom
+    return "#{classroom.grade}학년 #{classroom.formatted_class_label}" if classroom&.grade.present? && classroom.class_label.present?
+
+    ""
   end
 
   def poll_session_status_label(poll_session)
@@ -95,12 +105,7 @@ module PollsHelper
   end
 
   def school_poll_result_classroom_label(poll_session)
-    classroom = poll_session.classroom
-    if classroom&.grade.present? && classroom.class_label.present?
-      "#{classroom.grade}학년 #{classroom.formatted_class_label}"
-    else
-      poll_session.classroom_name_snapshot
-    end
+    poll_session_classroom_label(poll_session)
   end
 
   def school_poll_result_operator_name(poll_session)

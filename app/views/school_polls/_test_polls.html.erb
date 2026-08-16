@@ -11,7 +11,7 @@
             </div>
             <p class="text-sm text-stone-600">
               <%= test_poll.current_poll_sessions.count %>개 학급
-              <% labels = poll_status_time_labels(test_poll) %>
+              <% labels = poll_status_time_labels(test_poll).map { |label| label.sub(/\A테스트투표\s+/, "") } %>
               <% if labels.any? %>· <%= labels.join(" · ") %><% end %>
             </p>
           </div>

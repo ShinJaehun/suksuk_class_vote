@@ -3,12 +3,12 @@
   <div class="space-y-1">
     <% voter_count = session.readiness_voter_count %>
     <div class="flex flex-wrap items-center gap-2">
-      <h5 class="font-medium"><%= session.classroom_name_snapshot %></h5>
+      <h5 class="font-medium"><%= poll_session_classroom_label(session) %></h5>
       <%= poll_replacement_badge if session.replacement? %>
       <%= poll_session_status_badge(session) unless session.draft? && voter_count.zero? %>
     </div>
-    <p class="text-sm text-stone-600">담당 교사 <%= session.operator_name_snapshot %> · 투표자 <%= voter_count %>명</p>
-    <% session_time_labels = poll_session_status_time_labels(session) %>
+    <p class="text-sm text-stone-600">담당 <%= session.operator_name_snapshot %> · 투표자 <%= voter_count %>명</p>
+    <% session_time_labels = poll_session_status_time_labels(session).map { |label| label.sub(/\A(?:재)?투표\s+/, "") } %>
     <% if session_time_labels.any? %>
       <p class="text-sm text-stone-600"><%= session_time_labels.join(" · ") %></p>
     <% end %>

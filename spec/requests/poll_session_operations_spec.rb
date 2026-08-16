@@ -52,12 +52,15 @@ RSpec.describe "PollSession operations", type: :request do
     )
     secret_option = create(:poll_option, poll: poll, poll_contest: poll.default_poll_contest, name: "비밀 선택지")
     create(:student, classroom: poll_session.classroom, number: 9, name: "새학생")
+    poll_session.update!(classroom_name_snapshot: "1999학년도 역사 학급")
     sign_in teacher
 
     get poll_poll_session_path(poll, poll_session)
 
     expect(response).to have_http_status(:ok)
-    expect(response.body).to include(poll.title, poll_session.classroom_name_snapshot, poll_session.operator_name_snapshot)
+    expect(response.body).to include(poll.title, "역사 학급", poll_session.operator_name_snapshot, "담당")
+    expect(response.body).not_to include("1999학년도")
+    expect(response.body).not_to include(poll_session.classroom_name_snapshot, "담당 교사")
     expect(response.body).to include("진행 중", "현재 투표자", "#{waiting.number}번 #{waiting.name}")
     expect(response.body).not_to include(
       "#{completed.number}번 #{completed.name}",
@@ -203,7 +206,9 @@ RSpec.describe "PollSession operations", type: :request do
       expect(response).to have_http_status(:ok)
       page = Nokogiri::HTML(response.body)
       status_card = page.at_css('[data-testid="poll-session-header"]')
-      expect(status_card.text.squish).to include(label, poll_session.classroom_name_snapshot, poll_session.operator_name_snapshot)
+      classroom_label = poll_session.classroom_name_snapshot.sub(/\A\d+학년도\s+/, "")
+      expect(status_card.text.squish).to include(label, classroom_label, poll_session.operator_name_snapshot, "담당")
+      expect(status_card.text.squish).not_to include(poll_session.classroom_name_snapshot, "담당 교사")
       expect(status_card.at_css('[data-testid="poll-badges"]').text.squish).to eq("학급 선거 #{label}")
       expect(response.body.include?("결과 집계 보기")).to eq(status == :closed)
       expect(response.body).to include("투표 대상 학생이 없습니다.") if status == :closed
@@ -215,5 +220,54 @@ RSpec.describe "PollSession operations", type: :request do
       end
       sign_out teacher
     end
+  end
+
+  it "renders printable candidate results in two rows without changing the regular result" do
+    poll, poll_session, teacher = create_operations_session(status: :closed)
+    option = create(
+      :poll_option,
+      poll: poll,
+      poll_contest: poll.default_poll_contest,
+      number: 1,
+      name: "김리안"
+    )
+    participant = add_participant(
+      poll: poll,
+      poll_session: poll_session,
+      number: 1,
+      name: "투표자",
+      participation: :completed
+    )
+    create(
+      :poll_contest_completion,
+      poll_participant: participant,
+      poll_contest: poll.default_poll_contest
+    )
+    create(
+      :poll_option_tally,
+      poll: poll,
+      poll_session: poll_session,
+      poll_option: option,
+      votes_count: 1
+    )
+    create(
+      :poll_contest_tally,
+      poll: poll,
+      poll_session: poll_session,
+      poll_contest: poll.default_poll_contest,
+      abstentions_count: 0
+    )
+    sign_in teacher
+
+    get results_poll_poll_session_path(poll, poll_session)
+
+    page = Nokogiri::HTML(response.body)
+    printable = page.at_css('[data-testid="poll-session-printable-results"]')
+    printable_option = printable.at_css('[data-testid="printable-option-result"]')
+    expect(printable_option.at_css("p").text.squish).to eq("기호 1번")
+    expect(printable_option.at_css("div.grid").text.squish).to eq("김리안 1표")
+    expect(printable_option["class"]).not_to include("grid-cols-[max-content_minmax(0,1fr)_max-content]")
+    expect(printable.text.squish).to include("기권 0표")
+    expect(page.at_css('[data-testid="poll-session-results"]').text.squish).to include("기호 1번 김리안", "1표", "기권 0표")
   end
 end

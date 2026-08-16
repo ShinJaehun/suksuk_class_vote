@@ -186,7 +186,8 @@ RSpec.describe "Schoolwide test Polls", type: :request do
     test_poll.update!(status: :closed, started_at: 1.hour.ago, closed_at: Time.current)
     get school_poll_path(source)
     history_row = Nokogiri::HTML(response.body).at_css("[data-testid='test-poll-history-#{test_poll.id}']")
-    expect(history_row.to_html).to include(results_school_poll_path(test_poll), "테스트투표 시작", "테스트투표 종료")
+    expect(history_row.to_html).to include(results_school_poll_path(test_poll), "시작", "종료")
+    expect(history_row.to_html).not_to include("테스트투표 시작", "테스트투표 종료")
   end
 
   it "keeps definition immutable while allowing independent same-School assignment" do
@@ -205,11 +206,22 @@ RSpec.describe "Schoolwide test Polls", type: :request do
     page = Nokogiri::HTML(response.body)
     expect(response.body).to include("배정 가능 학급", "4학년 전체", "배정 현황", "배정 학급", "배정 투표 인원")
     sessions_workspace = page.at_css("##{ActionView::RecordIdentifier.dom_id(test_poll, :sessions)}")
+    assignable_grade = sessions_workspace.at_css("details[data-testid='school-poll-assignable-grade-classrooms']")
+    expect(assignable_grade).to be_present
+    expect(assignable_grade.at_css("summary").text.squish).to include("4학년 전체", "+", "−")
+    expect(assignable_grade["data-controller"]).to eq("classroom-group-picker")
+    expect(assignable_grade.text.squish).to include(
+      "#{additional.grade}학년 #{additional.formatted_class_label}",
+      "담당 #{additional.teacher.name}",
+      "투표자 1명"
+    )
+    expect(assignable_grade.text.squish).not_to include("학생 1명")
     expect(sessions_workspace.text.squish).to include("배정 학급 2", "배정 투표 인원 2", "배정된 학급 세션")
     expect(classrooms).to all(satisfy { |classroom| sessions_workspace.text.include?(classroom.name) })
     classroom_checkboxes = page.css("input[name='classroom_ids[]']")
     expect(classroom_checkboxes.map { |checkbox| checkbox["value"].to_i }).to contain_exactly(additional.id)
     expect(classroom_checkboxes).to all(satisfy { |checkbox| checkbox["checked"].nil? })
+    expect(classroom_checkboxes).to all(satisfy { |checkbox| checkbox["data-classroom-group-picker-target"] == "item" })
     expect(response.body).not_to include(other_school_classroom.name)
 
     patch school_poll_path(test_poll), params: { poll: { title: "변조" } }
@@ -228,11 +240,12 @@ RSpec.describe "Schoolwide test Polls", type: :request do
     get school_poll_path(test_poll)
     page = Nokogiri::HTML(response.body)
     expect(response.body).to include(
-      test_poll.current_poll_sessions.find_by!(classroom: additional).classroom_name_snapshot,
+      "#{additional.grade}학년 #{additional.formatted_class_label}",
       "배정된 학급 세션",
       "4학년 배정 해제",
       "배정 해제"
     )
+    expect(response.body).not_to include(test_poll.current_poll_sessions.find_by!(classroom: additional).classroom_name_snapshot)
     assigned_session = test_poll.current_poll_sessions.find_by!(classroom: classrooms.first)
     grade_form = page.at_css(
       "form[action='#{destroy_grade_school_poll_poll_sessions_path(test_poll, grade: assigned_session.classroom.grade)}']"

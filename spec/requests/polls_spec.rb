@@ -119,7 +119,11 @@ RSpec.describe "Polls", type: :request do
       expect(response.body).not_to include(poll.title)
 
       get school_poll_path(poll)
-      expect(response.body).to include(poll.title, session.classroom_name_snapshot)
+      displayed_classroom_name =
+        session.classroom_name_snapshot.sub(/\A\d+학년도\s+/, "")
+
+      expect(response.body).to include(poll.title, displayed_classroom_name)
+      expect(response.body).not_to include(session.classroom_name_snapshot)
     end
 
     it "shows only current unfinished Sessions from an in-progress test Poll" do
@@ -478,7 +482,5 @@ RSpec.describe "Polls", type: :request do
       expect(school_card_metadata).not_to include("투표 시작")
       expect(school_card_metadata).not_to include("투표 종료")
     end
-
   end
-
 end

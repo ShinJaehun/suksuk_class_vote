@@ -28,16 +28,19 @@
     </div>
   </div>
 
-  <% choice_unit = poll.election? ? "명" : "개" %>
-  <% choice_summary = poll_contests.map { |contest| "#{contest.title} #{contest.poll_options.size}#{choice_unit}" }.join(" · ") %>
-  <dl class="grid gap-3 sm:grid-cols-4">
+  <% classroom_counts_by_grade = overview_sessions.group_by { |session| session.classroom&.grade } %>
+  <% classroom_summary = classroom_counts_by_grade
+       .sort_by { |grade, _| [grade.nil? ? 1 : 0, grade.to_i] }
+       .map { |grade, sessions| "#{grade.present? ? "#{grade}학년" : "학년 미상"} #{sessions.size}학급" }
+       .join(" · ") %>
+  <dl class="grid gap-3 sm:grid-cols-5">
     <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
       <dt class="text-xs font-medium text-stone-500">대상 학교</dt>
       <dd class="mt-1 font-semibold"><%= poll.school.name %></dd>
     </div>
     <div class="rounded-md border border-stone-200 bg-stone-50 p-3 sm:col-span-2">
-      <dt class="text-xs font-medium text-stone-500"><%= poll.election? ? "후보 구성" : "#{poll.choice_label} 구성" %></dt>
-      <dd class="mt-1 font-semibold"><%= choice_summary.presence || "등록된 투표 항목 없음" %></dd>
+      <dt class="text-xs font-medium text-stone-500">대상 학급</dt>
+      <dd class="mt-1 font-semibold"><%= classroom_summary.presence || "배정된 학급 없음" %></dd>
     </div>
     <div class="grid grid-cols-2 gap-2">
       <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
@@ -48,6 +51,10 @@
         <dt class="text-xs font-medium text-stone-500">완료</dt>
         <dd class="mt-1 text-2xl font-semibold"><%= overview_sessions.count(&:closed?) %>/<%= overview_sessions.size %></dd>
       </div>
+    </div>
+    <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+      <dt class="text-xs font-medium text-stone-500">담당</dt>
+      <dd class="mt-1 font-semibold"><%= poll.user.name.presence || poll.user.email %></dd>
     </div>
   </dl>
 <% end %>

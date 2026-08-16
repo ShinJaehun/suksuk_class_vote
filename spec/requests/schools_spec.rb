@@ -51,7 +51,8 @@ RSpec.describe "Schools", type: :request do
     expect(response.body).not_to include("교실 설정")
     document = Nokogiri::HTML(response.body)
     summary = document.css("section").find { |section| section.text.include?("학교 운영 현황") }
-    expect(summary.text.squish).to include(school.name, "선생님 1명", "교실 1학급", "학생 1명", "#{manager.name} 선생님")
+    expect(summary.text.squish).to include(school.name, "선생님 1명", "교실 1학급", "학생 1명", "대표 선생님", manager.name)
+    expect(summary.text.squish).not_to include("#{manager.name} 선생님", "담임")
     expect(summary.text).not_to include(inactive_teacher.name)
     expect(document.css("a").map { |link| link["href"] }).to include(
       school_path(school, teacher_grade: "all", classroom_grade: "all"),
