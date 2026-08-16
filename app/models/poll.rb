@@ -1,7 +1,6 @@
 class Poll < ApplicationRecord
   belongs_to :user
   belongs_to :school, optional: true
-  belongs_to :participant_group, optional: true
   belongs_to :test_source_poll, class_name: "Poll", optional: true,
                                 inverse_of: :test_polls
   has_many :test_polls, class_name: "Poll", foreign_key: :test_source_poll_id,
@@ -91,23 +90,8 @@ class Poll < ApplicationRecord
   validates :title, presence: true
   validates :user, presence: true
   validates :school_managed, inclusion: { in: [true, false] }
-  validates :school, presence: true, if: :school_managed?
-  validates :participant_group, presence: true, unless: :participant_group_optional?
-  validate :participant_group_has_participant_slots, unless: :participant_group_optional?
-  validate :school_and_participant_group_cannot_coexist, on: :create
+  validates :school, presence: true
   validate :school_managed_lifecycle_timestamps
-
-  def readiness_poll_option_count
-    default_poll_contest&.poll_options&.count.to_i
-  end
-
-  def readiness_voter_count
-    participant_group&.participant_slots&.count.to_i
-  end
-
-  def startable_by_configuration?
-    draft? && readiness_poll_option_count >= 2 && readiness_voter_count.positive?
-  end
 
   def display_status
     DISPLAY_STATUSES.fetch(status, status)
@@ -141,16 +125,12 @@ class Poll < ApplicationRecord
     VOTE_COUNT_LABELS.fetch(kind, kind)
   end
 
-  def participant_group_display_name
-    participant_group_name_snapshot.presence || participant_group&.name
-  end
-
   def destroyable_by_status?
     draft? || stopped? || (closed? && archived_at.blank?)
   end
 
   def classroom_based?
-    !school_managed? && school_id.present? && participant_group_id.nil? && poll_sessions.exists?
+    !school_managed? && school_id.present? && poll_sessions.exists?
   end
 
   def classroom_destroyable?
@@ -249,16 +229,6 @@ class Poll < ApplicationRecord
     end
   end
 
-  def participant_group_optional?
-    closed? || stopped? || school.present?
-  end
-
-  def school_and_participant_group_cannot_coexist
-    return if school.blank? || participant_group.blank?
-
-    errors.add(:base, "school and participant group cannot both be present")
-  end
-
   def prepare_for_destroy
     unless destroyable_by_status?
       errors.add(:base, "진행 중이거나 보관된 투표는 삭제할 수 없습니다.")
@@ -268,10 +238,4 @@ class Poll < ApplicationRecord
     poll_progress&.destroy!
   end
 
-  def participant_group_has_participant_slots
-    return if participant_group.blank?
-    return if participant_group.participant_slots.exists?
-
-    errors.add(:participant_group, "must have at least one participant slot")
-  end
 end

@@ -7,7 +7,7 @@ RSpec.describe PollSessionPolicy do
     create(:school_membership, school: school, user: teacher)
     teacher.reload
     classroom = create(:classroom, school: school, teacher: teacher)
-    poll = create(:poll, user: teacher, school: school, participant_group: nil)
+    poll = create(:poll, user: teacher, school: school)
     [create(:poll_session, poll: poll, classroom: classroom, operator: teacher), teacher]
   end
 
@@ -152,8 +152,7 @@ RSpec.describe PollSessionPolicy do
       manager = create(:user)
       create(:school_membership, :manager, school: source.classroom.school, user: manager)
       source.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
-      create(:poll_participant, poll: source.poll, poll_session: source,
-                                source_participant_slot: nil)
+      create(:poll_participant, poll: source.poll, poll_session: source)
       expect(described_class.new(teacher, source)).to be_revote
       expect(described_class.new(operator, source)).to be_revote
       expect(described_class.new(create(:user, :admin), source)).to be_revote
@@ -172,8 +171,7 @@ RSpec.describe PollSessionPolicy do
     it "allows safe replacement definition editing for authorized classroom actors only" do
       source, teacher = create_poll_session
       source.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
-      create(:poll_participant, poll: source.poll, poll_session: source,
-                                source_participant_slot: nil)
+      create(:poll_participant, poll: source.poll, poll_session: source)
       replacement = Polls::RevoteSession.new(actor: teacher, poll_session: source).call.poll_session
       manager = create(:user)
       create(:school_membership, :manager, school: source.classroom.school, user: manager)
@@ -217,8 +215,7 @@ RSpec.describe PollSessionPolicy do
       teacher = create(:user)
       create(:school_membership, school: school, user: teacher)
       classroom = create(:classroom, school: school, teacher: teacher)
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil,
-                           status: :in_progress, started_at: Time.current)
+      poll = create(:poll, school: school, school_managed: true, status: :in_progress, started_at: Time.current)
       session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                                       status: :in_progress, started_at: Time.current)
       manager = create(:user)

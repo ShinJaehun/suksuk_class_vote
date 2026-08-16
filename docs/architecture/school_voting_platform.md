@@ -33,9 +33,9 @@ export/import 절차로 옮긴다.
 
 ## 2. 현재 구조와 재구축 방향
 
-현재 시스템에는 교사가 소유한 `ParticipantGroup`/`ParticipantSlot` 기반 legacy `Poll`과
-`Classroom`/`Student` 기반 `Poll`/`PollSession` 운영 구조가 함께 있다. 기존 `Election`/
-`ElectionSession` runtime과 이전 Poll 기반 legacy `SchoolElection` 구조는 제거되었다.
+현재 시스템은 `Classroom`/`Student` 기반 `Poll`/`PollSession` 운영 구조를 사용한다. 기존
+`ParticipantGroup`/`ParticipantSlot`, `Election`/`ElectionSession` runtime과 이전 Poll 기반
+legacy `SchoolElection` 구조는 제거되었다.
 
 현재 `Poll`은 활동 정의, 명단, 진행 상태, 집계와 진행 포인터를 한 흐름에서 맡고
 `Poll.kind = election`으로 선거도 표현한다. 교사 접근 경계는 학교·학급보다 사용자
@@ -463,8 +463,8 @@ number/id 순서로 명시적으로 지정한다. 자동 다음 학생 전환과
 표시하고 개인별 선택 row는 저장하거나 표시하지 않는다. 교사 operation 화면과 고정 이름의 학생
 창은 Turbo Stream으로 갱신하며 polling fallback도 제공한다. `Polls::SessionStatusCheck`가 draft,
 in_progress, closed 단계의 정의·snapshot·진행·집계 무결성을 확인하고 실제 시작·ballot open·제출·
-미참여·다음 학생·종료 service가 해당 조건으로 잘못된 action을 차단한다. 기존 ParticipantGroup 기반
-`Polls::Start`와 legacy 직접 실행 route는 그대로 유지한다. 신규 PollSession의 중단·stopped 이력
+미참여·다음 학생·종료 service가 해당 조건으로 잘못된 action을 차단한다. ParticipantGroup 기반
+`Polls::Start`와 legacy 직접 실행 route는 제거됐다. 신규 PollSession의 중단·stopped 이력
 보존과 일반 학급투표·전교투표 학급 실행의 replacement 재투표가 구현됐다.
 Turbo Stream이 primary 갱신 수단이며 10초 polling은 단절·누락 때 DB 상태로 수렴시키는 safety net이다.
 정상 상태에는 화면을 교체하지 않고 stale/terminal 영역만 갱신하며, hidden tab에서는 timer를 중단한다.
@@ -610,16 +610,16 @@ historical/read_only는 목표 설계이며 현재 runtime에는 아직 구현�
 4. Election ID 6 historical Poll 변환과 후보 사진 이관
 5. 운영 DB의 기존 Poll 보존 범위 조사
 6. 필요한 legacy Poll의 PollSession backfill
-7. 신규 PollSession runtime과 legacy ParticipantGroup Poll runtime 분리
+7. legacy ParticipantGroup Poll runtime 제거 완료
 8. Election table 제거(runtime 제거 완료)
-9. ParticipantGroup·ParticipantSlot 제거
+9. ParticipantGroup·ParticipantSlot DB schema 제거(runtime 제거 완료)
 10. 전체 데이터 검산과 운영 전환
 
-따라서 실제 Election ID 6 운영 데이터 적용, legacy Poll backfill과 runtime 완전 분리도 미완료다.
+따라서 실제 Election ID 6 운영 데이터 적용과 legacy DB schema 제거는 미완료다.
 
-`ParticipantGroup`은 현재 Poll 원본 명단과 진행 흐름에 연결되어 있고 export 시 학생
-명단의 출처가 될 수 있다. 이를 일찍 삭제하면 Poll 운영과 export 검증이 깨지고 새
-Student/Voter 구조로 옮기지 못한 기록의 의미를 잃는다. 두 콘텐츠의 전환과 이관
+`ParticipantGroup`/`ParticipantSlot` runtime은 제거됐지만 DB row는 export·복원 시 학생
+명단의 legacy 출처가 될 수 있다. schema를 일찍 삭제하면 새 Student/Voter 구조로 옮기지 못한
+기록의 의미를 잃는다. 두 콘텐츠의 전환과 이관
 검증이 끝날 때까지 호환 경계로 유지한다.
 
 ## 14. 확정된 설계와 후속 검토 사항

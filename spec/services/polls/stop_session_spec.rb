@@ -6,11 +6,10 @@ RSpec.describe Polls::StopSession do
     teacher = create(:user)
     create(:school_membership, school: school, user: teacher)
     classroom = create(:classroom, school: school, teacher: teacher)
-    poll = create(:poll, user: teacher, school: school, participant_group: nil)
+    poll = create(:poll, user: teacher, school: school)
     session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                                     status: :in_progress, started_at: 1.hour.ago)
-    participant = create(:poll_participant, poll: poll, poll_session: session,
-                                            source_participant_slot: nil)
+    participant = create(:poll_participant, poll: poll, poll_session: session)
     progress = create(:poll_progress, poll: poll, poll_session: session,
                                       current_poll_participant: participant,
                                       ballot_status: :ballot_open,

@@ -3,8 +3,7 @@ require "rails_helper"
 RSpec.describe PollsHelper, type: :helper do
   def school_poll(test_source_poll: nil)
     school = test_source_poll&.school || create(:school)
-    create(:poll, school: school, school_managed: true, participant_group: nil,
-                  test_source_poll: test_source_poll)
+    create(:poll, school: school, school_managed: true, test_source_poll: test_source_poll)
   end
 
   it "adds test and replacement badges in the common order" do

@@ -90,7 +90,6 @@ module Polls
       source_session.poll_participants.order(:number, :id).each do |participant|
         replacement_session.poll_participants.create!(
           poll: replacement_session.poll,
-          source_participant_slot: nil,
           number: participant.number,
           name: participant.name
         )
@@ -114,8 +113,6 @@ module Polls
         kind: source_poll.kind,
         user: source_poll.user,
         school: source_poll.school,
-        participant_group: source_poll.participant_group,
-        participant_group_name_snapshot: source_poll.participant_group_name_snapshot,
         school_managed: false,
         status: :draft,
         started_at: nil,

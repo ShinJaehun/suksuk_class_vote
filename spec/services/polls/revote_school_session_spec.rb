@@ -8,13 +8,12 @@ RSpec.describe Polls::RevoteSchoolSession do
     teacher = create(:user)
     create(:school_membership, school: school, user: teacher)
     classroom = create(:classroom, school: school, teacher: teacher)
-    poll = create(:poll, school: school, school_managed: true, participant_group: nil,
-                         status: :in_progress, started_at: 1.hour.ago)
+    poll = create(:poll, school: school, school_managed: true, status: :in_progress, started_at: 1.hour.ago)
     source = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                                    status: status, started_at: 1.hour.ago,
                                    closed_at: (Time.current if status == :closed))
     create(:poll_participant, poll: poll, poll_session: source,
-                              source_participant_slot: nil, number: 1, name: "학생")
+                              number: 1, name: "학생")
     [source, manager, teacher]
   end
 
@@ -90,7 +89,7 @@ RSpec.describe Polls::RevoteSchoolSession do
   it "rejects a child test Session after its source Poll is closed" do
     session, manager, = setup_source
     source_poll = create(:poll, school: session.poll.school, school_managed: true,
-                                participant_group: nil, status: :closed,
+                                status: :closed,
                                 started_at: 2.hours.ago, closed_at: 1.hour.ago,
                                 archived_at: 1.hour.ago)
     session.poll.update!(test_source_poll: source_poll)

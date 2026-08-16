@@ -14,7 +14,7 @@ RSpec.describe "Schoolwide test Polls", type: :request do
   def create_source
     school = create(:school)
     source = create(:poll, title: "전교어린이회임원선거", school: school,
-                           school_managed: true, participant_group: nil)
+                           school_managed: true)
     contest = create(:poll_contest, poll: source, position: 1)
     create(:poll_option, poll: source, poll_contest: contest, number: 1)
     create(:poll_option, poll: source, poll_contest: contest, number: 2)

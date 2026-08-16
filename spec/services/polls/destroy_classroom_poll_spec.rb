@@ -10,7 +10,7 @@ RSpec.describe Polls::DestroyClassroomPoll do
     classroom = create(:classroom, school: school, teacher: teacher)
     operator ||= teacher
     create(:school_membership, school: school, user: operator) unless operator.school_membership
-    poll = create(:poll, user: teacher, school: school, participant_group: nil)
+    poll = create(:poll, user: teacher, school: school)
     session = create(:poll_session, poll: poll, classroom: classroom, operator: operator,
                                     status: status,
                                     started_at: (1.hour.ago unless status == :draft),
@@ -71,7 +71,7 @@ RSpec.describe Polls::DestroyClassroomPoll do
     archived_session.update!(archived_at: archived.archived_at)
     expect(described_class.new(poll: archived, actor: teacher).call).not_to be_success
 
-    schoolwide = create(:poll, school: create(:school), school_managed: true, participant_group: nil)
+    schoolwide = create(:poll, school: create(:school), school_managed: true)
     expect(described_class.new(poll: schoolwide, actor: create(:user, :admin)).call).not_to be_success
 
     poll, session, = create_target
@@ -98,8 +98,7 @@ RSpec.describe Polls::DestroyClassroomPoll do
                                         operator: teacher, replacement_of: source)
     contest = create(:poll_contest, poll: poll)
     option = create(:poll_option, poll: poll, poll_contest: contest)
-    participant = create(:poll_participant, poll: poll, poll_session: source,
-                                            source_participant_slot: nil)
+    participant = create(:poll_participant, poll: poll, poll_session: source)
     create(:poll_participation, poll_participant: participant)
     create(:poll_contest_completion, poll_participant: participant, poll_contest: contest)
     create(:poll_progress, poll: poll, poll_session: source,
@@ -120,8 +119,7 @@ RSpec.describe Polls::DestroyClassroomPoll do
 
   it "rolls back runtime deletion when Poll deletion fails" do
     poll, session, teacher = create_target(status: :closed)
-    participant = create(:poll_participant, poll: poll, poll_session: session,
-                                            source_participant_slot: nil)
+    participant = create(:poll_participant, poll: poll, poll_session: session)
     poll.errors.add(:base, "failure")
     allow(poll).to receive(:destroy!).and_raise(ActiveRecord::RecordNotDestroyed.new("failure", poll))
     operation_stream = Turbo::StreamsChannel.send(:stream_name_from, [session, :operation_screen])
@@ -136,7 +134,7 @@ RSpec.describe Polls::DestroyClassroomPoll do
 
   it "preserves a replacement that belongs to another Poll while detaching its deleted source" do
     poll, source, teacher = create_target(status: :stopped)
-    replacement_poll = create(:poll, user: teacher, school: poll.school, participant_group: nil)
+    replacement_poll = create(:poll, user: teacher, school: poll.school)
     replacement = create(:poll_session, poll: replacement_poll, classroom: source.classroom,
                                         operator: teacher, replacement_of: source)
 

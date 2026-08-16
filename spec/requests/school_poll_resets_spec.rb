@@ -8,7 +8,7 @@ RSpec.describe "School Poll reset", type: :request do
     teacher = create(:user)
     create(:school_membership, school: school, user: teacher)
     classroom = create(:classroom, school: school, teacher: teacher)
-    poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+    poll = create(:poll, school: school, school_managed: true)
     session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
     [poll, session, school]
   end

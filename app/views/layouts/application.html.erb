@@ -36,9 +36,6 @@
               <%= link_to "내 투표",
                           polls_path,
                           class: "text-sm text-stone-600 hover:text-stone-900" %>
-              <%= link_to "내 투표자 목록",
-                          participant_groups_path,
-                          class: "text-sm text-stone-600 hover:text-stone-900" %>
               <span class="mx-1 hidden h-5 border-l border-stone-300 sm:inline-block"></span>
               <% if current_user.admin? || current_user.school_membership&.manager? %>
                 <%= link_to "학교",

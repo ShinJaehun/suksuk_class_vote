@@ -15,7 +15,7 @@ RSpec.describe "Schools", type: :request do
     teacher = add_teacher(school, grade: 4, name: "#{class_label}반 담임")
     classroom = create(:classroom, school: school, grade: 4, class_label: class_label, teacher: teacher)
     poll = create(:poll, user: teacher, school: school, school_managed: school_managed,
-                         participant_group: nil, status: :in_progress, started_at: 1.hour.ago)
+                         status: :in_progress, started_at: 1.hour.ago)
     session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                                     status: :in_progress, started_at: 1.hour.ago)
     [poll, session]
@@ -266,8 +266,7 @@ RSpec.describe "Schools", type: :request do
   it "stops running Classroom Polls before deactivating while preserving history" do
     school = create(:school)
     poll, poll_session = create_running_poll(school: school)
-    participant = create(:poll_participant, poll: poll, poll_session: poll_session,
-                                            source_participant_slot: nil)
+    participant = create(:poll_participant, poll: poll, poll_session: poll_session)
     sign_in create(:user, :admin)
 
     patch deactivate_school_path(school)
@@ -333,10 +332,6 @@ RSpec.describe "Schools", type: :request do
     expect { delete school_path(with_classroom) }.not_to change(School, :count)
     expect(classroom.reload.school).to eq(with_classroom)
     expect { delete school_path(deletable) }.to change(School, :count).by(-1)
-
-    protected_school = create(:school, active: false)
-    create(:participant_group, school: protected_school)
-    expect { delete school_path(protected_school) }.not_to change(School, :count)
 
     manager_school = create(:school, active: false)
     manager = add_teacher(manager_school, role: :manager)

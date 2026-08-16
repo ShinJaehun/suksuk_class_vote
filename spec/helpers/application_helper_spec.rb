@@ -32,7 +32,7 @@ RSpec.describe ApplicationHelper, type: :helper do
 
     it "uses definition positions so cloned options keep the same fallback avatar" do
       option = create(:poll_option, number: 7)
-      cloned_poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil)
+      cloned_poll = create(:poll, school: create(:school), school_managed: true)
       cloned_contest = create(:poll_contest, poll: cloned_poll, position: option.poll_contest.position)
       cloned_option = create(:poll_option, poll: cloned_poll, poll_contest: cloned_contest, number: option.number)
       avatar_index = ((option.poll_contest.position * 7) + (option.number * 11)) % 30

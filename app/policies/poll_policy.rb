@@ -86,54 +86,14 @@ class PollPolicy < ApplicationPolicy
     (admin? || owner?) && operational_school_active?
   end
 
-  def start?
-    (admin? || owner?) && operational_school_active?
-  end
-
-  def submit_vote?
-    (admin? || owner?) && operational_school_active?
-  end
-
-  def open_current_participant_ballot?
-    (admin? || owner?) && operational_school_active?
-  end
-
-  def record_participation_outcome?
-    (admin? || owner?) && operational_school_active?
-  end
-
-  def record_next_participant_absent?
-    (admin? || owner?) && operational_school_active?
-  end
-
-  def advance_current_participant?
-    (admin? || owner?) && operational_school_active?
-  end
-
-  def resume_current_participant?
-    (admin? || owner?) && operational_school_active?
-  end
-
-  def close?
-    (admin? || owner?) && operational_school_active?
-  end
-
-  def stop?
-    (admin? || owner?) && operational_school_active? && record.in_progress?
-  end
-
   def archive?
-    return false if record.school_managed?
-    return classroom_session_policy_allows?(:archive_poll?) if record.classroom_based?
-
-    (admin? || owner?) && operational_school_active? && record.closed? && record.archived_at.blank?
+    !record.school_managed? && record.classroom_based? &&
+      classroom_session_policy_allows?(:archive_poll?)
   end
 
   def destroy?
-    return false if record.school_managed?
-    return classroom_session_policy_allows?(:destroy_poll?) if record.classroom_based?
-
-    (admin? || owner?) && operational_school_active? && record.destroyable_by_status?
+    !record.school_managed? && record.classroom_based? &&
+      classroom_session_policy_allows?(:destroy_poll?)
   end
 
   class Scope < ApplicationPolicy::Scope

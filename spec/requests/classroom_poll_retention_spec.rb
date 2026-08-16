@@ -10,7 +10,7 @@ RSpec.describe "Classroom Poll retention", type: :request do
     classroom = create(:classroom, school: school, teacher: teacher)
     operator ||= teacher
     create(:school_membership, school: school, user: operator) unless operator.school_membership
-    poll = create(:poll, user: teacher, school: school, participant_group: nil)
+    poll = create(:poll, user: teacher, school: school)
     session = create(:poll_session, poll: poll, classroom: classroom, operator: operator,
                                     status: status,
                                     started_at: (1.hour.ago unless status == :draft),
@@ -77,7 +77,6 @@ RSpec.describe "Classroom Poll retention", type: :request do
       user: owner,
       school: school,
       school_managed: true,
-      participant_group: nil,
       status: :closed,
       started_at: 1.hour.ago,
       closed_at: archived_at,
@@ -133,7 +132,7 @@ RSpec.describe "Classroom Poll retention", type: :request do
     delete poll_path(poll)
     expect(session.reload).to be_in_progress
 
-    schoolwide = create(:poll, school: create(:school), school_managed: true, participant_group: nil)
+    schoolwide = create(:poll, school: create(:school), school_managed: true)
     sign_out teacher
     sign_in create(:user, :admin)
     delete poll_path(schoolwide)

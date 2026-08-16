@@ -7,7 +7,7 @@ RSpec.describe Polls::SessionStatusCheck do
     create(:school_membership, school: school, user: operator)
     classroom = create(:classroom, school: school, teacher: operator)
     create(:student, classroom: classroom, active: true)
-    poll = create(:poll, school: school, user: operator, participant_group: nil, kind: kind)
+    poll = create(:poll, school: school, user: operator, kind: kind)
     contest = poll.default_poll_contest
     create(:poll_option, poll: poll, poll_contest: contest, number: 1)
     create(:poll_option, poll: poll, poll_contest: contest, number: 2)
@@ -62,8 +62,7 @@ RSpec.describe Polls::SessionStatusCheck do
     create(
       :poll_participant,
       poll: poll_session.poll,
-      poll_session: poll_session,
-      source_participant_slot: nil
+      poll_session: poll_session
     )
 
     result = described_class.new(poll_session: poll_session.reload).call
@@ -97,7 +96,7 @@ RSpec.describe Polls::SessionStatusCheck do
     source, operator = build_draft
     source.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
     create(:poll_participant, poll: source.poll, poll_session: source,
-                              source_participant_slot: nil, number: 9, name: "재투표 학생")
+                              number: 9, name: "재투표 학생")
     replacement = Polls::RevoteSession.new(actor: operator, poll_session: source).call.poll_session
     source.classroom.students.update_all(active: false)
 
@@ -115,7 +114,6 @@ RSpec.describe Polls::SessionStatusCheck do
       :poll_participant,
       poll: source.poll,
       poll_session: source,
-      source_participant_slot: nil,
       number: 1,
       name: "원본 학생"
     )
@@ -196,8 +194,7 @@ RSpec.describe Polls::SessionStatusCheck do
     foreign_participant = create(
       :poll_participant,
       poll: poll_session.poll,
-      poll_session: other_session,
-      source_participant_slot: nil
+      poll_session: other_session
     )
     progress.update_columns(
       current_poll_participant_id: foreign_participant.id,
@@ -335,8 +332,7 @@ RSpec.describe Polls::SessionStatusCheck do
     other_participant = create(
       :poll_participant,
       poll: poll_session.poll,
-      poll_session: other_session,
-      source_participant_slot: nil
+      poll_session: other_session
     )
     create(
       :poll_contest_completion,

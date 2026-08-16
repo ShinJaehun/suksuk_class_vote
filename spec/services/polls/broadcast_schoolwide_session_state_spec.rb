@@ -21,7 +21,7 @@ RSpec.describe Polls::BroadcastSchoolwideSessionState do
     create(:school_membership, school: school, user: teacher)
     classroom = create(:classroom, school: school, teacher: teacher)
     create(:student, classroom: classroom)
-    poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+    poll = create(:poll, school: school, school_managed: true)
     session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
     admin = create(:user, :admin)
     stream = runtime_stream(poll, admin)
@@ -94,7 +94,7 @@ RSpec.describe Polls::BroadcastSchoolwideSessionState do
 
   it "broadcasts every current classroom runtime and one aggregate for a batch" do
     school = create(:school)
-    poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+    poll = create(:poll, school: school, school_managed: true)
     sessions = 2.times.map do
       teacher = create(:user)
       create(:school_membership, school: school, user: teacher)
@@ -126,8 +126,7 @@ RSpec.describe Polls::BroadcastSchoolwideSessionState do
     classroom = create(:classroom, school: school, teacher: teacher)
     manager = create(:user)
     create(:school_membership, :manager, school: school, user: manager)
-    poll = create(:poll, school: school, school_managed: true, participant_group: nil,
-                         status: :in_progress, started_at: 1.hour.ago)
+    poll = create(:poll, school: school, school_managed: true, status: :in_progress, started_at: 1.hour.ago)
     source = create(
       :poll_session,
       poll: poll,
@@ -174,9 +173,8 @@ RSpec.describe Polls::BroadcastSchoolwideSessionState do
     create(:school_membership, school: school, user: teacher)
     classroom = create(:classroom, school: school, teacher: teacher)
     create(:student, classroom: classroom)
-    source = create(:poll, school: school, school_managed: true, participant_group: nil)
-    test_poll = create(:poll, school: school, school_managed: true, participant_group: nil,
-                              test_source_poll: source)
+    source = create(:poll, school: school, school_managed: true)
+    test_poll = create(:poll, school: school, school_managed: true, test_source_poll: source)
     contest = create(:poll_contest, poll: test_poll)
     create(:poll_option, poll: test_poll, poll_contest: contest, number: 1)
     create(:poll_option, poll: test_poll, poll_contest: contest, number: 2)
@@ -199,7 +197,7 @@ RSpec.describe Polls::BroadcastSchoolwideSessionState do
     teacher = create(:user)
     create(:school_membership, school: school, user: teacher)
     classroom = create(:classroom, school: school, teacher: teacher)
-    poll = create(:poll, school: school, participant_group: nil)
+    poll = create(:poll, school: school)
     session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
     poll.update!(school_managed: true)
     create(:user, :admin)
@@ -225,7 +223,7 @@ RSpec.describe Polls::BroadcastSchoolwideSessionState do
 
   it "broadcasts only to active admins and the current same-School manager" do
     school = create(:school)
-    poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+    poll = create(:poll, school: school, school_managed: true)
     former_manager = create(:user)
     former_membership = create(:school_membership, :manager, school: school, user: former_manager)
     next_manager = create(:user)

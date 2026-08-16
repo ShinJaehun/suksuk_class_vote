@@ -6,7 +6,7 @@ RSpec.describe Polls::ArchiveClassroomPoll do
     teacher = create(:user)
     create(:school_membership, school: school, user: teacher)
     classroom = create(:classroom, school: school, teacher: teacher)
-    poll = create(:poll, user: teacher, school: school, participant_group: nil)
+    poll = create(:poll, user: teacher, school: school)
     session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                                     status: status, started_at: 1.hour.ago,
                                     closed_at: (Time.current if status == :closed))

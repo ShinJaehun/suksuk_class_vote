@@ -12,7 +12,7 @@ RSpec.describe Polls::CreateSchoolwideTestPoll do
   def create_source(actor: create(:user, :admin))
     school = create(:school)
     source = create(:poll, title: "전교어린이회임원선거", user: actor, school: school,
-                           school_managed: true, participant_group: nil)
+                           school_managed: true)
     contest = create(:poll_contest, poll: source, title: "회장", position: 1)
     photo_option = create(:poll_option, poll: source, poll_contest: contest,
                                         number: 1, name: "사진 후보")
@@ -99,7 +99,7 @@ RSpec.describe Polls::CreateSchoolwideTestPoll do
       closed_at: 10.minutes.ago
     )
     create(:poll_participant, poll: source, poll_session: replacement,
-                              source_participant_slot: nil, number: 1, name: "학생")
+                              number: 1, name: "학생")
     create(:poll_option_tally, poll: source, poll_session: replacement,
                                poll_option: source.poll_options.first, votes_count: 7)
     create(:poll_contest_tally, poll: source, poll_session: replacement,
@@ -159,7 +159,7 @@ RSpec.describe Polls::CreateSchoolwideTestPoll do
     admin = create(:user, :admin)
     source, classrooms = create_source(actor: admin)
     test_poll = create(:poll, school: source.school, school_managed: true,
-                              participant_group: nil, test_source_poll: source)
+                              test_source_poll: source)
     expect(described_class.new(source_poll: test_poll, actor: admin).call).not_to be_success
     expect(described_class.new(source_poll: source, actor: create(:user)).call).not_to be_success
   end

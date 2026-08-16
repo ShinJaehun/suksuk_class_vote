@@ -50,18 +50,6 @@ module ApplicationHelper
     labels
   end
 
-  def school_election_participant_group_context_label(participant_group, voter_count:)
-    [
-      participant_group&.school&.name,
-      teacher_assignment_label(participant_group&.user&.name),
-      "투표자 #{voter_count}명"
-    ].compact_blank.join(" · ")
-  end
-
-  def teacher_assignment_label(teacher_name)
-    teacher_name.present? ? "담당 교사 : #{teacher_name}" : "담당 교사 미지정"
-  end
-
   def poll_option_photo_source(option, variant:)
     return rails_representation_path(option.photo.variant(variant), only_path: true) if option.photo.attached?
 

@@ -32,7 +32,7 @@ RSpec.describe PollSession, type: :model do
       teacher = create(:user)
       create(:school_membership, school: school, user: teacher)
       classroom = create(:classroom, school: school, teacher: teacher)
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      poll = create(:poll, school: school, school_managed: true)
       broadcaster = instance_double(Polls::BroadcastSchoolwideSessionState, call: nil)
       expect(Polls::BroadcastSchoolwideSessionState).to receive(:new)
         .with(poll: poll, classroom: classroom).twice.and_return(broadcaster)
@@ -50,7 +50,7 @@ RSpec.describe PollSession, type: :model do
       teacher = create(:user)
       create(:school_membership, school: school, user: teacher)
       classroom = create(:classroom, school: school, teacher: teacher)
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      poll = create(:poll, school: school, school_managed: true)
       broadcaster = instance_double(Polls::BroadcastSchoolwideSessionState, call: nil)
       expect(Polls::BroadcastSchoolwideSessionState).to receive(:new)
         .with(poll: poll, classroom: classroom).and_return(broadcaster)
@@ -88,16 +88,23 @@ RSpec.describe PollSession, type: :model do
 
     it "rejects a poll without a school" do
       classroom = create(:classroom, :with_teacher)
-      poll = create(:poll, school: nil)
+      poll = build(:poll, school: nil)
 
-      expect(build(:poll_session, poll: poll, classroom: classroom, operator: classroom.teacher)).to be_invalid
+      poll_session = build(
+        :poll_session,
+        poll: poll,
+        classroom: classroom,
+        operator: classroom.teacher
+      )
+
+      expect(poll_session).to be_invalid
+      expect(poll_session.errors[:poll]).to include("must have a school")
     end
 
     it "rejects a classroom in another school" do
       poll = create(
         :poll,
-        school: create(:school),
-        participant_group: nil
+        school: create(:school)
       )
       classroom = create(:classroom, :with_teacher)
 
@@ -202,8 +209,7 @@ RSpec.describe PollSession, type: :model do
       existing_session
       other_poll = create(
         :poll,
-        school: existing_session.classroom.school,
-        participant_group: nil
+        school: existing_session.classroom.school
       )
       other_classroom = create(:classroom, :with_teacher, school: existing_session.poll.school)
 
@@ -253,8 +259,7 @@ RSpec.describe PollSession, type: :model do
       teacher = create(:user)
       create(:school_membership, school: school, user: teacher)
       classroom = create(:classroom, school: school, teacher: teacher)
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil,
-                           status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
+      poll = create(:poll, school: school, school_managed: true, status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
 
       expect(build(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                                   status: :stopped, stopped_at: poll.stopped_at)).to be_valid
@@ -273,8 +278,7 @@ RSpec.describe PollSession, type: :model do
 
     it "links a replacement using a separate draft poll in the same classroom" do
       source = stopped_session
-      replacement_poll = create(:poll, user: source.poll.user, school: source.poll.school,
-                                        participant_group: nil)
+      replacement_poll = create(:poll, user: source.poll.user, school: source.poll.school)
       replacement = create(
         :poll_session,
         poll: replacement_poll,
@@ -295,8 +299,7 @@ RSpec.describe PollSession, type: :model do
                                   operator: source.operator, replacement_of: source)).to be_invalid
 
       closed_source = stopped_session(status: :closed)
-      closed_poll = create(:poll, user: closed_source.poll.user, school: closed_source.poll.school,
-                                  participant_group: nil)
+      closed_poll = create(:poll, user: closed_source.poll.user, school: closed_source.poll.school)
       expect(build(:poll_session, poll: closed_poll, classroom: closed_source.classroom,
                                   operator: closed_source.operator, replacement_of: closed_source)).to be_invalid
 
@@ -313,8 +316,7 @@ RSpec.describe PollSession, type: :model do
 
     it "rejects a school-managed source or replacement poll and a non-draft replacement poll" do
       source = stopped_session
-      replacement_poll = create(:poll, user: source.poll.user, school: source.poll.school,
-                                        participant_group: nil)
+      replacement_poll = create(:poll, user: source.poll.user, school: source.poll.school)
 
       source.poll.update!(school_managed: true)
       expect(build(:poll_session, poll: replacement_poll, classroom: source.classroom,
@@ -331,8 +333,7 @@ RSpec.describe PollSession, type: :model do
       teacher = create(:user)
       create(:school_membership, school: school, user: teacher)
       classroom = create(:classroom, school: school, teacher: teacher)
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil,
-                           status: :in_progress, started_at: Time.current)
+      poll = create(:poll, school: school, school_managed: true, status: :in_progress, started_at: Time.current)
       source = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                                      status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
 
@@ -347,8 +348,7 @@ RSpec.describe PollSession, type: :model do
       teacher = create(:user)
       create(:school_membership, school: school, user: teacher)
       classroom = create(:classroom, school: school, teacher: teacher)
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil,
-                           status: :in_progress, started_at: Time.current)
+      poll = create(:poll, school: school, school_managed: true, status: :in_progress, started_at: Time.current)
       source = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                                      status: :closed, started_at: 1.hour.ago, closed_at: Time.current)
       replacement = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,

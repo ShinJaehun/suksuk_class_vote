@@ -164,23 +164,11 @@ school-managed Poll 전체 lifecycle과 학급 Session 운영은 분리한다.
 
 일반 teacher가 학급 Session을 운영할 수 있다는 사실은 parent 전교투표 전체 lifecycle 권한을 뜻하지 않는다.
 
-## legacy ParticipantGroup / ParticipantSlot
-
-`ParticipantGroup`과 `ParticipantSlot`은 legacy Poll 호환을 위해 아직 남아 있다. 신규
-Classroom/PollSession 구조의 기본 명단 관리 방식은 아니며, 신규 투표는 Classroom의 active Student를
-snapshot 원본으로 사용한다.
-
-legacy 관리 화면에서는 기존 policy에 따라 admin이 전체 group을, teacher가 본인 group을 관리한다.
-legacy Poll 기록과 직접 연결된 세부 권한은 해당 runtime policy를 따른다. 이 구조는 운영 데이터
-조사·backfill과 legacy runtime 제거가 끝나기 전까지 임의로 삭제하지 않는다.
-
----
-
 ## 기본 진입과 내비게이션
 
 * admin 로그인 및 권한 실패 기본 경로: `/teachers`
 * teacher 로그인 및 권한 실패 기본 경로: `/polls`
-* 로그인 사용자는 내 투표와 legacy 투표자 목록, 권한 범위의 Classroom 화면에 접근한다.
+* 로그인 사용자는 내 투표와 권한 범위의 Classroom 화면에 접근한다.
 * admin과 manager는 학교·전교투표 메뉴를 사용한다.
 * admin은 global 교사 관리와 legacy 전교임원선거 메뉴를 사용한다.
 * manager는 `/teachers`의 자기 학교 교사 관리와 별도 membership 관리 기능을 사용한다.

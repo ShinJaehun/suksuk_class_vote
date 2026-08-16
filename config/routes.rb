@@ -27,16 +27,6 @@ Rails.application.routes.draw do
   end
   resources :polls, only: %i[index show new create edit update destroy] do
     get :archived, on: :collection
-    get :ballot, on: :member
-    post :start, on: :member
-    post :open_current_participant_ballot, on: :member
-    post :submit_vote, on: :member
-    post :record_participation_outcome, on: :member
-    post :record_next_participant_absent, on: :member
-    post :advance_current_participant, on: :member
-    post :resume_current_participant, on: :member
-    post :close, on: :member
-    post :stop, on: :member
     post :archive, on: :member
     resources :poll_sessions, only: :show do
       get :results, on: :member
@@ -66,7 +56,6 @@ Rails.application.routes.draw do
                   only: %i[new create edit update destroy]
       end
     end
-    resources :poll_options, path: "options", only: %i[new create edit update destroy]
   end
   resources :classrooms, only: %i[index new create edit update destroy] do
     collection do
@@ -124,12 +113,6 @@ Rails.application.routes.draw do
       end
     end
   end
-  resources :participant_groups, only: %i[index show new create edit update destroy] do
-    resources :participant_slots, only: %i[new create edit update destroy]
-    resource :bulk_participant_slots, only: %i[new create], controller: "bulk_participant_slots"
-    resource :roster, only: %i[edit update], controller: "participant_group_rosters"
-  end
-
   namespace :admin do
     resources :schools, only: %i[new create]
   end

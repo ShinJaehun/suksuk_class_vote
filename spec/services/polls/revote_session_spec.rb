@@ -6,16 +6,16 @@ RSpec.describe Polls::RevoteSession do
     teacher = create(:user)
     create(:school_membership, school: school, user: teacher)
     classroom = create(:classroom, school: school, teacher: teacher)
-    poll = create(:poll, user: teacher, school: school, participant_group: nil)
+    poll = create(:poll, user: teacher, school: school)
     source = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                                    status: status,
                                    stopped_at: (Time.current if status == :stopped),
                                    closed_at: (Time.current if status == :closed),
                                    started_at: 1.hour.ago)
     create(:poll_participant, poll: poll, poll_session: source,
-                              source_participant_slot: nil, number: 2, name: "둘")
+                              number: 2, name: "둘")
     create(:poll_participant, poll: poll, poll_session: source,
-                              source_participant_slot: nil, number: 1, name: "하나")
+                              number: 1, name: "하나")
     [source, teacher]
   end
 
@@ -60,7 +60,6 @@ RSpec.describe Polls::RevoteSession do
       kind: "survey",
       user: source.poll.user,
       school: source.poll.school,
-      participant_group: source.poll.participant_group,
       school_managed: false,
       status: "draft",
       started_at: nil,

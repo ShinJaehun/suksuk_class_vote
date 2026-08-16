@@ -57,7 +57,7 @@ RSpec.describe Teachers::BulkUpdater do
     membership.update!(grade: 4)
     old_classroom = create(:classroom, school: school, grade: 4, teacher: teacher)
     new_classroom = create(:classroom, school: school, grade: 5)
-    poll = create(:poll, school: school, user: teacher, participant_group: nil)
+    poll = create(:poll, school: school, user: teacher)
     create(:poll_session, poll: poll, classroom: old_classroom, operator: teacher,
                           status: :in_progress, started_at: Time.current)
 

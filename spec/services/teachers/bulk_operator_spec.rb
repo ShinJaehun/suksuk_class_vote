@@ -66,7 +66,7 @@ RSpec.describe Teachers::BulkOperator do
   it "does not bulk deactivate a running Poll operator" do
     operator = teacher(grade: 4)
     classroom = create(:classroom, school: school, grade: 4, teacher: operator)
-    poll = create(:poll, school: school, user: operator, participant_group: nil)
+    poll = create(:poll, school: school, user: operator)
     create(:poll_session, poll: poll, classroom: classroom, operator: operator,
                           status: :in_progress, started_at: Time.current)
 

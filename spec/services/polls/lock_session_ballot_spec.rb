@@ -7,7 +7,7 @@ RSpec.describe Polls::LockSessionBallot do
     create(:school_membership, school: school, user: operator)
     operator.reload
     classroom = create(:classroom, school: school, teacher: operator)
-    poll = create(:poll, user: operator, school: school, participant_group: nil)
+    poll = create(:poll, user: operator, school: school)
     poll_session = create(
       :poll_session,
       poll: poll,
@@ -19,8 +19,7 @@ RSpec.describe Polls::LockSessionBallot do
     participant = create(
       :poll_participant,
       poll: poll,
-      poll_session: poll_session,
-      source_participant_slot: nil
+      poll_session: poll_session
     )
     progress = create(
       :poll_progress,

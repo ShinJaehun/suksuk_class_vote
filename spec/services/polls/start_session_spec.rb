@@ -8,7 +8,7 @@ RSpec.describe Polls::StartSession do
     teacher.reload
     classroom = create(:classroom, school: school, teacher: teacher)
     students.each { |number, name| create(:student, classroom: classroom, number: number, name: name) }
-    poll = create(:poll, user: teacher, school: school, participant_group: nil)
+    poll = create(:poll, user: teacher, school: school)
     create(:poll_option, poll: poll, poll_contest: poll.default_poll_contest, number: 1)
     create(:poll_option, poll: poll, poll_contest: poll.default_poll_contest, number: 2)
     poll_session = create(
@@ -47,7 +47,7 @@ RSpec.describe Polls::StartSession do
       source, actor = create_startable_session(students: [[1, "현재 학생"]])
       source.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
       create(:poll_participant, poll: source.poll, poll_session: source,
-                                source_participant_slot: nil, number: 1, name: "이전 학생")
+                                number: 1, name: "이전 학생")
       replacement = Polls::RevoteSession.new(actor: actor, poll_session: source).call.poll_session
       replacement.poll_participants.first.update!(number: 7, name: "편집 학생")
       source_poll_attributes = source.poll.attributes.slice("title", "kind", "status", "started_at", "closed_at")
@@ -70,8 +70,7 @@ RSpec.describe Polls::StartSession do
 
       expect(described_class.new(actor: actor, poll_session: replacement).call).not_to be_success
 
-      participant = create(:poll_participant, poll: source.poll, poll_session: replacement,
-                                              source_participant_slot: nil)
+      participant = create(:poll_participant, poll: source.poll, poll_session: replacement)
       create(:poll_participation, poll_participant: participant)
       expect(described_class.new(actor: actor, poll_session: replacement).call).not_to be_success
     end
@@ -85,7 +84,6 @@ RSpec.describe Polls::StartSession do
       expect(poll_session.poll_participants.order(:number).pluck(:number, :name)).to eq(
         [[1, "김일"], [2, "김이"], [3, "김삼"]]
       )
-      expect(poll_session.poll_participants).to all(have_attributes(source_participant_slot_id: nil))
     end
 
     it "keeps the snapshot after Student data changes" do
@@ -98,13 +96,13 @@ RSpec.describe Polls::StartSession do
       expect(poll_session.poll_participants.first).to have_attributes(number: 1, name: "시작 이름")
     end
 
-    it "does not create ParticipantGroup, ParticipantSlot, or PollParticipation records" do
+    it "does not create PollParticipation records" do
       poll_session, actor = create_startable_session
-      counts = [ParticipantGroup.count, ParticipantSlot.count, PollParticipation.count]
+      participation_count = PollParticipation.count
 
       described_class.new(actor: actor, poll_session: poll_session).call
 
-      expect([ParticipantGroup.count, ParticipantSlot.count, PollParticipation.count]).to eq(counts)
+      expect(PollParticipation.count).to eq(participation_count)
     end
   end
 
@@ -166,11 +164,11 @@ RSpec.describe Polls::StartSession do
   end
 
   describe "Poll definition invariants" do
-    it "does not change Poll lifecycle, ownership, school, or legacy source" do
+    it "does not change Poll lifecycle, ownership, or school" do
       poll_session, actor = create_startable_session
       poll = poll_session.poll
       original_attributes = poll.attributes.slice(
-        "status", "archived_at", "user_id", "school_id", "participant_group_id"
+        "status", "archived_at", "user_id", "school_id"
       )
 
       described_class.new(actor: actor, poll_session: poll_session).call
@@ -323,10 +321,9 @@ RSpec.describe Polls::StartSession do
       expect(described_class.new(actor: actor, poll_session: poll_session).call).not_to be_success
     end
 
-    it "starts without a ParticipantGroup when contests and options are ready" do
+    it "starts when contests and options are ready" do
       poll_session, actor = create_startable_session
 
-      expect(poll_session.poll.participant_group).to be_nil
       expect(described_class.new(actor: actor, poll_session: poll_session).call).to be_success
     end
   end
@@ -381,21 +378,6 @@ RSpec.describe Polls::StartSession do
         operator: original_operator,
         operator_name_snapshot: original_snapshot
       )
-    end
-  end
-
-  describe "legacy isolation" do
-    it "does not alter an existing ParticipantGroup Poll or its roster" do
-      legacy_poll = create(:poll)
-      legacy_attributes = legacy_poll.attributes
-      group_count = ParticipantGroup.count
-      slot_count = ParticipantSlot.count
-      poll_session, actor = create_startable_session
-
-      expect(described_class.new(actor: actor, poll_session: poll_session).call).to be_success
-      expect(legacy_poll.reload.attributes).to eq(legacy_attributes)
-      expect(ParticipantGroup.count).to eq(group_count)
-      expect(ParticipantSlot.count).to eq(slot_count)
     end
   end
 

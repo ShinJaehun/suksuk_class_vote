@@ -743,7 +743,7 @@ RSpec.describe "Teachers", type: :request do
       teacher = create(:user)
       add_to_school(teacher, school).update!(grade: 4)
       classroom = create(:classroom, school: school, teacher: teacher, grade: 4)
-      poll = create(:poll, school: school, user: teacher, participant_group: nil)
+      poll = create(:poll, school: school, user: teacher)
       create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                             status: :in_progress, started_at: Time.current)
       sign_in create(:user, :admin)
@@ -761,7 +761,7 @@ RSpec.describe "Teachers", type: :request do
       add_to_school(teacher, school).update!(grade: 4)
       classroom = create(:classroom, school: school, teacher: teacher, grade: 4)
       poll = create(:poll, school: school, user: teacher, school_managed: true,
-                           participant_group: nil, status: :in_progress, started_at: Time.current)
+                           status: :in_progress, started_at: Time.current)
       create(:poll_session, poll: poll, classroom: classroom, operator: teacher, status: :draft)
       sign_in create(:user, :admin)
 
@@ -776,7 +776,7 @@ RSpec.describe "Teachers", type: :request do
       add_to_school(teacher, school).update!(grade: 4)
       classroom = create(:classroom, school: school, teacher: teacher, grade: 4)
       poll = create(:poll, school: school, user: teacher, school_managed: true,
-                           participant_group: nil, status: :in_progress, started_at: 1.hour.ago)
+                           status: :in_progress, started_at: 1.hour.ago)
       create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                             status: :closed, started_at: 1.hour.ago, closed_at: Time.current)
       sign_in create(:user, :admin)

@@ -54,8 +54,8 @@ School / Classroom / active Student
 → 필요 시 replacement
 ```
 
-ParticipantGroup / ParticipantSlot 기반 Poll은 아직 제거되지 않아 별도 호환 회귀 대상으로 유지한다.
-Election / ElectionSession runtime과 전용 spec은 제거됐으며 DB 복원·변환 검증은 후속 작업에서 다룬다.
+ParticipantGroup / ParticipantSlot과 Election / ElectionSession runtime 및 전용 spec은 제거됐다.
+DB 복원·변환 검증은 후속 작업에서 다룬다.
 
 ---
 
@@ -159,8 +159,6 @@ deadlock 자체를 반복 재현하는 flaky test를 필수 전략으로 삼지 
 * replacement 연결과 source 이력 보존
 * count-only tally와 개인 선택 비연결
 
-ParticipantGroup / ParticipantSlot model spec은 legacy Poll 제거 전까지 호환 제약을 보호한다.
-
 ### service spec
 
 상태 전이, transaction과 lock 경계가 중요한 작업을 고정한다.
@@ -173,8 +171,7 @@ ParticipantGroup / ParticipantSlot model spec은 legacy Poll 제거 전까지 �
 * 일반·schoolwide replacement 재투표
 * schoolwide start/stop/close/reset와 batch broadcast
 
-legacy `Polls::Start`와 직접 실행 service spec은 ParticipantGroup Poll runtime 제거 전까지 회귀
-대상이다. Election ID 6의 DB 복원·변환 검증은 runtime service spec과 분리한다.
+Election ID 6의 DB 복원·변환 검증은 runtime service spec과 분리한다.
 
 ### policy spec
 
@@ -225,7 +222,6 @@ controller 권한, 응답 형식과 상태 변화를 고정한다.
 ## legacy 전환기의 테스트 역할
 
 * 신규 Classroom/PollSession runtime은 현재 기본 회귀 대상이다.
-* ParticipantGroup/ParticipantSlot과 `Polls::Start` 기반 Poll은 제거 전까지 호환 회귀 대상이다.
 * Election/ElectionSession runtime 전용 회귀 spec은 제거됐다.
 
 다음 전환에서는 migration 자체보다 변환 전후 invariant와 조회 결과 보존을 우선 검증한다.

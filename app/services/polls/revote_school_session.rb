@@ -35,7 +35,6 @@ module Polls
             source.poll_participants.order(:number, :id).each do |participant|
               replacement.poll_participants.create!(
                 poll: source.poll,
-                source_participant_slot: nil,
                 number: participant.number,
                 name: participant.name
               )

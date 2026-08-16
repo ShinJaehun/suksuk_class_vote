@@ -10,7 +10,7 @@ RSpec.describe "PollSession ballots", type: :request do
     create(:school_membership, school: school, user: operator)
     operator.reload
     classroom = create(:classroom, school: school, teacher: operator)
-    poll = create(:poll, user: operator, school: school, participant_group: nil, title: "학급 회장 선거")
+    poll = create(:poll, user: operator, school: school, title: "학급 회장 선거")
     contest = poll.default_poll_contest
     contest.update!(title: "회장")
     option = create(:poll_option, poll: poll, poll_contest: contest, number: 1, name: "김후보")
@@ -26,7 +26,6 @@ RSpec.describe "PollSession ballots", type: :request do
       :poll_participant,
       poll: poll,
       poll_session: poll_session,
-      source_participant_slot: nil,
       number: 1,
       name: "김학생"
     )
@@ -34,7 +33,6 @@ RSpec.describe "PollSession ballots", type: :request do
       :poll_participant,
       poll: poll,
       poll_session: poll_session,
-      source_participant_slot: nil,
       number: 2,
       name: "이학생"
     )
@@ -71,12 +69,10 @@ RSpec.describe "PollSession ballots", type: :request do
 
   it "uses the owning School Poll as the source and Test Session back destination" do
     ordinary_poll, ordinary_session, _progress, _current, _waiting, _option, _tally, operator = create_execution
-    source = create(:poll, school: ordinary_poll.school, school_managed: true, participant_group: nil,
-                           status: :in_progress, started_at: 1.hour.ago)
+    source = create(:poll, school: ordinary_poll.school, school_managed: true, status: :in_progress, started_at: 1.hour.ago)
     source_session = create(:poll_session, poll: source, classroom: ordinary_session.classroom,
                                            operator: operator)
-    test_poll = create(:poll, school: ordinary_poll.school, school_managed: true, participant_group: nil,
-                              test_source_poll: source, status: :in_progress, started_at: 1.hour.ago)
+    test_poll = create(:poll, school: ordinary_poll.school, school_managed: true, test_source_poll: source, status: :in_progress, started_at: 1.hour.ago)
     test_session = create(:poll_session, poll: test_poll, classroom: ordinary_session.classroom,
                                          operator: operator)
     sign_in operator
@@ -821,7 +817,6 @@ RSpec.describe "PollSession ballots", type: :request do
       :poll_participant,
       poll: poll,
       poll_session: poll_session,
-      source_participant_slot: nil,
       number: 3,
       name: "보기"
     )
@@ -949,7 +944,6 @@ RSpec.describe "PollSession ballots", type: :request do
       :poll_participant,
       poll: poll,
       poll_session: poll_session,
-      source_participant_slot: nil,
       number: 3,
       name: "박학생"
     )

@@ -1,6 +1,6 @@
 class PollsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_poll, only: %i[show edit update ballot start open_current_participant_ballot submit_vote record_participation_outcome record_next_participant_absent advance_current_participant resume_current_participant close stop archive destroy]
+  before_action :set_poll, only: %i[show edit update archive destroy]
 
   def index
     base_poll_sessions = PollSession
@@ -46,34 +46,20 @@ class PollsController < ApplicationController
       .includes(:classroom, :operator, :poll, poll_participants: :poll_participation)
       .order(archived_at: :desc, created_at: :desc)
 
-    # 새 Classroom/PollSession 기반 투표는 위 Session 목록에서 표시한다.
-    # 여기에는 기존 participant_group 기반 Poll만 남겨 중복 표시를 피한다.
-    @polls = policy_scope(Poll)
-      .archived
-      .where.not(participant_group_id: nil)
-      .includes(:participant_group)
-      .order(archived_at: :desc)
-
-    @poll_voter_counts = voter_counts_for(@polls)
     authorize Poll, :index?
   end
 
   def show
     authorize @poll
-    @school_based_poll = @poll.school.present?
+    redirect_to school_poll_path(@poll) and return if @poll.school_managed?
 
-    if @school_based_poll
-      @poll_contests = @poll.poll_contests.includes(:poll_options).order(:position, :id)
-      @poll_sessions = @poll.poll_sessions
-        .includes(:classroom, :operator, poll_participants: :poll_participation)
-        .order(:created_at, :id)
-        .select { |poll_session| policy(poll_session).show? }
-      return
+    poll_session = @poll.current_poll_sessions.order(:created_at, :id).first ||
+      @poll.poll_sessions.order(created_at: :desc, id: :desc).first
+    if poll_session
+      redirect_to poll_poll_session_path(@poll, poll_session)
+    else
+      redirect_to polls_path, alert: "투표 실행을 찾을 수 없습니다."
     end
-
-    @integrity_report = Polls::IntegrityReport.new(@poll)
-    @result_summary = Polls::ResultSummary.new(@poll) if @poll.closed?
-    @poll_events = operation_event_log_events
   end
 
   def edit
@@ -100,207 +86,29 @@ class PollsController < ApplicationController
     end
   end
 
-  def ballot
-    authorize @poll, :show?
-
-    unless @poll.in_progress?
-      redirect_to @poll, alert: "진행 중인 투표에서만 투표 화면을 사용할 수 있습니다."
-      return
-    end
-
-    @current_poll_participant = @poll.poll_progress&.current_poll_participant
-    @next_poll_participant = @poll.poll_participants
-      .where("number > ?", @current_poll_participant.number)
-      .order(:number)
-      .first if @current_poll_participant.present?
-  end
-
-  def start
-    authorize @poll, :start?
-
-    result = Polls::Start.new(@poll, actor: current_user).call
-
-    if result.success?
-      redirect_to @poll, notice: "투표를 시작했습니다."
-    else
-      redirect_to @poll, alert: result.error_message
-    end
-  end
-
-  def open_current_participant_ballot
-    authorize @poll, :open_current_participant_ballot?
-
-    result = Polls::OpenCurrentParticipantBallot.new(
-      poll: @poll,
-      current_poll_participant_id: params[:current_poll_participant_id],
-      actor: current_user
-    ).call
-
-    if result.success?
-      broadcast_operation_progress
-      broadcast_integrity_report
-      broadcast_ballot
-      redirect_to @poll, notice: "현재 학생 투표 화면을 열었습니다."
-    else
-      redirect_to @poll, alert: result.error_message
-    end
-  end
-
-  def submit_vote
-    authorize @poll, :submit_vote?
-
-    poll_option = @poll.default_poll_options.find_by(id: params[:poll_option_id])
-    result = Polls::SubmitVote.new(
-      poll: @poll,
-      poll_option: poll_option,
-      current_poll_participant_id: params[:current_poll_participant_id],
-      actor: current_user
-    ).call
-
-    if result.success?
-      broadcast_operation_progress
-      broadcast_integrity_report
-      broadcast_operation_event_log
-      broadcast_ballot
-      redirect_to operation_redirect_path, notice: "투표가 제출되었습니다."
-    else
-      redirect_to operation_redirect_path, alert: result.error_message
-    end
-  end
-
-  def record_participation_outcome
-    authorize @poll, :record_participation_outcome?
-
-    result = Polls::RecordParticipationOutcome.new(
-      poll: @poll,
-      status: params[:status],
-      current_poll_participant_id: params[:current_poll_participant_id],
-      actor: current_user
-    ).call
-
-    if result.success?
-      broadcast_operation_progress
-      broadcast_integrity_report
-      broadcast_operation_event_log
-      broadcast_ballot
-      redirect_to operation_redirect_path, notice: "투표자 상태를 처리했습니다."
-    else
-      redirect_to operation_redirect_path, alert: result.error_message
-    end
-  end
-
-  def record_next_participant_absent
-    authorize @poll, :record_next_participant_absent?
-
-    result = Polls::RecordNextParticipantAbsent.new(
-      poll: @poll,
-      current_poll_participant_id: params[:current_poll_participant_id],
-      actor: current_user
-    ).call
-
-    if result.success?
-      broadcast_operation_progress
-      broadcast_integrity_report
-      broadcast_operation_event_log
-      broadcast_ballot
-      redirect_to @poll, notice: "투표자 상태를 처리했습니다."
-    else
-      redirect_to @poll, alert: result.error_message
-    end
-  end
-
-  def advance_current_participant
-    authorize @poll, :advance_current_participant?
-
-    result = Polls::AdvanceCurrentParticipant.new(
-      poll: @poll,
-      current_poll_participant_id: params[:current_poll_participant_id],
-      actor: current_user
-    ).call
-
-    if result.success?
-      broadcast_operation_progress
-      broadcast_integrity_report
-      broadcast_ballot
-      redirect_to operation_redirect_path, notice: "다음 투표자의 투표 화면을 열었습니다."
-    else
-      redirect_to operation_redirect_path, alert: result.error_message
-    end
-  end
-
-  def resume_current_participant
-    authorize @poll, :resume_current_participant?
-
-    result = Polls::ResumeCurrentParticipant.new(poll: @poll, actor: current_user).call
-
-    if result.success?
-      redirect_to @poll, notice: "첫 미처리 투표자로 재개했습니다."
-    else
-      redirect_to @poll, alert: result.error_message
-    end
-  end
-
-  def close
-    authorize @poll, :close?
-
-    result = Polls::Close.new(
-      poll: @poll,
-      current_poll_participant_id: params[:current_poll_participant_id],
-      actor: current_user
-    ).call
-
-    if result.success?
-      redirect_to @poll, notice: "투표를 종료했습니다."
-    else
-      redirect_to @poll, alert: result.error_message
-    end
-  end
-
-  def stop
-    authorize @poll
-
-    result = Polls::Stop.new(poll: @poll, actor: current_user).call
-
-    if result.success?
-      redirect_to @poll, notice: "투표를 중단했습니다."
-    else
-      redirect_to @poll, alert: result.error_message
-    end
-  end
-
   def archive
     authorize @poll
     classroom_session = @poll.current_poll_sessions.first if @poll.classroom_based?
 
-    result = if @poll.classroom_based?
-      Polls::ArchiveClassroomPoll.new(poll: @poll, actor: current_user).call
-    else
-      @poll.update(archived_at: Time.current)
-    end
+    result = Polls::ArchiveClassroomPoll.new(poll: @poll, actor: current_user).call
     redirect_target = classroom_session ? poll_poll_session_path(@poll, classroom_session) : @poll
 
-    if result.respond_to?(:success?) ? result.success? : result
+    if result.success?
       redirect_to redirect_target, notice: "투표를 보관했습니다."
     else
-      message = result.respond_to?(:error_message) ? result.error_message : "투표를 보관할 수 없습니다."
-      redirect_to redirect_target, alert: message
+      redirect_to redirect_target, alert: result.error_message
     end
   end
 
   def destroy
     authorize @poll
 
-    result = if @poll.classroom_based?
-      Polls::DestroyClassroomPoll.new(poll: @poll, actor: current_user).call
-    else
-      @poll.destroy
-    end
+    result = Polls::DestroyClassroomPoll.new(poll: @poll, actor: current_user).call
 
-    if result.respond_to?(:success?) ? result.success? : result
+    if result.success?
       redirect_to polls_path, notice: "투표를 삭제했습니다."
     else
-      message = result.respond_to?(:error_message) ? result.error_message : @poll.errors.full_messages.to_sentence
-      redirect_to @poll, alert: message
+      redirect_to polls_path, alert: result.error_message
     end
   end
 
@@ -351,62 +159,6 @@ class PollsController < ApplicationController
     @poll = Poll.find(params[:id])
   end
 
-  def operation_redirect_path
-    return ballot_poll_path(@poll) if params[:return_to] == "ballot" && @poll.in_progress?
-
-    @poll
-  end
-
-  def broadcast_operation_progress
-    Turbo::StreamsChannel.broadcast_replace_to(
-      @poll,
-      :operation_screen,
-      target: helpers.dom_id(@poll, :progress),
-      partial: "polls/progress",
-      locals: { poll: @poll }
-    )
-  end
-
-  def broadcast_operation_event_log
-    Turbo::StreamsChannel.broadcast_replace_to(
-      @poll,
-      :operation_screen,
-      target: helpers.dom_id(@poll, :event_log),
-      partial: "polls/event_log",
-      locals: { poll: @poll, poll_events: operation_event_log_events }
-    )
-  end
-
-  def broadcast_integrity_report
-    @poll.reload
-    Turbo::StreamsChannel.broadcast_replace_to(
-      @poll,
-      :operation_screen,
-      target: helpers.dom_id(@poll, :integrity_report),
-      partial: "polls/integrity_report",
-      locals: { poll: @poll, integrity_report: Polls::IntegrityReport.new(@poll) }
-    )
-  end
-
-  def broadcast_ballot
-    @poll.reload
-    Turbo::StreamsChannel.broadcast_replace_to(
-      @poll,
-      :ballot_screen,
-      target: helpers.dom_id(@poll, :ballot),
-      partial: "polls/ballot_content",
-      locals: { poll: @poll, current_poll_participant: @poll.poll_progress&.current_poll_participant }
-    )
-  end
-
-  def operation_event_log_events
-    @poll.poll_events
-      .where(event_type: PollEvent::DISPLAYABLE_EVENT_TYPES)
-      .includes(:actor, :poll_participant)
-      .order(occurred_at: :desc)
-      .limit(10)
-  end
-
   def prepare_new_poll_form
     @classroom = current_user.active_classroom
     @active_students = @classroom&.students&.where(active: true)&.order(:number, :id) || Student.none
@@ -451,22 +203,6 @@ class PollsController < ApplicationController
 
   def collection_values(value)
     value.is_a?(Hash) ? value.values : Array(value)
-  end
-
-  def voter_counts_for(polls)
-    poll_records = polls.to_a
-    snapshot_counts = PollParticipant.where(poll_id: poll_records.map(&:id)).group(:poll_id).count
-    draft_group_ids = poll_records.select(&:draft?).filter_map(&:participant_group_id)
-    draft_slot_counts = ParticipantSlot.where(participant_group_id: draft_group_ids).group(:participant_group_id).count
-
-    poll_records.each_with_object({}) do |poll, counts|
-      counts[poll.id] =
-        if poll.draft?
-          draft_slot_counts.fetch(poll.participant_group_id, 0)
-        else
-          snapshot_counts.fetch(poll.id, 0)
-        end
-    end
   end
 
   def poll_params

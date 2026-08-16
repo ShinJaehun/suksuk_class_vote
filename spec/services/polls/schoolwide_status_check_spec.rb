@@ -11,8 +11,7 @@ RSpec.describe Polls::SchoolwideStatusCheck do
     poll = create(
       :poll,
       school: school,
-      school_managed: true,
-      participant_group: nil
+      school_managed: true
     )
     contest = create(:poll_contest, poll: poll, position: 1)
     create(:poll_option, poll: poll, poll_contest: contest, number: 1)
@@ -81,18 +80,10 @@ RSpec.describe Polls::SchoolwideStatusCheck do
     ).to be_success
     second_classroom.students.update_all(active: false)
 
-    PollParticipant.create!(
-      poll: poll,
-      poll_session: nil,
-      source_participant_slot: nil,
-      number: 999,
-      name: "legacy 학생"
-    )
     other_poll = create(
       :poll,
       school: poll.school,
-      school_managed: true,
-      participant_group: nil
+      school_managed: true
     )
     other_session = create(
       :poll_session,
@@ -103,7 +94,6 @@ RSpec.describe Polls::SchoolwideStatusCheck do
     PollParticipant.create!(
       poll: other_poll,
       poll_session: other_session,
-      source_participant_slot: nil,
       number: 1,
       name: "다른 투표 학생"
     )
@@ -263,7 +253,7 @@ RSpec.describe Polls::SchoolwideStatusCheck do
                                  replacement_of: first)
     3.times do |number|
       create(:poll_participant, poll: poll, poll_session: leaf,
-                                source_participant_slot: nil, number: number + 1)
+                                number: number + 1)
     end
 
     check = described_class.new(poll: poll.reload)

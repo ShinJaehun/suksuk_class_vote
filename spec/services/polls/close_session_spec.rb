@@ -108,7 +108,7 @@ RSpec.describe Polls::CloseSession do
 
     classroom = create(:classroom, school: school, teacher: operator)
     create(:student, classroom: classroom, number: 1)
-    poll = create(:poll, user: operator, school: school, participant_group: nil)
+    poll = create(:poll, user: operator, school: school)
 
     create(
       :poll_option,

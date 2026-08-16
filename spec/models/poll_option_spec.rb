@@ -157,7 +157,6 @@ RSpec.describe PollOption, type: :model do
       :poll,
       school: create(:school),
       school_managed: true,
-      participant_group: nil,
       kind: kind
     )
     contest = create(:poll_contest, poll: poll)

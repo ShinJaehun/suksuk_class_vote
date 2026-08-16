@@ -9,7 +9,6 @@ RSpec.describe "School Poll definition management", type: :request do
       :poll,
       school: school,
       school_managed: true,
-      participant_group: nil,
       kind: kind
     )
   end
@@ -634,7 +633,9 @@ RSpec.describe "School Poll definition management", type: :request do
     end
 
     it "does not create, update, or destroy while locked" do
-      create(:poll_participant, poll: poll)
+      session = create(:poll_session, poll: poll,
+                                      classroom: create(:classroom, :with_teacher, school: poll.school))
+      create(:poll_participant, poll: poll, poll_session: session)
 
       expect do
         post school_poll_contests_path(poll),
@@ -653,7 +654,9 @@ RSpec.describe "School Poll definition management", type: :request do
     end
 
     it "escapes the modal with a global alert for a stale Option update" do
-      create(:poll_participant, poll: poll)
+      session = create(:poll_session, poll: poll,
+                                      classroom: create(:classroom, :with_teacher, school: poll.school))
+      create(:poll_participant, poll: poll, poll_session: session)
       original_name = option.name
 
       patch school_poll_contest_option_path(poll, contest, option),
@@ -673,7 +676,9 @@ RSpec.describe "School Poll definition management", type: :request do
     end
 
     it "escapes the modal with a global alert for a stale Contest update" do
-      create(:poll_participant, poll: poll)
+      session = create(:poll_session, poll: poll,
+                                      classroom: create(:classroom, :with_teacher, school: poll.school))
+      create(:poll_participant, poll: poll, poll_session: session)
       original_title = contest.title
 
       patch school_poll_contest_path(poll, contest),
@@ -766,7 +771,9 @@ RSpec.describe "School Poll definition management", type: :request do
 
     it "rejects a locked draft Poll" do
       sign_in admin
-      create(:poll_participant, poll: poll)
+      session = create(:poll_session, poll: poll,
+                                      classroom: create(:classroom, :with_teacher, school: poll.school))
+      create(:poll_participant, poll: poll, poll_session: session)
 
       expect { post mock_candidates_school_poll_path(poll) }
         .not_to change(PollContest, :count)
@@ -897,7 +904,7 @@ RSpec.describe "School Poll definition management", type: :request do
       expect(response.body).to include("투표 항목 관리", "의견 추가")
 
       expect(election.reload.poll_contests).to be_present
-      regular_poll = create(:poll, participant_group: create(:participant_group, :with_participant_slot))
+      regular_poll = create(:poll)
       expect(regular_poll.poll_contests).to be_present
     end
   end

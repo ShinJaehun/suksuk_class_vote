@@ -15,8 +15,7 @@ RSpec.describe "Classrooms", type: :request do
 
   def running_session_for(classroom, school_managed: false)
     poll = create(:poll, school: classroom.school, user: classroom.teacher,
-                         school_managed: school_managed, participant_group: nil,
-                         status: (school_managed ? :in_progress : :draft),
+                         school_managed: school_managed, status: (school_managed ? :in_progress : :draft),
                          started_at: (Time.current if school_managed))
     create(:poll_session, poll: poll, classroom: classroom, operator: classroom.teacher,
                           status: :in_progress, started_at: Time.current)
@@ -155,7 +154,7 @@ RSpec.describe "Classrooms", type: :request do
     replacement = teacher_for(school, name: "교체 담임", grade: 4)
     classroom = create(:classroom, school: school, teacher: teacher, grade: 4)
     poll = create(:poll, school: school, user: teacher, school_managed: true,
-                         participant_group: nil, status: :in_progress, started_at: 1.hour.ago)
+                         status: :in_progress, started_at: 1.hour.ago)
     create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                           status: :closed, started_at: 1.hour.ago, closed_at: Time.current)
     sign_in create(:user, :admin)

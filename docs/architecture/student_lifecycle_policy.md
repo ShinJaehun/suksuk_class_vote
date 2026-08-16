@@ -16,9 +16,8 @@
 보존하는 기준을 정한다. 이 서비스는 학생의 장기 학적, 진급, 전학 이력을
 관리하는 학교 행정 시스템이 아니다.
 
-신규 PollSession은 active Student 명단을 시작 시 snapshot으로 복사한다. 기존
-`ParticipantGroup`·`ParticipantSlot` legacy Poll 경로의 전환은
-`docs/architecture/classroom_participant_group_transition.md`를 따른다.
+신규 PollSession은 active Student 명단을 시작 시 snapshot으로 복사한다. 제거된 legacy 명단
+runtime과 남은 DB 전환 기록은 `docs/architecture/classroom_participant_group_transition.md`를 따른다.
 
 ## 2. Classroom과 Student의 의미
 

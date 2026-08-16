@@ -2,8 +2,7 @@ require "rails_helper"
 
 RSpec.describe Polls::SchoolResultSummary do
   def create_result_poll(school:, title:, source: nil)
-    poll = create(:poll, school: school, school_managed: true, participant_group: nil,
-                         title: title, test_source_poll: source)
+    poll = create(:poll, school: school, school_managed: true, title: title, test_source_poll: source)
     contest = create(:poll_contest, poll: poll, title: "회장", position: 1)
     options = [1, 2].map do |number|
       create(:poll_option, poll: poll, poll_contest: contest, number: number)
@@ -61,8 +60,7 @@ RSpec.describe Polls::SchoolResultSummary do
     teacher = create(:user)
     create(:school_membership, school: school, user: teacher)
     classroom = create(:classroom, school: school, teacher: teacher)
-    poll = create(:poll, school: school, school_managed: true, participant_group: nil,
-                         status: :in_progress, started_at: 1.hour.ago)
+    poll = create(:poll, school: school, school_managed: true, status: :in_progress, started_at: 1.hour.ago)
     contest = create(:poll_contest, poll: poll, title: "회장", position: 1)
     option = create(:poll_option, poll: poll, poll_contest: contest)
     source = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,

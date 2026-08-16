@@ -19,7 +19,6 @@ class User < ApplicationRecord
           -> { where(active: true) },
           class_name: "Classroom",
           foreign_key: :teacher_id
-  has_many :participant_groups, dependent: :restrict_with_error
   has_many :polls, dependent: :restrict_with_error
   has_many :operated_poll_sessions,
            class_name: "PollSession",

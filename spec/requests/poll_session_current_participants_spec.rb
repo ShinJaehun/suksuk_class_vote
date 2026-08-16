@@ -58,7 +58,7 @@ RSpec.describe "PollSession supervised participant flow", type: :request do
     operator = create(:user)
     create(:school_membership, school: school, user: operator)
     classroom = create(:classroom, school: school, teacher: operator)
-    poll = create(:poll, user: operator, school: school, participant_group: nil)
+    poll = create(:poll, user: operator, school: school)
 
     contest = poll.default_poll_contest
     option = create(

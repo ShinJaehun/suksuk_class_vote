@@ -10,7 +10,7 @@ RSpec.describe "PollSession operations", type: :request do
     create(:school_membership, school: school, user: teacher)
     teacher.reload
     classroom = create(:classroom, school: school, teacher: teacher)
-    poll = create(:poll, user: teacher, school: school, participant_group: nil, title: "우리 반 의견 투표")
+    poll = create(:poll, user: teacher, school: school, title: "우리 반 의견 투표")
     started_at = 1.hour.ago
     poll_session = create(
       :poll_session,
@@ -31,7 +31,6 @@ RSpec.describe "PollSession operations", type: :request do
       :poll_participant,
       poll: poll,
       poll_session: poll_session,
-      source_participant_slot: nil,
       number: number,
       name: name
     )

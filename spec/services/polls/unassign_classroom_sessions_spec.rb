@@ -3,7 +3,7 @@ require "rails_helper"
 RSpec.describe Polls::UnassignClassroomSessions do
   let(:school) { create(:school) }
   let(:manager) { create(:user) }
-  let(:poll) { create(:poll, school: school, school_managed: true, participant_group: nil) }
+  let(:poll) { create(:poll, school: school, school_managed: true) }
 
   before do
     create(:school_membership, :manager, school: school, user: manager)
@@ -39,8 +39,7 @@ RSpec.describe Polls::UnassignClassroomSessions do
 
   it "also removes a safe draft Session from a test Poll" do
     source = poll
-    test_poll = create(:poll, school: school, school_managed: true, participant_group: nil,
-                              test_source_poll: source)
+    test_poll = create(:poll, school: school, school_managed: true, test_source_poll: source)
     session = session_for(target_poll: test_poll)
 
     expect do
@@ -51,12 +50,12 @@ RSpec.describe Polls::UnassignClassroomSessions do
 
   it "rejects non-draft Polls, another Poll's Session, and Sessions with runtime" do
     session = session_for
-    other_poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+    other_poll = create(:poll, school: school, school_managed: true)
     other_session = session_for(target_poll: other_poll)
 
     expect(call([other_session])).not_to be_success
     create(:poll_participant, poll: poll, poll_session: session,
-                              source_participant_slot: nil, number: 1, name: "학생")
+                              number: 1, name: "학생")
     safe = session_for
     expect(call([safe, session])).not_to be_success
     expect(PollSession.where(id: [safe.id, session.id]).count).to eq(2)

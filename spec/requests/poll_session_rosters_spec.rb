@@ -8,11 +8,11 @@ RSpec.describe "PollSession replacement rosters", type: :request do
     teacher = create(:user)
     create(:school_membership, school: school, user: teacher)
     classroom = create(:classroom, school: school, teacher: teacher)
-    poll = create(:poll, user: teacher, school: school, participant_group: nil)
+    poll = create(:poll, user: teacher, school: school)
     source = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                                    status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
     create(:poll_participant, poll: poll, poll_session: source,
-                              source_participant_slot: nil, number: 1, name: "원본")
+                              number: 1, name: "원본")
     replacement = Polls::RevoteSession.new(actor: teacher, poll_session: source).call.poll_session
     [source, replacement, teacher]
   end

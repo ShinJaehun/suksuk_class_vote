@@ -1,5 +1,8 @@
 # Classroom·Student 전환과 ParticipantGroup 제거 계획
 
+> 상태: ParticipantGroup/ParticipantSlot 애플리케이션 runtime 제거는 완료됐다.
+> 아래 전환 본문은 legacy DB schema 제거와 복원 검증을 위한 기록으로 유지한다.
+
 ## 목차
 
 1. [문서의 목적과 지위](#1-문서의-목적과-지위)
@@ -234,9 +237,9 @@ ElectionSession과 voter snapshot의 구체적인 호환 구조 및 전환 순�
 4. Election ID 6 historical Poll 변환과 후보 사진 이관
 5. 운영 DB의 기존 Poll 보존 범위 조사
 6. 필요한 legacy Poll의 PollSession backfill
-7. 신규 PollSession runtime과 legacy ParticipantGroup Poll runtime 분리
+7. legacy ParticipantGroup Poll runtime 제거 완료
 8. Election runtime과 table 제거
-9. ParticipantGroup·ParticipantSlot 제거
+9. ParticipantGroup·ParticipantSlot DB schema 제거(runtime 제거 완료)
 10. 전체 데이터 검산과 운영 전환
 
 ## 10. 금지 사항

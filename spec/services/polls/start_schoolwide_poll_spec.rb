@@ -11,8 +11,7 @@ RSpec.describe Polls::StartSchoolwidePoll do
       :poll,
       user: actor,
       school: school,
-      school_managed: true,
-      participant_group: nil
+      school_managed: true
     )
     contest = create(:poll_contest, poll: poll, position: 1)
     create(:poll_option, poll: poll, poll_contest: contest, number: 1)
@@ -134,7 +133,7 @@ RSpec.describe Polls::StartSchoolwidePoll do
     admin = create(:user, :admin)
     test_poll, = create_startable_poll(actor: admin)
     source = create(:poll, user: admin, school: test_poll.school, school_managed: true,
-                           participant_group: nil, status: :closed, started_at: 1.hour.ago,
+                           status: :closed, started_at: 1.hour.ago,
                            closed_at: Time.current, archived_at: Time.current)
     test_poll.update!(test_source_poll: source)
 

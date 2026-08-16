@@ -12,7 +12,7 @@ RSpec.describe Polls::DestroySchoolwidePoll do
       archived_at: (Time.current if status == :closed)
     }
     poll = create(:poll, school: school, user: actor, school_managed: true,
-                         participant_group: nil, test_source_poll: test_source,
+                         test_source_poll: test_source,
                          status: status, **timestamps)
     contest = create(:poll_contest, poll: poll)
     option = create(:poll_option, poll: poll, poll_contest: contest)
@@ -43,8 +43,7 @@ RSpec.describe Polls::DestroySchoolwidePoll do
                                            started_at: 1.hour.ago, stopped_at: 40.minutes.ago)
     replacement = create(:poll_session, poll: source, classroom: classroom,
                                         operator: classroom.teacher, replacement_of: source_session)
-    participant = create(:poll_participant, poll: source, poll_session: replacement,
-                                            source_participant_slot: nil)
+    participant = create(:poll_participant, poll: source, poll_session: replacement)
     create(:poll_participation, poll_participant: participant)
     create(:poll_contest_completion, poll_participant: participant,
                                      poll_contest: source.poll_contests.first)
@@ -58,8 +57,7 @@ RSpec.describe Polls::DestroySchoolwidePoll do
                         poll_participant: participant)
     child_session = create(:poll_session, poll: child, classroom: classroom,
                                           operator: classroom.teacher)
-    child_participant = create(:poll_participant, poll: child, poll_session: child_session,
-                                                  source_participant_slot: nil)
+    child_participant = create(:poll_participant, poll: child, poll_session: child_session)
     create(:poll_option_tally, poll: child, poll_session: child_session,
                                poll_option: child_option)
     create(:poll_event, poll: child, poll_session: child_session,

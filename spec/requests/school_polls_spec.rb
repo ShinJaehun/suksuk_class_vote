@@ -61,12 +61,11 @@ RSpec.describe "School Poll management", type: :request do
     teacher = create(:user)
     create(:school_membership, school: school, user: teacher)
     classroom = create(:classroom, school: school, teacher: teacher)
-    poll = create(:poll, school: school, school_managed: true, participant_group: nil,
-                         status: :in_progress, started_at: 1.hour.ago)
+    poll = create(:poll, school: school, school_managed: true, status: :in_progress, started_at: 1.hour.ago)
     session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                                     status: :in_progress, started_at: 1.hour.ago)
     create(:poll_participant, poll: poll, poll_session: session,
-                              source_participant_slot: nil, number: 1, name: "학생")
+                              number: 1, name: "학생")
     [poll, session, manager, teacher]
   end
 
@@ -92,7 +91,7 @@ RSpec.describe "School Poll management", type: :request do
       school = create(:school)
       manager = create(:user)
       create(:school_membership, :manager, school: school, user: manager)
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      poll = create(:poll, school: school, school_managed: true)
       sign_in manager
 
       get school_poll_path(poll)
@@ -123,7 +122,7 @@ RSpec.describe "School Poll management", type: :request do
       school = create(:school)
       manager = create(:user)
       create(:school_membership, :manager, school: school, user: manager)
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      poll = create(:poll, school: school, school_managed: true)
       sign_in manager
       get school_poll_path(poll)
       recovery_url = Nokogiri::HTML(response.body)
@@ -138,7 +137,7 @@ RSpec.describe "School Poll management", type: :request do
 
       get runtime_school_poll_path(poll, recovery_token: "invalid")
       expect(response).to have_http_status(:not_found)
-      foreign_poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil)
+      foreign_poll = create(:poll, school: create(:school), school_managed: true)
       recovery_token = Rack::Utils.parse_query(recovery_url.split("?", 2).last)["recovery_token"]
       get runtime_school_poll_path(foreign_poll, recovery_token: recovery_token)
       expect(response).to have_http_status(:not_found)
@@ -161,8 +160,7 @@ RSpec.describe "School Poll management", type: :request do
       get runtime_school_poll_path(poll, recovery_token: "invalid")
       expect(response).to have_http_status(:not_found)
 
-      foreign_poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil,
-                                   status: :in_progress, started_at: Time.current)
+      foreign_poll = create(:poll, school: create(:school), school_managed: true, status: :in_progress, started_at: Time.current)
       get runtime_school_poll_path(foreign_poll, recovery_token: recovery_token)
       expect(response).to have_http_status(:not_found)
     end
@@ -481,7 +479,6 @@ RSpec.describe "School Poll management", type: :request do
         title: "진행 중 전교투표",
         school: school,
         school_managed: true,
-        participant_group: nil,
         status: :in_progress,
         started_at: started_at
       )
@@ -490,7 +487,6 @@ RSpec.describe "School Poll management", type: :request do
         title: "종료 전교투표",
         school: school,
         school_managed: true,
-        participant_group: nil,
         status: :closed,
         started_at: started_at,
         closed_at: 1.hour.ago
@@ -500,7 +496,6 @@ RSpec.describe "School Poll management", type: :request do
         title: "중단 전교투표",
         school: school,
         school_managed: true,
-        participant_group: nil,
         status: :stopped,
         started_at: started_at,
         stopped_at: 30.minutes.ago
@@ -525,22 +520,19 @@ RSpec.describe "School Poll management", type: :request do
         :poll,
         title: "첫 번째 학교투표",
         school: create(:school, name: "도펴어엉초등학교"),
-        school_managed: true,
-        participant_group: nil
+        school_managed: true
       )
       second = create(
         :poll,
         title: "두 번째 학교투표",
         school: create(:school),
-        school_managed: true,
-        participant_group: nil
+        school_managed: true
       )
       classroom_poll = create(
         :poll,
         title: "단일 학급 투표",
         school: create(:school),
-        school_managed: false,
-        participant_group: nil
+        school_managed: false
       )
 
       sign_in create(:user, :admin)
@@ -563,7 +555,6 @@ RSpec.describe "School Poll management", type: :request do
         school: second_school,
         user: owner,
         school_managed: true,
-        participant_group: nil,
         created_at: 2.hours.ago
       )
       poll = create(
@@ -572,7 +563,6 @@ RSpec.describe "School Poll management", type: :request do
         school: first_school,
         user: owner,
         school_managed: true,
-        participant_group: nil,
         status: :in_progress,
         started_at: 1.hour.ago,
         created_at: 1.hour.ago
@@ -642,15 +632,13 @@ RSpec.describe "School Poll management", type: :request do
         :poll,
         title: "우리 학교투표",
         school: school,
-        school_managed: true,
-        participant_group: nil
+        school_managed: true
       )
       other_poll = create(
         :poll,
         title: "다른 학교투표",
         school: create(:school),
-        school_managed: true,
-        participant_group: nil
+        school_managed: true
       )
 
       sign_in manager
@@ -725,7 +713,6 @@ RSpec.describe "School Poll management", type: :request do
       params[:poll][:school_managed] = false
       params[:poll][:user_id] = create(:user).id
       params[:poll][:status] = "closed"
-      params[:poll][:participant_group_id] = create(:participant_group, :with_participant_slot).id
 
       expect do
         post school_polls_path, params: params
@@ -745,7 +732,6 @@ RSpec.describe "School Poll management", type: :request do
         school: school,
         user: admin,
         school_managed: true,
-        participant_group: nil,
         status: "draft"
       )
       expect(response).to redirect_to(school_poll_path(poll))
@@ -780,7 +766,7 @@ RSpec.describe "School Poll management", type: :request do
   describe "GET /school_polls/:id" do
     it "lists every unassigned active teacher-led Classroom even with no active Students" do
       school = create(:school)
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      poll = create(:poll, school: school, school_managed: true)
       eligible = create_eligible_classroom(school: school, teacher: create(:user), active_student: false)
       teacherless = create(:classroom, school: school, teacher: nil)
       inactive = create_eligible_classroom(school: school, teacher: create(:user), active_student: false)
@@ -802,7 +788,7 @@ RSpec.describe "School Poll management", type: :request do
 
     it "shows voter-aware draft badges and every runtime Session status" do
       school = create(:school)
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      poll = create(:poll, school: school, school_managed: true)
       sessions = {}
       %i[empty ready in_progress closed stopped].each_with_index do |key, index|
         teacher = create(:user)
@@ -876,7 +862,7 @@ RSpec.describe "School Poll management", type: :request do
     it "renders a definition with no contests or Sessions and keeps Classroom assignment" do
       school = create(:school)
       classroom = create_eligible_classroom(school: school, teacher: create(:user))
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      poll = create(:poll, school: school, school_managed: true)
       sign_in create(:user, :admin)
 
       get school_poll_path(poll)
@@ -898,7 +884,7 @@ RSpec.describe "School Poll management", type: :request do
       manager = create(:user)
       create(:school_membership, :manager, school: school, user: manager)
       classroom = create_eligible_classroom(school: school, teacher: create(:user))
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      poll = create(:poll, school: school, school_managed: true)
       poll_session = create(:poll_session, poll: poll, classroom: classroom, operator: manager)
 
       [create(:user, :admin), manager].each do |actor|
@@ -915,13 +901,10 @@ RSpec.describe "School Poll management", type: :request do
       school = create(:school)
       started_at = 2.hours.ago
       polls = {
-        draft: create(:poll, school: school, school_managed: true, participant_group: nil),
-        running: create(:poll, school: school, school_managed: true, participant_group: nil,
-                              status: :in_progress, started_at: started_at),
-        stopped: create(:poll, school: school, school_managed: true, participant_group: nil,
-                              status: :stopped, started_at: started_at, stopped_at: 1.hour.ago),
-        closed: create(:poll, school: school, school_managed: true, participant_group: nil,
-                             status: :closed, started_at: started_at, closed_at: 30.minutes.ago)
+        draft: create(:poll, school: school, school_managed: true),
+        running: create(:poll, school: school, school_managed: true, status: :in_progress, started_at: started_at),
+        stopped: create(:poll, school: school, school_managed: true, status: :stopped, started_at: started_at, stopped_at: 1.hour.ago),
+        closed: create(:poll, school: school, school_managed: true, status: :closed, started_at: started_at, closed_at: 30.minutes.ago)
       }
       sign_in create(:user, :admin)
 
@@ -944,7 +927,7 @@ RSpec.describe "School Poll management", type: :request do
     end
 
     it "does not expose settings and destructive management tools on the operation page" do
-      poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil)
+      poll = create(:poll, school: create(:school), school_managed: true)
       sign_in create(:user, :admin)
 
       get school_poll_path(poll)
@@ -954,7 +937,7 @@ RSpec.describe "School Poll management", type: :request do
 
     it "rejects another School manager" do
       school = create(:school)
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      poll = create(:poll, school: school, school_managed: true)
       other_manager = create(:user)
       create(:school_membership, :manager, school: create(:school), user: other_manager)
       sign_in other_manager
@@ -967,8 +950,7 @@ RSpec.describe "School Poll management", type: :request do
       classroom_poll = create(
         :poll,
         school: school,
-        school_managed: false,
-        participant_group: nil
+        school_managed: false
       )
       admin = create(:user, :admin)
       sign_in admin
@@ -981,8 +963,7 @@ RSpec.describe "School Poll management", type: :request do
       poll = create(
         :poll,
         school: school,
-        school_managed: true,
-        participant_group: nil
+        school_managed: true
       )
       teacher = create(:user)
       sign_in teacher
@@ -994,8 +975,7 @@ RSpec.describe "School Poll management", type: :request do
       poll = create(
         :poll,
         school: create(:school),
-        school_managed: true,
-        participant_group: nil
+        school_managed: true
       )
       started_at = Time.find_zone!("Asia/Seoul").local(2026, 8, 10, 16, 34)
       poll.update!(status: :closed, started_at: started_at, closed_at: started_at + 1.minute)
@@ -1134,8 +1114,7 @@ RSpec.describe "School Poll management", type: :request do
       other_poll = create(
         :poll,
         school: poll.school,
-        school_managed: true,
-        participant_group: nil
+        school_managed: true
       )
       other_contest = create(:poll_contest, poll: other_poll, position: 1)
       other_option = create(:poll_option, poll: other_poll, poll_contest: other_contest)
@@ -1286,7 +1265,6 @@ RSpec.describe "School Poll management", type: :request do
         :poll,
         school: create(:school, name: "아라짱초"),
         school_managed: true,
-        participant_group: nil,
         status: :closed,
         started_at: started_at,
         closed_at: started_at + 1.minute
@@ -1312,7 +1290,6 @@ RSpec.describe "School Poll management", type: :request do
         kind: :survey,
         school: create(:school),
         school_managed: true,
-        participant_group: nil,
         status: :closed,
         started_at: started_at,
         closed_at: started_at + 1.minute
@@ -1333,10 +1310,8 @@ RSpec.describe "School Poll management", type: :request do
       admin = create(:user, :admin)
       school = create(:school)
       polls = [
-        create(:poll, school: school, school_managed: true, participant_group: nil,
-                      status: :closed, started_at: 1.hour.ago, closed_at: Time.current),
-        create(:poll, school: school, school_managed: true, participant_group: nil,
-                      status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current,
+        create(:poll, school: school, school_managed: true, status: :closed, started_at: 1.hour.ago, closed_at: Time.current),
+        create(:poll, school: school, school_managed: true, status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current,
                       archived_at: Time.current)
       ]
       sign_in admin
@@ -1357,7 +1332,7 @@ RSpec.describe "School Poll management", type: :request do
     end
 
     it "lets global admin open settings and shows only supported management tools" do
-      poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil)
+      poll = create(:poll, school: create(:school), school_managed: true)
       sign_in create(:user, :admin)
 
       get edit_school_poll_path(poll)
@@ -1373,7 +1348,7 @@ RSpec.describe "School Poll management", type: :request do
       school = create(:school)
       manager = create(:user)
       create(:school_membership, :manager, school: school, user: manager)
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      poll = create(:poll, school: school, school_managed: true)
       sign_in manager
 
       get edit_school_poll_path(poll)
@@ -1388,7 +1363,7 @@ RSpec.describe "School Poll management", type: :request do
 
     it "rejects updates after start and access by another School manager" do
       school = create(:school)
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      poll = create(:poll, school: school, school_managed: true)
       poll.update!(status: :in_progress, started_at: Time.current)
       manager = create(:user)
       create(:school_membership, :manager, school: school, user: manager)
@@ -1406,7 +1381,7 @@ RSpec.describe "School Poll management", type: :request do
     end
 
     it "redirects results until the Poll is closed" do
-      poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil)
+      poll = create(:poll, school: create(:school), school_managed: true)
       sign_in create(:user, :admin)
 
       get results_school_poll_path(poll)
@@ -1416,8 +1391,7 @@ RSpec.describe "School Poll management", type: :request do
     end
 
     it "separates the current leaf from its replacement history" do
-      poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil,
-                           status: :in_progress, started_at: Time.current)
+      poll = create(:poll, school: create(:school), school_managed: true, status: :in_progress, started_at: Time.current)
       sign_in create(:user, :admin)
 
       get school_poll_path(poll)
@@ -1457,8 +1431,7 @@ RSpec.describe "School Poll management", type: :request do
         :poll,
         user: actor,
         school: school,
-        school_managed: true,
-        participant_group: nil
+        school_managed: true
       )
       contest = create(:poll_contest, poll: poll, position: 1)
       create(:poll_option, poll: poll, poll_contest: contest, number: 1)
@@ -1479,8 +1452,7 @@ RSpec.describe "School Poll management", type: :request do
         :poll,
         user: admin,
         school: create(:school),
-        school_managed: true,
-        participant_group: nil
+        school_managed: true
       )
       ready, = create_startable_schoolwide_poll(school: create(:school), actor: admin)
       sign_in admin
@@ -1607,7 +1579,7 @@ RSpec.describe "School Poll management", type: :request do
       create(:school_membership, :manager, school: school, user: manager)
       first = create_eligible_classroom(school: school, teacher: create(:user, name: "첫 담임"))
       second = create_eligible_classroom(school: school, teacher: create(:user, name: "둘째 담임"))
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      poll = create(:poll, school: school, school_managed: true)
       sign_in manager
 
       expect do
@@ -1626,12 +1598,11 @@ RSpec.describe "School Poll management", type: :request do
     it "rejects unauthorized users and a non-School-managed Poll" do
       school = create(:school)
       classroom = create_eligible_classroom(school: school, teacher: create(:user))
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      poll = create(:poll, school: school, school_managed: true)
       classroom_poll = create(
         :poll,
         school: school,
-        school_managed: false,
-        participant_group: nil
+        school_managed: false
       )
       other_manager = create(:user)
       create(:school_membership, :manager, school: create(:school), user: other_manager)
@@ -1655,7 +1626,7 @@ RSpec.describe "School Poll management", type: :request do
     it "rejects Classroom assignment after the Schoolwide Poll starts" do
       school = create(:school)
       classroom = create_eligible_classroom(school: school, teacher: create(:user))
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      poll = create(:poll, school: school, school_managed: true)
       poll.update!(status: :in_progress, started_at: Time.current)
       sign_in create(:user, :admin)
 
@@ -1668,7 +1639,7 @@ RSpec.describe "School Poll management", type: :request do
     it "shows a Turbo assignment failure in the global alert and keeps the Classroom checklist" do
       school = create(:school)
       classroom = create_eligible_classroom(school: school, teacher: create(:user))
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      poll = create(:poll, school: school, school_managed: true)
       sign_in create(:user, :admin)
 
       expect do

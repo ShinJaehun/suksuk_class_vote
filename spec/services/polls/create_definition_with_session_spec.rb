@@ -56,7 +56,6 @@ RSpec.describe Polls::CreateDefinitionWithSession do
       expect(result.poll).to have_attributes(
         user: actor,
         school: school,
-        participant_group: nil,
         status: "draft",
         archived_at: nil
       )
@@ -192,14 +191,12 @@ RSpec.describe Polls::CreateDefinitionWithSession do
   end
 
   describe "protected Poll attributes" do
-    it "overrides external ownership, source, and lifecycle attributes" do
+    it "overrides external ownership and lifecycle attributes" do
       other_user = create(:user)
       other_school = create(:school)
-      participant_group = create(:participant_group, :with_participant_slot)
       attributes = poll_attributes.merge(
         user_id: other_user.id,
         school_id: other_school.id,
-        participant_group_id: participant_group.id,
         status: "in_progress",
         archived_at: Time.current
       )
@@ -210,7 +207,6 @@ RSpec.describe Polls::CreateDefinitionWithSession do
       expect(result.poll).to have_attributes(
         user: actor,
         school: school,
-        participant_group: nil,
         status: "draft",
         archived_at: nil
       )
@@ -238,18 +234,4 @@ RSpec.describe Polls::CreateDefinitionWithSession do
     end
   end
 
-  describe "legacy isolation" do
-    it "does not change existing legacy Poll roster records" do
-      legacy_poll = create(:poll)
-      group_count = ParticipantGroup.count
-      slot_count = ParticipantSlot.count
-
-      result = call_service
-
-      expect(result).to be_success
-      expect(legacy_poll.reload.participant_group).to be_present
-      expect(ParticipantGroup.count).to eq(group_count)
-      expect(ParticipantSlot.count).to eq(slot_count)
-    end
-  end
 end

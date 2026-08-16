@@ -10,7 +10,7 @@ RSpec.describe "Classroom Poll definition management", type: :request do
     create(:school_membership, school: school, user: operator)
     create(:classroom, school: school, teacher: operator).tap { |record| create(:student, classroom: record) }
   end
-  let(:poll) { create(:poll, user: operator, school: school, participant_group: nil, school_managed: false) }
+  let(:poll) { create(:poll, user: operator, school: school, school_managed: false) }
   let(:poll_session) { create(:poll_session, poll: poll, classroom: classroom, operator: operator) }
 
   before { sign_in operator }
@@ -81,7 +81,7 @@ RSpec.describe "Classroom Poll definition management", type: :request do
                                          number: 1, name: "원본 후보")
     poll_session.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
     create(:poll_participant, poll: poll, poll_session: poll_session,
-                              source_participant_slot: nil, number: 1, name: "학생")
+                              number: 1, name: "학생")
     replacement = Polls::RevoteSession.new(actor: operator, poll_session: poll_session).call.poll_session
     replacement_poll = replacement.poll
     replacement_contest = replacement_poll.default_poll_contest
@@ -116,8 +116,7 @@ RSpec.describe "Classroom Poll definition management", type: :request do
     source_option = create(:poll_option, poll: poll, poll_contest: poll.default_poll_contest,
                                          number: 1, name: "원본 후보")
     poll_session.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)
-    create(:poll_participant, poll: poll, poll_session: poll_session,
-                              source_participant_slot: nil)
+    create(:poll_participant, poll: poll, poll_session: poll_session)
     replacement = Polls::RevoteSession.new(actor: operator, poll_session: poll_session).call.poll_session
     replacement_poll = replacement.poll
     replacement_contest = replacement_poll.default_poll_contest

@@ -7,8 +7,7 @@ RSpec.describe Polls::StopSchoolwidePoll do
     school = create(:school)
     manager = create(:user)
     create(:school_membership, :manager, school: school, user: manager)
-    poll = create(:poll, school: school, school_managed: true, participant_group: nil,
-                         status: :in_progress, started_at: 1.hour.ago)
+    poll = create(:poll, school: school, school_managed: true, status: :in_progress, started_at: 1.hour.ago)
     sessions = %i[draft in_progress closed].map do |status|
       teacher = create(:user)
       create(:school_membership, school: school, user: teacher)
@@ -106,7 +105,7 @@ RSpec.describe Polls::StopSchoolwidePoll do
   it "does not change child test Polls" do
     poll, manager, = setup_poll
     child = create(:poll, school: poll.school, school_managed: true,
-                          participant_group: nil, test_source_poll: poll)
+                          test_source_poll: poll)
 
     expect(described_class.new(poll: poll, actor: manager).call).to be_success
     expect(child.reload).to have_attributes(status: "draft", archived_at: nil)

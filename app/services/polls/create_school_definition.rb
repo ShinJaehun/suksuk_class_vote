@@ -22,7 +22,6 @@ module Polls
           user: actor,
           school: school,
           school_managed: true,
-          participant_group: nil,
           status: :draft,
           archived_at: nil
         )

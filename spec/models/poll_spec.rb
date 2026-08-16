@@ -18,67 +18,17 @@ RSpec.describe Poll, type: :model do
     end
 
     it "requires a user" do
-      participant_group = create(:participant_group, :with_participant_slot)
-      poll = build(:poll, user: nil, participant_group: participant_group)
+      poll = build(:poll, user: nil)
 
       expect(poll).not_to be_valid
       expect(poll.errors[:user]).to be_present
     end
 
-    it "requires a participant group" do
-      poll = build(:poll, participant_group: nil)
-
-      expect(poll).not_to be_valid
-      expect(poll.errors[:participant_group]).to be_present
-    end
-
-    it "allows a closed poll without a participant group" do
-      poll = build(:poll, status: :closed, participant_group: nil)
-
-      expect(poll).to be_valid
-    end
-
-    it "does not allow an empty participant group" do
-      teacher = create(:user)
-      participant_group = create(:participant_group, user: teacher)
-      poll = build(:poll, user: teacher, participant_group: participant_group)
-
-      expect(poll).not_to be_valid
-      expect(poll.errors[:participant_group]).to be_present
-    end
-
-    it "allows a participant group with participant slots" do
-      teacher = create(:user)
-      participant_group = create(:participant_group, user: teacher)
-      create(:participant_slot, participant_group: participant_group)
-      poll = build(:poll, user: teacher, participant_group: participant_group)
-
-      expect(poll).to be_valid
-    end
-
-    it "allows a school-based draft definition without a participant group" do
-      poll = build(:poll, school: create(:school), participant_group: nil, status: :draft)
-
-      expect(poll).to be_valid
-    end
-
-    it "still requires a participant group for a legacy draft poll" do
-      poll = build(:poll, school: nil, participant_group: nil, status: :draft)
+    it "requires a school" do
+      poll = build(:poll, school: nil)
 
       expect(poll).to be_invalid
-      expect(poll.errors[:participant_group]).to be_present
-    end
-
-    it "rejects a new poll with both a school and participant group" do
-      poll = build(:poll, school: create(:school))
-
-      expect(poll).to be_invalid
-      expect(poll.errors[:base]).to be_present
-    end
-
-    it "keeps closed and stopped source-null history valid" do
-      expect(build(:poll, school: nil, participant_group: nil, status: :closed)).to be_valid
-      expect(build(:poll, school: nil, participant_group: nil, status: :stopped)).to be_valid
+      expect(poll.errors[:school]).to be_present
     end
   end
 
@@ -95,11 +45,9 @@ RSpec.describe Poll, type: :model do
 
   describe "Schoolwide test Poll relationship" do
     it "tracks source and test Polls without inferring from title" do
-      source = create(:poll, school: create(:school), school_managed: true,
-                             participant_group: nil)
+      source = create(:poll, school: create(:school), school_managed: true)
       test_poll = create(:poll, title: "이름에 표시 없음", school: source.school,
-                                school_managed: true, participant_group: nil,
-                                test_source_poll: source)
+                                school_managed: true, test_source_poll: source)
 
       expect(source).not_to be_test_run
       expect(test_poll).to be_test_run
@@ -125,7 +73,7 @@ RSpec.describe Poll, type: :model do
     it "validates Schoolwide Poll lifecycle timestamps by status" do
       started_at = 1.hour.ago
       school = create(:school)
-      attributes = { school: school, school_managed: true, participant_group: nil }
+      attributes = { school: school, school_managed: true }
 
       expect(build(:poll, **attributes, status: :stopped,
                                     started_at: started_at, stopped_at: Time.current)).to be_valid
@@ -144,14 +92,13 @@ RSpec.describe Poll, type: :model do
     end
 
     it "does not apply Schoolwide stopped timestamp rules to a Classroom Poll" do
-      poll = build(:poll, school: create(:school), participant_group: nil,
-                         school_managed: false, status: :stopped, stopped_at: nil)
+      poll = build(:poll, school: create(:school), school_managed: false, status: :stopped, stopped_at: nil)
 
       expect(poll).to be_valid
     end
 
-    it "allows a stopped poll without a participant group" do
-      poll = build(:poll, status: :stopped, participant_group: nil)
+    it "allows a stopped Classroom Poll" do
+      poll = build(:poll, status: :stopped)
 
       expect(poll).to be_valid
     end
@@ -234,8 +181,7 @@ RSpec.describe Poll, type: :model do
       build(
         :poll,
         school: create(:school),
-        school_managed: true,
-        participant_group: nil
+        school_managed: true
       )
     end
 
@@ -273,7 +219,7 @@ RSpec.describe Poll, type: :model do
       ).to eq(42)
     end
 
-    it "does not apply the strict lifecycle contract to legacy Polls" do
+    it "does not apply the strict lifecycle contract to Classroom Polls" do
       poll = build(:poll, status: :in_progress, started_at: nil)
 
       expect(poll).to be_valid

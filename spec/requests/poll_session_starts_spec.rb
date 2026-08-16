@@ -12,7 +12,7 @@ RSpec.describe "PollSession starts", type: :request do
     classroom = create(:classroom, school: school, teacher: teacher)
     create(:student, classroom: classroom, number: 1)
     create(:student, classroom: classroom, number: 2)
-    poll = create(:poll, user: teacher, school: school, participant_group: nil)
+    poll = create(:poll, user: teacher, school: school)
     create(:poll_option, poll: poll, poll_contest: poll.default_poll_contest, number: 1)
     create(:poll_option, poll: poll, poll_contest: poll.default_poll_contest, number: 2)
     poll_session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher)

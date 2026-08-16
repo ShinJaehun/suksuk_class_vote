@@ -47,14 +47,6 @@ RSpec.describe School, type: :model do
       expect(school.users).to contain_exactly(membership.user)
     end
 
-    it "does not destroy schools with participant groups" do
-      school = create(:school)
-      create(:participant_group, :school_election, school: school)
-
-      expect(school.destroy).to be(false)
-      expect(school.errors[:base]).to be_present
-    end
-
     it "does not destroy schools with classrooms" do
       school = create(:school)
       create(:classroom, school: school)

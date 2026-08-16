@@ -1,7 +1,7 @@
 FactoryBot.define do
   factory :poll_session do
     classroom { create(:classroom, :with_teacher) }
-    poll { create(:poll, school: classroom.school, participant_group: nil) }
+    poll { create(:poll, school: classroom.school) }
     operator { classroom.teacher }
     status { :draft }
     classroom_name_snapshot do

@@ -93,7 +93,7 @@ RSpec.describe PollContestTally, type: :model do
       poll_contest = create(:poll_contest)
       poll = poll_contest.poll
       school = create(:school)
-      poll.update!(school: school, participant_group: nil)
+      poll.update!(school: school)
 
       operator = create(:user)
       poll_session = create(
@@ -119,7 +119,7 @@ RSpec.describe PollContestTally, type: :model do
       poll_contest = create(:poll_contest)
       poll = poll_contest.poll
       school = create(:school)
-      poll.update!(school: school, participant_group: nil)
+      poll.update!(school: school)
 
       operator = create(:user)
       poll_session = create(
@@ -145,7 +145,7 @@ RSpec.describe PollContestTally, type: :model do
       poll_contest = create(:poll_contest)
       poll = poll_contest.poll
       school = create(:school)
-      poll.update!(school: school, participant_group: nil)
+      poll.update!(school: school)
 
       operator = create(:user)
       first_session = create(

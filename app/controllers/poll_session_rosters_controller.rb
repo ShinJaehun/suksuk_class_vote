@@ -28,7 +28,6 @@ class PollSessionRostersController < ApplicationController
       @rows.each do |row|
         @poll_session.poll_participants.create!(
           poll: @poll_session.poll,
-          source_participant_slot: nil,
           number: row[:number],
           name: row[:name]
         )

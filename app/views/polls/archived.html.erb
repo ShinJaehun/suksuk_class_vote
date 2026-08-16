@@ -6,7 +6,7 @@
     </div>
   </div>
 
-  <% if @archived_poll_sessions.any? || @polls.any? %>
+  <% if @archived_poll_sessions.any? %>
     <ul class="space-y-3">
       <% @archived_poll_sessions.each do |poll_session| %>
         <% poll = poll_session.poll %>
@@ -31,33 +31,6 @@
 
             <%= link_to "상세",
                         poll_poll_session_path(poll, poll_session),
-                        class: "text-sm font-medium text-stone-700 underline" %>
-          </div>
-        </li>
-      <% end %>
-
-      <% @polls.each do |poll| %>
-        <li class="rounded-md border border-stone-200 bg-white p-4">
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div class="space-y-1">
-              <div class="flex flex-wrap items-center gap-2">
-                <h2 class="font-medium"><%= poll.title %></h2>
-                <%= poll_activity_badge(poll) %>
-                <%= poll_status_badge(poll) %>
-              </div>
-              <p class="text-sm text-stone-600">
-                <%= poll.participant_group_display_name || "-" %>(투표자 <%= @poll_voter_counts.fetch(poll.id, 0) %>명)
-                <% if poll.poll_progress&.started_at.present? %>
-                  / 투표시작 <%= kst_datetime(poll.poll_progress.started_at) %>
-                <% end %>
-                <% if poll.poll_progress&.closed_at.present? %>
-                  · 투표종료 <%= kst_datetime(poll.poll_progress.closed_at) %>
-                <% end %>
-              </p>
-            </div>
-
-            <%= link_to "상세",
-                        poll_path(poll),
                         class: "text-sm font-medium text-stone-700 underline" %>
           </div>
         </li>

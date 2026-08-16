@@ -182,7 +182,6 @@ module Polls
         PollParticipant.create!(
           poll: poll,
           poll_session: poll_session,
-          source_participant_slot: nil,
           number: student.number,
           name: student.name
         )

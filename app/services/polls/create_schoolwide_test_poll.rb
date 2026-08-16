@@ -69,7 +69,6 @@ module Polls
         kind: source_poll.kind,
         user: actor,
         school: source_poll.school,
-        participant_group: nil,
         school_managed: true,
         test_source_poll: source_poll,
         status: :draft,

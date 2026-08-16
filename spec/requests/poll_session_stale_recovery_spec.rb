@@ -8,8 +8,7 @@ RSpec.describe "PollSession stale recovery", type: :request do
     teacher = create(:user)
     create(:school_membership, :manager, school: school, user: teacher)
     classroom = create(:classroom, school: school, teacher: teacher)
-    poll = create(:poll, school: school, school_managed: true, participant_group: nil,
-                         status: :in_progress, started_at: 1.hour.ago)
+    poll = create(:poll, school: school, school_managed: true, status: :in_progress, started_at: 1.hour.ago)
     session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                                     status: :in_progress, started_at: 1.hour.ago)
     participant = create(:poll_participant, poll: poll, poll_session: session, number: 1, name: "학생")
@@ -23,8 +22,7 @@ RSpec.describe "PollSession stale recovery", type: :request do
     create(:school_membership, :manager, school: school, user: teacher)
     classroom = create(:classroom, school: school, teacher: teacher)
     create(:student, classroom: classroom, number: 1, name: "학생")
-    poll = create(:poll, school: school, school_managed: true, participant_group: nil,
-                         status: :in_progress, started_at: 1.hour.ago)
+    poll = create(:poll, school: school, school_managed: true, status: :in_progress, started_at: 1.hour.ago)
     contest = create(:poll_contest, poll: poll, position: 1)
     create(:poll_option, poll: poll, poll_contest: contest, number: 1)
     create(:poll_option, poll: poll, poll_contest: contest, number: 2)
@@ -98,7 +96,7 @@ RSpec.describe "PollSession stale recovery", type: :request do
     school = create(:school)
     create(:school_membership, school: school, user: teacher)
     classroom = create(:classroom, school: school, teacher: teacher)
-    poll = create(:poll, user: teacher, school: school, participant_group: nil)
+    poll = create(:poll, user: teacher, school: school)
     poll_session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                                          status: :stopped, started_at: 1.hour.ago,
                                          stopped_at: Time.current)
@@ -228,7 +226,7 @@ RSpec.describe "PollSession stale recovery", type: :request do
     expect(response).to have_http_status(:not_found)
 
     recovery_token = Rack::Utils.parse_nested_query(URI.parse(operation_url).query).fetch("recovery_token")
-    other_poll = create(:poll, school: poll.school, school_managed: true, participant_group: nil)
+    other_poll = create(:poll, school: poll.school, school_managed: true)
     get operation_frame_poll_poll_session_path(other_poll, old_session, recovery_token: recovery_token)
     expect(response).to have_http_status(:not_found)
 

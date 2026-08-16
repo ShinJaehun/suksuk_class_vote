@@ -18,7 +18,7 @@ runtime과 HTTP 경로는 제거됐다. 관련 DB table과 migration은 Election
 초기 방향은 다음과 같다.
 
 - 학생은 계정, PIN, 개인 단말 없이 교사 장치 앞에서 투표한다.
-- 교사는 참여자 그룹을 등록하고, 그 그룹을 대상으로 투표를 만든다.
+- 교사는 담당 Classroom의 Student 명단을 대상으로 투표를 만든다.
 - 교사는 활동 유형에 맞는 선택지를 등록한 뒤 출석번호 순서로 투표를 진행한다.
 - 투표가 끝나면 결과를 확인한다.
 - 투표 중 새로고침, 브라우저 종료, 컴퓨터 재부팅, 교사 재로그인이 발생해도 서버 DB 기준으로 진행 위치를 복구할 수 있어야 한다.
@@ -239,13 +239,12 @@ Contest부터 복구하며 완료한 Contest의 취소·개별 재투표는 지�
 일반 학급투표 생성은 Poll과 최초 PollSession을 만들고, 전교투표는 Poll 정의를 만든 뒤 여러
 Classroom Session을 배정한다. 현재 runtime 경계는 다음과 같다.
 
-1. 신규 Classroom/PollSession runtime: 위 학급·전교투표 흐름을 사용한다.
-2. legacy ParticipantGroup 기반 Poll runtime: 기존 기록 호환을 위해 별도 경로가 남아 있다.
+1. Classroom/PollSession runtime: 위 학급·전교투표 흐름을 사용한다.
 
 PollSession 중단·stopped 운영 이력과 일반·전교투표 replacement 재투표는 구현됐다.
 historical/read_only Poll과 Election ID 6의 historical Poll·후보 사진 변환은 미구현이다.
-Election runtime은 제거했으며 DB table은 복원·변환과 검증 뒤 별도 schema 작업에서 제거한다.
-ParticipantGroup·ParticipantSlot과 이를 사용하는 legacy Poll compatibility는 그 다음 단계까지 유지한다.
+Election과 ParticipantGroup/ParticipantSlot runtime은 제거했다. 관련 DB table·column은
+복원·변환과 검증 뒤 별도 schema 작업에서 제거한다.
 
 현재 `Poll` 상태 흐름:
 
@@ -329,9 +328,9 @@ historical/read_only 상태는 변환 전에 별도 구현한다.
 4. Election ID 6 historical Poll 변환과 후보 사진 이관
 5. 운영 DB의 기존 Poll 보존 범위 조사
 6. 필요한 legacy Poll의 PollSession backfill
-7. 신규 PollSession runtime과 legacy ParticipantGroup Poll runtime 분리
+7. legacy ParticipantGroup Poll runtime 제거 완료
 8. Election table 제거(runtime 제거 완료)
-9. ParticipantGroup·ParticipantSlot 제거
+9. ParticipantGroup·ParticipantSlot DB schema 제거(runtime 제거 완료)
 10. 전체 데이터 검산과 운영 전환
 
 현재 구현된 복구/무결성 화면:

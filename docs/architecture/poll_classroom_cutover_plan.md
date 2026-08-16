@@ -9,7 +9,7 @@
 목표는 기존 Poll ID와 진행·집계 기록을 손상하지 않고 신규 경로를 전환한 뒤,
 Election과 Poll 양쪽의 의존을 모두 제거하여 `ParticipantGroup`·`ParticipantSlot` table을
 삭제할 수 있게 하는 것이다. 현재 PollSession foundation부터 감독형 진행·종료·Session별 결과와
-단계별 상태 점검까지 연결됐다. 기존 ParticipantGroup Poll start/runtime은 유지한다.
+단계별 상태 점검까지 연결됐고 기존 ParticipantGroup Poll start/runtime은 제거됐다.
 
 ## 2. 현재 구조
 
@@ -216,7 +216,7 @@ foundation rollback은 PollSession row가 있으면 기록 삭제 대신 명시�
 - 시작·종료 form은 성공 응답이 제공하는 outer `teacher_progress` Turbo Frame을 target으로 한다.
   이는 nested frame의 `Content missing` 방지이며 lifecycle, controller action, redirect, participant
   snapshot, event와 권한 정책을 바꾸지 않는다.
-- 기존 ParticipantGroup Poll 조회/runtime은 유지한다.
+- 기존 ParticipantGroup Poll 조회/runtime은 제거됐다.
 - 전교투표는 Poll 정의를 만든 뒤 같은 학교의 여러 Classroom을 draft PollSession으로 배정한다.
 
 ### 단계 4: PollSession 시작과 감독형 진행 (완료)
@@ -312,9 +312,9 @@ Classroom PollSession을 배정한다. 전교 Poll 전체 시작·종료와 clos
 4. Election ID 6을 historical Poll로 변환하고 후보 사진을 이관한다. Classroom 변환과는 별도 작업이다.
 5. 운영 DB의 기존 Poll 보존 범위를 조사한다.
 6. 필요한 legacy Poll을 PollSession으로 backfill한다.
-7. 신규 Classroom/PollSession runtime과 legacy ParticipantGroup Poll runtime을 서버 측에서 분리한다.
+7. legacy ParticipantGroup Poll runtime을 제거한다(완료).
 8. 검증된 historical Poll 변환 뒤 Election table을 제거한다(runtime 제거 완료).
-9. 전환 검증 뒤 ParticipantGroup·ParticipantSlot을 제거한다.
+9. 전환 검증 뒤 ParticipantGroup·ParticipantSlot DB schema를 제거한다(runtime 제거 완료).
 10. 전체 데이터를 검산하고 운영 전환한다.
 
 전환기에는 `Poll#poll_progress`, `PollOption#poll_option_tally`,
@@ -406,10 +406,10 @@ invariant로 만들지 않는다.
 - [x] Election 신규 세션 생성·시작·재투표 runtime이 제거됐다.
 - [ ] 선택한 실제 Election의 Classroom 일회성 변환과 invariant 검증이 완료됐다.
 - [x] Election runtime legacy 표시·조회·StartSession 분기가 제거됐다.
-- [ ] Poll 신규 생성·시작·운영·결과·보관 경로에 legacy source 사용이 없다.
+- [x] Poll 신규 생성·시작·운영·결과·보관 경로에 legacy source 사용이 없다.
 - [ ] 운영 Poll 보존 범위가 확정되고 필요한 데이터 전환/검증이 완료됐다.
-- [ ] Poll runtime과 표시에서 ParticipantGroup·ParticipantSlot 분기가 제거됐다.
-- [ ] Election/Poll 외 `ParticipantGroup` 관리 controller·policy·view를 제거해도 된다.
+- [x] Poll runtime과 표시에서 ParticipantGroup·ParticipantSlot 분기가 제거됐다.
+- [x] `ParticipantGroup` 관리 controller·policy·view가 제거됐다.
 - [ ] `poll_participants.source_participant_slot_id`, `election_voters.source_participant_slot_id` FK를
   제거해도 snapshot·결과가 유지된다.
 - [ ] ParticipantSlot을 참조하는 모든 FK/index가 제거됐다.

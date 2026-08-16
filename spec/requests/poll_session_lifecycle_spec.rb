@@ -8,11 +8,10 @@ RSpec.describe "PollSession lifecycle", type: :request do
     teacher = create(:user)
     create(:school_membership, school: school, user: teacher)
     classroom = create(:classroom, school: school, teacher: teacher)
-    poll = create(:poll, user: teacher, school: school, participant_group: nil)
+    poll = create(:poll, user: teacher, school: school)
     session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                                     status: :in_progress, started_at: Time.current)
-    participant = create(:poll_participant, poll: poll, poll_session: session,
-                                            source_participant_slot: nil)
+    participant = create(:poll_participant, poll: poll, poll_session: session)
     create(:poll_progress, poll: poll, poll_session: session,
                            current_poll_participant: participant,
                            started_at: session.started_at)

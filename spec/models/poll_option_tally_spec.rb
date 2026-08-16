@@ -37,7 +37,7 @@ RSpec.describe PollOptionTally, type: :model do
       poll_option = create(:poll_option)
       poll = poll_option.poll
       school = create(:school)
-      poll.update!(school: school, participant_group: nil)
+      poll.update!(school: school)
       classroom = create(:classroom, school: school)
 
       operator = create(:user)
@@ -64,7 +64,7 @@ RSpec.describe PollOptionTally, type: :model do
       poll_option = create(:poll_option)
       poll = poll_option.poll
       school = create(:school)
-      poll.update!(school: school, participant_group: nil)
+      poll.update!(school: school)
       classroom = create(:classroom, school: school)
 
       operator = create(:user)
@@ -91,7 +91,7 @@ RSpec.describe PollOptionTally, type: :model do
       poll_option = create(:poll_option)
       poll = poll_option.poll
       school = create(:school)
-      poll.update!(school: school, participant_group: nil)
+      poll.update!(school: school)
 
       operator = create(:user)
       first_session = create(

@@ -9,7 +9,6 @@ module Polls
     PROTECTED_POLL_ATTRIBUTES = %i[
       user_id
       school_id
-      participant_group_id
       school_managed
       status
       archived_at
@@ -79,7 +78,6 @@ module Polls
           user: actor,
           school: classroom.school,
           school_managed: school_managed,
-          participant_group: nil,
           status: :draft,
           archived_at: nil
         )

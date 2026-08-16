@@ -79,7 +79,7 @@ RSpec.describe "Classroom students", type: :request do
   it "broadcasts active roster count changes through the actual Student routes" do
     classroom, teacher = classroom_with_teacher
     teacher.school_membership.update!(role: :manager)
-    poll = create(:poll, school: classroom.school, school_managed: true, participant_group: nil)
+    poll = create(:poll, school: classroom.school, school_managed: true)
     contest = create(:poll_contest, poll: poll)
     create(:poll_option, poll: poll, poll_contest: contest, number: 1)
     create(:poll_option, poll: poll, poll_contest: contest, number: 2)
@@ -154,9 +154,9 @@ RSpec.describe "Classroom students", type: :request do
   it "deactivates and reactivates idempotently without changing snapshots" do
     classroom, teacher = classroom_with_teacher
     student = create(:student, classroom: classroom)
-    poll = create(:poll, user: teacher, school: classroom.school, participant_group: nil)
+    poll = create(:poll, user: teacher, school: classroom.school)
     session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
-    snapshot = create(:poll_participant, poll: poll, poll_session: session, source_participant_slot: nil, number: student.number, name: student.name)
+    snapshot = create(:poll_participant, poll: poll, poll_session: session, number: student.number, name: student.name)
     sign_in teacher
 
     2.times { patch deactivate_classroom_student_path(classroom, student) }
@@ -573,14 +573,12 @@ RSpec.describe "Classroom students", type: :request do
     expect(response.body).not_to include(row_error)
   end
 
-  it "does not create legacy roster records and makes an active Classroom eligible for Poll creation" do
+  it "makes an active Classroom eligible for Poll creation" do
     classroom, teacher = classroom_with_teacher
     sign_in teacher
-    counts = [ParticipantGroup.count, ParticipantSlot.count]
     post classroom_students_path(classroom), params: { student: { number: 1, name: "학생" } }
     get new_poll_path
 
-    expect([ParticipantGroup.count, ParticipantSlot.count]).to eq(counts)
     expect(response.body).to include(classroom.formatted_class_label)
   end
 
@@ -737,7 +735,7 @@ RSpec.describe "Classroom students", type: :request do
   it "preserves a validated PollSession return context across student management" do
     classroom, teacher = classroom_with_teacher
     student = create(:student, classroom: classroom, number: 1, name: "기존 학생")
-    poll = create(:poll, user: teacher, school: classroom.school, participant_group: nil)
+    poll = create(:poll, user: teacher, school: classroom.school)
     poll_session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher)
     context = { return_poll_session_id: poll_session.id }
     sign_in teacher
@@ -784,7 +782,7 @@ RSpec.describe "Classroom students", type: :request do
   it "ignores invalid and raw return contexts" do
     classroom, teacher = classroom_with_teacher
     other_classroom = create(:classroom, school: classroom.school)
-    poll = create(:poll, user: teacher, school: classroom.school, participant_group: nil)
+    poll = create(:poll, user: teacher, school: classroom.school)
     other_session = create(:poll_session, poll: poll, classroom: other_classroom, operator: teacher)
     sign_in teacher
 

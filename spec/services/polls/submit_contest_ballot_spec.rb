@@ -6,7 +6,7 @@ RSpec.describe Polls::SubmitContestBallot do
     operator = create(:user)
     create(:school_membership, school: school, user: operator)
     classroom = create(:classroom, school: school, teacher: operator)
-    poll = create(:poll, user: operator, school: school, participant_group: nil)
+    poll = create(:poll, user: operator, school: school)
     poll.default_poll_contest.destroy!
     contests = contest_count.times.map do |index|
       contest = create(:poll_contest, poll: poll, position: index + 1, title: "항목 #{index + 1}")

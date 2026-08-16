@@ -9,7 +9,6 @@ RSpec.describe "School Poll lifecycle controls", type: :request do
       school: school,
       user: actor,
       school_managed: true,
-      participant_group: nil,
       test_source_poll: test_source,
       status: status,
       started_at: (1.hour.ago unless status == :draft),

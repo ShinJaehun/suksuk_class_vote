@@ -55,19 +55,17 @@ RSpec.describe PollPolicy do
       expect(described_class.new(admin, poll)).to be_show
     end
 
-    it "keeps an inactive School Poll readable while blocking writes for every actor" do
+  it "keeps an inactive School Poll readable while blocking supported mutations for every actor" do
       school = create(:school)
       teacher = create(:user)
       create(:school_membership, school: school, user: teacher)
-      poll = create(:poll, user: teacher, school: school, participant_group: nil)
+      poll = create(:poll, user: teacher, school: school)
       school.update!(active: false)
 
       expect(described_class.new(teacher, poll)).to be_show
       [teacher, create(:user, :admin)].each do |actor|
         policy = described_class.new(actor, poll)
         expect(policy).not_to be_update
-        expect(policy).not_to be_start
-        expect(policy).not_to be_close
         expect(policy).not_to be_destroy
       end
     end
@@ -91,43 +89,13 @@ RSpec.describe PollPolicy do
     end
   end
 
-  describe "#start?" do
-    it "allows admins to start another teacher's poll" do
-      admin = create(:user, :admin)
-      poll = create(:poll)
-
-      expect(described_class.new(admin, poll)).to be_start
-    end
-
-    it "allows teachers to start their own poll" do
-      teacher = create(:user)
-      poll = create(:poll, user: teacher)
-
-      expect(described_class.new(teacher, poll)).to be_start
-    end
-
-    it "does not allow teachers to start another teacher's poll" do
-      teacher = create(:user)
-      poll = create(:poll)
-
-      expect(described_class.new(teacher, poll)).not_to be_start
-    end
-
-    it "does not allow guests to start polls" do
-      poll = create(:poll)
-
-      expect(described_class.new(nil, poll)).not_to be_start
-    end
-  end
-
   describe "Schoolwide lifecycle permissions" do
     it "allows global admin and the same-School manager" do
       school = create(:school)
       poll = create(
         :poll,
         school: school,
-        school_managed: true,
-        participant_group: nil
+        school_managed: true
       )
       manager = create(:user)
       create(:school_membership, :manager, school: school, user: manager)
@@ -151,8 +119,7 @@ RSpec.describe PollPolicy do
       poll = create(
         :poll,
         school: create(:school),
-        school_managed: true,
-        participant_group: nil
+        school_managed: true
       )
       other_manager = create(:user)
       create(:school_membership, :manager, school: create(:school), user: other_manager)
@@ -167,7 +134,7 @@ RSpec.describe PollPolicy do
 
     it "keeps inactive Schoolwide Polls readable but blocks lifecycle for manager and admin" do
       school = create(:school)
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      poll = create(:poll, school: school, school_managed: true)
       manager = create(:user)
       create(:school_membership, :manager, school: school, user: manager)
       school.update!(active: false)
@@ -186,7 +153,7 @@ RSpec.describe PollPolicy do
   describe "Schoolwide test Poll permissions" do
     it "allows manager/admin creation from a draft source and keeps test runtime lifecycle available" do
       school = create(:school)
-      source = create(:poll, school: school, school_managed: true, participant_group: nil)
+      source = create(:poll, school: school, school_managed: true)
       manager = create(:user)
       create(:school_membership, :manager, school: school, user: manager)
 
@@ -196,7 +163,7 @@ RSpec.describe PollPolicy do
       expect(described_class.new(create(:user), source)).not_to be_school_test
 
       test_poll = create(:poll, school: school, school_managed: true,
-                                participant_group: nil, test_source_poll: source)
+                                test_source_poll: source)
       policy = described_class.new(manager, test_poll)
       expect(policy).not_to be_school_test
       expect(policy).not_to be_school_edit
@@ -213,11 +180,10 @@ RSpec.describe PollPolicy do
       school = create(:school)
       manager = create(:user)
       create(:school_membership, :manager, school: school, user: manager)
-      source = create(:poll, school: school, school_managed: true, participant_group: nil,
-                             status: :closed, started_at: 1.hour.ago,
+      source = create(:poll, school: school, school_managed: true, status: :closed, started_at: 1.hour.ago,
                              closed_at: Time.current, archived_at: Time.current)
       test_poll = create(:poll, school: school, school_managed: true,
-                                participant_group: nil, test_source_poll: source,
+                                test_source_poll: source,
                                 status: :stopped, started_at: 1.hour.ago,
                                 stopped_at: Time.current)
 
@@ -234,8 +200,7 @@ RSpec.describe PollPolicy do
       create(
         :poll,
         school: school,
-        school_managed: true,
-        participant_group: nil
+        school_managed: true
       )
     end
 
@@ -261,7 +226,7 @@ RSpec.describe PollPolicy do
   describe "#reset_schoolwide?" do
     it "allows global admin and the same-School manager for a resettable Schoolwide Poll" do
       school = create(:school)
-      poll = create(:poll, school: school, school_managed: true, participant_group: nil)
+      poll = create(:poll, school: school, school_managed: true)
       manager = create(:user)
       create(:school_membership, :manager, school: school, user: manager)
 
@@ -296,9 +261,9 @@ RSpec.describe PollPolicy do
           archived_at: nil
         }
         source = create(:poll, school: school, school_managed: true,
-                               participant_group: nil, **attributes)
+                               **attributes)
         test_poll = create(:poll, school: school, school_managed: true,
-                                  participant_group: nil, test_source_poll: source, **attributes)
+                                  test_source_poll: source, **attributes)
 
         expect(described_class.new(manager, source).destroy_schoolwide?).to eq(status == :draft)
         expect(described_class.new(manager, test_poll).destroy_schoolwide?).to eq(status != :in_progress)
@@ -307,15 +272,15 @@ RSpec.describe PollPolicy do
       end
 
       archived_source = create(:poll, school: school, school_managed: true,
-                                      participant_group: nil, status: :stopped,
+                                      status: :stopped,
                                       started_at: 1.hour.ago, stopped_at: Time.current,
                                       archived_at: Time.current)
       expect(described_class.new(admin, archived_source)).not_to be_destroy_schoolwide
       expect(described_class.new(manager, archived_source)).not_to be_destroy_schoolwide
 
-      source = create(:poll, school: school, school_managed: true, participant_group: nil)
+      source = create(:poll, school: school, school_managed: true)
       archived_test = create(:poll, school: school, school_managed: true,
-                                    participant_group: nil, test_source_poll: source,
+                                    test_source_poll: source,
                                     status: :stopped, started_at: 1.hour.ago,
                                     stopped_at: Time.current, archived_at: Time.current)
       expect(described_class.new(manager, archived_test)).to be_destroy_schoolwide
@@ -323,58 +288,12 @@ RSpec.describe PollPolicy do
     end
 
     it "rejects another-School manager" do
-      poll = create(:poll, school: create(:school), school_managed: true, participant_group: nil)
+      poll = create(:poll, school: create(:school), school_managed: true)
       manager = create(:user)
       create(:school_membership, :manager, school: create(:school), user: manager)
 
       expect(described_class.new(manager, poll)).not_to be_destroy_schoolwide
       expect(described_class.new(manager, poll)).not_to be_reset_schoolwide
-    end
-  end
-
-  describe "#open_current_participant_ballot?" do
-    it "allows admins to open another teacher's current participant ballot" do
-      admin = create(:user, :admin)
-      poll = create(:poll)
-
-      expect(described_class.new(admin, poll)).to be_open_current_participant_ballot
-    end
-
-    it "allows teachers to open their own current participant ballot" do
-      teacher = create(:user)
-      poll = create(:poll, user: teacher)
-
-      expect(described_class.new(teacher, poll)).to be_open_current_participant_ballot
-    end
-
-    it "does not allow teachers to open another teacher's current participant ballot" do
-      teacher = create(:user)
-      poll = create(:poll)
-
-      expect(described_class.new(teacher, poll)).not_to be_open_current_participant_ballot
-    end
-  end
-
-  describe "#record_next_participant_absent?" do
-    it "allows admins to mark another teacher's next participant absent" do
-      admin = create(:user, :admin)
-      poll = create(:poll)
-
-      expect(described_class.new(admin, poll)).to be_record_next_participant_absent
-    end
-
-    it "allows teachers to mark their own next participant absent" do
-      teacher = create(:user)
-      poll = create(:poll, user: teacher)
-
-      expect(described_class.new(teacher, poll)).to be_record_next_participant_absent
-    end
-
-    it "does not allow teachers to mark another teacher's next participant absent" do
-      teacher = create(:user)
-      poll = create(:poll)
-
-      expect(described_class.new(teacher, poll)).not_to be_record_next_participant_absent
     end
   end
 end

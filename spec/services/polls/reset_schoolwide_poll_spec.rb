@@ -22,8 +22,7 @@ RSpec.describe Polls::ResetSchoolwidePoll do
     teacher = create(:user)
     create(:school_membership, school: school, user: teacher)
     classroom = create(:classroom, school: school, teacher: teacher)
-    poll = create(:poll, school: school, school_managed: true, participant_group: nil,
-                         **lifecycle_attributes(status))
+    poll = create(:poll, school: school, school_managed: true, **lifecycle_attributes(status))
     session = create(:poll_session, poll: poll, classroom: classroom, operator: teacher,
                                     **lifecycle_attributes(status))
     [poll, session, classroom]
@@ -208,8 +207,7 @@ RSpec.describe Polls::ResetSchoolwidePoll do
     source.update!(status: :stopped, stopped_at: Time.current)
     replacement = create(:poll_session, poll: poll, classroom: classroom,
                                         operator: classroom.teacher, replacement_of: source)
-    participant = create(:poll_participant, poll: poll, poll_session: source,
-                                            source_participant_slot: nil)
+    participant = create(:poll_participant, poll: poll, poll_session: source)
     create(:poll_participation, poll_participant: participant)
     create(:poll_contest_completion, poll_participant: participant, poll_contest: contest)
     create(:poll_progress, poll: poll, poll_session: source,
@@ -244,8 +242,7 @@ RSpec.describe Polls::ResetSchoolwidePoll do
   it "does not change another Poll's sessions or runtime" do
     poll, = create_target(status: :in_progress)
     other_poll, other_session, = create_target(status: :in_progress)
-    other_participant = create(:poll_participant, poll: other_poll, poll_session: other_session,
-                                                  source_participant_slot: nil)
+    other_participant = create(:poll_participant, poll: other_poll, poll_session: other_session)
     other_event = create(:poll_event, poll: other_poll, poll_session: other_session,
                                       poll_participant: other_participant)
 
@@ -267,7 +264,7 @@ RSpec.describe Polls::ResetSchoolwidePoll do
   it "rejects a child test Poll after its source is closed" do
     source, source_session, classroom = create_target(status: :closed)
     test_poll = create(:poll, school: source.school, school_managed: true,
-                              participant_group: nil, test_source_poll: source,
+                              test_source_poll: source,
                               **lifecycle_attributes(:stopped))
     test_session = create(:poll_session, poll: test_poll, classroom: classroom,
                                          operator: classroom.teacher,
@@ -293,8 +290,7 @@ RSpec.describe Polls::ResetSchoolwidePoll do
 
   it "rolls back all changes when a target Classroom has no teacher" do
     poll, session, classroom = create_target(status: :in_progress)
-    participant = create(:poll_participant, poll: poll, poll_session: session,
-                                            source_participant_slot: nil)
+    participant = create(:poll_participant, poll: poll, poll_session: session)
     classroom.update_column(:teacher_id, nil)
 
     result = described_class.new(poll: poll, actor: admin).call
