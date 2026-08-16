@@ -33,9 +33,9 @@ export/import 절차로 옮긴다.
 
 ## 2. 현재 구조와 재구축 방향
 
-현재 시스템에는 교사가 소유한 `ParticipantGroup`/`ParticipantSlot` 기반 학급
-`Poll`, admin이 parent `Election` 아래 학급별 `ElectionSession`을 배정하는
-전교임원선거가 있다. 이전 Poll 기반 legacy `SchoolElection` 구조는 제거되었다.
+현재 시스템에는 교사가 소유한 `ParticipantGroup`/`ParticipantSlot` 기반 legacy `Poll`과
+`Classroom`/`Student` 기반 `Poll`/`PollSession` 운영 구조가 함께 있다. 기존 `Election`/
+`ElectionSession` runtime과 이전 Poll 기반 legacy `SchoolElection` 구조는 제거되었다.
 
 현재 `Poll`은 활동 정의, 명단, 진행 상태, 집계와 진행 포인터를 한 흐름에서 맡고
 `Poll.kind = election`으로 선거도 표현한다. 교사 접근 경계는 학교·학급보다 사용자
@@ -44,9 +44,8 @@ export/import 절차로 옮긴다.
 목표 구조는 `School`을 조직과 권한의 최상위 경계로 삼고 실제 학급과 학생을
 `Classroom`, `Student`로 표현한다. 모든 신규 학급투표와 전교투표는 `Poll` 정의와
 학급별 `PollSession`을 사용한다. 후보자 선거는 `Poll.kind = election`, 설문조사는
-`survey`, 토의는 `discussion`, 토론은 `debate`로 표현한다. 기존 `Election`은 신규
-기능을 개발하지 않는 전환 대상이며 Election ID 6을 historical Poll로 변환하고 검증한
-뒤 runtime과 table을 제거할 예정이다.
+`survey`, 토의는 `discussion`, 토론은 `debate`로 표현한다. 기존 `Election` runtime은
+제거됐으며 DB table은 Election ID 6을 historical Poll로 변환하고 검증한 뒤 제거한다.
 
 ## 3. 목표 조직 구조
 
@@ -355,14 +354,10 @@ Voter에 저장할 수 있다.
 
 ## 9. 기존 Election 전환
 
-`Election`, `ElectionContest`, `ElectionCandidate`, `ElectionSession`은 현재 운영 데이터
-호환을 위해 남아 있지만 신규 기능의 목표 구조가 아니다. Election ID 6을 Poll,
-PollContest, PollOption, PollSession과 count-only historical 기록으로 변환하는 리허설과
-운영 검증을 먼저 수행한다. 이후 Election runtime과 table을 제거한다.
-
-변환 전까지 legacy 화면과 service는 수정하지 않는다. Election 후보 사진의 PollOption 변환, 재투표 관계와
-historical/read_only 표시는 Poll 쪽 후속 작업에서 명시적으로 설계하며 Election 코드를
-새 Poll runtime에서 호출하거나 복사하지 않는다.
+`Election`, `ElectionContest`, `ElectionCandidate`, `ElectionSession` runtime은 제거됐다.
+legacy DB table은 Election ID 6을 Poll, PollContest, PollOption, PollSession과 count-only
+historical 기록으로 변환하고 검증할 때까지 유지한다. 후보 사진 변환, 재투표 관계와
+historical/read_only 표시는 복원 계약에 따라 후속 작업에서 구현한다.
 
 ## 10. Poll 목표 구조
 
@@ -603,10 +598,9 @@ Session 생성, 여러 Classroom 배정, Student snapshot, 감독형 제출·cou
 Turbo Stream/polling 갱신과 단계별 상태 점검도 구현됐다. Poll은 전체 시작·종료 시각과 Poll-level
 event를 기록하며 전교투표가 in_progress일 때만 담당 학급 Session을 시작할 수 있다.
 전교 election PollOption 후보 사진과 deterministic fallback, legacy형 후보 카드·투표 도장,
-global admin 전용 테스트 후보 50명 도구도 구현됐다. Election 명단 source를 Classroom으로
-전환하는 service와 dry-run 기본·`APPLY=1` Rake task도 구현됐다.
+global admin 전용 테스트 후보 50명 도구도 구현됐다. legacy Election runtime과 과거
+Classroom 변환 service는 제거됐으며 실제 Election ID 6에는 적용하지 않았다.
 
-Election Classroom 변환 도구는 구현됐지만 실제 Election ID 6에는 적용하지 않았다.
 historical/read_only는 목표 설계이며 현재 runtime에는 아직 구현되지 않았다. 후속 작업 순서는
 다음과 같다.
 
@@ -617,7 +611,7 @@ historical/read_only는 목표 설계이며 현재 runtime에는 아직 구현�
 5. 운영 DB의 기존 Poll 보존 범위 조사
 6. 필요한 legacy Poll의 PollSession backfill
 7. 신규 PollSession runtime과 legacy ParticipantGroup Poll runtime 분리
-8. Election runtime과 table 제거
+8. Election table 제거(runtime 제거 완료)
 9. ParticipantGroup·ParticipantSlot 제거
 10. 전체 데이터 검산과 운영 전환
 

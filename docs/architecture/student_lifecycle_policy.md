@@ -7,7 +7,7 @@
 3. [새 학년도 운영](#3-새-학년도-운영)
 4. [학년도 종료](#4-학년도-종료)
 5. [Student 수정과 비활성화](#5-student-수정과-비활성화)
-6. [Poll·Election snapshot](#6-pollelection-snapshot)
+6. [Poll snapshot](#6-poll-snapshot)
 7. [이 서비스에서 구현하지 않는 기능](#7-이-서비스에서-구현하지-않는-기능)
 
 ## 1. 문서 목적
@@ -16,9 +16,8 @@
 보존하는 기준을 정한다. 이 서비스는 학생의 장기 학적, 진급, 전학 이력을
 관리하는 학교 행정 시스템이 아니다.
 
-신규 PollSession은 active Student 명단을 시작 시 snapshot으로 복사하며, Classroom 기반
-ElectionSession도 Student를 명단 원본으로 사용할 수 있다. 기존 `ParticipantGroup`·`ParticipantSlot`
-legacy 경로의 전환은
+신규 PollSession은 active Student 명단을 시작 시 snapshot으로 복사한다. 기존
+`ParticipantGroup`·`ParticipantSlot` legacy Poll 경로의 전환은
 `docs/architecture/classroom_participant_group_transition.md`를 따른다.
 
 ## 2. Classroom과 Student의 의미
@@ -104,13 +103,13 @@ Student의 번호도 재사용하지 않으며, 다른 번호를 가진 동명�
 일반 운영에서는 Student를 hard delete하지 않고 필요하면 inactive 처리한다.
 명백한 오등록을 삭제하는 별도 기능은 현재 설계하거나 구현하지 않는다.
 
-## 6. Poll·Election snapshot
+## 6. Poll snapshot
 
-Student는 신규 PollSession과 Classroom 기반 ElectionSession 명단의 원본이다. 활동 시작 시 active
-Student의 번호와 이름을 `PollParticipant` 또는 `ElectionVoter` snapshot으로 복사한다.
+Student는 신규 PollSession 명단의 원본이다. 활동 시작 시 active Student의 번호와 이름을
+`PollParticipant` snapshot으로 복사한다.
 
 - 시작 후 Student의 이름, 번호 또는 active가 바뀌어도 기존 snapshot은 바꾸지 않는다.
-- 완료되거나 중단된 Poll·Election 기록을 Student 현재값으로 다시 작성하지 않는다.
+- 완료되거나 중단된 Poll 기록을 Student 현재값으로 다시 작성하지 않는다.
 - 기존 `ParticipantSlot` 기반 기록을 Student에 소급 연결하거나 변환하지 않는다.
 - snapshot은 Student의 현재 상태와 독립된 당시 투표 명단 기록으로 보존한다.
 

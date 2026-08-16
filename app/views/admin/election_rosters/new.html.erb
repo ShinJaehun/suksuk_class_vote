@@ -1,7 +1,0 @@
-<div class="space-y-6">
-  <p><%= link_to "전교임원선거 투표자 목록으로 돌아가기", admin_election_rosters_path(school_id: @school.id), class: "text-sm font-medium text-stone-700 underline" %></p>
-
-  <h1 class="text-2xl font-semibold">전교임원선거 학급 추가</h1>
-
-  <%= render "form", participant_group: @participant_group, school: @school, teachers: @teachers %>
-</div>

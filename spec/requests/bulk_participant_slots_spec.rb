@@ -135,7 +135,7 @@ RSpec.describe "Bulk participant slots", type: :request do
       admin = create(:user, :admin)
       school = create(:school)
       participant_group = create(:participant_group, :school_election, school: school)
-      return_to = admin_election_rosters_path(school_id: school.id)
+      return_to = schools_path
       sign_in admin
 
       expect do

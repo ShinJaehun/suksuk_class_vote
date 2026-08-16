@@ -1,8 +1,11 @@
 # 전교임원선거 운영 기준
 
+> 상태: legacy Election runtime 제거 전 운영 기준이다. 현재 전교투표 runtime은
+> `Poll` / `PollSession` 기준 문서를 따르며, 이 문서는 historical 운영 기록으로만 유지한다.
+
 ## 목적
 
-이 문서는 현재 배포 대상인 전교임원선거의 canonical spec이다.
+이 문서는 과거 배포된 전교임원선거의 운영 기준이다.
 학급 단위 일반 투표인 `Poll`과 구분하여, 여러 학급의 투표를 하나의
 `Election`으로 운영하는 기준을 정리한다.
 

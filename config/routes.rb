@@ -130,47 +130,8 @@ Rails.application.routes.draw do
     resource :roster, only: %i[edit update], controller: "participant_group_rosters"
   end
 
-  namespace :elections do
-    resources :sessions, only: %i[show] do
-      get :ballot, on: :member
-      post :close_ballot_screen, on: :member
-      post :hide_from_teacher, on: :member
-      post :start, on: :member
-      post :open_ballot, on: :member
-      post :lock_ballot, on: :member
-      post :advance_voter, on: :member
-      post :mark_absent, on: :member
-      post :mark_next_absent, on: :member
-      post :submit_ballot, on: :member
-      post :close, on: :member
-    end
-  end
-
   namespace :admin do
     resources :schools, only: %i[new create]
-    resources :election_rosters, only: %i[index new create edit update destroy] do
-      get :new_bulk, on: :collection
-      post :bulk_create, on: :collection
-      get :edit_students, on: :member
-      patch :update_students, on: :member
-    end
-    resources :elections, only: %i[index show new create edit update destroy] do
-      get :results, on: :member
-      post :start, on: :member
-      post :stop, on: :member
-      post :close, on: :member
-      post :emergency_reset, on: :member
-      post :mock_candidates, on: :member, action: :create_mock_candidates
-      delete :candidate_photos, on: :member, action: :purge_candidate_photos
-      resources :election_sessions, path: "sessions", only: %i[create destroy] do
-        post :bulk_create, on: :collection
-        delete :destroy_grade, on: :collection
-        post :revote, on: :member
-      end
-      resources :election_contests, path: "contests", only: [] do
-        resources :election_candidates, path: "candidates", only: %i[new create edit update destroy]
-      end
-    end
   end
 
   root "dashboards#show"

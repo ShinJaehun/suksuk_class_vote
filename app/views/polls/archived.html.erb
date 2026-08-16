@@ -6,7 +6,7 @@
     </div>
   </div>
 
-  <% if @archived_poll_sessions.any? || @polls.any? || @closed_election_sessions.any? %>
+  <% if @archived_poll_sessions.any? || @polls.any? %>
     <ul class="space-y-3">
       <% @archived_poll_sessions.each do |poll_session| %>
         <% poll = poll_session.poll %>
@@ -63,33 +63,6 @@
         </li>
       <% end %>
 
-      <% @closed_election_sessions.each do |election_session| %>
-        <li class="rounded-md border border-indigo-100 bg-indigo-50/30 p-4">
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div class="space-y-1">
-              <div class="flex flex-wrap items-center gap-2">
-                <h2 class="font-medium"><%= election_session.election.title %></h2>
-                <%= election_kind_badge(election_session.election) %>
-                <span class="rounded-md border border-stone-300 bg-stone-100 px-2 py-1 text-sm font-medium text-stone-700">종료</span>
-              </div>
-              <p class="text-sm text-stone-600">
-                <%= election_session_roster_label(
-                      election_session,
-                      voter_count: @election_session_voter_counts.fetch(election_session.id, 0)
-                    ) %>
-                <% session_time_labels = election_session_status_time_labels(election_session) %>
-                <% if session_time_labels.any? %>
-                  / <%= session_time_labels.join(" · ") %>
-                <% end %>
-              </p>
-            </div>
-
-            <%= link_to "상세",
-                        elections_session_path(election_session),
-                        class: "text-sm font-medium text-indigo-700 underline" %>
-          </div>
-        </li>
-      <% end %>
     </ul>
   <% else %>
     <p class="rounded-md border border-stone-200 bg-white p-4 text-stone-600">보관된 투표가 없습니다.</p>

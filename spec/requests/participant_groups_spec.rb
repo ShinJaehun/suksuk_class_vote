@@ -204,12 +204,12 @@ RSpec.describe "Voter groups", type: :request do
       school = create(:school)
       participant_group = create(:participant_group, :school_election, school: school)
       participant_slot = create(:participant_slot, participant_group: participant_group)
-      return_to = admin_election_rosters_path(school_id: school.id)
+      return_to = schools_path
       sign_in admin
 
       get participant_group_path(participant_group, return_to: return_to)
 
-      expect(response.body).to include("전교임원선거 투표자 목록으로 돌아가기")
+      expect(response.body).to include("이전 화면으로 돌아가기")
       expect(response.body).to include(return_to)
       expect(response.body).to include(new_participant_group_participant_slot_path(participant_group, return_to: return_to))
       expect(response.body).to include(new_participant_group_bulk_participant_slots_path(participant_group, return_to: return_to))
@@ -221,7 +221,7 @@ RSpec.describe "Voter groups", type: :request do
       participant_group = create(:participant_group)
       sign_in admin
 
-      get participant_group_path(participant_group, return_to: "https://example.com/admin/election_rosters")
+      get participant_group_path(participant_group, return_to: "https://example.com/unsafe")
 
       expect(response.body).to include("투표자 목록으로 돌아가기")
       expect(response.body).to include(participant_groups_path)
@@ -310,15 +310,6 @@ RSpec.describe "Voter groups", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("관리자 수정 그룹")
-    end
-
-    it "redirects admins to the election roster edit page for school election groups" do
-      sign_in create(:user, :admin)
-      participant_group = create(:participant_group, :school_election)
-
-      get edit_participant_group_path(participant_group)
-
-      expect(response).to redirect_to(edit_admin_election_roster_path(participant_group))
     end
 
     it "allows editing while used by an in-progress poll" do

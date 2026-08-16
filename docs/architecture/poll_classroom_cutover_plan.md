@@ -299,8 +299,8 @@ Classroom PollSession을 배정한다. 전교 Poll 전체 시작·종료와 clos
 - 실행 기록의 PollSession FK를 필수로 전환한 뒤 runtime의 Poll 직접 실행 association을 제거한다.
 - `polls.participant_group_id`, `poll_participants.source_participant_slot_id` FK/index/column과 model
   association, legacy spec을 제거한다.
-- Election 실제 데이터 Classroom 전환과 runtime legacy 분기 제거가 완료되면 Election
-  일회성 변환 도구의 보존/제거 시점을 결정한다.
+- Election runtime과 과거 일회성 Classroom 변환 도구는 제거됐다. legacy table은
+  Election ID 6 historical Poll 변환과 검증 뒤 별도 schema 작업에서 제거한다.
 - 저장소 전체 검색으로 Poll·Election 외 의존이 없음을 확인한 후
   ParticipantGroup·ParticipantSlot 모델·controller·policy·view·table을 삭제한다.
 
@@ -313,7 +313,7 @@ Classroom PollSession을 배정한다. 전교 Poll 전체 시작·종료와 clos
 5. 운영 DB의 기존 Poll 보존 범위를 조사한다.
 6. 필요한 legacy Poll을 PollSession으로 backfill한다.
 7. 신규 Classroom/PollSession runtime과 legacy ParticipantGroup Poll runtime을 서버 측에서 분리한다.
-8. 검증된 historical Poll 변환 뒤 Election runtime과 table을 제거한다.
+8. 검증된 historical Poll 변환 뒤 Election table을 제거한다(runtime 제거 완료).
 9. 전환 검증 뒤 ParticipantGroup·ParticipantSlot을 제거한다.
 10. 전체 데이터를 검산하고 운영 전환한다.
 
@@ -403,9 +403,9 @@ invariant로 만들지 않는다.
 
 ## 11. 제거 완료 조건
 
-- [ ] Election 신규 세션 생성·시작·재투표에 legacy source 사용이 없다.
+- [x] Election 신규 세션 생성·시작·재투표 runtime이 제거됐다.
 - [ ] 선택한 실제 Election의 Classroom 일회성 변환과 invariant 검증이 완료됐다.
-- [ ] Election runtime legacy 표시·조회·StartSession 분기가 제거됐다.
+- [x] Election runtime legacy 표시·조회·StartSession 분기가 제거됐다.
 - [ ] Poll 신규 생성·시작·운영·결과·보관 경로에 legacy source 사용이 없다.
 - [ ] 운영 Poll 보존 범위가 확정되고 필요한 데이터 전환/검증이 완료됐다.
 - [ ] Poll runtime과 표시에서 ParticipantGroup·ParticipantSlot 분기가 제거됐다.

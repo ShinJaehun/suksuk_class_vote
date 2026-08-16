@@ -6,8 +6,8 @@
 
 모든 신규 학급투표와 전교투표는 `Poll` 정의와 학급별 `PollSession`으로 운영한다.
 `Poll.kind`는 선거, 설문조사, 토의, 토론을 표현한다. 기존 `Election`/`ElectionSession`
-runtime은 Election ID 6의 historical Poll 변환과 검증이 끝날 때까지 호환 목적으로 남지만,
-신규 Election 기능은 더 이상 개발하지 않는다.
+runtime과 HTTP 경로는 제거됐다. 관련 DB table과 migration은 Election ID 6 복원·변환을 위해
+후속 schema 정리 전까지 유지한다.
 
 ---
 
@@ -157,6 +157,9 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - 보관은 status가 아니라 `archived_at`으로 관리
 - 기본 투표 목록 `/polls`에서는 보관된 투표를 숨기고, 보관 목록 `/polls/archived`에서 확인
 - 보관된 투표 상세 `/polls/:id` 접근 가능
+
+다음 항목은 제거된 legacy Election runtime의 구현 연혁이다.
+
 - Admin `Election` 상세 화면에 상태점검, 기본 정보, 학급 세션 목록을 표시하고 Turbo Stream `admin_overview`로 갱신
 - Admin `Election`이 `closed` 된 뒤 접근 가능한 결과 페이지 `/admin/elections/:id/results` 추가
 - Admin `Election` 목록 `/admin/elections`는 선거 이름, 종류 배지, 상태 배지, 관리/시작 준비 버튼 중심으로 간결하게 표시
@@ -175,6 +178,7 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - 알 수 없거나 custom인 `Election` kind는 강제 번역하지 않고 원래 kind 값을 fallback으로 표시
 - `admin/elections`의 큰 제목 `선거 관리`는 관리 영역 이름으로 유지
 - 투표/선거 이벤트 시간은 기존 KST 표시 helper 정책에 따라 KST 기준으로 표시
+
 ### 신규 Classroom/PollSession runtime
 
 - School·SchoolMembership·Classroom·Student 조직 기반 구현
@@ -218,11 +222,11 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - 후보 수에 따라 1·2·3·4·6·7열 grid를 사용
 - global admin 전용 테스트 선거 항목 4개·후보 50명 생성 도구 구현
 
-### 기존 Election/ElectionSession runtime
+### 제거된 Election/ElectionSession runtime
 
-- 신규 ElectionSession은 Classroom 기반이며 기존 운영 데이터는 전환 기간 동안 ParticipantGroup 기반을 유지할 수 있는 dual-source 구조 구현
-- 선택 Election의 명단 source를 Classroom/Student로 바꾸는 dry-run 기본·`APPLY=1` 변환 도구 구현
-- 실제 Election ID 6 운영 데이터에는 변환 도구를 적용하지 않음
+- HTTP route, controller, view, service, model, policy, helper와 전용 spec/factory 제거
+- `/polls`, `/polls/archived`의 ElectionSession compatibility 표시 제거
+- DB table, migration과 Election ID 6 복원 계약은 후속 데이터·schema 작업을 위해 유지
 
 현재 PollSession 흐름은 교사 시작 → active Student snapshot과 첫 current 지정 → ballot locked → 학생
 투표 창 → 교사 승인으로 ballot open → Contest별 제출과 tally/completion 기록 → 모든 Contest 완료 뒤
@@ -237,13 +241,11 @@ Classroom Session을 배정한다. 현재 runtime 경계는 다음과 같다.
 
 1. 신규 Classroom/PollSession runtime: 위 학급·전교투표 흐름을 사용한다.
 2. legacy ParticipantGroup 기반 Poll runtime: 기존 기록 호환을 위해 별도 경로가 남아 있다.
-3. 기존 Election/ElectionSession runtime: Classroom/ParticipantGroup dual-source로 운영 기록을 호환한다.
 
 PollSession 중단·stopped 운영 이력과 일반·전교투표 replacement 재투표는 구현됐다.
-historical/read_only Poll과 Election ID 6의 historical Poll·후보 사진 변환은 미구현이며 운영 데이터에는
-Classroom 변환 task조차 아직 적용하지 않았다. 신규/legacy Poll runtime 서버 측 분리, 운영 Poll
-보존 범위 조사와 PollSession backfill 뒤 Election runtime/table과 ParticipantGroup·ParticipantSlot
-제거를 판단한다.
+historical/read_only Poll과 Election ID 6의 historical Poll·후보 사진 변환은 미구현이다.
+Election runtime은 제거했으며 DB table은 복원·변환과 검증 뒤 별도 schema 작업에서 제거한다.
+ParticipantGroup·ParticipantSlot과 이를 사용하는 legacy Poll compatibility는 그 다음 단계까지 유지한다.
 
 현재 `Poll` 상태 흐름:
 
@@ -266,8 +268,8 @@ Classroom 변환 task조차 아직 적용하지 않았다. 신규/legacy Poll ru
 운영하고, 모든 Session이 closed가 된 뒤 관리자가 전체 Poll을 종료한다. 전체 결과에는 closed
 Session tally만 포함한다.
 
-기존 Election ID 6은 추후 historical Poll로 변환하고 검증한 뒤 Election runtime과 table을
-제거한다. historical/read_only 상태는 변환 전에 별도 구현한다.
+기존 Election ID 6은 추후 historical Poll로 변환하고 검증한 뒤 legacy table을 제거한다.
+historical/read_only 상태는 변환 전에 별도 구현한다.
 
 ---
 
@@ -328,7 +330,7 @@ Session tally만 포함한다.
 5. 운영 DB의 기존 Poll 보존 범위 조사
 6. 필요한 legacy Poll의 PollSession backfill
 7. 신규 PollSession runtime과 legacy ParticipantGroup Poll runtime 분리
-8. Election runtime과 table 제거
+8. Election table 제거(runtime 제거 완료)
 9. ParticipantGroup·ParticipantSlot 제거
 10. 전체 데이터 검산과 운영 전환
 

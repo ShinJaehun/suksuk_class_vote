@@ -1,7 +1,7 @@
 <div class="space-y-6">
-  <p><%= link_to "전교임원선거 투표자 목록으로 돌아가기", admin_election_rosters_path, class: "text-sm font-medium text-stone-700 underline" %></p>
+  <p><%= link_to "학교 목록으로 돌아가기", schools_path, class: "text-sm font-medium text-stone-700 underline" %></p>
 
-  <h1 class="text-2xl font-semibold">전교임원선거 학교 추가</h1>
+  <h1 class="text-2xl font-semibold">학교 추가</h1>
 
   <% if @school.errors.any? %>
     <div class="rounded-md border border-red-200 bg-red-50 p-4 text-red-800">

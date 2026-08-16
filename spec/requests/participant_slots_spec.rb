@@ -114,7 +114,7 @@ RSpec.describe "Voter slots", type: :request do
       admin = create(:user, :admin)
       school = create(:school)
       participant_group = create(:participant_group, :school_election, school: school)
-      return_to = admin_election_rosters_path(school_id: school.id)
+      return_to = schools_path
       sign_in admin
 
       expect do
@@ -257,7 +257,7 @@ RSpec.describe "Voter slots", type: :request do
       school = create(:school)
       participant_group = create(:participant_group, :school_election, school: school)
       participant_slot = create(:participant_slot, participant_group: participant_group)
-      return_to = admin_election_rosters_path(school_id: school.id)
+      return_to = schools_path
       sign_in admin
 
       patch participant_group_participant_slot_path(participant_group, participant_slot, return_to: return_to), params: {
@@ -332,7 +332,7 @@ RSpec.describe "Voter slots", type: :request do
       school = create(:school)
       participant_group = create(:participant_group, :school_election, school: school)
       participant_slot = create(:participant_slot, participant_group: participant_group)
-      return_to = admin_election_rosters_path(school_id: school.id)
+      return_to = schools_path
       sign_in admin
 
       expect do

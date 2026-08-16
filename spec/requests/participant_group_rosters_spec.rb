@@ -27,7 +27,7 @@ RSpec.describe "Participant group rosters", type: :request do
     admin = create(:user, :admin)
     participant_group = create(:participant_group, :school_election)
     slot = create(:participant_slot, participant_group: participant_group)
-    return_to = admin_election_rosters_path(school_id: participant_group.school_id)
+    return_to = schools_path
     sign_in admin
 
     get edit_participant_group_roster_path(participant_group, return_to: return_to)

@@ -1,5 +1,8 @@
 # Election 명단을 Classroom·Student로 전환하는 최소 계획
 
+> 상태: legacy Election runtime 제거 전의 전환 기록이다. 현재 runtime 기준으로 사용하지 않으며,
+> Election ID 6 복원·historical Poll 변환 시 데이터 구조 참고 자료로만 사용한다.
+
 ## 목차
 
 1. [문서 목적](#1-문서-목적)

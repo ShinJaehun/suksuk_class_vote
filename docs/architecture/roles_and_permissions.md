@@ -65,10 +65,8 @@ admin은 다음 범위의 최고 관리 권한을 가진다.
 * SchoolMembership 목록·추가·제거와 manager 지정·해제
 * 일반 Poll과 PollSession의 조회·운영·상태 lifecycle
 * school-managed Poll의 정의·전체 lifecycle·학급 Session 재투표와 reset
-* legacy Election의 생성·구성·세션 배정·비상 초기화 등 관리
-* 모든 ElectionSession 조회·운영과 admin 전용 학급 재투표
 
-교사 학교 이전은 현재 구현된 권한으로 간주하지 않는다. admin은 관리 대상 교사, manager는 자기 학교 교사의 임시 비밀번호를 개별 재발급할 수 있다. 또한 admin 권한이라도 Poll/Election
+교사 학교 이전은 현재 구현된 권한으로 간주하지 않는다. admin은 관리 대상 교사, manager는 자기 학교 교사의 임시 비밀번호를 개별 재발급할 수 있다. 또한 admin 권한이라도 Poll
 상태와 보존 조건을 무시하지 않으며 각 policy와 service guard를 통과해야 한다.
 
 ### SchoolMembership manager
@@ -86,7 +84,7 @@ manager 권한은 membership이 속한 학교로 한정된다.
 * 자기 학교 전교투표 학급 Session의 시작과 replacement 재투표
 
 manager는 다른 학교 자원에 접근하지 못한다. manager 지정·해제는 할 수 없고, 담당 Classroom이 남은
-교사의 membership도 제거할 수 없다. legacy `Election` 관리 권한은 없으며 해당 기능은 admin-only다.
+교사의 membership도 제거할 수 없다.
 manager는 자기 profile과 비밀번호를 변경할 수 있지만 자기 계정을 비활성화하거나 삭제할 수 없다. 자기 학교 일반 선생님의 lifecycle 관리는 기존 범위에서 가능하며, 자기 lifecycle 제한은 UI뿐 아니라 `UserPolicy`의 record authorization으로 강제한다. global admin의 기존 선생님 관리 권한은 유지된다.
 
 ### 일반 teacher/member
@@ -101,7 +99,6 @@ manager는 자기 profile과 비밀번호를 변경할 수 있지만 자기 계�
 * 자신이 operator이거나 담당 Classroom에 연결된 일반 PollSession의 정의·상태 lifecycle 관리
 * 자신에게 배정된 school-managed PollSession 시작
 * 자신이 operator인 PollSession의 ballot·참여자 진행과 종료 운영
-* 자신에게 배정된 legacy ElectionSession 운영과 stopped 상세 숨김
 
 다른 교사의 Classroom·Student, 다른 학교 자원, school-managed Poll 전체 lifecycle에는 접근하지 못한다.
 전교투표 학급 Session의 replacement 재투표도 manager 또는 admin 권한이며 일반 teacher 권한이 아니다.
@@ -167,26 +164,14 @@ school-managed Poll 전체 lifecycle과 학급 Session 운영은 분리한다.
 
 일반 teacher가 학급 Session을 운영할 수 있다는 사실은 parent 전교투표 전체 lifecycle 권한을 뜻하지 않는다.
 
-### legacy Election / ElectionSession
-
-`Election` / `ElectionSession` runtime은 historical Poll 전환 전까지 호환 목적으로 남아 있다.
-
-* `ElectionPolicy`의 목록·조회·생성·수정·삭제·세션 관리·비상 초기화는 admin-only다.
-* SchoolMembership manager에게 legacy Election 관리 권한은 없다.
-* admin은 모든 ElectionSession을 운영하고 in_progress parent의 학급 재투표를 실행할 수 있다.
-* 배정된 teacher는 parent가 draft가 아닐 때 자기 ElectionSession을 조회·시작·ballot 운영·종료할 수 있다.
-* 배정된 teacher는 자기 stopped Session을 본인 목록에서 숨길 수 있다.
-
----
-
 ## legacy ParticipantGroup / ParticipantSlot
 
-`ParticipantGroup`과 `ParticipantSlot`은 legacy Poll/Election 호환을 위해 아직 남아 있다. 신규
+`ParticipantGroup`과 `ParticipantSlot`은 legacy Poll 호환을 위해 아직 남아 있다. 신규
 Classroom/PollSession 구조의 기본 명단 관리 방식은 아니며, 신규 투표는 Classroom의 active Student를
 snapshot 원본으로 사용한다.
 
 legacy 관리 화면에서는 기존 policy에 따라 admin이 전체 group을, teacher가 본인 group을 관리한다.
-legacy Poll/Election 기록과 직접 연결된 세부 권한은 해당 runtime policy를 따른다. 이 구조는 운영 데이터
+legacy Poll 기록과 직접 연결된 세부 권한은 해당 runtime policy를 따른다. 이 구조는 운영 데이터
 조사·backfill과 legacy runtime 제거가 끝나기 전까지 임의로 삭제하지 않는다.
 
 ---

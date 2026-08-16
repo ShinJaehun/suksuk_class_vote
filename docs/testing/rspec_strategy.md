@@ -54,8 +54,8 @@ School / Classroom / active Student
 → 필요 시 replacement
 ```
 
-ParticipantGroup / ParticipantSlot 기반 Poll과 Election / ElectionSession은 아직 제거되지 않았다.
-신규 runtime 테스트로 대체됐다고 보지 않고, 최종 전환 전까지 별도 호환 회귀 대상으로 유지한다.
+ParticipantGroup / ParticipantSlot 기반 Poll은 아직 제거되지 않아 별도 호환 회귀 대상으로 유지한다.
+Election / ElectionSession runtime과 전용 spec은 제거됐으며 DB 복원·변환 검증은 후속 작업에서 다룬다.
 
 ---
 
@@ -67,7 +67,7 @@ ParticipantGroup / ParticipantSlot 기반 Poll과 Election / ElectionSession은 
 * teacher는 자기 학교·담당 Classroom·운영 PollSession 범위만 접근한다.
 * manager는 자기 학교 school-managed Poll 범위만 관리한다.
 * 다른 교사와 다른 학교의 Classroom, Student, Poll, PollSession 접근은 차단된다.
-* admin과 teacher/manager의 권한 차이, 신규 Poll과 legacy Election 권한 경계를 고정한다.
+* admin과 teacher/manager의 신규 Poll 권한 경계를 고정한다.
 
 ### Classroom / Student와 snapshot
 
@@ -174,7 +174,7 @@ ParticipantGroup / ParticipantSlot model spec은 legacy Poll 제거 전까지 �
 * schoolwide start/stop/close/reset와 batch broadcast
 
 legacy `Polls::Start`와 직접 실행 service spec은 ParticipantGroup Poll runtime 제거 전까지 회귀
-대상이다. Election service spec도 historical Poll 전환 전까지 운영 기록과 결과를 보호한다.
+대상이다. Election ID 6의 DB 복원·변환 검증은 runtime service spec과 분리한다.
 
 ### policy spec
 
@@ -183,7 +183,6 @@ global role, SchoolMembership role, 학교 scope와 실제 operator 경계를 �
 * admin, manager, 일반 teacher의 범위를 구분한다.
 * 다른 학교·다른 Classroom·다른 operator 접근을 차단한다.
 * school-managed Poll 전체 lifecycle과 학급 Session 운영 권한을 분리한다.
-* legacy Election 관리와 배정된 ElectionSession 운영 권한을 구분한다.
 
 ### request spec
 
@@ -227,7 +226,7 @@ controller 권한, 응답 형식과 상태 변화를 고정한다.
 
 * 신규 Classroom/PollSession runtime은 현재 기본 회귀 대상이다.
 * ParticipantGroup/ParticipantSlot과 `Polls::Start` 기반 Poll은 제거 전까지 호환 회귀 대상이다.
-* Election/ElectionSession은 historical Poll 전환 완료 전까지 운영 기록 보호용 회귀 대상이다.
+* Election/ElectionSession runtime 전용 회귀 spec은 제거됐다.
 
 다음 전환에서는 migration 자체보다 변환 전후 invariant와 조회 결과 보존을 우선 검증한다.
 
