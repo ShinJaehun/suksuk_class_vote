@@ -9,14 +9,11 @@ RSpec.describe "PollSession execution links", type: :model do
     create(:poll_session, poll: poll, classroom: classroom, operator: classroom.teacher)
   end
 
-  describe "optional PollSession associations" do
-    it "keeps legacy records valid without a PollSession" do
-      poll_option = create(:poll_option, poll: poll)
-      poll_contest = poll_option.poll_contest
-
-      expect(build(:poll_progress, poll: poll)).to be_valid
-      expect(build(:poll_option_tally, poll: poll, poll_option: poll_option)).to be_valid
-      expect(build(:poll_contest_tally, poll: poll, poll_contest: poll_contest)).to be_valid
+  describe "PollSession associations" do
+    it "requires runtime records to belong to a PollSession" do
+      expect(build(:poll_progress, poll: poll, poll_session: nil)).to be_invalid
+      expect(build(:poll_option_tally, poll: poll, poll_session: nil)).to be_invalid
+      expect(build(:poll_contest_tally, poll: poll, poll_session: nil)).to be_invalid
       expect(build(:poll_event, poll: poll)).to be_valid
     end
 
@@ -57,7 +54,7 @@ RSpec.describe "PollSession execution links", type: :model do
     end
   end
 
-  describe "PollSession associations" do
+  describe "PollSession record access" do
     it "exposes its execution records" do
       poll_session = create_poll_session_for(poll)
       poll_option = create(:poll_option, poll: poll)
@@ -77,7 +74,7 @@ RSpec.describe "PollSession execution links", type: :model do
     end
   end
 
-  describe "transitional uniqueness" do
+  describe "runtime uniqueness" do
     it "keeps participant numbers unique per PollSession" do
       first_session = create_poll_session_for(poll)
       second_session = create_poll_session_for(poll)
@@ -87,10 +84,7 @@ RSpec.describe "PollSession execution links", type: :model do
       expect(build(:poll_participant, poll: poll, poll_session: second_session, number: 2)).to be_valid
     end
 
-    it "keeps progress unique per legacy Poll and per PollSession" do
-      create(:poll_progress, poll: poll)
-      expect(build(:poll_progress, poll: poll)).to be_invalid
-
+    it "keeps progress unique per PollSession" do
       first_session = create_poll_session_for(poll)
       second_session = create_poll_session_for(poll)
       create(:poll_progress, poll: poll, poll_session: first_session)
@@ -99,11 +93,8 @@ RSpec.describe "PollSession execution links", type: :model do
       expect(build(:poll_progress, poll: poll, poll_session: second_session)).to be_valid
     end
 
-    it "keeps option tallies unique per legacy Poll and per PollSession" do
+    it "keeps option tallies unique per PollSession" do
       poll_option = create(:poll_option, poll: poll)
-      create(:poll_option_tally, poll: poll, poll_option: poll_option)
-      expect(build(:poll_option_tally, poll: poll, poll_option: poll_option)).to be_invalid
-
       first_session = create_poll_session_for(poll)
       second_session = create_poll_session_for(poll)
       create(:poll_option_tally, poll: poll, poll_session: first_session, poll_option: poll_option)
@@ -114,11 +105,8 @@ RSpec.describe "PollSession execution links", type: :model do
                                        poll_option: poll_option)).to be_valid
     end
 
-    it "keeps contest tallies unique per legacy Poll and per PollSession" do
+    it "keeps contest tallies unique per PollSession" do
       poll_contest = poll.default_poll_contest
-      create(:poll_contest_tally, poll: poll, poll_contest: poll_contest)
-      expect(build(:poll_contest_tally, poll: poll, poll_contest: poll_contest)).to be_invalid
-
       first_session = create_poll_session_for(poll)
       second_session = create_poll_session_for(poll)
       create(:poll_contest_tally, poll: poll, poll_session: first_session,

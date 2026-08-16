@@ -1079,13 +1079,6 @@ RSpec.describe "School Poll management", type: :request do
           votes_count: votes_count
         )
       end
-      create(
-        :poll_option_tally,
-        poll: poll,
-        poll_session: nil,
-        poll_option: president_option,
-        votes_count: 100
-      )
 
       [[first_closed, 1], [second_closed, 2]].each do |poll_session, abstentions_count|
         create(
@@ -1100,13 +1093,6 @@ RSpec.describe "School Poll management", type: :request do
         :poll_contest_tally,
         poll: poll,
         poll_session: stopped,
-        poll_contest: president,
-        abstentions_count: 100
-      )
-      create(
-        :poll_contest_tally,
-        poll: poll,
-        poll_session: nil,
         poll_contest: president,
         abstentions_count: 100
       )

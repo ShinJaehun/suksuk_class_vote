@@ -15,30 +15,6 @@ RSpec.describe PollContestTally, type: :model do
 
       expect(poll_contest_tally.poll.poll_contest_tallies).to include(poll_contest_tally)
     end
-
-    it "is available from poll contest" do
-      poll_contest_tally = create(:poll_contest_tally)
-
-      expect(poll_contest_tally.poll_contest.poll_contest_tally).to eq(poll_contest_tally)
-    end
-
-    it "is destroyed with poll" do
-      poll_contest_tally = create(:poll_contest_tally)
-      poll = poll_contest_tally.poll
-
-      expect do
-        poll.destroy!
-      end.to change(described_class, :count).by(-1)
-    end
-
-    it "is destroyed with poll contest" do
-      poll_contest_tally = create(:poll_contest_tally)
-      poll_contest = poll_contest_tally.poll_contest
-
-      expect do
-        poll_contest.destroy!
-      end.to change(described_class, :count).by(-1)
-    end
   end
 
   describe "validations" do
@@ -57,11 +33,7 @@ RSpec.describe PollContestTally, type: :model do
     end
 
     it "defaults abstentions count to 0" do
-      poll_contest = create(:poll_contest)
-      poll_contest_tally = described_class.create!(
-        poll_contest: poll_contest,
-        poll: poll_contest.poll
-      )
+      poll_contest_tally = create(:poll_contest_tally)
 
       expect(poll_contest_tally.abstentions_count).to eq(0)
     end
@@ -80,39 +52,16 @@ RSpec.describe PollContestTally, type: :model do
       expect(poll_contest_tally.errors[:abstentions_count]).to be_present
     end
 
-    it "does not allow duplicate tallies for the same poll and poll contest" do
+    it "requires a poll session" do
       poll_contest = create(:poll_contest)
-      create(:poll_contest_tally, poll: poll_contest.poll, poll_contest: poll_contest)
-      poll_contest_tally = build(:poll_contest_tally, poll: poll_contest.poll, poll_contest: poll_contest)
-
-      expect(poll_contest_tally).not_to be_valid
-      expect(poll_contest_tally.errors[:poll_contest_id]).to be_present
-    end
-
-    it "allows poll-level and session tallies for the same contest to coexist" do
-      poll_contest = create(:poll_contest)
-      poll = poll_contest.poll
-      school = create(:school)
-      poll.update!(school: school)
-
-      operator = create(:user)
-      poll_session = create(
-        :poll_session,
-        poll: poll,
-        classroom: create(:classroom, school: school),
-        operator: operator
-      )
-
-      create(:poll_contest_tally, poll: poll, poll_contest: poll_contest)
-
-      session_tally = build(
+      poll_contest_tally = build(
         :poll_contest_tally,
-        poll: poll,
-        poll_session: poll_session,
-        poll_contest: poll_contest
+        poll: poll_contest.poll,
+        poll_contest: poll_contest,
+        poll_session: nil
       )
-
-      expect(session_tally).to be_valid
+      expect(poll_contest_tally).not_to be_valid
+      expect(poll_contest_tally.errors[:poll_session]).to be_present
     end
 
     it "rejects duplicate contest tallies within one session" do
@@ -174,10 +123,12 @@ RSpec.describe PollContestTally, type: :model do
     end
 
     it "allows tallies for different poll contests in the same poll" do
-      poll = create(:poll)
-      create(:poll_contest_tally, poll: poll, poll_contest: poll.default_poll_contest)
-      poll_contest = create(:poll_contest, poll: poll, position: 2)
-      poll_contest_tally = build(:poll_contest_tally, poll: poll, poll_contest: poll_contest)
+      first_tally = create(:poll_contest_tally)
+      poll = first_tally.poll
+      poll_session = first_tally.poll_session
+      poll_contest = create(:poll_contest, poll: poll)
+      poll_contest_tally = build(:poll_contest_tally, poll: poll, poll_session: poll_session,
+                                                       poll_contest: poll_contest)
 
       expect(poll_contest_tally).to be_valid
     end

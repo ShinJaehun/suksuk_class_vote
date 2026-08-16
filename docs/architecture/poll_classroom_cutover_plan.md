@@ -14,11 +14,10 @@ Election과 Poll 양쪽의 의존을 모두 제거하여 `ParticipantGroup`·`Pa
 ## 2. 현재 구조
 
 신규 School 기반 흐름에서 `Poll`은 투표 정의이고 `PollSession`은 특정 Classroom에서 실제 시행한
-한 번의 실행이다. 기존 runtime에서는 여전히 `Poll` 하나가 정의와 실행을 함께 담당한다. 실행 기록의
-`poll_session_id`는 nullable이며 신규 기록은 `poll_id`와 현재 `poll_session_id`를 함께, legacy 기록은
-`poll_session_id = NULL`인 채 `poll_id`로 저장한다. PollSession ID는 Poll 내부 번호가 아니라 table
-전체의 전역 ID다. 개인별 선택을 저장하는 `PollVote` 모델은 없으며 참여 상태와 count-only tally를
-분리해 저장한다.
+한 번의 실행이다. PollParticipant·PollProgress·PollOptionTally·PollContestTally는 `poll_id`와
+필수 `poll_session_id`를 함께 저장한다. PollSession ID는 Poll 내부 번호가 아니라 table 전체의
+전역 ID다. 개인별 선택을 저장하는 `PollVote` 모델은 없으며 참여 상태와 count-only tally를 분리해
+저장한다. Poll-level 이벤트가 필요한 PollEvent만 optional PollSession을 유지한다.
 
 | 모델 | 현재 책임과 association | 상태·제약·삭제 |
 | --- | --- | --- |
@@ -317,10 +316,8 @@ Classroom PollSession을 배정한다. 전교 Poll 전체 시작·종료와 clos
 9. ParticipantGroup·ParticipantSlot DB schema 제거 migration을 적용한다(runtime 제거 및 migration 작성 완료).
 10. 전체 데이터를 검산하고 운영 전환한다.
 
-전환기에는 `Poll#poll_progress`, `PollOption#poll_option_tally`,
-`PollContest#poll_contest_tally` 단수 association이 legacy Poll runtime을 위해 남아 있다.
-legacy Poll runtime 분리 단계에서 이 사용처를 조사하고 신규 runtime이 PollSession association만
-사용하도록 정리해야 한다. 지금 즉시 단수 association을 제거하는 작업은 이 단계의 범위가 아니다.
+legacy direct-Poll용 `PollOption#poll_option_tally`, `PollContest#poll_contest_tally` 단수
+association은 제거됐다. 실행 tally 조회는 PollSession 또는 Poll의 collection association을 사용한다.
 
 ## 8. 권한과 학교 범위
 

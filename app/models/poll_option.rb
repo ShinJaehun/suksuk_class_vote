@@ -12,8 +12,6 @@ class PollOption < ApplicationRecord
                        resize_to_limit: [ 400, 400 ],
                        saver: { quality: 88, strip: true }
   end
-  has_one :poll_option_tally, dependent: :destroy
-
   validates :poll, presence: true
   validates :poll_contest, presence: true
   validates :number, presence: true,

@@ -931,12 +931,6 @@ RSpec.describe "PollSession ballots", type: :request do
       poll_option: second_option,
       votes_count: 0
     )
-    create(
-      :poll_option_tally,
-      poll: poll,
-      poll_option: option,
-      votes_count: 99
-    )
     create(:poll_participation, poll_participant: current, status: :completed)
     create_contest_completions(current)
     create(:poll_participation, poll_participant: waiting, status: :absent)
@@ -982,7 +976,7 @@ RSpec.describe "PollSession ballots", type: :request do
       "#{current.number}번 #{current.name} · 투표 완료",
       "#{waiting.number}번 #{waiting.name} · 미참여"
     )
-    expect(response.body).not_to include("99표", "전체 snapshot " + "명단")
+    expect(response.body).not_to include("전체 snapshot " + "명단")
     expect(response.body).not_to include(
       "학생 투표 화면 열기",
       ">투표 시작<",
@@ -1024,7 +1018,7 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(results_page.at_css('progress.result-progress-abstention[value="50"][max="100"]')).to be_present
     expect(results_page.css("progress[style]")).to be_empty
     expect(response.body).to include("data-testid=\"poll-session-printable-results\"")
-    expect(response.body).not_to include("99표", "종료 학급 집계", "집계 포함")
+    expect(response.body).not_to include("종료 학급 집계", "집계 포함")
   end
 
   it "shows tied winners and reports missing session tallies" do

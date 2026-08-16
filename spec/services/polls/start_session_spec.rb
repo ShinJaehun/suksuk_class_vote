@@ -126,11 +126,9 @@ RSpec.describe Polls::StartSession do
       expect(progress.started_at).to eq(poll_session.reload.started_at)
     end
 
-    it "creates zeroed tallies for every option and contest alongside legacy tallies" do
+    it "creates zeroed tallies for every option and contest for the PollSession" do
       poll_session, actor = create_startable_session
       poll = poll_session.poll
-      create(:poll_option_tally, poll: poll, poll_option: poll.poll_options.first)
-      create(:poll_contest_tally, poll: poll, poll_contest: poll.poll_contests.first)
 
       result = described_class.new(actor: actor, poll_session: poll_session).call
 

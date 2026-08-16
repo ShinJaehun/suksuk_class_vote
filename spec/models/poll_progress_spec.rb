@@ -18,13 +18,21 @@ RSpec.describe PollProgress, type: :model do
   end
 
   describe "validations" do
-    it "requires one poll progress per poll" do
-      poll = create(:poll)
-      create(:poll_progress, poll: poll)
-      poll_progress = build(:poll_progress, poll: poll)
+    it "requires one poll progress per PollSession" do
+      existing_progress = create(:poll_progress)
+      poll_progress = build(:poll_progress, poll: existing_progress.poll,
+                                            poll_session: existing_progress.poll_session)
 
       expect(poll_progress).not_to be_valid
-      expect(poll_progress.errors[:poll_id]).to be_present
+      expect(poll_progress.errors[:poll_session_id]).to be_present
+    end
+
+    it "requires a poll session" do
+      poll = create(:poll)
+      poll_progress = build(:poll_progress, poll: poll, poll_session: nil)
+
+      expect(poll_progress).not_to be_valid
+      expect(poll_progress.errors[:poll_session]).to be_present
     end
 
     it "requires a status" do

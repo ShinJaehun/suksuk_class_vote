@@ -415,13 +415,11 @@ PollSession의 운영자 필드와 운영자 변경 이벤트에도 ElectionSess
 정책에 따라 운영할 수 있다. `operator_name_snapshot`은 당시 이름을 보존하고, 실제 운영 권한과
 학교 접근 범위는 PollSession 생성 service와 policy에서 검증한다.
 
-현재는 legacy Poll을 위해 `Poll.school_id`를 nullable로 두고 PollSession foundation과 실행 기록의
-nullable `poll_session_id` 연결을 추가했다. 기존 Poll runtime은 `poll_session_id = NULL`인 기록을
-계속 만들며 `poll_id`도 유지한다. participant number, progress, option/contest tally의 legacy와
-PollSession unique index는 분리되어 같은 Poll의 여러 학급 실행을 수용한다. PollParticipation은
-PollParticipant를 통해 간접 연결한다. 신규 PollSession 실행 기록은 `poll_id`와 `poll_session_id`를
-함께 가지며, PollSession ID는 Poll 내부 번호가 아니라 table 전체의 전역 ID다. legacy runtime
-분리와 data backfill은 후속 단계다.
+PollParticipant·PollProgress·PollOptionTally·PollContestTally는 `poll_id`와 필수
+`poll_session_id`를 함께 가지며 PollSession별 unique index로 같은 Poll의 여러 학급 실행을
+수용한다. PollParticipation은 PollParticipant를 통해 간접 연결한다. PollSession ID는 Poll 내부
+번호가 아니라 table 전체의 전역 ID다. Poll-level 이벤트가 필요한 PollEvent의 PollSession 연결은
+optional로 유지한다.
 
 일반 학급투표는 `Polls::CreateDefinitionWithSession`이 Poll 정의와 최초 Classroom draft
 PollSession을 같은 transaction에서 만든다. `/polls/new`에서는 투표 이름과 활동 유형만 입력하고

@@ -186,7 +186,7 @@ OCI 단일 VM 배포에서는 host directory 또는 Docker volume을 Rails conta
 - Classroom 삭제는 inactive, 담임 미배정, Student 이력 0인 사용되지 않은 교실에만 허용하며 다른 historical reference가 있으면 비활성 상태로 보존
 - admin은 전체 학교, manager는 소속 학교, 일반 teacher는 담임 Classroom 범위에서 학급·학생을 관리
 - Student 단일·bulk 등록과 비활성화·복구 구현
-- PollSession foundation과 실행 기록의 nullable `poll_session_id` 연결 구현: 신규 기록은 `poll_id`와 `poll_session_id`를 함께, legacy 기록은 `poll_session_id = NULL`로 유지
+- PollParticipant·PollProgress·PollOptionTally·PollContestTally는 필수 `poll_session_id`와 `poll_id`를 함께 유지한다. Poll-level 이벤트를 지원하는 PollEvent만 optional PollSession을 사용한다.
 - 신규 Poll 정의와 최초 draft PollSession 동시 생성, 시작 시 active Student의 PollParticipant snapshot 생성 구현
 - `/polls/new`는 투표 이름과 활동 유형만 입력받고 현재 사용자의 active Classroom을 서버에서 사용한다.
   생성 transaction은 draft Poll, 기본 PollContest 1개, option이 없는 draft PollSession을 만들고

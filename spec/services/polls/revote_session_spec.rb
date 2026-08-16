@@ -130,7 +130,7 @@ RSpec.describe Polls::RevoteSession do
 
   it "rejects empty, archived, unauthorized, and school-managed sources" do
     empty, teacher = create_source
-    empty.poll_participants.delete_all
+    PollParticipant.where(poll_session: empty).delete_all
     expect(described_class.new(actor: teacher, poll_session: empty).call).not_to be_success
 
     archived, teacher = create_source
