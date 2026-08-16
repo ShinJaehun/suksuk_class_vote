@@ -45,7 +45,8 @@ legacy `SchoolElection` 구조는 제거되었다.
 `Classroom`, `Student`로 표현한다. 모든 신규 학급투표와 전교투표는 `Poll` 정의와
 학급별 `PollSession`을 사용한다. 후보자 선거는 `Poll.kind = election`, 설문조사는
 `survey`, 토의는 `discussion`, 토론은 `debate`로 표현한다. 기존 `Election` runtime은
-제거됐으며 DB table은 Election ID 6을 historical Poll로 변환하고 검증한 뒤 제거한다.
+제거됐으며 legacy DB table 제거 migration도 작성됐다. 과거 migration과 Election ID 6
+복원 계약은 유지한다.
 
 ## 3. 목표 조직 구조
 
@@ -355,8 +356,7 @@ Voter에 저장할 수 있다.
 ## 9. 기존 Election 전환
 
 `Election`, `ElectionContest`, `ElectionCandidate`, `ElectionSession` runtime은 제거됐다.
-legacy DB table은 Election ID 6을 Poll, PollContest, PollOption, PollSession과 count-only
-historical 기록으로 변환하고 검증할 때까지 유지한다. 후보 사진 변환, 재투표 관계와
+legacy DB table 제거 migration도 작성됐다. 후보 사진 변환, 재투표 관계와
 historical/read_only 표시는 복원 계약에 따라 후속 작업에서 구현한다.
 
 ## 10. Poll 목표 구조
@@ -611,16 +611,14 @@ historical/read_only는 목표 설계이며 현재 runtime에는 아직 구현�
 5. 운영 DB의 기존 Poll 보존 범위 조사
 6. 필요한 legacy Poll의 PollSession backfill
 7. legacy ParticipantGroup Poll runtime 제거 완료
-8. Election table 제거(runtime 제거 완료)
-9. ParticipantGroup·ParticipantSlot DB schema 제거(runtime 제거 완료)
+8. Election table 제거 migration 작성 완료(runtime 제거 완료, migration 적용 필요)
+9. ParticipantGroup·ParticipantSlot DB schema 제거 migration 작성 완료(runtime 제거 완료, migration 적용 필요)
 10. 전체 데이터 검산과 운영 전환
 
-따라서 실제 Election ID 6 운영 데이터 적용과 legacy DB schema 제거는 미완료다.
+따라서 실제 Election ID 6 운영 데이터 적용과 legacy DB schema migration 실행은 미완료다.
 
-`ParticipantGroup`/`ParticipantSlot` runtime은 제거됐지만 DB row는 export·복원 시 학생
-명단의 legacy 출처가 될 수 있다. schema를 일찍 삭제하면 새 Student/Voter 구조로 옮기지 못한
-기록의 의미를 잃는다. 두 콘텐츠의 전환과 이관
-검증이 끝날 때까지 호환 경계로 유지한다.
+`ParticipantGroup`/`ParticipantSlot` runtime은 제거됐고 관련 schema 제거 migration도 작성됐다.
+실제 적용 전에는 별도 backup과 복원 계약을 기준으로 보존 데이터를 검증한다.
 
 ## 14. 확정된 설계와 후속 검토 사항
 
