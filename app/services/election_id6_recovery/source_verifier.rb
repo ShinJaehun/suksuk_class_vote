@@ -3,6 +3,7 @@
 require "base64"
 require "date"
 require "digest"
+require_relative "source"
 
 module ElectionId6Recovery
   class SourceVerifier
