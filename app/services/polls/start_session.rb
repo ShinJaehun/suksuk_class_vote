@@ -6,8 +6,6 @@ module Polls
       end
     end
 
-    SINGLE_OPTION_MESSAGE = "선택지가 1개인 투표는 현재 시작할 수 없습니다."
-
     def initialize(actor:, poll_session:)
       @actor = actor
       @poll_session = poll_session
@@ -62,11 +60,8 @@ module Polls
       status_check = Polls::SessionStatusCheck.new(poll_session: poll_session).call
       errors.concat(status_check.issues) unless status_check.startable?
       errors << "draft 상태의 투표 실행만 시작할 수 있습니다." unless poll_session.draft?
-      validate_poll_definition
-      validate_classroom
       errors << "이 투표 실행을 운영할 권한이 없습니다." unless authorized_actor?
       errors << "운영자 이름을 저장할 수 없습니다." if operator_name_snapshot.blank?
-      errors << "이미 실행 기록이 생성된 투표 실행입니다." if execution_records_exist?
     end
 
     def validate_parent_poll_status
@@ -79,36 +74,6 @@ module Polls
       end
     end
 
-    def validate_poll_definition
-      if poll.blank?
-        errors << "투표 정의가 필요합니다."
-        return
-      end
-
-      errors << "학교가 지정된 투표만 시작할 수 있습니다." if poll.school.blank?
-      contests = poll.poll_contests.includes(:poll_options).to_a
-      errors << "투표 항목이 1개 이상 필요합니다." if contests.empty?
-      errors << "각 투표 항목에 선택지가 1개 이상 필요합니다." if contests.any? { |contest| contest.poll_options.empty? }
-
-      option_count = contests.sum { |contest| contest.poll_options.size }
-      errors << SINGLE_OPTION_MESSAGE if option_count == 1
-    end
-
-    def validate_classroom
-      if classroom.blank?
-        errors << "학급이 필요합니다."
-        return
-      end
-
-      errors << "활성 학급만 시작할 수 있습니다." unless classroom.active?
-      errors << "투표와 학급의 학교가 일치해야 합니다." if poll.present? && poll.school != classroom.school
-      if poll_session.replacement?
-        validate_replacement_roster
-      elsif active_students.empty?
-        errors << "활성 학생이 1명 이상이어야 합니다."
-      end
-    end
-
     def authorized_actor?
       return false if actor.blank? || classroom.blank?
       return true if actor.admin?
@@ -118,46 +83,6 @@ module Polls
       return false if membership.blank? || membership.school != classroom.school
 
       membership.manager? || classroom.teacher == actor
-    end
-
-    def execution_records_exist?
-      participant_records_invalid = if poll_session.replacement?
-                                      replacement_participation_records_exist?
-      else
-                                      poll_session.poll_participants.exists?
-      end
-
-      participant_records_invalid ||
-        poll_session.poll_progress.present? ||
-        poll_session.poll_option_tallies.exists? ||
-        poll_session.poll_contest_tallies.exists? ||
-        poll_session.poll_events.exists?
-    end
-
-    def replacement_participation_records_exist?
-      participant_ids = poll_session.poll_participant_ids
-      PollParticipation.where(poll_participant_id: participant_ids).exists? ||
-        PollContestCompletion.where(poll_participant_id: participant_ids).exists?
-    end
-
-    def validate_replacement_roster
-      participants = poll_session.poll_participants.to_a
-      errors << "투표자 명단이 1명 이상 필요합니다." if participants.empty?
-      if participants.any? { |participant| participant.number.blank? || participant.number <= 0 || participant.name.blank? }
-        errors << "투표자 명단의 번호와 이름을 확인해 주세요."
-      end
-      if participants.map(&:number).uniq.size != participants.size
-        errors << "투표자 명단의 번호가 중복되었습니다."
-      end
-      source = poll_session.replacement_of
-      valid_replacement = if poll.school_managed?
-                            source.poll == poll && poll.in_progress?
-      else
-                            !source.poll.school_managed? && poll.draft?
-      end
-      if source.classroom != classroom || !valid_replacement
-        errors << "재투표 원본과 학급·투표 정보를 확인해 주세요."
-      end
     end
 
     def start_locked_session

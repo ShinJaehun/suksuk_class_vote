@@ -278,7 +278,7 @@ RSpec.describe Polls::StartSession do
       result = described_class.new(actor: actor, poll_session: poll_session).call
 
       expect(result).not_to be_success
-      expect(result.error_message).to include("투표 대상 학생이 없습니다.", "활성 학생이 1명 이상이어야 합니다.")
+      expect(result.error_message).to include("투표 대상 학생이 없습니다.")
       expect(poll_session.reload).to be_draft
       expect(poll_session.poll_participants).to be_empty
       expect(poll_session.poll_progress).to be_nil

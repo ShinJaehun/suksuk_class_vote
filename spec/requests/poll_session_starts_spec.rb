@@ -140,7 +140,7 @@ RSpec.describe "PollSession starts", type: :request do
     post start_poll_poll_session_path(poll, poll_session)
 
     expect(response).to redirect_to(polls_path)
-    expect(flash[:alert]).to include("활성 학생")
+    expect(flash[:alert]).to include("투표 대상 학생이 없습니다.")
     expect(poll_session.reload).to be_draft
     expect(poll_session.poll_participants).to be_empty
   end
