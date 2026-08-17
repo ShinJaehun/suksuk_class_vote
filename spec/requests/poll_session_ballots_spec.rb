@@ -796,6 +796,26 @@ RSpec.describe "PollSession ballots", type: :request do
     )
   end
 
+  it "shows an abstained current participant as having completed voting" do
+    poll, poll_session, progress, current, waiting, option, tally, operator = create_execution
+    create(:poll_participation, poll_participant: current, status: :abstained)
+    create_contest_completions(current)
+    poll_session.poll_contest_tallies.find_by!(poll_contest: option.poll_contest)
+      .update!(abstentions_count: 1)
+    sign_in operator
+
+    get poll_poll_session_path(poll, poll_session)
+
+    operation = Nokogiri::HTML(response.body).at_css(
+      "turbo-frame#operation_poll_session_#{poll_session.id}"
+    )
+    expect(operation.text).to include(
+      "#{current.number}번 #{current.name} 학생이",
+      "투표를 완료했습니다."
+    )
+    expect(operation.text).not_to include("기권")
+  end
+
   it "shows an absent current participant and the next participant action" do
     poll, poll_session, progress, current, waiting, option, tally, operator = create_execution
     create(:poll_participation, poll_participant: current, status: :absent)
@@ -974,8 +994,10 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(status_check.text).not_to include("기권", "보관")
     expect(roster_rows).to include(
       "#{current.number}번 #{current.name} · 투표 완료",
-      "#{waiting.number}번 #{waiting.name} · 미참여"
+      "#{waiting.number}번 #{waiting.name} · 미참여",
+      "#{abstained.number}번 #{abstained.name} · 투표 완료"
     )
+    expect(roster_rows.join(" ")).not_to include("기권")
     expect(response.body).not_to include("전체 snapshot " + "명단")
     expect(response.body).not_to include(
       "학생 투표 화면 열기",

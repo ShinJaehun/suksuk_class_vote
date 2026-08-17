@@ -64,12 +64,12 @@
               </p>
             <% end %>
           <% else %>
-            <% outcome_message = if current_participation&.completed?
+            <% outcome_message = if current_participation&.completed? || current_participation&.abstained?
                                    "투표를 완료했습니다."
                                  elsif current_participation&.absent?
                                    "미참여 처리되었습니다."
                                  else
-                                   "기권 처리되었습니다."
+                                   current_participation&.status
                                  end %>
             <p class="text-center text-xl font-semibold text-emerald-700">
               <%= current_participant.number %>번 <%= current_participant.name %> 학생이

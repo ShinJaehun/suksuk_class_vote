@@ -14,7 +14,7 @@ module PollSessionsHelper
     {
       "completed" => "투표 완료",
       "absent" => "미참여",
-      "abstained" => "기권"
+      "abstained" => "투표 완료"
     }.fetch(poll_participation.status, poll_participation.status)
   end
 
