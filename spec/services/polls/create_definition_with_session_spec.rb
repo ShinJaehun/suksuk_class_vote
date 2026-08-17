@@ -233,5 +233,4 @@ RSpec.describe Polls::CreateDefinitionWithSession do
       expect(PollSession.count).to eq(original_counts[:sessions])
     end
   end
-
 end

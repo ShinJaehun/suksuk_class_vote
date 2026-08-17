@@ -68,6 +68,5 @@ RSpec.describe PollParticipant, type: :model do
       expect(build(:poll_participant, poll: source.poll, poll_session: replacement,
                                       number: 1)).to be_invalid
     end
-
   end
 end

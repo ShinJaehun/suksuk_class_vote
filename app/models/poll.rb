@@ -237,5 +237,4 @@ class Poll < ApplicationRecord
 
     poll_progress&.destroy!
   end
-
 end
