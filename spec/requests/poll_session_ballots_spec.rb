@@ -756,6 +756,28 @@ RSpec.describe "PollSession ballots", type: :request do
     )
   end
 
+  it "keeps polling but omits the operation stream for a read-only School manager" do
+    poll, poll_session, _progress, _current, _waiting, _option, _tally, _operator = create_execution
+    poll.update!(school_managed: true, status: :in_progress, started_at: Time.current)
+    manager = create(:user)
+    create(:school_membership, :manager, school: poll.school, user: manager)
+    sign_in manager
+
+    get poll_poll_session_path(poll, poll_session)
+
+    page = Nokogiri::HTML(response.body)
+    progress_frame = page.at_css("turbo-frame[data-controller='poll-session-progress']")
+    operation_subscription = page.at_css(
+      "turbo-cable-stream-source[channel='Turbo::StreamsChannel']"
+    )
+    expect(response).to have_http_status(:ok)
+    expect(progress_frame).to be_present
+    expect(progress_frame["data-poll-session-progress-url-value"]).to start_with(
+      "#{operation_frame_poll_poll_session_path(poll, poll_session)}?recovery_token="
+    )
+    expect(operation_subscription).to be_nil
+  end
+
   it "hides operation actions when the common status check fails" do
     poll, poll_session, progress, current, waiting, option, tally, operator = create_execution
     tally.destroy!

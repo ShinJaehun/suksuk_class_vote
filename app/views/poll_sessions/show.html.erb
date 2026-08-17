@@ -1,4 +1,4 @@
-<%= turbo_stream_from @poll_session, :operation_screen if @poll_session.in_progress? %>
+<%= turbo_stream_from @poll_session, :operation_screen if @poll_session.in_progress? && policy(@poll_session).operate? %>
 <% if @poll_session.poll.school_managed? && @poll_session.draft? %>
   <div data-controller="poll-session-recovery"
        data-poll-session-recovery-interval-value="10000"
