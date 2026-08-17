@@ -81,8 +81,7 @@ migration framework가 아니다. 아래 숫자는 현재 production 데이터�
 
 백업의 실제 선거 교사 계정 40개만 복원한다.
 
-- `name` 등 필요한 계정 식별 정보를 보존하고, 필요한 경우 기존 email을 보존한다.
-- `login_id`는 기존 계정 식별 정보에서 결정적으로 변환하되 개별 값은 문서화하지 않는다.
+- legacy source teacher의 email은 복구 입력 식별자로 사용하며, destination User에는 email을 저장하지 않고 정규화한 source email을 `login_id`로 사용한다.
 - 기존 `encrypted_password`는 가져오지 않는다.
 - 교사별 새 임시 비밀번호를 발급하지만 문서나 Git에 기록하지 않는다.
 - `password_change_required = true`, `active = true`로 복원한다.

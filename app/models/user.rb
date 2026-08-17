@@ -2,12 +2,11 @@ class User < ApplicationRecord
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable, :trackable and :omniauthable
   devise :database_authenticatable,
-         :rememberable, :validatable
+         :rememberable
 
   enum :role, { teacher: 0, admin: 10 }
 
   before_validation :normalize_login_id
-  before_validation :normalize_email
 
   has_one :school_membership, dependent: :destroy
   has_one :school, through: :school_membership
@@ -30,7 +29,9 @@ class User < ApplicationRecord
   validates :name, presence: true
   validates :role, presence: true
   validates :login_id, presence: true, uniqueness: { case_sensitive: false }
-  validates :email, presence: true, if: :admin?
+  validates_presence_of :password, if: :password_required?
+  validates_confirmation_of :password, if: :password_required?
+  validates_length_of :password, within: Devise.password_length, allow_blank: true
   validate :password_must_differ_from_login_id
   validate :running_poll_operator_cannot_be_deactivated, on: :update
 
@@ -40,10 +41,6 @@ class User < ApplicationRecord
 
   def inactive_message
     active? ? super : :inactive
-  end
-
-  def email_required?
-    admin?
   end
 
   private
@@ -65,8 +62,8 @@ class User < ApplicationRecord
     self.login_id = login_id.to_s.strip.downcase.presence
   end
 
-  def normalize_email
-    self.email = email.to_s.strip.downcase.presence
+  def password_required?
+    !persisted? || !password.nil? || !password_confirmation.nil?
   end
 
   def password_must_differ_from_login_id

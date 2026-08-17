@@ -111,7 +111,7 @@ module PollsHelper
   def school_poll_result_operator_name(poll_session)
     poll_session.operator_name_snapshot.presence ||
       poll_session.operator&.name.presence ||
-      poll_session.operator&.email
+      poll_session.operator&.login_id
   end
 
   def school_poll_result_session_time_labels(poll_session)

@@ -71,7 +71,7 @@ Election·Poll은 하나의 학교에 속한다.
 User
 - role: teacher / admin
 - name
-- email
+- login_id
 - encrypted_password
 - active
 ```

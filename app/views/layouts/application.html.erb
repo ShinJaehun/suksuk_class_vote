@@ -73,7 +73,7 @@
           <div class="flex flex-wrap items-center gap-3 text-sm text-stone-600">
             <% if user_signed_in? %>
               <%= link_to current_user.login_id,
-                          current_user.teacher? ? edit_teacher_path(current_user) : edit_password_change_path,
+                          edit_password_change_path,
                           class: "font-medium text-stone-700 underline",
                           data: { testid: "current-user-account-link" } %>
               <%= button_to "로그아웃",

@@ -20,11 +20,11 @@ module PollSessionsHelper
 
   def poll_session_event_target_label(event)
     if event.poll_level_event?
-      event.actor&.name.presence || event.actor&.email
+      event.actor&.name.presence || event.actor&.login_id
     elsif event.poll_participant.present?
       "#{event.poll_participant.number}번 #{event.poll_participant.name}"
     else
-      event.actor&.name.presence || event.actor&.email
+      event.actor&.name.presence || event.actor&.login_id
     end
   end
 

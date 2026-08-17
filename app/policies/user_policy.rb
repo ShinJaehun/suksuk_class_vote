@@ -8,7 +8,7 @@ class UserPolicy < ApplicationPolicy
   end
 
   def update?
-    record == user || admin_or_manager?
+    admin_or_manager?
   end
 
   def deactivate?

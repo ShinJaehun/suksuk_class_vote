@@ -181,7 +181,7 @@ module Polls
     def operator_name_snapshot
       return poll_session.operator_name_snapshot if poll&.school_managed?
 
-      actor&.name.presence || actor&.email
+      actor&.name.presence || actor&.login_id
     end
 
     def session_operator

@@ -108,7 +108,7 @@ module Polls
         operator: classroom.teacher,
         status: :draft,
         classroom_name_snapshot: "#{classroom.school_year}학년도 #{classroom.grade}학년 #{classroom.formatted_class_label}",
-        operator_name_snapshot: classroom.teacher.name.presence || classroom.teacher.email
+        operator_name_snapshot: classroom.teacher.name.presence || classroom.teacher.login_id
       )
     end
 

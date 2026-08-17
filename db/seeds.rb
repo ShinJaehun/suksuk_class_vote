@@ -11,7 +11,6 @@
 # Development/test-only admin account. Production admins must be created explicitly.
 if Rails.env.development? || Rails.env.test?
   User.find_or_create_by!(login_id: "a@a") do |user|
-    user.email = "a@a"
     user.password = "password"
     user.name = "관리자"
     user.role = :admin

@@ -113,7 +113,7 @@ module Polls
     end
 
     def operator_name_snapshot(operator)
-      operator.name.presence || operator.email
+      operator.name.presence || operator.login_id
     end
 
     def normalize_ids(values)

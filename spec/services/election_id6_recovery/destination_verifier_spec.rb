@@ -11,7 +11,7 @@ RSpec.describe ElectionId6Recovery::DestinationVerifier do
 
   it "rejects a destination count mismatch without exposing PII" do
     school = create(:school)
-    teacher = create(:user, name: "Private Teacher", email: "private@example.test")
+    teacher = create(:user, name: "Private Teacher", login_id: "private@example.test")
     membership = create(:school_membership, school: school, user: teacher)
     record = verifier(school: school, poll: double, owner: double, snapshot: double)
     set(record, :teachers, [teacher])

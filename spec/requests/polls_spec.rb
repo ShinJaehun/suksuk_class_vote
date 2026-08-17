@@ -12,7 +12,7 @@ RSpec.describe "Polls", type: :request do
     end
 
     it "shows a PollSession operated by the teacher" do
-      teacher = create(:user, name: "4-11", email: "teacher411@example.com")
+      teacher = create(:user, name: "4-11", login_id: "teacher411")
       school = create(:school)
       create(:school_membership, school: school, user: teacher)
       classroom = create(:classroom, school: school, teacher: teacher)

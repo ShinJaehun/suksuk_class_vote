@@ -93,8 +93,7 @@ RSpec.describe ElectionId6Recovery::Importer do
   end
 
   def create_owner(active: true, role: :admin)
-    create(:user, role: role, active: active, login_id: "recovery-owner",
-                  email: "owner@example.test")
+    create(:user, role: role, active: active, login_id: "recovery-owner")
   end
 
   it "imports the verified graph and publishes credentials after commit" do

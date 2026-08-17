@@ -13,7 +13,6 @@ RSpec.describe "Management navigation", type: :request do
 
     expect(account_link.text.squish).to eq(admin.login_id)
     expect(account_link["href"]).to eq(edit_password_change_path)
-    expect(header.text).not_to include(admin.email)
 
     expect(response.body).to include("로그아웃", %(action="#{destroy_user_session_path}"))
     expect(response.body).to include(%(href="#{schools_path}"), %(href="#{classrooms_path}"), %(href="#{teachers_path}"))
@@ -33,8 +32,7 @@ RSpec.describe "Management navigation", type: :request do
     get polls_path
     account_link = Nokogiri::HTML(response.body).at_css('[data-testid="current-user-account-link"]')
     expect(account_link.text.squish).to eq(manager.login_id)
-    expect(account_link["href"]).to eq(edit_teacher_path(manager))
-    expect(Nokogiri::HTML(response.body).at_css("header").text).not_to include(manager.email)
+    expect(account_link["href"]).to eq(edit_password_change_path)
     expect(response.body).to include("로그아웃", %(action="#{destroy_user_session_path}"))
     expect(response.body).to include(
       "내 교실",
@@ -55,8 +53,7 @@ RSpec.describe "Management navigation", type: :request do
     get polls_path
     account_link = Nokogiri::HTML(response.body).at_css('[data-testid="current-user-account-link"]')
     expect(account_link.text.squish).to eq(teacher.login_id)
-    expect(account_link["href"]).to eq(edit_teacher_path(teacher))
-    expect(Nokogiri::HTML(response.body).at_css("header").text).not_to include(teacher.email)
+    expect(account_link["href"]).to eq(edit_password_change_path)
     expect(response.body).to include("로그아웃", %(action="#{destroy_user_session_path}"))
     expect(response.body).to include("내 교실", %(href="#{classroom_students_path(classroom)}"))
     expect(response.body).not_to include(%(href="#{schools_path}"), %(href="#{classrooms_path}"), "선생님")

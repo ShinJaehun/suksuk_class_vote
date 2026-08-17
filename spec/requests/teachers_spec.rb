@@ -131,8 +131,7 @@ RSpec.describe "Teachers", type: :request do
     let(:teacher_params) do
       {
         name: "새 교사",
-        login_id: "new-teacher",
-        email: nil
+        login_id: "new-teacher"
       }
     end
 
@@ -145,7 +144,7 @@ RSpec.describe "Teachers", type: :request do
       end.to change(User.teacher, :count).by(1).and change(SchoolMembership, :count).by(1)
 
       teacher = User.find_by!(login_id: "new-teacher")
-      expect(teacher).to have_attributes(role: "teacher", email: nil, password_change_required: true)
+      expect(teacher).to have_attributes(role: "teacher", password_change_required: true)
       expect(teacher.school_membership).to have_attributes(school: school, role: "member", grade: 4)
       expect(classroom.reload.teacher).to eq(teacher)
       document = Nokogiri::HTML(response.body)
@@ -256,94 +255,14 @@ RSpec.describe "Teachers", type: :request do
       expect(response.body).not_to include("user[password]", "user[password_confirmation]")
     end
 
-    it "shows school context and lets an admin update only account attributes" do
-      teacher = create(:user, name: "변경 전", login_id: "before-id")
-      add_to_school(teacher, school).update!(grade: 4)
-      sign_in create(:user, :admin)
+    it "does not route individual teacher edit or update requests" do
+      expect {
+        Rails.application.routes.recognize_path("/teachers/1/edit", method: :get)
+      }.to raise_error(ActionController::RoutingError)
 
-      get edit_teacher_path(teacher, return_to: "teachers")
-      expect(response.body).to include(school.name, "4학년", "선생님 목록으로 돌아가기", teachers_path, "임시 비밀번호 재발급")
-      expect(response.body).not_to include("현재 비밀번호", "user[password]", "user[password_confirmation]")
-      expect(response.body).not_to include("학교 전체 비밀번호 초기화")
-
-      patch teacher_path(teacher), params: { return_to: "school", teacher_grade: "all", user: { name: "변경 후", login_id: "after-id", role: "admin" } }
-
-      expect(teacher.reload).to have_attributes(name: "변경 후", login_id: "after-id", role: "teacher")
-      expect(response).to redirect_to(school_path(school))
-    end
-
-    it "does not let a manager edit a teacher from another school" do
-      manager = create(:user)
-      add_to_school(manager, school, role: :manager)
-      outsider = create(:user)
-      add_to_school(outsider, other_school)
-      sign_in manager
-
-      get edit_teacher_path(outsider)
-
-      expect(response).to have_http_status(:not_found)
-    end
-
-    it "lets an ordinary teacher edit only their own account attributes" do
-      teacher = create(:user, name: "수정 전", login_id: "self-before")
-      membership = add_to_school(teacher, school)
-      other = create(:user)
-      add_to_school(other, school)
-      sign_in teacher
-
-      get edit_teacher_path(teacher)
-      expect(response).to have_http_status(:ok)
-      expect(response.body).to include("현재 비밀번호", "새 비밀번호", "새 비밀번호 확인", "비밀번호 변경", password_change_path)
-      expect(response.body).not_to include("선생님 목록으로 돌아가기", "학교 운영으로 돌아가기", "임시 비밀번호 재발급")
-
-      patch teacher_path(teacher), params: {
-        user: { name: "수정 후", login_id: "self-after", email: "self@example.com", role: "admin", active: false },
-        grade: 6,
-        classroom_id: create(:classroom, school: school, grade: 6).id
-      }
-      expect(teacher.reload).to have_attributes(name: "수정 후", login_id: "self-after", email: "self@example.com", role: "teacher", active: true)
-      expect(membership.reload.grade).to be_nil
-
-      get edit_teacher_path(other)
-      expect(response).to have_http_status(:not_found)
-      patch teacher_path(other), params: { user: { name: "침범" } }
-      expect(response).to have_http_status(:not_found)
-      expect(other.reload.name).not_to eq("침범")
-    end
-
-    it "lets a manager update their own profile" do
-      manager = create(:user, name: "변경 전", login_id: "manager-before")
-      add_to_school(manager, school, role: :manager)
-      sign_in manager
-
-      patch teacher_path(manager), params: { user: { name: "변경 후", login_id: "manager-after", email: "manager@example.com" } }
-
-      expect(manager.reload).to have_attributes(name: "변경 후", login_id: "manager-after", email: "manager@example.com")
-    end
-
-    it "shows the same temporary-password management to a same-school manager" do
-      target = create(:user)
-      add_to_school(target, school)
-      manager = create(:user)
-      add_to_school(manager, school, role: :manager)
-      sign_in manager
-
-      get edit_teacher_path(target, return_to: "school", teacher_grade: "all")
-
-      expect(response).to have_http_status(:ok)
-      expect(response.body).to include("학교 운영으로 돌아가기", "임시 비밀번호 재발급")
-      expect(response.body).not_to include("현재 비밀번호", "user[password]")
-    end
-
-    it "shows an unassigned membership without adding school-operation inputs" do
-      teacher = create(:user)
-      add_to_school(teacher, school)
-      sign_in create(:user, :admin)
-
-      get edit_teacher_path(teacher, return_to: "teachers")
-
-      expect(response.body).to include(school.name, "미배정")
-      expect(response.body).not_to include("school_membership[grade]", "classroom_id", "user[active]", "user[role]")
+      expect {
+        Rails.application.routes.recognize_path("/teachers/1", method: :patch)
+      }.to raise_error(ActionController::RoutingError)
     end
 
     it "issues a new temporary password without changing active state" do
@@ -704,20 +623,26 @@ RSpec.describe "Teachers", type: :request do
       add_to_school(first, school).update!(grade: 1)
       add_to_school(second, school).update!(grade: 2)
       add_to_school(outsider, other_school).update!(grade: 1)
+      first_classroom = create(:classroom, school: school, grade: 3)
+      second_classroom = create(:classroom, school: school, grade: 4)
       sign_in create(:user, :admin)
 
       patch bulk_update_teachers_path, params: {
         school_id: school.id,
         grade: "all",
         teachers: { rows: {
-          "0" => { id: first.id, name: "첫 변경", login_id: first.login_id, grade: 3, classroom_id: "" },
-          "1" => { id: second.id, name: "둘 변경", login_id: second.login_id, grade: 4, classroom_id: "" }
+          "0" => { id: first.id, name: "첫 변경", login_id: "first-changed", grade: 3, classroom_id: first_classroom.id },
+          "1" => { id: second.id, name: "둘 변경", login_id: "second-changed", grade: 4, classroom_id: second_classroom.id }
         } }
       }
 
       expect(response).to redirect_to(teachers_path(school_id: school.id, grade: "all"))
-      expect(first.reload.name).to eq("첫 변경")
-      expect(second.reload.name).to eq("둘 변경")
+      expect(first.reload).to have_attributes(name: "첫 변경", login_id: "first-changed")
+      expect(first.school_membership.reload.grade).to eq(3)
+      expect(first_classroom.reload.teacher).to eq(first)
+      expect(second.reload).to have_attributes(name: "둘 변경", login_id: "second-changed")
+      expect(second.school_membership.reload.grade).to eq(4)
+      expect(second_classroom.reload.teacher).to eq(second)
       expect(outsider.reload.name).to eq("외부 이름")
     end
 

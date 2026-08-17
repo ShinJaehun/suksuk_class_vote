@@ -15,4 +15,10 @@ RSpec.describe UserPolicy do
     expect(described_class.new(manager, teacher)).not_to be_issue_temporary_password
     expect(described_class.new(create(:user, :admin), teacher)).to be_update
   end
+
+  it "does not allow teachers to update their own profile" do
+    teacher = create(:user)
+
+    expect(described_class.new(teacher, teacher)).not_to be_update
+  end
 end

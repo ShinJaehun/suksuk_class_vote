@@ -85,13 +85,13 @@ manager 권한은 membership이 속한 학교로 한정된다.
 
 manager는 다른 학교 자원에 접근하지 못한다. manager 지정·해제는 할 수 없고, 담당 Classroom이 남은
 교사의 membership도 제거할 수 없다.
-manager는 자기 profile과 비밀번호를 변경할 수 있지만 자기 계정을 비활성화하거나 삭제할 수 없다. 자기 학교 일반 선생님의 lifecycle 관리는 기존 범위에서 가능하며, 자기 lifecycle 제한은 UI뿐 아니라 `UserPolicy`의 record authorization으로 강제한다. global admin의 기존 선생님 관리 권한은 유지된다.
+manager는 자기 비밀번호만 변경할 수 있고 자기 계정을 비활성화하거나 삭제할 수 없다. 자기 학교 일반 선생님의 기본 정보와 lifecycle 관리는 `/teachers`에서 기존 범위로 가능하며, 자기 lifecycle 제한은 UI뿐 아니라 `UserPolicy`의 record authorization으로 강제한다. global admin의 기존 선생님 관리 권한은 유지된다.
 
 ### 일반 teacher/member
 
 일반 teacher의 신규 구조 권한은 담당 Classroom과 실제 운영 Session을 중심으로 한다.
 
-일반 teacher는 다른 교사 목록이나 계정에 접근할 수 없지만 자신의 개인 계정 설정에서 이름·로그인 ID·이메일을 수정하고, 현재 비밀번호 확인 후 자신의 비밀번호를 변경할 수 있다. admin/manager는 다른 teacher의 영구 비밀번호를 직접 지정하지 않고 임시 비밀번호만 재발급한다. 학년·담임·활성 상태·학교 role은 개인 설정에서 변경할 수 없다.
+일반 teacher는 다른 교사 목록이나 계정에 접근할 수 없고 자신의 이름·로그인 ID를 수정하는 self-service UI도 갖지 않는다. 현재 비밀번호 확인 후 자신의 비밀번호만 변경할 수 있다. admin/manager는 `/teachers`에서 teacher의 기본 정보를 관리하며 영구 비밀번호를 직접 지정하지 않고 임시 비밀번호만 재발급한다.
 
 * 자기 학교에서 자신이 담임인 Classroom 조회·수정
 * 담당 Classroom의 Student 단일·bulk 등록, 수정, inactive와 복구

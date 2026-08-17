@@ -1,6 +1,6 @@
 class TeachersController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_managed_teacher, only: %i[edit update destroy temporary_password issue_temporary_password]
+  before_action :set_managed_teacher, only: %i[destroy temporary_password issue_temporary_password]
 
   def index
     authorize User
@@ -105,16 +105,6 @@ class TeachersController < ApplicationController
     render :new, status: :unprocessable_entity
   end
 
-  def edit; end
-
-  def update
-    if @teacher.update(teacher_edit_params)
-      redirect_to teacher_return_path, notice: "선생님 정보를 수정했습니다."
-    else
-      render :edit, status: :unprocessable_entity
-    end
-  end
-
   def bulk_setup
     authorize User, :bulk_create?
     prepare_school
@@ -213,7 +203,7 @@ class TeachersController < ApplicationController
       render_credentials(
         [credential],
         title: "새 임시 비밀번호가 발급되었습니다.",
-        return_path: edit_teacher_path(@teacher, school_id: @teacher.school.id, teacher_grade: params[:teacher_grade]),
+        return_path: teachers_path(school_id: @teacher.school.id, grade: valid_grade_value(params[:teacher_grade])),
         formats: [:html]
       )
     end
@@ -253,40 +243,11 @@ class TeachersController < ApplicationController
   end
 
   def teacher_params
-    params.require(:user).permit(:name, :login_id, :email)
-  end
-
-  def teacher_edit_params
-    params.require(:user).permit(:name, :login_id, :email)
+    params.require(:user).permit(:name, :login_id)
   end
 
   def set_managed_teacher
     @teacher = policy_scope(User).find(params[:id])
-    authorize @teacher, :update?
-    @return_context = teacher_return_context
-    @return_path = teacher_return_path
-  end
-
-  def teacher_return_path
-    return teachers_path if @return_context == "teachers"
-    if @return_context == "school" && @teacher.school
-      teacher_grade = valid_grade_value(params[:teacher_grade])
-      return school_path(@teacher.school) if teacher_grade == "all"
-
-      return school_path(@teacher.school, teacher_grade: teacher_grade)
-    end
-
-    return polls_path if current_user == @teacher
-
-    teachers_path
-  end
-
-  def teacher_return_context
-    return if current_user == @teacher
-    return "teachers" if params[:return_to] == "teachers"
-    return "school" if params[:return_to] == "school" || params[:teacher_grade].present?
-
-    nil
   end
 
   def creation_return_path

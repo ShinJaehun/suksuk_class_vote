@@ -41,7 +41,6 @@ module Teachers
       user = User.new(
         name: attributes["name"],
         login_id: attributes["login_id"],
-        email: nil,
         password: password,
         password_confirmation: password,
         role: :teacher,

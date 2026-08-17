@@ -20,7 +20,7 @@
 
     <div>
       <%= form.label :user_id, "미소속 선생님", class: "block text-sm font-medium" %>
-      <% options = @candidates.map { |user| ["#{user.name} · #{user.email}", user.id] } %>
+      <% options = @candidates.map { |user| ["#{user.name} · #{user.login_id}", user.id] } %>
       <%= form.select :user_id,
                       options_for_select(options, @membership.user_id),
                       { prompt: "선생님 선택" },

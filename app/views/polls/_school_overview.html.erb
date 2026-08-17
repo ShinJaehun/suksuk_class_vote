@@ -54,7 +54,7 @@
     </div>
     <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
       <dt class="text-xs font-medium text-stone-500">담당</dt>
-      <dd class="mt-1 font-semibold"><%= poll.user.name.presence || poll.user.email %></dd>
+      <dd class="mt-1 font-semibold"><%= poll.user.name.presence || poll.user.login_id %></dd>
     </div>
   </dl>
 <% end %>

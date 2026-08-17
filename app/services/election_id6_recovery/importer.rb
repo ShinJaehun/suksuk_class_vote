@@ -190,7 +190,6 @@ module ElectionId6Recovery
         password = credential.fetch(:temporary_password)
         teacher = User.create!(
           login_id: credential.fetch(:login_id),
-          email: credential.fetch(:login_id),
           name: source.fetch(:name),
           role: :teacher,
           active: true,

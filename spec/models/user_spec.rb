@@ -51,22 +51,36 @@ RSpec.describe User, type: :model do
       expect(user.errors[:login_id]).to be_present
     end
 
-    it "allows a teacher without email" do
-      expect(build(:user, email: nil)).to be_valid
+    it "requires a password for a new user" do
+      user = build(:user, password: nil, password_confirmation: nil)
+
+      expect(user).not_to be_valid
+      expect(user.errors[:password]).to be_present
     end
 
-    it "requires email for an admin" do
-      admin = build(:user, :admin, email: nil)
+    it "requires password confirmation to match" do
+      user = build(:user, password: "password123!", password_confirmation: "different-password")
 
-      expect(admin).not_to be_valid
-      expect(admin.errors[:email]).to be_present
+      expect(user).not_to be_valid
+      expect(user.errors[:password_confirmation]).to be_present
     end
 
-    it "normalizes an optional email and stores blank teacher email as nil" do
-      teacher = build(:user, email: " ")
+    it "rejects a password shorter than the Devise password length" do
+      password = "a" * (Devise.password_length.min - 1)
+      user = build(:user, password: password, password_confirmation: password)
 
-      expect(teacher).to be_valid
-      expect(teacher.email).to be_nil
+      expect(user).not_to be_valid
+      expect(user.errors[:password]).to be_present
+    end
+
+    it "creates a user with a valid password" do
+      expect(create(:user)).to be_persisted
+    end
+
+    it "does not require a password for an ordinary update" do
+      user = create(:user)
+
+      expect(user.update(name: "변경 교사")).to be(true)
     end
 
     it "rejects a password equal to the login id" do

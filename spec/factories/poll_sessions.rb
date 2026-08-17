@@ -7,5 +7,5 @@ FactoryBot.define do
     classroom_name_snapshot do
       "#{classroom.school_year}학년도 #{classroom.grade}학년 #{classroom.formatted_class_label}"
     end
-    operator_name_snapshot { operator&.name.presence || operator&.email }  end
+    operator_name_snapshot { operator&.name.presence || operator&.login_id }  end
 end

@@ -138,7 +138,7 @@ module Polls
     end
 
     def operator_name_snapshot
-      session_operator&.name.presence || session_operator&.email
+      session_operator&.name.presence || session_operator&.login_id
     end
 
     def session_operator

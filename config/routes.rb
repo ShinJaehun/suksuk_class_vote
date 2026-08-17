@@ -82,7 +82,7 @@ Rails.application.routes.draw do
       end
     end
   end
-  resources :teachers, only: %i[index new create edit update destroy] do
+  resources :teachers, only: %i[index new create destroy] do
     collection do
       get :bulk_setup
       get :bulk_new

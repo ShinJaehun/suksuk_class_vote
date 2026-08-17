@@ -80,9 +80,9 @@ RSpec.describe "Schools", type: :request do
     teacher_section = document.css("section").find { |section| section.at_css("h2")&.text&.strip == "선생님" }
     classroom_section = document.css("section").find { |section| section.at_css("h2")&.text&.strip == "교실" }
     expect(document.css("section").find { |section| section.text.include?("학교 운영 현황") }.text).to include("미지정")
-    expect(teacher_section.at_css("tbody td[colspan='6']").text).to include("등록된 선생님이 없습니다.")
+    expect(teacher_section.at_css("tbody td[colspan='5']").text).to include("등록된 선생님이 없습니다.")
     expect(teacher_section.at_css("tfoot").text).to include("총 0명")
-    expect(teacher_section.at_css("tfoot td")['colspan']).to eq("6")
+    expect(teacher_section.at_css("tfoot td")['colspan']).to eq("5")
     expect(classroom_section.at_css("tbody td[colspan='6']").text).to include("등록된 교실이 없습니다.")
     expect(classroom_section.at_css("tfoot").text).to include("총 0학급 · 학생 0명")
     expect(response.body).not_to include("조건에 맞는 선생님이 없습니다.")
@@ -410,7 +410,7 @@ RSpec.describe "Schools", type: :request do
     end
   end
 
-  it "marks only the manager beside their name without role or settings columns" do
+  it "marks only the manager beside their name without role or management columns" do
     school = create(:school)
     teacher = add_teacher(school)
     membership = teacher.school_membership
@@ -418,17 +418,17 @@ RSpec.describe "Schools", type: :request do
 
     get school_path(school)
     document = Nokogiri::HTML(response.body)
+    teacher_section = document.css("section").find do |section|
+      section.at_css("h2")&.text&.strip == "선생님"
+    end
     headings = document.css("section h2").map(&:text)
-    table_headings = document.css("table th").map { |heading| heading.text.strip }
+    teacher_table_headings = teacher_section.css("table th").map { |heading| heading.text.strip }
     expect(headings).not_to include("대표 선생님")
-    expect(table_headings).not_to include("역할", "설정")
-    expect(table_headings).not_to include("비밀번호")
+    expect(teacher_table_headings).not_to include("역할", "설정", "관리", "비밀번호")
     expect(document.css("span").map { |span| span.text.strip }).not_to include("대표", "선생님")
     expect(response.body).to include(teacher.name, teacher.login_id, "선생님 관리")
     expect(response.body).not_to include("재발급", temporary_password_teacher_path(teacher))
     expect(response.body).not_to include("일반 선생님", "대표 선생님 변경")
-    expect(table_headings).to include("관리")
-    expect(document.at_css("#overview_row_user_#{teacher.id} a[href='#{edit_teacher_path(teacher, return_to: "school")}']").text).to eq("설정")
     expect(response.body).not_to include("대표 선생님 지정", "대표 선생님 지정 해제")
     patch promote_school_teacher_membership_path(school, membership)
     expect(membership.reload).to be_manager
@@ -476,17 +476,11 @@ RSpec.describe "Schools", type: :request do
     expect(teacher_section).to be_present
     expect(teacher_section.at_css("tfoot").text.strip).to eq("총 1명")
     expect(included_row).to be_present
-    expect(included_row.at_css("a")["href"]).to eq(
-      edit_teacher_path(included, return_to: "school", teacher_grade: "4")
-    )
+    expect(included_row.at_css("a")).to be_nil
     expect(teacher_section.css("input, select")).to be_empty
     expect(document.css("a").map { |link| link["href"] }).to include(
       teachers_path(school_id: school.id, grade: "4")
     )
-    patch teacher_path(included), params: {
-      return_to: "school", teacher_grade: "4", user: { name: included.name }
-    }
-    expect(response).to redirect_to(school_path(school, teacher_grade: "4"))
     expect(document.at_css("#overview_row_user_#{other_grade.id}")).to be_nil
     expect(document.at_css("#overview_row_user_#{unassigned.id}")).to be_nil
     expect(document.at_css("#overview_row_user_#{classroom_only.id}")).to be_nil
