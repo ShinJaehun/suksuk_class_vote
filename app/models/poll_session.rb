@@ -63,6 +63,14 @@ class PollSession < ApplicationRecord
     replacement_session.present?
   end
 
+  def historical_classroom_grade
+    snapshot_grade = classroom_name_snapshot.to_s.match(
+      /\A\d+학년도\s+([1-9]\d*)학년(?:\s|\z)/
+    )&.captures&.first
+
+    snapshot_grade ? snapshot_grade.to_i : classroom&.grade
+  end
+
   def unassignable_from_draft_poll?
     poll.draft? && draft? && !replacement? && !superseded? &&
       poll_participants.empty? && poll_progress.blank? &&

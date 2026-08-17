@@ -132,11 +132,11 @@ class SchoolPollsController < ApplicationController
       .includes(:classroom, :operator, poll_participants: :poll_participation,
                 poll_option_tallies: :poll_option, poll_contest_tallies: :poll_contest)
     @current_session_count = @poll.current_poll_sessions.count
-    @included_sessions_by_grade = @included_sessions.group_by { |session| session.classroom&.grade }
+    @included_sessions_by_grade = @included_sessions.group_by(&:historical_classroom_grade)
     @included_grade_target_counts = @included_sessions_by_grade.transform_values do |sessions|
       sessions.sum { |session| @school_result_summary.participation_result_for(session).total_count }
     end
-    @included_grades = @included_sessions.filter_map { |session| session.classroom&.grade }.uniq.sort
+    @included_grades = @included_sessions.filter_map(&:historical_classroom_grade).uniq.sort
     result_time = (@poll.started_at || @poll.closed_at)&.in_time_zone("Asia/Seoul")
     @result_date = result_time
     @academic_year = result_time && (result_time.month < 3 ? result_time.year - 1 : result_time.year)

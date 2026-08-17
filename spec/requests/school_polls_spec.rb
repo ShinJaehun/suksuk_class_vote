@@ -1369,6 +1369,40 @@ RSpec.describe "School Poll management", type: :request do
       expect(survey_page.at_css('[data-testid="school-poll-overall-results"] img')).to be_nil
       expect(survey_page.at_css('[data-testid="school-poll-printable-results"] img')).to be_nil
     end
+
+    it "keeps closed result grades and classroom labels from the session snapshot" do
+      poll = create(
+        :poll,
+        school: create(:school),
+        school_managed: true,
+        status: :closed,
+        started_at: 1.hour.ago,
+        closed_at: Time.current
+      )
+      session = create_result_session(
+        poll: poll,
+        status: :closed,
+        classroom_name: "2026학년도 5학년 2반",
+        grade: 5,
+        class_label: "2"
+      )
+      session.classroom.update!(grade: 6)
+
+      sign_in create(:user, :admin)
+      get results_school_poll_path(poll)
+
+      page = Nokogiri::HTML(response.body)
+      summary = page.at_css('[data-testid="school-poll-result-summary"]').text.squish
+      classroom_results = page.at_css('[data-testid="school-poll-classroom-results"]').text.squish
+      printable = page.at_css('[data-testid="school-poll-printable-results"]').text.squish
+
+      expect(summary).to include("대상 학급 5학년")
+      expect(classroom_results).to include("5학년:", "5학년 2반")
+      expect(printable).to include("5학년 대상")
+      expect(summary).not_to include("대상 학급 6학년")
+      expect(classroom_results).not_to include("6학년:")
+      expect(printable).not_to include("6학년 대상")
+    end
   end
 
   describe "Schoolwide Poll settings and results access" do
