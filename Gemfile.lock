@@ -463,7 +463,6 @@ DEPENDENCIES
   brakeman
   bundler-audit
   capybara
-  csv
   debug
   devise
   factory_bot_rails

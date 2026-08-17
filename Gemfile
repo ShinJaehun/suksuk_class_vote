@@ -8,7 +8,6 @@ gem "propshaft"
 gem "pg", "~> 1.1"
 # Flexible authentication solution for Rails with Warden
 gem "devise"
-gem "csv"
 # Object-oriented authorization for Rails
 gem "pundit"
 # Use the Puma web server [https://github.com/puma/puma]
