@@ -109,7 +109,6 @@ Student는 신규 PollSession 명단의 원본이다. 활동 시작 시 active S
 
 - 시작 후 Student의 이름, 번호 또는 active가 바뀌어도 기존 snapshot은 바꾸지 않는다.
 - 완료되거나 중단된 Poll 기록을 Student 현재값으로 다시 작성하지 않는다.
-- 기존 `ParticipantSlot` 기반 기록을 Student에 소급 연결하거나 변환하지 않는다.
 - snapshot은 Student의 현재 상태와 독립된 당시 투표 명단 기록으로 보존한다.
 
 ## 7. 이 서비스에서 구현하지 않는 기능

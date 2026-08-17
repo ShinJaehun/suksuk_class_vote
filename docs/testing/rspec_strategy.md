@@ -55,7 +55,6 @@ School / Classroom / active Student
 ```
 
 ParticipantGroup / ParticipantSlot과 Election / ElectionSession runtime 및 전용 spec은 제거됐다.
-DB 복원·변환 검증은 후속 작업에서 다룬다.
 
 ---
 
@@ -98,11 +97,14 @@ DB 복원·변환 검증은 후속 작업에서 다룬다.
 
 ### runtime recovery와 terminal consistency
 
-* Turbo Stream / ActionCable을 primary 갱신 수단으로 유지한다.
+* DB를 authoritative state로 두고 새로고침·재로그인·HTTP 응답이 현재 상태로 복원되는지 검증한다.
+* Turbo Stream / ActionCable은 빠른 realtime 갱신 경로로 검증한다.
+* HTTP polling / recovery는 Cable 메시지 유실·연결 단절·stale UI를 DB 상태로 수렴시키는 안전망으로 검증한다.
 * recovery endpoint는 정상 상태에 `204 No Content`를 반환한다.
 * stale 또는 terminal 상태일 때만 필요한 작은 Turbo Stream 영역을 반환한다.
 * ballot form이 열린 상태에서 Cable 갱신을 놓쳐도 fingerprint recovery가 locked 상태와 다음 참여자로 수렴한다.
 * 전교투표 stream recipient는 현재 active admin과 같은 학교 manager로 제한하고 draft/in-progress 화면의 권한 상실 recovery를 검증한다.
+* PollSession operation stream은 `operate?` 사용자만 구독하며, 읽기 전용 manager는 stream 없이 HTTP polling을 유지하는지 검증한다.
 * inactive School/Classroom의 direct Student mutation과 진행 중 Session의 구조 변경 우회를 request/service spec으로 차단한다.
 * 진행 중 전교투표의 current closed Session은 재투표 가능 관계가 끝날 때까지 Classroom/operator 변경을 차단한다.
 * active ballot form과 학생이 선택 중인 값은 polling으로 교체하지 않는다.
@@ -170,8 +172,6 @@ deadlock 자체를 반복 재현하는 flaky test를 필수 전략으로 삼지 
 * close/stop과 integrity check
 * 일반·schoolwide replacement 재투표
 * schoolwide start/stop/close/reset와 batch broadcast
-
-Election ID 6의 DB 복원·변환 검증은 runtime service spec과 분리한다.
 
 ### policy spec
 
