@@ -18,9 +18,9 @@ class ApplicationController < ActionController::Base
   end
 
   def enforce_password_change
+    return if devise_controller? && controller_name == "sessions"
     return unless user_signed_in? && current_user.password_change_required?
     return if controller_path == "password_changes"
-    return if devise_controller? && controller_name == "sessions" && action_name == "destroy"
 
     redirect_to edit_password_change_path, alert: "비밀번호를 먼저 변경해 주세요."
   end

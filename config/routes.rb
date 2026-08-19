@@ -1,5 +1,5 @@
 Rails.application.routes.draw do
-  devise_for :users
+  devise_for :users, controllers: { sessions: "users/sessions" }
   resource :password_change, only: %i[edit update]
   resource :dashboard, only: :show
   resources :school_polls, only: %i[index new create show edit update destroy] do
