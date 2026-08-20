@@ -23,14 +23,10 @@ module Polls
       PollSession.with_schoolwide_runtime_broadcast_suppressed do
         ActiveRecord::Base.transaction do
           poll.lock!
-          unless poll.draft?
-            errors << "준비 상태의 전교투표에만 학급을 배정할 수 있습니다."
-            raise ActiveRecord::Rollback
-          end
-          if poll.poll_sessions.where(classroom_id: classroom_ids).exists?
-            errors << "이미 배정된 학급이 포함되어 있습니다."
-            raise ActiveRecord::Rollback
-          end
+          Classroom.where(id: classroom_ids).order(:id).lock.load
+          @classrooms = Classroom.where(id: classroom_ids).includes(:school, :teacher).in_school_order.to_a
+          validate_locked_inputs
+          raise ActiveRecord::Rollback if errors.any?
 
           @poll_sessions = classrooms.map { |classroom| create_session!(classroom) }
         end
@@ -65,9 +61,10 @@ module Polls
       errors << "준비 상태의 전교투표에만 학급을 배정할 수 있습니다." unless poll&.draft?
       errors << "배정할 학급을 선택해 주세요." if classroom_ids.empty?
       errors << "선택한 학급을 찾을 수 없습니다." if invalid_classroom_ids
-      return if errors.any?
+    end
 
-      @classrooms = Classroom.where(id: classroom_ids).includes(:school, :teacher).in_school_order.to_a
+    def validate_locked_inputs
+      errors << "준비 상태의 전교투표에만 학급을 배정할 수 있습니다." unless poll.draft?
       errors << "선택한 학급을 찾을 수 없습니다." unless classrooms.size == classroom_ids.size
       errors << "다른 학교의 학급은 배정할 수 없습니다." if classrooms.any? { |classroom| classroom.school != poll.school }
       errors << "활성 학급만 배정할 수 있습니다." if classrooms.any? { |classroom| !classroom.active? }

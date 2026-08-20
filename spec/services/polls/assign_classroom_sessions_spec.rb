@@ -66,6 +66,38 @@ RSpec.describe Polls::AssignClassroomSessions do
     expect(poll.reload).to be_draft
   end
 
+  it "creates Sessions from Classroom state reloaded after locking the Poll" do
+    original_teacher = create(:user, name: "기존 담임")
+    current_teacher = create(:user, name: "현재 담임")
+    classroom = create_classroom(teacher: original_teacher)
+    create(:school_membership, school: school, user: current_teacher)
+
+    allow(poll).to receive(:lock!).and_wrap_original do |original|
+      original.call
+      classroom.update!(teacher: current_teacher)
+    end
+
+    result = call_service(classrooms: [classroom])
+
+    expect(result).to be_success
+    expect(result.poll_sessions.sole).to have_attributes(
+      classroom: classroom,
+      operator: current_teacher,
+      operator_name_snapshot: "현재 담임"
+    )
+  end
+
+  it "creates Sessions in School order after locking Classrooms by id" do
+    upper_grade = create_classroom
+    lower_grade = create_classroom
+    upper_grade.update!(grade: 6)
+    lower_grade.update!(grade: 1)
+
+    result = call_service(classrooms: [upper_grade, lower_grade])
+
+    expect(result.poll_sessions.map(&:classroom)).to eq([lower_grade, upper_grade])
+  end
+
   it "suppresses create callbacks and performs one final batch runtime broadcast" do
     first = create_classroom
     second = create_classroom
