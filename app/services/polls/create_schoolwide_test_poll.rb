@@ -71,6 +71,7 @@ module Polls
         school: source_poll.school,
         school_managed: true,
         abstention_allowed: source_poll.abstention_allowed,
+        advancement_mode: source_poll.advancement_mode,
         test_source_poll: source_poll,
         status: :draft,
         started_at: nil,

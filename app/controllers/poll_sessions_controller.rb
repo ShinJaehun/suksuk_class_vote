@@ -1,6 +1,6 @@
 class PollSessionsController < ApplicationController
   before_action :authenticate_user!
-  helper_method :poll_session_recovery_token, :ballot_runtime_fingerprint
+  helper_method :poll_session_recovery_token, :ballot_runtime_fingerprint, :next_pending_participant
 
   def show
     @poll_session = PollSession
@@ -219,6 +219,32 @@ class PollSessionsController < ApplicationController
     )
   end
 
+  def confirm_automatic_advance
+    poll_session = find_poll_session
+    authorize poll_session, :operate?
+
+    unless poll_session.poll.automatic?
+      redirect_to ballot_poll_poll_session_path(poll_session.poll, poll_session),
+                  alert: "자동 진행 투표에서만 확인할 수 있습니다."
+      return
+    end
+
+    result = Polls::AdvanceSessionParticipant.new(
+      actor: current_user,
+      poll_session: poll_session,
+      expected_current_poll_participant_id: params[:expected_current_poll_participant_id]
+    ).call
+
+    broadcast_poll_session_updates(poll_session) if result.success?
+    redirect_with_result(
+      result,
+      ballot_poll_poll_session_path(poll_session.poll, poll_session),
+      "다음 학생의 투표를 시작합니다."
+    )
+  rescue ActiveRecord::RecordNotFound
+    render_stale_ballot(:operate?)
+  end
+
   def mark_next_participant_absent
     poll_session = find_poll_session
     authorize poll_session, :operate?
@@ -302,7 +328,9 @@ class PollSessionsController < ApplicationController
     ).call
 
     broadcast_poll_session_updates(poll_session) if result.success?
-    success_message = if result.completed?
+    success_message = if result.completed? && poll_session.poll.automatic?
+                        "투표가 완료되었습니다."
+    elsif result.completed?
                         "투표가 완료되었습니다. 선생님의 안내를 기다려 주세요."
     else
                         "다음 투표 항목으로 이동합니다."

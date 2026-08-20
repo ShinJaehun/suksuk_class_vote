@@ -15,13 +15,16 @@ RSpec.describe "Classroom Poll definition management", type: :request do
 
   before { sign_in operator }
 
-  it "saves the abstention policy in a safe draft" do
+  it "saves Poll operating policies in a safe draft" do
     poll_session
 
-    patch poll_path(poll), params: { poll: { abstention_allowed: "false" } }
+    patch poll_path(poll), params: {
+      poll: { abstention_allowed: "false", advancement_mode: "automatic" }
+    }
 
     expect(response).to redirect_to(poll_poll_session_path(poll, poll_session))
     expect(poll.reload).not_to be_abstention_allowed
+    expect(poll).to be_automatic
   end
 
   it "edits the title without removing existing definition records and blocks a kind change" do
@@ -155,11 +158,14 @@ RSpec.describe "Classroom Poll definition management", type: :request do
     poll_session.update!(status: :in_progress, started_at: Time.current)
     original_title = poll.title
 
-    patch poll_path(poll), params: { poll: { title: "차단", abstention_allowed: false } }
+    patch poll_path(poll), params: {
+      poll: { title: "차단", abstention_allowed: false, advancement_mode: "automatic" }
+    }
 
     expect(response).to redirect_to(poll_poll_session_path(poll, poll_session))
     expect(poll.reload.title).to eq(original_title)
     expect(poll).to be_abstention_allowed
+    expect(poll).to be_teacher_confirmed
   end
 
   it "returns not found for an Option nested under another Contest in a safe draft" do

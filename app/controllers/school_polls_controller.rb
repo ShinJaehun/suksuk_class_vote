@@ -318,7 +318,7 @@ class SchoolPollsController < ApplicationController
   end
 
   def school_poll_params
-    attributes = params.require(:poll).permit(:title, :school_id, :abstention_allowed)
+    attributes = params.require(:poll).permit(:title, :school_id, :abstention_allowed, :advancement_mode)
     attributes[:school_id] = @poll.school_id unless current_user.admin?
     attributes
   end
@@ -395,6 +395,7 @@ class SchoolPollsController < ApplicationController
   end
 
   def poll_params
-    params.fetch(:poll, ActionController::Parameters.new).permit(:title, :kind, :abstention_allowed)
+    params.fetch(:poll, ActionController::Parameters.new)
+      .permit(:title, :kind, :abstention_allowed, :advancement_mode)
   end
 end

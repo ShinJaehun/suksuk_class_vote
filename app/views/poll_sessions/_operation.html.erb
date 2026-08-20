@@ -79,16 +79,18 @@
             <% if next_pending_participant.present? %>
               <% if status_check.progress_valid? && poll_session.archived_at.blank? && can_operate %>
                 <div class="mt-5 flex flex-wrap justify-center gap-3">
-                  <%= button_to "다음 투표자는 #{next_pending_participant.number}번 #{next_pending_participant.name} 학생입니다.",
-                                advance_participant_poll_poll_session_path(
-                                  poll_session.poll,
-                                  poll_session
-                                ),
-                                method: :patch,
-                                params: {
-                                  expected_current_poll_participant_id: current_participant.id
-                                },
-                                class: "rounded-md bg-stone-900 px-5 py-3 text-sm font-medium text-white" %>
+                  <% if poll_session.poll.teacher_confirmed? %>
+                    <%= button_to "다음 투표자는 #{next_pending_participant.number}번 #{next_pending_participant.name} 학생입니다.",
+                                  advance_participant_poll_poll_session_path(
+                                    poll_session.poll,
+                                    poll_session
+                                  ),
+                                  method: :patch,
+                                  params: {
+                                    expected_current_poll_participant_id: current_participant.id
+                                  },
+                                  class: "rounded-md bg-stone-900 px-5 py-3 text-sm font-medium text-white" %>
+                  <% end %>
                   <%= button_to "미참여 처리",
                                 mark_next_participant_absent_poll_poll_session_path(
                                   poll_session.poll,

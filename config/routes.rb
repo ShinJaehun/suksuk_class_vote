@@ -38,6 +38,7 @@ Rails.application.routes.draw do
       patch :mark_current_participant_absent, on: :member
       patch :mark_next_participant_absent, on: :member
       patch :advance_participant, on: :member
+      post :confirm_automatic_advance, on: :member
       patch :open_ballot, on: :member
       patch :lock_ballot, on: :member
       post :close_ballot_screen, on: :member

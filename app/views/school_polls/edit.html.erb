@@ -44,6 +44,15 @@
           <p class="text-sm text-stone-600">투표 시작 또는 실행 기록 생성 후에는 변경할 수 없습니다.</p>
         <% end %>
       </fieldset>
+      <fieldset <%= "disabled" unless @policy_editable %> class="space-y-2 disabled:text-stone-500">
+        <legend class="text-sm font-medium text-stone-700">진행 방식</legend>
+        <label class="mr-4 inline-flex items-center gap-2">
+          <%= form.radio_button :advancement_mode, :teacher_confirmed %><span>교사 승인</span>
+        </label>
+        <label class="inline-flex items-center gap-2">
+          <%= form.radio_button :advancement_mode, :automatic %><span>자동 진행</span>
+        </label>
+      </fieldset>
       <div class="flex gap-3">
         <%= form.submit "저장", disabled: !@poll.draft?, class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-stone-300" %>
         <%= link_to "취소", school_poll_path(@poll), class: "rounded-md border border-stone-300 px-4 py-2 text-sm font-medium" %>

@@ -206,6 +206,6 @@ class PollsController < ApplicationController
   end
 
   def poll_params
-    params.require(:poll).permit(:title, :kind, :abstention_allowed)
+    params.require(:poll).permit(:title, :kind, :abstention_allowed, :advancement_mode)
   end
 end

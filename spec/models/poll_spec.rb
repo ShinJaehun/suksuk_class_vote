@@ -64,6 +64,31 @@ RSpec.describe Poll, type: :model do
     end
   end
 
+  describe "advancement policy" do
+    it "defaults to teacher confirmation and changes only while the definition is editable" do
+      poll = create(:poll)
+
+      expect(poll).to be_teacher_confirmed
+      expect(build(:poll, advancement_mode: nil)).to be_invalid
+      expect { poll.update!(advancement_mode: :automatic) }
+        .to change { poll.reload.advancement_mode }.from("teacher_confirmed").to("automatic")
+      classroom = create(:classroom, school: poll.school)
+      operator = poll.user
+      session = create(
+        :poll_session,
+        poll: poll,
+        classroom: classroom,
+        operator: operator,
+        operator_name_snapshot: operator.name.presence || operator.login_id
+      )
+      create(:poll_progress, poll: poll, poll_session: session)
+
+      expect(poll.update(advancement_mode: :teacher_confirmed)).to be(false)
+      expect(poll.errors[:advancement_mode]).to be_present
+      expect(poll.reload).to be_automatic
+    end
+  end
+
   describe "poll contests" do
     it "creates a default poll contest when a poll is created" do
       poll = create(:poll)

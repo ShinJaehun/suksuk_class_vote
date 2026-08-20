@@ -47,7 +47,7 @@ Poll
 └── PollSession (Classroom별 실행)
 ```
 
-Poll은 제목, 유형, 항목·선택지와 기권 허용 정책을 소유한다. 기권은 기본 허용하며, 투표 시작 또는 실행 기록 생성 뒤에는 정책을 변경할 수 없다. 학급투표와 전교투표의 모든 PollSession은 이 Poll-level 정책을 함께 사용한다. PollSession은 학급별 학생 snapshot, 진행 포인터, 참여 상태와 tally를 소유한다. 같은 Poll을 여러 Classroom에서 실행해도 각 진행 상태와 집계는 PollSession으로 분리된다.
+Poll은 제목, 유형, 항목·선택지, 기권 허용과 진행 방식 정책을 소유한다. 기권은 기본 허용하고 진행 방식은 기본 `teacher_confirmed`이며, `automatic`에서는 완료한 학생 화면의 확인을 거쳐 다음 대기 학생을 시작한다. 투표 시작 또는 실행 기록 생성 뒤에는 정책을 변경할 수 없다. 학급투표와 전교투표의 모든 PollSession은 이 Poll-level 정책을 함께 사용한다. PollSession은 학급별 학생 snapshot, 진행 포인터, 참여 상태와 tally를 소유한다. 같은 Poll을 여러 Classroom에서 실행해도 각 진행 상태와 집계는 PollSession으로 분리된다.
 
 일반 학급투표는 `school_managed: false`, 전교투표는 `school_managed: true`다.
 
@@ -65,7 +65,7 @@ PollParticipant는 `number`, `name`, `position`의 당시 snapshot이다. 시작
 
 교사는 현재 학생의 ballot을 열고 잠근다. 학생은 한 번에 미완료 PollContest 하나를 제출한다. 선택 제출은 PollOptionTally를, 항목 기권은 PollContestTally를 증가시키며 PollContestCompletion과 같은 transaction에 저장한다. 어떤 선택을 했는지는 participant에 연결하지 않는다.
 
-모든 항목을 처리한 학생은 completed 또는 abstained 참여 상태로 완료되며, 운영자가 처리한 absent는 미참여다. 다음 학생 이동과 Session 종료는 자동이 아니라 교사의 명시적 action이다.
+모든 항목을 처리한 학생은 completed 또는 abstained 참여 상태로 완료되며, 운영자가 처리한 absent는 미참여다. `teacher_confirmed`에서는 교사가 다음 학생 이동을 승인하고, `automatic`에서도 마지막 제출 직후 current participant를 바꾸지 않고 학생 완료 화면의 확인 요청이 기존 advance 절차를 실행한다. Session 종료는 항상 교사의 명시적 action이다.
 
 ## 전교투표
 

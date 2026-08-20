@@ -4,14 +4,15 @@ RSpec.describe "PollSession ballots", type: :request do
   include Devise::Test::IntegrationHelpers
   include ActionCable::TestHelper
 
-  def create_execution(abstention_allowed: true)
+  def create_execution(abstention_allowed: true, advancement_mode: :teacher_confirmed)
     school = create(:school)
     operator = create(:user)
     create(:school_membership, school: school, user: operator)
     operator.reload
     classroom = create(:classroom, school: school, teacher: operator)
     poll = create(:poll, user: operator, school: school, title: "학급 회장 선거",
-                         abstention_allowed: abstention_allowed)
+                         abstention_allowed: abstention_allowed,
+                         advancement_mode: advancement_mode)
     contest = poll.default_poll_contest
     contest.update!(title: "회장")
     option = create(:poll_option, poll: poll, poll_contest: contest, number: 1, name: "김후보")
@@ -563,6 +564,84 @@ RSpec.describe "PollSession ballots", type: :request do
       option.name,
       "투표 제출"
     )
+  end
+
+  it "hands an automatic Poll to the next pending student only after a stale-safe confirmation" do
+    poll, poll_session, progress, current, waiting, option, tally, operator =
+      create_execution(advancement_mode: :automatic, abstention_allowed: false)
+    skipped = waiting
+    next_student = create(:poll_participant, poll: poll, poll_session: poll_session, number: 3, name: "다음학생")
+    create(:poll_participation, poll_participant: skipped, status: :absent)
+    progress.update!(ballot_status: :ballot_open)
+    sign_in operator
+
+    post submit_ballot_poll_poll_session_path(poll, poll_session), params: {
+      ballot: {
+        expected_current_poll_participant_id: current.id,
+        poll_contest_id: option.poll_contest_id,
+        poll_option_id: option.id
+      }
+    }
+
+    expect(current.reload.poll_participation).to be_completed
+    expect(progress.reload).to have_attributes(
+      current_poll_participant: current,
+      ballot_status: "ballot_locked"
+    )
+
+    follow_redirect!
+    handoff = Nokogiri::HTML(response.body)
+    expect(handoff.text.squish).to include(
+      "투표가 완료되었습니다.",
+      "다음 투표자는 #{next_student.number}번 #{next_student.name}입니다.",
+      "확인"
+    )
+    expect(handoff.text).not_to include("#{skipped.number}번 #{skipped.name}입니다.")
+
+    get poll_poll_session_path(poll, poll_session)
+    automatic_operation = Nokogiri::HTML(response.body).at_css(
+      "turbo-frame#operation_poll_session_#{poll_session.id}"
+    )
+    expect(automatic_operation.text).not_to include("다음 투표자는")
+    expect(automatic_operation.text).to include("미참여 처리")
+
+    post confirm_automatic_advance_poll_poll_session_path(poll, poll_session), params: {
+      expected_current_poll_participant_id: current.id
+    }
+    expect(progress.reload).to have_attributes(
+      current_poll_participant: next_student,
+      ballot_status: "ballot_open"
+    )
+
+    post confirm_automatic_advance_poll_poll_session_path(poll, poll_session), params: {
+      expected_current_poll_participant_id: current.id
+    }
+    expect(response).to redirect_to(ballot_poll_poll_session_path(poll, poll_session))
+    expect(flash[:alert]).to include("현재 학생이 변경되었습니다.")
+    expect(progress.reload.current_poll_participant).to eq(next_student)
+
+    post submit_ballot_poll_poll_session_path(poll, poll_session), params: {
+      ballot: {
+        expected_current_poll_participant_id: next_student.id,
+        poll_contest_id: option.poll_contest_id,
+        poll_option_id: option.id
+      }
+    }
+    expect(tally.reload.votes_count).to eq(2)
+    follow_redirect!
+    final_screen = Nokogiri::HTML(response.body)
+    expect(final_screen.text.squish).to include(
+      "모든 학생의 투표가 끝났습니다.",
+      "선생님의 안내를 기다려 주세요."
+    )
+    expect(final_screen.at_css("form[action*='confirm_automatic_advance']")).to be_nil
+
+    get poll_poll_session_path(poll, poll_session)
+    operation = Nokogiri::HTML(response.body).at_css(
+      "turbo-frame#operation_poll_session_#{poll_session.id}"
+    )
+    expect(operation.text).not_to include("다음 투표자는")
+    expect(operation.text).to include("투표 종료")
   end
 
   it "broadcasts the fresh Schoolwide current participant inside the ballot target" do

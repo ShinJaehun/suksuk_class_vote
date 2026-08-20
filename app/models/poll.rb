@@ -16,6 +16,7 @@ class Poll < ApplicationRecord
 
   enum :kind, { election: 0, discussion: 10, debate: 20, survey: 30 }
   enum :status, { draft: 0, in_progress: 10, closed: 20, stopped: 30 }
+  enum :advancement_mode, { teacher_confirmed: 0, automatic: 10 }, validate: true
 
   ACTIVITY_LABELS = {
     "election" => "선거",
@@ -94,6 +95,7 @@ class Poll < ApplicationRecord
   validates :school, presence: true
   validate :school_managed_lifecycle_timestamps
   validate :abstention_policy_editable, if: :will_save_change_to_abstention_allowed?
+  validate :advancement_policy_editable, if: :will_save_change_to_advancement_mode?
 
   def display_status
     DISPLAY_STATUSES.fetch(status, status)
@@ -204,6 +206,12 @@ class Poll < ApplicationRecord
     return unless persisted? && !definition_editable?
 
     errors.add(:abstention_allowed, "투표 시작 또는 실행 기록 생성 후에는 변경할 수 없습니다.")
+  end
+
+  def advancement_policy_editable
+    return unless persisted? && !definition_editable?
+
+    errors.add(:advancement_mode, "투표 시작 또는 실행 기록 생성 후에는 변경할 수 없습니다.")
   end
 
   def school_managed_lifecycle_timestamps
