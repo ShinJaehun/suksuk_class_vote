@@ -144,12 +144,14 @@ RSpec.describe "PollSession operations", type: :request do
     )
     expect(start_form).to be_present
     expect(start_form["data-turbo-frame"]).to eq("_top")
-    candidate_text = page.at_css("[data-testid='poll-session-candidates']").text.squish
+    candidate_section = page.at_css("[data-testid='poll-session-candidates']")
+    candidate_text = candidate_section.text.squish
     expect(candidate_text).to include(
       poll.default_poll_contest.title,
       "#{poll.choice_number_label} 1번 · 조현",
       "#{poll.choice_number_label} 2번 · 서코"
     )
+    expect(candidate_section.css('img[src*="avatars/"][alt=""]').size).to eq(2)
     expect(page.at_css("[data-testid='poll-session-roster']").text).to include(
       "전체 2명",
       "1번",
@@ -194,6 +196,46 @@ RSpec.describe "PollSession operations", type: :request do
     expect(refresh_frame.text.squish).to include(
       "투표 대상자 2명", "투표 완료 0명", "미참여 0명", "대기 2명"
     )
+  end
+
+  it "shows candidate photos and fallbacks only for election sessions" do
+    poll, poll_session, teacher = create_operations_session(status: :draft)
+    poll.update!(school_managed: true)
+    create(
+      :poll_option,
+      poll: poll,
+      poll_contest: poll.default_poll_contest,
+      number: 1,
+      name: "기본 후보"
+    )
+    photo_option = create(
+      :poll_option,
+      poll: poll,
+      poll_contest: poll.default_poll_contest,
+      number: 2,
+      name: "사진 후보"
+    )
+    photo_option.photo.attach(io: StringIO.new("photo"), filename: "candidate.png", content_type: "image/png")
+    sign_in teacher
+
+    get poll_poll_session_path(poll, poll_session)
+
+    page = Nokogiri::HTML(response.body)
+    candidates = page.at_css('[data-testid="poll-session-candidates"]')
+    fallback_image = candidates.at_css('img[alt=""]')
+    photo_image = candidates.at_css('img[alt="사진 후보 후보 사진"]')
+    expect(fallback_image["src"]).to include("avatars/")
+    expect(photo_image["src"]).not_to include("avatars/")
+
+    discussion, discussion_session, discussion_teacher = create_operations_session(status: :draft)
+    discussion.update!(kind: :discussion)
+    create(:poll_option, poll: discussion, poll_contest: discussion.default_poll_contest)
+    sign_in discussion_teacher
+
+    get poll_poll_session_path(discussion, discussion_session)
+
+    discussion_page = Nokogiri::HTML(response.body)
+    expect(discussion_page.css('[data-testid="poll-session-candidates"] img')).to be_empty
   end
 
   it "renders draft, closed, and stopped sessions safely without progress" do

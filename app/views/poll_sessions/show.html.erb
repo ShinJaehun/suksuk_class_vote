@@ -93,9 +93,9 @@
                 <div class="mt-3 <%= @poll_session.poll.election? ? "grid gap-3 sm:grid-cols-2" : "space-y-1" %>">
                   <% contest.poll_options.sort_by { |option| [option.number, option.id] }.each do |option| %>
                     <div class="flex items-center gap-3 py-1">
-                      <% if @poll_session.poll.election? && option.photo.attached? %>
+                      <% if @poll_session.poll.election? %>
                         <%= image_tag poll_option_photo_source(option, variant: :thumbnail),
-                                      alt: "#{option.name} 후보 사진",
+                                      alt: option.photo.attached? ? "#{option.name} 후보 사진" : "",
                                       class: "h-12 w-12 rounded-md object-contain" %>
                       <% end %>
                       <span><%= @poll_session.poll.choice_number_label %> <%= option.number %>번 · <%= option.name %></span>
