@@ -7,4 +7,7 @@ class PollContest < ApplicationRecord
   validates :position, presence: true,
                        numericality: { only_integer: true, greater_than: 0 },
                        uniqueness: { scope: :poll_id }
+  def referendum?
+    poll&.referendum_allowed? && poll_options.size == 1
+  end
 end

@@ -1461,13 +1461,14 @@ RSpec.describe "School Poll management", type: :request do
           title: "수정한 전교선거",
           school_id: create(:school).id,
           abstention_allowed: false,
-          advancement_mode: "automatic"
+          advancement_mode: "automatic",
+          referendum_allowed: true
         }
       }
       expect(response).to redirect_to(school_poll_path(poll))
       expect(poll.reload).to have_attributes(
         title: "수정한 전교선거", school: school, abstention_allowed: false,
-        advancement_mode: "automatic"
+        advancement_mode: "automatic", referendum_allowed: true
       )
     end
 
@@ -1479,12 +1480,13 @@ RSpec.describe "School Poll management", type: :request do
       create(:school_membership, :manager, school: school, user: manager)
       sign_in manager
       patch school_poll_path(poll), params: {
-        poll: { title: "변경 금지", abstention_allowed: false, advancement_mode: "automatic" }
+        poll: { title: "변경 금지", abstention_allowed: false, advancement_mode: "automatic", referendum_allowed: true }
       }
       expect(response).to redirect_to(polls_path)
       expect(poll.reload.title).not_to eq("변경 금지")
       expect(poll).to be_abstention_allowed
       expect(poll).to be_teacher_confirmed
+      expect(poll).not_to be_referendum_allowed
 
       sign_out manager
       other_manager = create(:user)

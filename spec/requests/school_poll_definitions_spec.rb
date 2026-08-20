@@ -94,6 +94,14 @@ RSpec.describe "School Poll definition management", type: :request do
 
     before { sign_in admin }
 
+    it "uses one option as a referendum when the Poll policy allows it" do
+      poll.update!(referendum_allowed: true)
+      contest = create(:poll_contest, poll: poll, title: "교내 모자 착용", position: 1)
+      create(:poll_option, poll: poll, poll_contest: contest, number: 1, name: "홍길동")
+      expect(contest.reload).to be_referendum
+      expect(contest.poll_options.count).to eq(1)
+    end
+
     it "creates ordered Contests, updates only title, and destroys dependent Options" do
       create(:poll_contest, poll: poll, position: 2)
 

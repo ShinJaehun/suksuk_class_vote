@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_20_170000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_20_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -74,6 +74,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_20_170000) do
     t.bigint "poll_contest_id", null: false
     t.bigint "poll_id", null: false
     t.bigint "poll_session_id", null: false
+    t.integer "rejections_count", default: 0, null: false
     t.datetime "updated_at", null: false
     t.index ["poll_contest_id"], name: "index_poll_contest_tallies_on_poll_contest_id"
     t.index ["poll_id"], name: "index_poll_contest_tallies_on_poll_id"
@@ -196,6 +197,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_20_170000) do
     t.datetime "closed_at"
     t.datetime "created_at", null: false
     t.integer "kind", default: 0, null: false
+    t.boolean "referendum_allowed", default: false, null: false
     t.bigint "school_id"
     t.boolean "school_managed", default: false, null: false
     t.datetime "started_at"

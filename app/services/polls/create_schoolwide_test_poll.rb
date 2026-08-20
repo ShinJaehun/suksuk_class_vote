@@ -72,6 +72,7 @@ module Polls
         school_managed: true,
         abstention_allowed: source_poll.abstention_allowed,
         advancement_mode: source_poll.advancement_mode,
+        referendum_allowed: source_poll.referendum_allowed,
         test_source_poll: source_poll,
         status: :draft,
         started_at: nil,

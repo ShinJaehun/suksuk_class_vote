@@ -43,26 +43,27 @@
     <% @school_result_summary.contest_results.each do |contest_result| %>
       <article class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
         <h3 class="text-xl font-semibold"><%= contest_result.poll_contest.title %></h3>
-        <p class="mt-2 text-sm font-medium text-stone-700">
+        <% unless contest_result.poll_contest.referendum? %><p class="mt-2 text-sm font-medium text-stone-700">
           최다 득표:
           <%= contest_result.winners.any? ?
                 contest_result.winners.map { |result|
                   "#{@poll.choice_number_label} #{result.poll_option.number}번 #{result.poll_option.name}"
                 }.join(", ") :
                 "없음" %>
-        </p>
+        </p><% end %>
         <div class="mt-5 space-y-3">
+          <% if contest_result.poll_contest.referendum? %><p class="font-semibold"><%= contest_result.option_results.first.poll_option.name %></p><% end %>
           <% contest_result.option_results.each do |option_result| %>
             <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
               <div class="flex items-center gap-3">
-                <% if @poll.election? %>
+                <% if @poll.school_managed? && @poll.election? && !contest_result.poll_contest.referendum? %>
                   <%= image_tag poll_option_photo_source(option_result.poll_option, variant: :thumbnail),
                                 alt: "#{option_result.poll_option.name} 후보 사진",
                                 class: "h-12 w-12 shrink-0 rounded-md object-contain" %>
                 <% end %>
                 <div class="min-w-0 flex-1">
                   <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
-                    <p class="break-words font-medium"><%= @poll.choice_number_label %> <%= option_result.poll_option.number %>번 <%= option_result.poll_option.name %></p>
+                    <p class="break-words font-medium"><%= contest_result.poll_contest.referendum? ? "찬성" : "#{@poll.choice_number_label} #{option_result.poll_option.number}번 #{option_result.poll_option.name}" %></p>
                     <p class="font-semibold"><%= option_result.votes_count %>표</p>
                   </div>
                   <progress class="result-progress result-progress-option mt-2"
@@ -73,7 +74,8 @@
               </div>
             </div>
           <% end %>
-          <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+          <% if contest_result.poll_contest.referendum? %><div class="rounded-md border border-stone-200 bg-stone-50 p-3"><div class="flex justify-between"><p class="font-medium">반대</p><p class="font-semibold"><%= contest_result.rejections_count %>표</p></div></div><% end %>
+          <% if !contest_result.poll_contest.referendum? || contest_result.abstentions_count.positive? %><div class="rounded-md border border-stone-200 bg-stone-50 p-3">
             <div class="flex items-center justify-between gap-3">
               <p class="font-medium">기권</p>
               <p class="font-semibold"><%= contest_result.abstentions_count %>표</p>
@@ -82,7 +84,7 @@
                       value="<%= contest_result.abstention_percentage %>"
                       max="100"></progress>
             <p class="mt-1 text-xs text-stone-500"><%= contest_result.abstention_percentage %>%</p>
-          </div>
+          </div><% end %>
         </div>
       </article>
     <% end %>

@@ -19,12 +19,13 @@ RSpec.describe "Classroom Poll definition management", type: :request do
     poll_session
 
     patch poll_path(poll), params: {
-      poll: { abstention_allowed: "false", advancement_mode: "automatic" }
+      poll: { abstention_allowed: "false", advancement_mode: "automatic", referendum_allowed: "true" }
     }
 
     expect(response).to redirect_to(poll_poll_session_path(poll, poll_session))
     expect(poll.reload).not_to be_abstention_allowed
     expect(poll).to be_automatic
+    expect(poll).to be_referendum_allowed
   end
 
   it "edits the title without removing existing definition records and blocks a kind change" do
@@ -84,6 +85,15 @@ RSpec.describe "Classroom Poll definition management", type: :request do
     expect(option.class.exists?(option.id)).to be(false)
     delete poll_poll_session_contest_path(poll, poll_session, contest)
     expect(contest.class.exists?(contest.id)).to be(false)
+  end
+
+  it "uses one option as a referendum when the Poll policy allows it" do
+    poll_session
+    poll.update!(referendum_allowed: true)
+    contest = poll.default_poll_contest
+    create(:poll_option, poll: poll, poll_contest: contest, number: 1, name: "홍길동")
+    expect(contest.reload).to be_referendum
+    expect(contest.poll_options.count).to eq(1)
   end
 
   it "edits a replacement draft definition without changing its source Poll" do
@@ -159,13 +169,14 @@ RSpec.describe "Classroom Poll definition management", type: :request do
     original_title = poll.title
 
     patch poll_path(poll), params: {
-      poll: { title: "차단", abstention_allowed: false, advancement_mode: "automatic" }
+      poll: { title: "차단", abstention_allowed: false, advancement_mode: "automatic", referendum_allowed: true }
     }
 
     expect(response).to redirect_to(poll_poll_session_path(poll, poll_session))
     expect(poll.reload.title).to eq(original_title)
     expect(poll).to be_abstention_allowed
     expect(poll).to be_teacher_confirmed
+    expect(poll).not_to be_referendum_allowed
   end
 
   it "returns not found for an Option nested under another Contest in a safe draft" do

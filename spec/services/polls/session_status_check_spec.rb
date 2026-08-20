@@ -92,6 +92,19 @@ RSpec.describe Polls::SessionStatusCheck do
     end
   end
 
+  it "allows one option only when the Poll referendum policy allows it" do
+    poll_session, = build_draft
+    contest = poll_session.poll.default_poll_contest
+    contest.poll_options.last.destroy!
+
+    expect(described_class.new(poll_session: poll_session.reload).call).not_to be_startable
+    poll_session.poll.update!(referendum_allowed: true)
+    expect(described_class.new(poll_session: poll_session.reload).call).to be_startable
+
+    contest.poll_options.destroy_all
+    expect(described_class.new(poll_session: poll_session.reload).call).not_to be_startable
+  end
+
   it "uses copied participants instead of Classroom Students for a replacement draft" do
     source, operator = build_draft
     source.update!(status: :stopped, started_at: 1.hour.ago, stopped_at: Time.current)

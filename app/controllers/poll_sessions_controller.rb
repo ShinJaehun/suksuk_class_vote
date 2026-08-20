@@ -323,6 +323,7 @@ class PollSessionsController < ApplicationController
       poll_session: poll_session,
       poll_contest_id: ballot[:poll_contest_id],
       poll_option_id: ballot[:poll_option_id],
+      referendum_decision: ballot[:referendum_decision],
       abstain: ballot[:abstain],
       expected_current_poll_participant_id: ballot[:expected_current_poll_participant_id]
     ).call
@@ -620,6 +621,7 @@ class PollSessionsController < ApplicationController
       :expected_current_poll_participant_id,
       :poll_contest_id,
       :poll_option_id,
+      :referendum_decision,
       :abstain
     )
   end
@@ -671,15 +673,19 @@ class PollSessionsController < ApplicationController
     contest_tally = contest_tallies.one? ? contest_tallies.first : nil
     tally_complete = option_results.all? { |result| result[:tally].present? } && contest_tally.present?
     abstentions_count = contest_tally&.abstentions_count
+    rejections_count = contest_tally&.rejections_count
     total_votes = if tally_complete
-      option_results.sum { |result| result[:votes_count] } + abstentions_count
+      option_results.sum { |result| result[:votes_count] } + abstentions_count +
+        (contest.referendum? ? rejections_count : 0)
     end
     if tally_complete
       option_results.each do |result|
         result[:percentage] = helpers.poll_result_percentage(result[:votes_count], total_votes)
       end
     end
-    winner_label = if winners.one?
+    winner_label = if contest.referendum?
+      nil
+    elsif winners.one?
       @poll_session.poll.winner_label
     elsif winners.any?
       "공동 #{@poll_session.poll.winner_label}"
@@ -692,6 +698,8 @@ class PollSessionsController < ApplicationController
       winner_label: winner_label,
       contest_tally: contest_tally,
       abstentions_count: abstentions_count,
+      rejections_count: rejections_count,
+      rejection_percentage: tally_complete ? helpers.poll_result_percentage(rejections_count, total_votes) : nil,
       total_votes: total_votes,
       abstention_percentage: tally_complete ? helpers.poll_result_percentage(abstentions_count, total_votes) : nil,
       tally_complete: tally_complete

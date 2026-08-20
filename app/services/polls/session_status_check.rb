@@ -96,7 +96,10 @@ module Polls
         contests = poll&.poll_contests&.to_a || []
         contests = contests.reject { |contest| contest == poll.automatic_empty_default_contest }
         issues << "투표 항목이 없습니다." if contests.empty?
-        if contests.any? { |contest| contest.poll_options.size < 2 }
+        if contests.any? { |contest| contest.poll_options.empty? }
+          issues << "등록된 #{poll.choice_label}가 1개 이상 필요합니다."
+        end
+        if !poll.referendum_allowed? && contests.any? { |contest| contest.poll_options.size == 1 }
           issues << "등록된 #{poll.choice_label} 수가 2개 이상이어야 합니다."
         end
         if contests.any? { |contest| contest.poll_options.map(&:number).compact.uniq.size != contest.poll_options.size }
@@ -255,11 +258,13 @@ module Polls
           issues << "#{contest.title} 항목의 집계 연결 정보를 확인해 주세요."
         end
         if option_rows.any? { |tally| tally.votes_count.negative? } ||
-           contest_tally_rows.first.abstentions_count.negative?
+           contest_tally_rows.first.abstentions_count.negative? ||
+           contest_tally_rows.first.rejections_count.negative?
           issues << "#{contest.title} 항목의 집계 수를 확인해 주세요."
         end
 
         recorded_count = option_rows.sum(&:votes_count) + contest_tally_rows.first.abstentions_count
+        recorded_count += contest_tally_rows.first.rejections_count if contest.referendum?
         completion_count = completions.count { |completion| completion.poll_contest_id == contest.id }
         if recorded_count != completion_count
           issues << "#{contest.title} 항목의 득표 합계와 제출 기록이 일치하지 않습니다."

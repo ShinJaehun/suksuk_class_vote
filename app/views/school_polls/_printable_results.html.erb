@@ -28,26 +28,28 @@
     <% @school_result_summary.contest_results.each do |contest_result| %>
       <article class="rounded-md border border-stone-200 p-3">
         <h3 class="font-semibold"><%= contest_result.poll_contest.title %></h3>
-        <p class="mt-1 text-sm font-medium">
+        <% unless contest_result.poll_contest.referendum? %><p class="mt-1 text-sm font-medium">
           최다 득표:
           <%= contest_result.winners.any? ?
                 contest_result.winners.map { |result|
                   "#{@poll.choice_number_label} #{result.poll_option.number}번 #{result.poll_option.name}"
                 }.join(", ") :
                 "없음" %>
-        </p>
+        </p><% end %>
+        <% if contest_result.poll_contest.referendum? %><p class="mt-2 font-medium"><%= contest_result.option_results.first.poll_option.name %></p><% end %>
         <div class="school-poll-result-print-options mt-3 grid gap-2 sm:grid-cols-2">
           <% contest_result.option_results.each do |option_result| %>
             <div class="rounded-md bg-stone-50 px-2 py-1 text-sm" data-testid="printable-option-result">
-              <p class="text-xs text-stone-500"><%= @poll.choice_number_label %> <%= option_result.poll_option.number %>번</p>
+              <% unless contest_result.poll_contest.referendum? %><p class="text-xs text-stone-500"><%= @poll.choice_number_label %> <%= option_result.poll_option.number %>번</p><% end %>
               <div class="mt-0.5 grid grid-cols-[minmax(0,1fr)_max-content] gap-2">
-                <span class="break-words"><%= option_result.poll_option.name %></span>
+                <span class="break-words"><%= contest_result.poll_contest.referendum? ? "찬성" : option_result.poll_option.name %></span>
                 <strong class="whitespace-nowrap"><%= option_result.votes_count %>표</strong>
               </div>
             </div>
           <% end %>
         </div>
-        <p class="mt-2 text-sm">기권 <%= contest_result.abstentions_count %>표</p>
+        <% if contest_result.poll_contest.referendum? %><p class="mt-2 text-sm">반대 <%= contest_result.rejections_count %>표</p><% end %>
+        <% if !contest_result.poll_contest.referendum? || contest_result.abstentions_count.positive? %><p class="mt-2 text-sm">기권 <%= contest_result.abstentions_count %>표</p><% end %>
       </article>
     <% end %>
   </div>

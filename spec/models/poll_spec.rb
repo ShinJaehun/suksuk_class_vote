@@ -89,6 +89,21 @@ RSpec.describe Poll, type: :model do
     end
   end
 
+  describe "referendum policy" do
+    it "defaults to disabled and changes only while the definition is editable" do
+      poll = create(:poll)
+      expect(poll).not_to be_referendum_allowed
+      expect { poll.update!(referendum_allowed: true) }.to change { poll.reload.referendum_allowed }.from(false).to(true)
+
+      classroom = create(:classroom, school: poll.school)
+      session = create(:poll_session, poll: poll, classroom: classroom, operator: poll.user,
+                                      operator_name_snapshot: poll.user.name.presence || poll.user.login_id)
+      create(:poll_progress, poll: poll, poll_session: session)
+      expect(poll.update(referendum_allowed: false)).to be(false)
+      expect(poll.reload).to be_referendum_allowed
+    end
+  end
+
   describe "poll contests" do
     it "creates a default poll contest when a poll is created" do
       poll = create(:poll)

@@ -41,7 +41,7 @@
         <h2 class="text-xl font-semibold"><%= result[:contest].title %></h2>
 
         <% if result[:tally_complete] %>
-          <% if result[:winners].any? %>
+          <% if !result[:contest].referendum? && result[:winners].any? %>
             <p class="mt-2 text-sm font-medium text-stone-700">
               <%= result[:winner_label] %>:
               <%= result[:winners].map { |option|
@@ -53,18 +53,27 @@
           <% end %>
 
           <div class="mt-5 space-y-3">
+            <% if result[:contest].referendum? %>
+              <% subject = result[:option_results].first[:option] %>
+              <div class="flex items-center gap-3 font-semibold">
+                <% if @poll_session.poll.school_managed? && @poll_session.poll.election? && subject.photo.attached? %>
+                  <%= image_tag poll_option_photo_source(subject, variant: :thumbnail), alt: "#{subject.name} 후보 사진", class: "h-12 w-12 rounded-md object-contain" %>
+                <% end %>
+                <span><%= @poll_session.poll.choice_number_label %> <%= subject.number %>번 <%= subject.name %></span>
+              </div>
+            <% end %>
             <% result[:option_results].each do |option_result| %>
               <% option = option_result[:option] %>
               <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
                 <div class="flex items-center gap-3">
-                  <% if @poll_session.poll.election? && option.photo.attached? %>
+                  <% if !result[:contest].referendum? && @poll_session.poll.school_managed? && @poll_session.poll.election? && option.photo.attached? %>
                     <%= image_tag poll_option_photo_source(option, variant: :thumbnail),
                                   alt: "#{option.name} 후보 사진",
                                   class: "h-12 w-12 shrink-0 rounded-md object-contain" %>
                   <% end %>
                   <div class="min-w-0 flex-1">
                     <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
-                      <p class="break-words font-medium"><%= @poll_session.poll.choice_number_label %> <%= option.number %>번 <%= option.name %></p>
+                      <p class="break-words font-medium"><%= result[:contest].referendum? ? "찬성" : "#{@poll_session.poll.choice_number_label} #{option.number}번 #{option.name}" %></p>
                       <p class="font-semibold"><%= option_result[:votes_count] %>표</p>
                     </div>
                     <progress class="result-progress result-progress-option mt-2"
@@ -75,7 +84,10 @@
                 </div>
               </div>
             <% end %>
-            <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
+            <% if result[:contest].referendum? %>
+              <div class="rounded-md border border-stone-200 bg-stone-50 p-3"><div class="flex justify-between"><p class="font-medium">반대</p><p class="font-semibold"><%= result[:rejections_count] %>표</p></div><progress class="result-progress result-progress-option mt-2" value="<%= result[:rejection_percentage] %>" max="100"></progress><p class="mt-1 text-xs text-stone-500"><%= result[:rejection_percentage] %>%</p></div>
+            <% end %>
+            <% if !result[:contest].referendum? || result[:abstentions_count].to_i.positive? %><div class="rounded-md border border-stone-200 bg-stone-50 p-3">
               <div class="flex items-center justify-between gap-3">
                 <p class="font-medium">기권</p>
                 <p class="font-semibold"><%= result[:abstentions_count] %>표</p>
@@ -84,7 +96,7 @@
                         value="<%= result[:abstention_percentage] %>"
                         max="100"></progress>
               <p class="mt-1 text-xs text-stone-500"><%= result[:abstention_percentage] %>%</p>
-            </div>
+            </div><% end %>
           </div>
         <% else %>
           <p class="mt-3 text-sm text-amber-700">이 투표 세션의 집계 정보를 확인할 수 없습니다.</p>

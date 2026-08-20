@@ -13,12 +13,13 @@ module Polls
       end
     end
 
-    def initialize(actor:, poll_session:, poll_contest_id:, poll_option_id:, abstain:,
+    def initialize(actor:, poll_session:, poll_contest_id:, poll_option_id:, referendum_decision: nil, abstain:,
                    expected_current_poll_participant_id:)
       @actor = actor
       @poll_session = poll_session
       @poll_contest_id = poll_contest_id
       @poll_option_id = poll_option_id
+      @referendum_decision = referendum_decision.to_s
       @abstain = ActiveModel::Type::Boolean.new.cast(abstain)
       @expected_current_poll_participant_id = expected_current_poll_participant_id
       @errors = []
@@ -63,7 +64,7 @@ module Polls
     private
 
     attr_reader :actor, :poll_session, :poll_contest_id, :poll_option_id,
-                :abstain, :expected_current_poll_participant_id, :errors,
+                :referendum_decision, :abstain, :expected_current_poll_participant_id, :errors,
                 :current_contest, :selected_option, :next_contest
 
     def validate_inputs
@@ -109,6 +110,12 @@ module Polls
     end
 
     def validate_decision
+      if current_contest.referendum?
+        validate_referendum_decision
+        return
+      end
+
+      errors << "일반 선택 투표에는 찬반 결정을 제출할 수 없습니다." if referendum_decision.present?
       has_option = poll_option_id.present?
       errors << "선택지 선택과 기권 중 하나만 제출해 주세요." if has_option == abstain
       errors << "이 투표에서는 기권할 수 없습니다." if abstain && !poll_session.poll.abstention_allowed?
@@ -118,8 +125,30 @@ module Polls
       errors << "현재 투표 항목의 선택지만 제출할 수 있습니다." if selected_option.blank?
     end
 
+    def validate_referendum_decision
+      errors << "찬반투표에는 선택지 ID를 직접 제출할 수 없습니다." if poll_option_id.present?
+      decision_present = referendum_decision.present?
+      errors << "찬성, 반대, 기권 중 하나만 제출해 주세요." if [decision_present, abstain].count(true) != 1
+      if decision_present && !referendum_decision.in?(%w[approve reject])
+        errors << "찬성 또는 반대를 선택해 주세요."
+      end
+      errors << "이 투표에서는 기권할 수 없습니다." if abstain && !poll_session.poll.abstention_allowed?
+      return if errors.any? || abstain || referendum_decision == "reject"
+
+      @selected_option = current_contest.poll_options.first
+    end
+
     def increment_tally!
-      if abstain
+      if referendum_decision == "reject"
+        tally = poll_session.poll_contest_tallies.find_by(poll_contest: current_contest)
+        if tally.blank?
+          errors << "투표 항목 집계 정보를 찾을 수 없습니다."
+          return
+        end
+
+        tally.lock!
+        tally.update!(rejections_count: tally.rejections_count + 1)
+      elsif abstain
         tally = poll_session.poll_contest_tallies.find_by(poll_contest: current_contest)
         if tally.blank?
           errors << "투표 항목 기권 집계 정보를 찾을 수 없습니다."

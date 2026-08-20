@@ -83,7 +83,41 @@
       <p class="text-lg font-medium text-stone-800">선생님이 투표를 시작할 때까지 기다려 주세요.</p>
     </section>
   <% elsif current_contest.present? %>
-    <% if poll_session.poll.school_managed? && poll_session.poll.election? %>
+    <% if current_contest.referendum? %>
+      <% option = current_contest.poll_options.first %>
+      <%= form_with url: submit_ballot_poll_poll_session_path(poll_session.poll, poll_session),
+                    method: :post, class: "mx-auto max-w-3xl space-y-3",
+                    data: { controller: "poll-contest-ballot", action: "submit->poll-contest-ballot#submit turbo:submit-end->poll-contest-ballot#submitEnd" } do |form| %>
+        <%= form.hidden_field :expected_current_poll_participant_id, name: "ballot[expected_current_poll_participant_id]", value: current_participant.id %>
+        <%= form.hidden_field :poll_contest_id, name: "ballot[poll_contest_id]", value: current_contest.id %>
+        <section class="rounded-md border border-stone-200 bg-white p-5">
+          <h2 class="text-2xl font-semibold"><%= current_contest.title %></h2>
+          <div class="mt-4 flex items-center gap-3 rounded-md bg-stone-50 p-4">
+            <% if poll_session.poll.school_managed? && poll_session.poll.election? && option.photo.attached? %>
+              <%= image_tag poll_option_photo_source(option, variant: :ballot), alt: "#{option.name} 후보 사진", class: "h-24 w-24 rounded-md object-contain" %>
+            <% end %>
+            <p class="text-lg font-semibold"><%= poll_session.poll.choice_number_label %> <%= option.number %>번 <%= option.name %></p>
+          </div>
+          <div class="mt-4 grid gap-3 sm:grid-cols-2">
+            <% [["approve", "찬성"], ["reject", "반대"]].each do |value, label| %>
+              <% choice_id = "ballot_referendum_#{current_contest.id}_#{value}" %>
+              <%= radio_button_tag "ballot[referendum_decision]", value, false, id: choice_id, class: "sr-only", data: { poll_contest_ballot_target: "choice" } %>
+              <button type="button" class="rounded-md border border-stone-300 bg-white p-4 text-lg font-semibold" data-action="poll-contest-ballot#choose" data-poll-contest-ballot-target="card" data-poll-contest-ballot-choice-id-param="<%= choice_id %>"><%= label %></button>
+            <% end %>
+          </div>
+          <p class="mt-3 hidden text-sm text-amber-900" data-poll-contest-ballot-target="warning"><%= poll_session.poll.abstention_allowed? ? "찬성, 반대 또는 기권을 선택한 뒤 제출해 주세요." : "찬성 또는 반대를 선택한 뒤 제출해 주세요." %></p>
+          <div class="mt-5 flex items-center justify-between gap-3">
+            <% if poll_session.poll.abstention_allowed? %>
+              <% abstain_id = "ballot_contest_#{current_contest.id}_abstain" %>
+              <%= radio_button_tag "ballot[abstain]", "1", false, id: abstain_id, class: "sr-only", data: { poll_contest_ballot_target: "choice" } %>
+              <button type="button" class="rounded-md border-2 border-amber-300 bg-amber-50 px-4 py-3 font-semibold" data-action="poll-contest-ballot#choose" data-poll-contest-ballot-target="card" data-poll-contest-ballot-choice-id-param="<%= abstain_id %>">기권</button>
+            <% end %>
+            <button type="button" class="ml-auto rounded-md bg-emerald-600 px-5 py-3 font-semibold text-white" data-action="poll-contest-ballot#submitContest"><%= completed_contest_count + 1 == contests.size ? "최종제출" : "제출" %></button>
+          </div>
+        </section>
+        <%= form.submit "투표 제출", class: "sr-only", data: { poll_contest_ballot_target: "submit" } %>
+      <% end %>
+    <% elsif poll_session.poll.school_managed? && poll_session.poll.election? %>
       <% options = current_contest.poll_options.order(:number, :id).to_a %>
       <% card_count = options.size %>
       <% grid_class, content_width_class, grid_gap_class, card_padding_class, name_class =
@@ -212,8 +246,8 @@
                 <%= poll_session.poll.choice_number_label %> <%= option.number %>번 <%= option.name %>
               </span>
               <%= image_tag "election_vote_stamp.svg", alt: "",
-                            class: "pointer-events-none h-10 w-10 shrink-0 scale-75 opacity-0 transition duration-200",
-                            data: { poll_contest_ballot_target: "stamp" }, aria: { hidden: true } %>
+                              class: "pointer-events-none h-10 w-10 shrink-0 scale-75 opacity-0 transition duration-200",
+                              data: { poll_contest_ballot_target: "stamp" }, aria: { hidden: true } %>
             </button>
           <% end %>
         </div>

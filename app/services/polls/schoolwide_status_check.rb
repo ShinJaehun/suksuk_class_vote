@@ -93,7 +93,10 @@ module Polls
       issues = base_issues
       issues << "준비 상태의 전교투표만 시작할 수 있습니다." unless poll&.draft?
       issues << "투표 항목이 1개 이상 필요합니다." if contests.empty?
-      if contests.any? { |contest| contest.poll_options.size < 2 }
+      if contests.any? { |contest| contest.poll_options.empty? }
+        issues << "각 투표 항목에 선택지가 1개 이상 필요합니다."
+      end
+      if !poll.referendum_allowed? && contests.any? { |contest| contest.poll_options.size == 1 }
         issues << "각 투표 항목에 선택지가 2개 이상 필요합니다."
       end
       if contests.any? { |contest| contest.poll_options.map(&:number).compact.uniq.size != contest.poll_options.size }

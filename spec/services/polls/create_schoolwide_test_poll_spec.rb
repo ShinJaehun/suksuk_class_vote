@@ -29,7 +29,7 @@ RSpec.describe Polls::CreateSchoolwideTestPoll do
   it "clones definition, photo, and current Session configuration into an independent draft Poll" do
     admin = create(:user, :admin)
     source, classrooms = create_source(actor: admin)
-    source.update!(abstention_allowed: false, advancement_mode: :automatic)
+    source.update!(abstention_allowed: false, advancement_mode: :automatic, referendum_allowed: true)
     source_attributes = source.attributes.slice("status", "started_at", "closed_at", "stopped_at", "archived_at")
     source_session_ids = source.poll_session_ids
 
@@ -42,7 +42,7 @@ RSpec.describe Polls::CreateSchoolwideTestPoll do
       school: source.school, user: admin, test_source_poll: source,
       school_managed: true, status: "draft", started_at: nil, closed_at: nil,
       stopped_at: nil, archived_at: nil, abstention_allowed: false,
-      advancement_mode: "automatic"
+      advancement_mode: "automatic", referendum_allowed: true
     )
     expect(test_poll.poll_sessions.count).to eq(source.current_poll_sessions.count)
     expect(test_poll.poll_sessions.map(&:classroom)).to match_array(source.current_poll_sessions.map(&:classroom))
@@ -85,6 +85,7 @@ RSpec.describe Polls::CreateSchoolwideTestPoll do
     expect(source.reload.attributes.slice(*source_attributes.keys)).to eq(source_attributes)
     expect(source.poll_session_ids).to eq(source_session_ids)
   end
+
 
   it "copies only current Session configuration without runtime or replacement history" do
     admin = create(:user, :admin)

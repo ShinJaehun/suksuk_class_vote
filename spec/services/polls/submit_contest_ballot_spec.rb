@@ -1,12 +1,13 @@
 require "rails_helper"
 
 RSpec.describe Polls::SubmitContestBallot do
-  def create_execution(contest_count: 3, abstention_allowed: true)
+  def create_execution(contest_count: 3, abstention_allowed: true, referendum_allowed: false)
     school = create(:school)
     operator = create(:user)
     create(:school_membership, school: school, user: operator)
     classroom = create(:classroom, school: school, teacher: operator)
-    poll = create(:poll, user: operator, school: school, abstention_allowed: abstention_allowed)
+    poll = create(:poll, user: operator, school: school, abstention_allowed: abstention_allowed,
+                         referendum_allowed: referendum_allowed)
     poll.default_poll_contest.destroy!
     contests = contest_count.times.map do |index|
       contest = create(:poll_contest, poll: poll, position: index + 1, title: "항목 #{index + 1}")
@@ -38,15 +39,30 @@ RSpec.describe Polls::SubmitContestBallot do
     [poll_session, progress, current, waiting, operator, contests]
   end
 
-  def submit(poll_session:, current:, operator:, contest:, option: nil, abstain: false)
+  def submit(poll_session:, current:, operator:, contest:, option: nil, abstain: false,
+             referendum_decision: nil)
     described_class.new(
       actor: operator,
       poll_session: poll_session,
       poll_contest_id: contest.id,
       poll_option_id: option&.id,
+      referendum_decision: referendum_decision,
       abstain: abstain,
       expected_current_poll_participant_id: current.id
     ).call
+  end
+
+  it "records referendum approvals and rejections in existing tallies" do
+    poll_session, _progress, current, _waiting, operator, contests =
+      create_execution(contest_count: 1, referendum_allowed: true)
+    contest, option = contests.first
+
+    result = submit(poll_session: poll_session, current: current, operator: operator,
+                    contest: contest, referendum_decision: "reject")
+
+    expect(result).to be_success
+    expect(poll_session.poll_contest_tallies.find_by!(poll_contest: contest).rejections_count).to eq(1)
+    expect(poll_session.poll_option_tallies.find_by!(poll_option: option).votes_count).to eq(0)
   end
 
   it "persists each Contest atomically and completes participation only after the last Contest" do

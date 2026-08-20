@@ -49,6 +49,8 @@ Poll
 
 Poll은 제목, 유형, 항목·선택지, 기권 허용과 진행 방식 정책을 소유한다. 기권은 기본 허용하고 진행 방식은 기본 `teacher_confirmed`이며, `automatic`에서는 완료한 학생 화면의 확인을 거쳐 다음 대기 학생을 시작한다. 투표 시작 또는 실행 기록 생성 뒤에는 정책을 변경할 수 없다. 학급투표와 전교투표의 모든 PollSession은 이 Poll-level 정책을 함께 사용한다. PollSession은 학급별 학생 snapshot, 진행 포인터, 참여 상태와 tally를 소유한다. 같은 Poll을 여러 Classroom에서 실행해도 각 진행 상태와 집계는 PollSession으로 분리된다.
 
+Poll의 `referendum_allowed`가 true이고 PollContest의 option이 정확히 1개이면 해당 항목은 찬반투표로 동작한다. option이 2개 이상이면 기존 일반 선택 투표이며 0개이면 시작할 수 없다. 찬성은 단독 option tally, 반대는 contest tally의 rejection count, 기권은 기존 abstention count로 집계하며 별도 referendum 모델은 두지 않는다.
+
 일반 학급투표는 `school_managed: false`, 전교투표는 `school_managed: true`다.
 
 ## PollSession 시작과 진행

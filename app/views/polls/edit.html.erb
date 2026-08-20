@@ -55,6 +55,15 @@
           <%= form.radio_button :advancement_mode, :automatic %><span>자동 진행</span>
         </label>
       </fieldset>
+      <fieldset <%= "disabled" unless @settings_editable %> class="space-y-2 disabled:text-stone-500">
+        <legend class="text-sm font-medium text-stone-700">찬반투표</legend>
+        <label class="mr-4 inline-flex items-center gap-2">
+          <%= form.radio_button :referendum_allowed, true %><span>허용</span>
+        </label>
+        <label class="inline-flex items-center gap-2">
+          <%= form.radio_button :referendum_allowed, false %><span>허용하지 않음</span>
+        </label>
+      </fieldset>
       <div class="flex gap-3">
         <%= form.submit "저장", disabled: !@settings_editable,
                         class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-stone-300" %>

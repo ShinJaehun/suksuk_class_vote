@@ -39,6 +39,16 @@ RSpec.describe Polls::SchoolwideStatusCheck do
     )
   end
 
+  it "allows one option only when the Poll referendum policy allows it" do
+    poll, = create_startable_schoolwide_poll
+    contest = poll.poll_contests.sole
+    contest.poll_options.last.destroy!
+
+    expect(described_class.new(poll: poll.reload)).not_to be_startable
+    poll.update!(referendum_allowed: true)
+    expect(described_class.new(poll: poll.reload)).to be_startable
+  end
+
   it "keeps using current rosters immediately after the Schoolwide Poll starts" do
     poll, poll_session, teacher = create_startable_schoolwide_poll
     expect(described_class.new(poll: poll).active_student_count).to eq(2)

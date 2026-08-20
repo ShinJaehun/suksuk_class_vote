@@ -3,7 +3,7 @@ module Polls
     OptionResult = Data.define(:poll_option, :votes_count, :percentage)
     ContestResult = Data.define(
       :poll_contest, :option_results, :abstentions_count, :total_votes,
-      :abstention_percentage, :winners
+      :abstention_percentage, :rejections_count, :rejection_percentage, :winners
     )
     SessionResult = Data.define(:poll_session, :included)
     ParticipationResult = Data.define(:total_count, :completed_count, :absent_count, :pending_count)
@@ -91,10 +91,12 @@ module Polls
 
     def contest_result_for(contest)
       abstentions_count = contest_abstention_counts.fetch(contest.id, 0)
+      rejections_count = contest_rejection_counts.fetch(contest.id, 0)
       option_counts = contest.poll_options.to_h do |option|
         [option, option_vote_counts.fetch(option.id, 0)]
       end
-      total_votes = option_counts.values.sum + abstentions_count
+      total_votes = option_counts.values.sum + abstentions_count +
+        (contest.referendum? ? rejections_count : 0)
       highest_vote_count = option_counts.values.max.to_i
       option_results = contest.poll_options
         .sort_by { |option| [option.number, option.id] }
@@ -118,6 +120,8 @@ module Polls
         abstentions_count: abstentions_count,
         total_votes: total_votes,
         abstention_percentage: percentage(abstentions_count, total_votes),
+        rejections_count: rejections_count,
+        rejection_percentage: percentage(rejections_count, total_votes),
         winners: winners
       )
     end
@@ -140,6 +144,13 @@ module Polls
         .where(poll: poll, poll_session_id: closed_sessions.select(:id))
         .group(:poll_contest_id)
         .sum(:abstentions_count)
+    end
+
+    def contest_rejection_counts
+      @contest_rejection_counts ||= PollContestTally
+        .where(poll: poll, poll_session_id: closed_sessions.select(:id))
+        .group(:poll_contest_id)
+        .sum(:rejections_count)
     end
   end
 end

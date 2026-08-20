@@ -4,7 +4,7 @@ RSpec.describe "PollSession ballots", type: :request do
   include Devise::Test::IntegrationHelpers
   include ActionCable::TestHelper
 
-  def create_execution(abstention_allowed: true, advancement_mode: :teacher_confirmed)
+  def create_execution(abstention_allowed: true, advancement_mode: :teacher_confirmed, referendum_allowed: false)
     school = create(:school)
     operator = create(:user)
     create(:school_membership, school: school, user: operator)
@@ -12,7 +12,8 @@ RSpec.describe "PollSession ballots", type: :request do
     classroom = create(:classroom, school: school, teacher: operator)
     poll = create(:poll, user: operator, school: school, title: "학급 회장 선거",
                          abstention_allowed: abstention_allowed,
-                         advancement_mode: advancement_mode)
+                         advancement_mode: advancement_mode,
+                         referendum_allowed: referendum_allowed)
     contest = poll.default_poll_contest
     contest.update!(title: "회장")
     option = create(:poll_option, poll: poll, poll_contest: contest, number: 1, name: "김후보")
@@ -45,13 +46,16 @@ RSpec.describe "PollSession ballots", type: :request do
       current_poll_participant: current,
       ballot_status: :ballot_locked
     )
-    tally = create(
-      :poll_option_tally,
-      poll: poll,
-      poll_session: poll_session,
-      poll_option: option,
-      votes_count: 0
-    )
+    tallies = contest.poll_options.map do |poll_option|
+      create(
+        :poll_option_tally,
+        poll: poll,
+        poll_session: poll_session,
+        poll_option: poll_option,
+        votes_count: 0
+      )
+    end
+    tally = tallies.find { |record| record.poll_option == option }
     create(
       :poll_contest_tally,
       poll: poll,
@@ -61,6 +65,30 @@ RSpec.describe "PollSession ballots", type: :request do
     )
 
     [poll, poll_session, progress, current, waiting, option, tally, operator]
+  end
+
+  it "renders and submits a referendum through the existing option tally flow" do
+    poll, poll_session, progress, current, _waiting, yes_option, yes_tally, operator =
+      create_execution(referendum_allowed: true)
+    progress.update!(ballot_status: :ballot_open)
+    sign_in operator
+
+    get ballot_poll_poll_session_path(poll, poll_session)
+    ballot = Nokogiri::HTML(response.body).at_css("form[data-controller='poll-contest-ballot']")
+    expect(ballot.text).to include("찬성", "반대", "기권")
+    expect(ballot.text.squish).to include("기호 1번 김후보")
+    expect(ballot.css("img")).to be_empty
+
+    post submit_ballot_poll_poll_session_path(poll, poll_session), params: {
+      ballot: {
+        expected_current_poll_participant_id: current.id,
+        poll_contest_id: yes_option.poll_contest_id,
+        referendum_decision: "approve"
+      }
+    }
+    expect(yes_tally.reload.votes_count).to eq(1)
+    expect(current.reload.poll_contest_completions.count).to eq(1)
+    expect(current.poll_participation).to be_completed
   end
 
   def create_contest_completions(participant)
@@ -568,18 +596,27 @@ RSpec.describe "PollSession ballots", type: :request do
 
   it "hands an automatic Poll to the next pending student only after a stale-safe confirmation" do
     poll, poll_session, progress, current, waiting, option, tally, operator =
-      create_execution(advancement_mode: :automatic, abstention_allowed: false)
+      create_execution(
+        advancement_mode: :automatic,
+        abstention_allowed: false,
+        referendum_allowed: true
+      )
     skipped = waiting
     next_student = create(:poll_participant, poll: poll, poll_session: poll_session, number: 3, name: "다음학생")
     create(:poll_participation, poll_participant: skipped, status: :absent)
     progress.update!(ballot_status: :ballot_open)
     sign_in operator
 
+    get ballot_poll_poll_session_path(poll, poll_session)
+    referendum_ballot = Nokogiri::HTML(response.body).at_css("form[data-controller='poll-contest-ballot']")
+    expect(referendum_ballot.text).to include("찬성", "반대")
+    expect(referendum_ballot.text).not_to include("기권")
+
     post submit_ballot_poll_poll_session_path(poll, poll_session), params: {
       ballot: {
         expected_current_poll_participant_id: current.id,
         poll_contest_id: option.poll_contest_id,
-        poll_option_id: option.id
+        referendum_decision: "approve"
       }
     }
 
@@ -591,6 +628,7 @@ RSpec.describe "PollSession ballots", type: :request do
 
     follow_redirect!
     handoff = Nokogiri::HTML(response.body)
+    expect(handoff.text).not_to include("기권")
     expect(handoff.text.squish).to include(
       "투표가 완료되었습니다.",
       "다음 투표자는 #{next_student.number}번 #{next_student.name}입니다.",
@@ -624,7 +662,7 @@ RSpec.describe "PollSession ballots", type: :request do
       ballot: {
         expected_current_poll_participant_id: next_student.id,
         poll_contest_id: option.poll_contest_id,
-        poll_option_id: option.id
+        referendum_decision: "approve"
       }
     }
     expect(tally.reload.votes_count).to eq(2)
