@@ -1456,9 +1456,13 @@ RSpec.describe "School Poll management", type: :request do
       expect(response.body).to include("투표 설정", "투표 이름", "전교투표 전체 초기화", "전교투표 삭제")
       expect(response.body).not_to include("선거 설정", "선거 이름")
 
-      patch school_poll_path(poll), params: { poll: { title: "수정한 전교선거", school_id: create(:school).id } }
+      patch school_poll_path(poll), params: {
+        poll: { title: "수정한 전교선거", school_id: create(:school).id, abstention_allowed: false }
+      }
       expect(response).to redirect_to(school_poll_path(poll))
-      expect(poll.reload).to have_attributes(title: "수정한 전교선거", school: school)
+      expect(poll.reload).to have_attributes(
+        title: "수정한 전교선거", school: school, abstention_allowed: false
+      )
     end
 
     it "rejects updates after start and access by another School manager" do
@@ -1468,9 +1472,10 @@ RSpec.describe "School Poll management", type: :request do
       manager = create(:user)
       create(:school_membership, :manager, school: school, user: manager)
       sign_in manager
-      patch school_poll_path(poll), params: { poll: { title: "변경 금지" } }
+      patch school_poll_path(poll), params: { poll: { title: "변경 금지", abstention_allowed: false } }
       expect(response).to redirect_to(polls_path)
       expect(poll.reload.title).not_to eq("변경 금지")
+      expect(poll).to be_abstention_allowed
 
       sign_out manager
       other_manager = create(:user)

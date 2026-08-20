@@ -1,12 +1,12 @@
 require "rails_helper"
 
 RSpec.describe Polls::SubmitContestBallot do
-  def create_execution(contest_count: 3)
+  def create_execution(contest_count: 3, abstention_allowed: true)
     school = create(:school)
     operator = create(:user)
     create(:school_membership, school: school, user: operator)
     classroom = create(:classroom, school: school, teacher: operator)
-    poll = create(:poll, user: operator, school: school)
+    poll = create(:poll, user: operator, school: school, abstention_allowed: abstention_allowed)
     poll.default_poll_contest.destroy!
     contests = contest_count.times.map do |index|
       contest = create(:poll_contest, poll: poll, position: index + 1, title: "항목 #{index + 1}")
@@ -99,6 +99,27 @@ RSpec.describe Polls::SubmitContestBallot do
 
     expect(current.reload.poll_participation).to be_completed
     expect(progress.reload).to be_ballot_locked
+  end
+
+  it "rejects a manipulated abstention when the Poll disallows it without changing runtime records" do
+    poll_session, progress, current, _waiting, operator, contests = create_execution(abstention_allowed: false)
+    contest, option = contests.first
+
+    result = submit(
+      poll_session: poll_session,
+      current: current,
+      operator: operator,
+      contest: contest,
+      abstain: true
+    )
+
+    expect(result).not_to be_success
+    expect(result.errors).to include("이 투표에서는 기권할 수 없습니다.")
+    expect(poll_session.poll_contest_tallies.sum(:abstentions_count)).to eq(0)
+    expect(poll_session.poll_option_tallies.sum(:votes_count)).to eq(0)
+    expect(current.poll_contest_completions).to be_empty
+    expect(current.poll_participation).to be_nil
+    expect(progress.reload).to be_ballot_open
   end
 
   it "rejects later, completed, foreign, and cross-Contest submissions without changing tallies" do

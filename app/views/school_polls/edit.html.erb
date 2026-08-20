@@ -32,6 +32,18 @@
           <p class="mt-1 text-sm text-stone-600">학급 Session이 배정되어 대상 학교를 변경할 수 없습니다.</p>
         <% end %>
       </div>
+      <fieldset <%= "disabled" unless @policy_editable %> class="space-y-2 disabled:text-stone-500">
+        <legend class="text-sm font-medium text-stone-700">기권</legend>
+        <label class="mr-4 inline-flex items-center gap-2">
+          <%= form.radio_button :abstention_allowed, true %><span>허용</span>
+        </label>
+        <label class="inline-flex items-center gap-2">
+          <%= form.radio_button :abstention_allowed, false %><span>허용하지 않음</span>
+        </label>
+        <% unless @policy_editable %>
+          <p class="text-sm text-stone-600">투표 시작 또는 실행 기록 생성 후에는 변경할 수 없습니다.</p>
+        <% end %>
+      </fieldset>
       <div class="flex gap-3">
         <%= form.submit "저장", disabled: !@poll.draft?, class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-stone-300" %>
         <%= link_to "취소", school_poll_path(@poll), class: "rounded-md border border-stone-300 px-4 py-2 text-sm font-medium" %>

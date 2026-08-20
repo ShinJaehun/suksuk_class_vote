@@ -10,6 +10,14 @@ RSpec.describe Poll, type: :model do
   end
 
   describe "validations" do
+    it "allows abstention by default and accepts either policy value" do
+      poll = Poll.new
+
+      expect(poll.abstention_allowed).to be(true)
+      expect(build(:poll, abstention_allowed: false)).to be_valid
+      expect(build(:poll, abstention_allowed: nil)).to be_invalid
+    end
+
     it "requires a title" do
       poll = build(:poll, title: nil)
 
@@ -29,6 +37,30 @@ RSpec.describe Poll, type: :model do
 
       expect(poll).to be_invalid
       expect(poll.errors[:school]).to be_present
+    end
+  end
+
+  describe "abstention policy" do
+    it "can change only while the definition is editable" do
+      poll = create(:poll)
+
+      expect { poll.update!(abstention_allowed: false) }
+        .to change { poll.reload.abstention_allowed }.from(true).to(false)
+
+      classroom = create(:classroom, school: poll.school)
+      operator = poll.user
+      session = create(
+        :poll_session,
+        poll: poll,
+        classroom: classroom,
+        operator: operator,
+        operator_name_snapshot: operator.name.presence || operator.login_id
+      )
+      create(:poll_progress, poll: poll, poll_session: session)
+
+      expect(poll.update(abstention_allowed: true)).to be(false)
+      expect(poll.errors[:abstention_allowed]).to be_present
+      expect(poll.reload.abstention_allowed).to be(false)
     end
   end
 

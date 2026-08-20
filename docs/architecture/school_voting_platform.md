@@ -47,7 +47,7 @@ Poll
 └── PollSession (Classroom별 실행)
 ```
 
-Poll은 제목, 유형, 항목과 선택지를 소유한다. PollSession은 학급별 학생 snapshot, 진행 포인터, 참여 상태와 tally를 소유한다. 같은 Poll을 여러 Classroom에서 실행해도 각 진행 상태와 집계는 PollSession으로 분리된다.
+Poll은 제목, 유형, 항목·선택지와 기권 허용 정책을 소유한다. 기권은 기본 허용하며, 투표 시작 또는 실행 기록 생성 뒤에는 정책을 변경할 수 없다. 학급투표와 전교투표의 모든 PollSession은 이 Poll-level 정책을 함께 사용한다. PollSession은 학급별 학생 snapshot, 진행 포인터, 참여 상태와 tally를 소유한다. 같은 Poll을 여러 Classroom에서 실행해도 각 진행 상태와 집계는 PollSession으로 분리된다.
 
 일반 학급투표는 `school_managed: false`, 전교투표는 `school_managed: true`다.
 

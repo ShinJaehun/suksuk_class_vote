@@ -1,7 +1,7 @@
 <%= turbo_frame_tag option do %>
-  <div class="flex flex-wrap items-center justify-between gap-3 <%= poll_session.poll.election? ? "rounded-md bg-stone-50 p-3" : "py-1" %>">
+  <div class="flex flex-wrap items-center justify-between gap-3 <%= poll_session.poll.school_managed? && poll_session.poll.election? ? "rounded-md bg-stone-50 p-3" : "py-1" %>">
     <span class="flex items-center gap-3">
-      <% if poll_session.poll.election? %>
+      <% if poll_session.poll.school_managed? && poll_session.poll.election? %>
         <%= image_tag poll_option_photo_source(option, variant: :thumbnail),
                       alt: option.photo.attached? ? "#{option.name} 후보 사진" : "",
                       class: "h-12 w-12 rounded-md object-contain" %>

@@ -111,6 +111,7 @@ module Polls
     def validate_decision
       has_option = poll_option_id.present?
       errors << "선택지 선택과 기권 중 하나만 제출해 주세요." if has_option == abstain
+      errors << "이 투표에서는 기권할 수 없습니다." if abstain && !poll_session.poll.abstention_allowed?
       return if errors.any? || abstain
 
       @selected_option = current_contest.poll_options.find_by(id: poll_option_id)

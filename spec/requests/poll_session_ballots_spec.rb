@@ -4,13 +4,14 @@ RSpec.describe "PollSession ballots", type: :request do
   include Devise::Test::IntegrationHelpers
   include ActionCable::TestHelper
 
-  def create_execution
+  def create_execution(abstention_allowed: true)
     school = create(:school)
     operator = create(:user)
     create(:school_membership, school: school, user: operator)
     operator.reload
     classroom = create(:classroom, school: school, teacher: operator)
-    poll = create(:poll, user: operator, school: school, title: "학급 회장 선거")
+    poll = create(:poll, user: operator, school: school, title: "학급 회장 선거",
+                         abstention_allowed: abstention_allowed)
     contest = poll.default_poll_contest
     contest.update!(title: "회장")
     option = create(:poll_option, poll: poll, poll_contest: contest, number: 1, name: "김후보")
@@ -358,6 +359,28 @@ RSpec.describe "PollSession ballots", type: :request do
       attached_option.name
      )
     expect(ballot.to_html).not_to include("opacity-100")
+  end
+
+  it "omits abstention controls and wording when the Poll disallows abstention" do
+    poll, poll_session, progress, _current, _waiting, _option, _tally, operator =
+      create_execution(abstention_allowed: false)
+    progress.update!(ballot_status: :ballot_open)
+    sign_in operator
+
+    get ballot_poll_poll_session_path(poll, poll_session)
+
+    ballot = Nokogiri::HTML(response.body).at_css("form[data-controller='poll-contest-ballot']")
+    expect(ballot).to be_present
+    expect(ballot.at_css("input[name='ballot[abstain]']")).to be_nil
+    expect(ballot.text).not_to include("기권")
+    expect(ballot.text).to include("선택한 뒤 제출해 주세요.")
+
+    poll.update!(school_managed: true, status: :in_progress, started_at: Time.current)
+    get ballot_poll_poll_session_path(poll, poll_session)
+    schoolwide_ballot = Nokogiri::HTML(response.body).at_css("form[data-controller='poll-contest-ballot']")
+    expect(schoolwide_ballot.at_css("input[name='ballot[abstain]']")).to be_nil
+    expect(schoolwide_ballot.text).not_to include("기권")
+    expect(schoolwide_ballot.text).to include("후보를 선택한 뒤 제출해 주세요.")
   end
 
   it "recovers a missed current participant broadcast without overwriting a matching ballot" do

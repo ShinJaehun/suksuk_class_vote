@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_17_030358) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_20_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -190,6 +190,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_17_030358) do
   end
 
   create_table "polls", force: :cascade do |t|
+    t.boolean "abstention_allowed", default: true, null: false
     t.datetime "archived_at"
     t.datetime "closed_at"
     t.datetime "created_at", null: false

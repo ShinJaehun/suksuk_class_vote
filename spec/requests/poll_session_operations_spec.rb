@@ -151,7 +151,7 @@ RSpec.describe "PollSession operations", type: :request do
       "#{poll.choice_number_label} 1번 · 조현",
       "#{poll.choice_number_label} 2번 · 서코"
     )
-    expect(candidate_section.css('img[src*="avatars/"][alt=""]').size).to eq(2)
+    expect(candidate_section.css("img")).to be_empty
     expect(page.at_css("[data-testid='poll-session-roster']").text).to include(
       "전체 2명",
       "1번",
@@ -198,7 +198,7 @@ RSpec.describe "PollSession operations", type: :request do
     )
   end
 
-  it "shows candidate photos and fallbacks only for election sessions" do
+  it "shows candidate photos and fallbacks only for schoolwide election sessions" do
     poll, poll_session, teacher = create_operations_session(status: :draft)
     poll.update!(school_managed: true)
     create(

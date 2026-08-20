@@ -90,8 +90,10 @@ class Poll < ApplicationRecord
   validates :title, presence: true
   validates :user, presence: true
   validates :school_managed, inclusion: { in: [true, false] }
+  validates :abstention_allowed, inclusion: { in: [true, false] }
   validates :school, presence: true
   validate :school_managed_lifecycle_timestamps
+  validate :abstention_policy_editable, if: :will_save_change_to_abstention_allowed?
 
   def display_status
     DISPLAY_STATUSES.fetch(status, status)
@@ -197,6 +199,12 @@ class Poll < ApplicationRecord
   end
 
   private
+
+  def abstention_policy_editable
+    return unless persisted? && !definition_editable?
+
+    errors.add(:abstention_allowed, "투표 시작 또는 실행 기록 생성 후에는 변경할 수 없습니다.")
+  end
 
   def school_managed_lifecycle_timestamps
     return unless school_managed?

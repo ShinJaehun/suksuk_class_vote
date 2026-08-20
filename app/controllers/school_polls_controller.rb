@@ -314,10 +314,11 @@ class SchoolPollsController < ApplicationController
   def prepare_edit
     @available_schools = current_user.admin? ? School.order(:name) : School.where(id: @poll.school_id)
     @has_poll_definition = @poll.poll_contests.exists? || @poll.poll_options.exists?
+    @policy_editable = @poll.definition_editable?
   end
 
   def school_poll_params
-    attributes = params.require(:poll).permit(:title, :school_id)
+    attributes = params.require(:poll).permit(:title, :school_id, :abstention_allowed)
     attributes[:school_id] = @poll.school_id unless current_user.admin?
     attributes
   end
@@ -394,6 +395,6 @@ class SchoolPollsController < ApplicationController
   end
 
   def poll_params
-    params.fetch(:poll, ActionController::Parameters.new).permit(:title, :kind)
+    params.fetch(:poll, ActionController::Parameters.new).permit(:title, :kind, :abstention_allowed)
   end
 end

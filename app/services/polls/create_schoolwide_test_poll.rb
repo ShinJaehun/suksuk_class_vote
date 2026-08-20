@@ -70,6 +70,7 @@ module Polls
         user: actor,
         school: source_poll.school,
         school_managed: true,
+        abstention_allowed: source_poll.abstention_allowed,
         test_source_poll: source_poll,
         status: :draft,
         started_at: nil,

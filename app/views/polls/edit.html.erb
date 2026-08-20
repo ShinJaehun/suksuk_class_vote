@@ -37,6 +37,15 @@
           <p class="text-sm text-stone-600">투표 항목이나 선택지가 있으면 활동 유형을 변경할 수 없습니다.</p>
         <% end %>
       </div>
+      <fieldset <%= "disabled" unless @settings_editable %> class="space-y-2 disabled:text-stone-500">
+        <legend class="text-sm font-medium text-stone-700">기권</legend>
+        <label class="mr-4 inline-flex items-center gap-2">
+          <%= form.radio_button :abstention_allowed, true %><span>허용</span>
+        </label>
+        <label class="inline-flex items-center gap-2">
+          <%= form.radio_button :abstention_allowed, false %><span>허용하지 않음</span>
+        </label>
+      </fieldset>
       <div class="flex gap-3">
         <%= form.submit "저장", disabled: !@settings_editable,
                         class: "rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-stone-300" %>
