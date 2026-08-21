@@ -79,6 +79,18 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(ballot.text.squish).to include("기호 1번 김후보")
     expect(ballot.css("img")).to be_empty
 
+    poll.update!(
+      school_managed: true,
+      status: :in_progress,
+      started_at: Time.current
+    )
+    get ballot_poll_poll_session_path(poll, poll_session)
+    schoolwide_ballot = Nokogiri::HTML(response.body).at_css("form[data-controller='poll-contest-ballot']")
+    subject = schoolwide_ballot.at_css('[data-testid="poll-session-referendum-subject"]')
+    expect(subject.at_css('img[src*="avatars/"]')).to be_present
+    expect(subject.text.squish).to include("기호 1번 김후보")
+    expect(schoolwide_ballot.css("img").size).to eq(1)
+
     post submit_ballot_poll_poll_session_path(poll, poll_session), params: {
       ballot: {
         expected_current_poll_participant_id: current.id,
@@ -478,6 +490,9 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(ballot_wrapper["class"]).to include("w-full")
     expect(response.body).to include("poll-contest-ballot", "학생 투표 화면", "현재 투표자")
     expect(response.body).not_to include("현재 학생", "설문 문항", "선택지 선택")
+    ballot = page.at_css("form[data-controller='poll-contest-ballot']")
+    expect(ballot.css('img[src*="avatars/"]')).to be_empty
+    expect(ballot.css('img[alt*="후보 사진"]')).to be_empty
   end
 
   it "uses the legacy candidate-count grid classes for Schoolwide Elections" do
@@ -1327,7 +1342,10 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(response).to have_http_status(:ok)
     expect(response.body).to include("2표", "1표", "기권", "25%")
     expect(response.body).not_to include("77표")
-    expect(Nokogiri::HTML(response.body).at_css("a[href='#{detail_path}']")).to be_present
+    results_page = Nokogiri::HTML(response.body)
+    results = results_page.at_css("[data-testid='poll-session-results']")
+    expect(results.css('img[src*="avatars/"]').size).to eq(2)
+    expect(results_page.at_css("a[href='#{detail_path}']")).to be_present
 
     manipulated_path = results_poll_poll_session_path(
       poll,

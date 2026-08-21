@@ -1,3 +1,5 @@
+require "digest"
+
 module ApplicationHelper
   SCHOOL_COLOR_CLASSES = {
     "rose" => "border-rose-200 bg-rose-50 text-rose-800",
@@ -53,10 +55,45 @@ module ApplicationHelper
   def poll_option_photo_source(option, variant:)
     return rails_representation_path(option.photo.variant(variant), only_path: true) if option.photo.attached?
 
-    avatar_index = ((option.poll_contest.position.to_i * 7) + (option.number.to_i * 11)) % 30
+    canonical_poll_id = option.poll.test_source_poll_id.presence || option.poll_id
+    candidate_slot = poll_option_avatar_slot(option, canonical_poll_id)
+    avatar_index = poll_avatar_indices(canonical_poll_id)[candidate_slot % 30]
     avatar_prefix = avatar_index.even? ? "boy" : "girl"
     avatar_number = ((avatar_index / 2) % 15) + 1
 
     "avatars/#{avatar_prefix}#{avatar_number.to_s.rjust(2, "0")}.png"
+  end
+
+  private
+
+  def poll_option_avatar_slot(option, canonical_poll_id)
+    source_options = poll_avatar_options(canonical_poll_id)
+    source_slot = source_options.index { |source_option| source_option.id == option.id }
+    return source_slot if source_slot
+
+    test_options = poll_avatar_options(option.poll_id)
+    definition = [option.poll_contest.title, option.name]
+    matching_test_options = test_options.select do |test_option|
+      [test_option.poll_contest.title, test_option.name] == definition
+    end
+    occurrence = matching_test_options.index { |test_option| test_option.id == option.id }
+    matching_source_options = source_options.select do |source_option|
+      [source_option.poll_contest.title, source_option.name] == definition
+    end
+    matched_source = matching_source_options[occurrence] if occurrence
+
+    source_options.index(matched_source) || test_options.index { |test_option| test_option.id == option.id } || 0
+  end
+
+  def poll_avatar_options(poll_id)
+    @poll_avatar_options ||= {}
+    @poll_avatar_options[poll_id] ||= PollOption.includes(:poll_contest).where(poll_id: poll_id).order(:id).to_a
+  end
+
+  def poll_avatar_indices(canonical_poll_id)
+    @poll_avatar_indices ||= {}
+    @poll_avatar_indices[canonical_poll_id] ||= (0...30).sort_by do |avatar_index|
+      Digest::SHA256.hexdigest("#{canonical_poll_id}\0#{avatar_index}")
+    end
   end
 end

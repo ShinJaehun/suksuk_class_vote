@@ -7,6 +7,18 @@ class SchoolPollsController < ApplicationController
     { title: "5학년 부회장", candidate_count: 15 },
     { title: "4학년 부회장", candidate_count: 23 }
   ].freeze
+  MOCK_CANDIDATE_NAMES = [
+    "김민준", "이서윤", "박지우", "최서준", "정하은",
+    "김지민", "이예준", "박서연", "최도윤", "정수현",
+    "강지안", "조시우", "윤유진", "장민서", "임현우",
+    "한서진", "오지호", "서채원", "신하준", "권지율",
+    "김은우", "이수빈", "박준서", "최예은", "정건우",
+    "강다은", "조우진", "윤지유", "장현준", "임가은",
+    "한민재", "오서현", "서주원", "신예린", "권태윤",
+    "황나연", "안도현", "송채윤", "류승우", "홍예나",
+    "김준혁", "이소윤", "박재윤", "최유나", "정시윤",
+    "강정우", "조아린", "윤도경", "장서우", "임하윤"
+  ].freeze
 
   before_action :authenticate_user!
   helper_method :school_poll_recovery_token
@@ -233,6 +245,7 @@ class SchoolPollsController < ApplicationController
       raise InvalidMockCandidateTarget unless mock_candidate_target?(@poll)
       raise ExistingMockCandidateDefinition if mock_candidate_definition_exists?(@poll)
 
+      name_index = 0
       MOCK_CANDIDATE_DEFINITIONS.each_with_index do |definition, index|
         contest = @poll.poll_contests.create!(
           title: definition.fetch(:title),
@@ -243,8 +256,9 @@ class SchoolPollsController < ApplicationController
           contest.poll_options.create!(
             poll: @poll,
             number: number,
-            name: "#{definition.fetch(:title)} 후보 #{number}"
+            name: MOCK_CANDIDATE_NAMES.fetch(name_index)
           )
+          name_index += 1
         end
       end
     end

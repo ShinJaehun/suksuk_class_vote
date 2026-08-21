@@ -1506,6 +1506,63 @@ RSpec.describe "School Poll management", type: :request do
       expect(flash[:alert]).to eq("전교투표 종료 후 결과를 확인할 수 있습니다.")
     end
 
+    it "keeps candidate fallbacks visible after a Schoolwide Election starts" do
+      poll = create(:poll, school: create(:school), school_managed: true)
+      contest = create(:poll_contest, poll: poll, title: "회장 선거", position: 1)
+      option = create(:poll_option, poll: poll, poll_contest: contest)
+
+      sign_in create(:user, :admin)
+
+      get school_poll_path(poll)
+
+      draft_option = Nokogiri::HTML(response.body).at_css("turbo-frame#poll_option_#{option.id}")
+      draft_fallback = draft_option.at_css('img[src*="avatars/"]')
+      expect(draft_fallback).to be_present
+
+      poll.update!(status: :in_progress, started_at: Time.current)
+      get school_poll_path(poll)
+
+      running_option = Nokogiri::HTML(response.body).at_css("turbo-frame#poll_option_#{option.id}")
+      running_fallback = running_option.at_css('img[src*="avatars/"]')
+      expect(running_fallback).to be_present
+      expect(running_fallback["src"]).to eq(draft_fallback["src"])
+    end
+
+    it "shows a fallback only beside the referendum candidate in overall results" do
+      poll = create(
+        :poll,
+        school: create(:school),
+        school_managed: true,
+        referendum_allowed: true,
+        status: :closed,
+        started_at: 1.hour.ago,
+        closed_at: Time.current
+      )
+      contest = create(:poll_contest, poll: poll, title: "회장 선거", position: 1)
+      option = create(:poll_option, poll: poll, poll_contest: contest, name: "단독 후보")
+      poll_session = create_result_session(poll: poll, status: :closed, classroom_name: "종료 1반")
+      create(:poll_option_tally, poll: poll, poll_session: poll_session, poll_option: option, votes_count: 1)
+      create(
+        :poll_contest_tally,
+        poll: poll,
+        poll_session: poll_session,
+        poll_contest: contest,
+        rejections_count: 1,
+        abstentions_count: 0
+      )
+      sign_in create(:user, :admin)
+
+      get results_school_poll_path(poll)
+
+      results = Nokogiri::HTML(response.body).at_css('[data-testid="school-poll-overall-results"]')
+      subject = results.at_css('[data-testid="school-poll-referendum-subject"]')
+      expect(subject.at_css('img[src*="avatars/"]')).to be_present
+      expect(subject.text.squish).to include("단독 후보")
+      expect(results.css("img").size).to eq(1)
+      expect(results.text.squish).to include("찬성 1표")
+      expect(results.text.squish).to match(/반대\s*1표/)
+    end
+
     it "separates the current leaf from its replacement history" do
       poll = create(:poll, school: create(:school), school_managed: true, status: :in_progress, started_at: Time.current)
       sign_in create(:user, :admin)

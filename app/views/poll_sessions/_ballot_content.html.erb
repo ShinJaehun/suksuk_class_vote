@@ -92,9 +92,11 @@
         <%= form.hidden_field :poll_contest_id, name: "ballot[poll_contest_id]", value: current_contest.id %>
         <section class="rounded-md border border-stone-200 bg-white p-5">
           <h2 class="text-2xl font-semibold"><%= current_contest.title %></h2>
-          <div class="mt-4 flex items-center gap-3 rounded-md bg-stone-50 p-4">
-            <% if poll_session.poll.school_managed? && poll_session.poll.election? && option.photo.attached? %>
-              <%= image_tag poll_option_photo_source(option, variant: :ballot), alt: "#{option.name} 후보 사진", class: "h-24 w-24 rounded-md object-contain" %>
+          <div class="mt-4 flex items-center gap-3 rounded-md bg-stone-50 p-4" data-testid="poll-session-referendum-subject">
+            <% if poll_session.poll.school_managed? && poll_session.poll.election? %>
+              <%= image_tag poll_option_photo_source(option, variant: :ballot),
+                            alt: option.photo.attached? ? "#{option.name} 후보 사진" : "",
+                            class: "h-24 w-24 rounded-md object-contain" %>
             <% end %>
             <p class="text-lg font-semibold"><%= poll_session.poll.choice_number_label %> <%= option.number %>번 <%= option.name %></p>
           </div>

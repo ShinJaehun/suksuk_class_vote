@@ -56,8 +56,10 @@
             <% if result[:contest].referendum? %>
               <% subject = result[:option_results].first[:option] %>
               <div class="flex items-center gap-3 font-semibold">
-                <% if @poll_session.poll.school_managed? && @poll_session.poll.election? && subject.photo.attached? %>
-                  <%= image_tag poll_option_photo_source(subject, variant: :thumbnail), alt: "#{subject.name} 후보 사진", class: "h-12 w-12 rounded-md object-contain" %>
+                <% if @poll_session.poll.school_managed? && @poll_session.poll.election? %>
+                  <%= image_tag poll_option_photo_source(subject, variant: :thumbnail),
+                                alt: subject.photo.attached? ? "#{subject.name} 후보 사진" : "",
+                                class: "h-12 w-12 rounded-md object-contain" %>
                 <% end %>
                 <span><%= @poll_session.poll.choice_number_label %> <%= subject.number %>번 <%= subject.name %></span>
               </div>
@@ -66,9 +68,9 @@
               <% option = option_result[:option] %>
               <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
                 <div class="flex items-center gap-3">
-                  <% if !result[:contest].referendum? && @poll_session.poll.school_managed? && @poll_session.poll.election? && option.photo.attached? %>
+                  <% if !result[:contest].referendum? && @poll_session.poll.school_managed? && @poll_session.poll.election? %>
                     <%= image_tag poll_option_photo_source(option, variant: :thumbnail),
-                                  alt: "#{option.name} 후보 사진",
+                                  alt: option.photo.attached? ? "#{option.name} 후보 사진" : "",
                                   class: "h-12 w-12 shrink-0 rounded-md object-contain" %>
                   <% end %>
                   <div class="min-w-0 flex-1">

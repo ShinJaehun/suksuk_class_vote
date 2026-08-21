@@ -726,15 +726,17 @@ RSpec.describe "School Poll definition management", type: :request do
       ])
       expect(contests.map { |contest| contest.poll_options.count }).to eq([ 4, 8, 15, 23 ])
 
+      generated_options = []
       contests.each do |contest|
         options = contest.poll_options.order(:number)
         expect(options.pluck(:number)).to eq((1..options.size).to_a)
-        expect(options.pluck(:name)).to eq(
-          (1..options.size).map { |number| "#{contest.title} 후보 #{number}" }
-        )
         expect(options).to all(have_attributes(poll_id: poll.id, poll_contest_id: contest.id))
         expect(options).to all(satisfy { |option| !option.photo.attached? })
+        generated_options.concat(options)
       end
+      expect(generated_options.size).to eq(50)
+      expect(generated_options.map(&:name).uniq.size).to eq(50)
+      expect(generated_options.map(&:name)).to eq(SchoolPollsController::MOCK_CANDIDATE_NAMES)
 
       expect(response).to redirect_to(school_poll_path(poll))
       expect(flash[:notice]).to eq("테스트 선거 항목 4개와 후보자 50명을 만들었습니다.")
@@ -823,7 +825,7 @@ RSpec.describe "School Poll definition management", type: :request do
       invalid_option = PollOption.new
       invalid_option.errors.add(:base, "저장 실패")
       allow_any_instance_of(PollOption).to receive(:save!).and_wrap_original do |method, *args, **kwargs|
-        if method.receiver.name == "부회장 후보 3"
+        if method.receiver.poll_contest&.title == "부회장" && method.receiver.number == 3
           raise ActiveRecord::RecordInvalid, invalid_option
         end
 

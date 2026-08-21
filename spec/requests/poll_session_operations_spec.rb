@@ -297,6 +297,15 @@ RSpec.describe "PollSession operations", type: :request do
 
     discussion_page = Nokogiri::HTML(response.body)
     expect(discussion_page.css('[data-testid="poll-session-candidates"] img')).to be_empty
+
+    regular, regular_session, regular_teacher = create_operations_session(status: :draft)
+    create(:poll_option, poll: regular, poll_contest: regular.default_poll_contest)
+    sign_in regular_teacher
+
+    get poll_poll_session_path(regular, regular_session)
+
+    regular_page = Nokogiri::HTML(response.body)
+    expect(regular_page.css('[data-testid="poll-session-candidates"] img')).to be_empty
   end
 
   it "renders draft, closed, and stopped sessions safely without progress" do
@@ -377,12 +386,18 @@ RSpec.describe "PollSession operations", type: :request do
   it "renders referendum approvals and rejections as equal printable result cards" do
     poll, poll_session, teacher = create_operations_session(
       status: :closed,
-      poll_attributes: { referendum_allowed: true }
+      poll_attributes: { school_managed: true, referendum_allowed: true }
+    )
+    contest = create(
+      :poll_contest,
+      poll: poll,
+      title: "급식 개선",
+      position: 1
     )
     option = create(
       :poll_option,
       poll: poll,
-      poll_contest: poll.default_poll_contest,
+      poll_contest: contest,
       number: 1,
       name: "급식 개선안"
     )
@@ -397,7 +412,7 @@ RSpec.describe "PollSession operations", type: :request do
       :poll_contest_tally,
       poll: poll,
       poll_session: poll_session,
-      poll_contest: poll.default_poll_contest,
+      poll_contest: contest,
       rejections_count: 3,
       abstentions_count: 0
     )
@@ -411,5 +426,10 @@ RSpec.describe "PollSession operations", type: :request do
     expect(cards.map { |card| card.text.squish }).to eq(["찬성 1표", "반대 3표"])
     expect(printable.text.squish).to include("급식 개선안")
     expect(printable.text.squish).not_to include("기권 0표")
+    expect(printable.css("img")).to be_empty
+    results = page.at_css('[data-testid="poll-session-results"]')
+    expect(results.css('img[src*="avatars/"]').size).to eq(1)
+    expect(results.text.squish).to include("급식 개선안", "찬성 1표")
+    expect(results.text.squish).to match(/반대\s*3표/)
   end
 end

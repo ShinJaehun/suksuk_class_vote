@@ -52,7 +52,17 @@
                 "없음" %>
         </p><% end %>
         <div class="mt-5 space-y-3">
-          <% if contest_result.poll_contest.referendum? %><p class="font-semibold"><%= contest_result.option_results.first.poll_option.name %></p><% end %>
+          <% if contest_result.poll_contest.referendum? %>
+            <% subject = contest_result.option_results.first.poll_option %>
+            <div class="flex items-center gap-3 font-semibold" data-testid="school-poll-referendum-subject">
+              <% if @poll.school_managed? && @poll.election? %>
+                <%= image_tag poll_option_photo_source(subject, variant: :thumbnail),
+                              alt: subject.photo.attached? ? "#{subject.name} 후보 사진" : "",
+                              class: "h-12 w-12 rounded-md object-contain" %>
+              <% end %>
+              <span><%= subject.name %></span>
+            </div>
+          <% end %>
           <% contest_result.option_results.each do |option_result| %>
             <div class="rounded-md border border-stone-200 bg-stone-50 p-3">
               <div class="flex items-center gap-3">

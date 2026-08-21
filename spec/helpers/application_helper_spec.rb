@@ -30,20 +30,63 @@ RSpec.describe ApplicationHelper, type: :helper do
       expect(first).to match(%r{\Aavatars/(boy|girl)(0[1-9]|1[0-5])\.png\z})
     end
 
-    it "uses definition positions so cloned options keep the same fallback avatar" do
-      option = create(:poll_option, number: 7)
-      cloned_poll = create(:poll, school: create(:school), school_managed: true)
-      cloned_contest = create(:poll_contest, poll: cloned_poll, position: option.poll_contest.position)
-      cloned_option = create(:poll_option, poll: cloned_poll, poll_contest: cloned_contest, number: option.number)
-      avatar_index = ((option.poll_contest.position * 7) + (option.number * 11)) % 30
-      prefix = avatar_index.even? ? "boy" : "girl"
-      number = ((avatar_index / 2) % 15) + 1
+    it "assigns a unique deterministic deck for the first 30 candidates and reuses it from the 31st" do
+      poll = create(:poll, school: create(:school), school_managed: true)
+      contest = create(:poll_contest, poll: poll)
+      options = 31.times.map do |index|
+        create(:poll_option, poll: poll, poll_contest: contest, number: index + 1)
+      end
 
-      expect(helper.poll_option_photo_source(option, variant: :thumbnail)).to eq(
-        "avatars/#{prefix}#{number.to_s.rjust(2, "0")}.png"
+      paths = options.map { |option| helper.poll_option_photo_source(option, variant: :thumbnail) }
+
+      expect(paths.first(30).uniq.size).to eq(30)
+      expect(paths[30]).to eq(paths[0])
+      expect(paths).to all(match(%r{\Aavatars/(boy|girl)(0[1-9]|1[0-5])\.png\z}))
+    end
+
+    it "keeps the same source fallback when mutable definition fields change" do
+      option = create(:poll_option, number: 7)
+      option.poll.update!(school_managed: true)
+      original = helper.poll_option_photo_source(option, variant: :thumbnail)
+
+      option.update!(number: 8, name: "변경한 후보")
+      option.poll_contest.update!(position: option.poll_contest.position + 1, title: "변경한 선거")
+
+      expect(helper.poll_option_photo_source(option, variant: :thumbnail)).to eq(original)
+    end
+
+    it "matches cloned Test Poll candidates to source occurrences" do
+      school = create(:school)
+      source_poll = create(:poll, school: school, school_managed: true)
+      source_contest = create(:poll_contest, poll: source_poll, title: "회장 선거", position: 1)
+      source_options = 2.times.map do |index|
+        create(
+          :poll_option,
+          poll: source_poll,
+          poll_contest: source_contest,
+          number: index + 1,
+          name: "김후보"
+        )
+      end
+      test_poll = create(
+        :poll,
+        school: school,
+        school_managed: true,
+        test_source_poll: source_poll
       )
-      expect(helper.poll_option_photo_source(cloned_option, variant: :thumbnail)).to eq(
-        helper.poll_option_photo_source(option, variant: :thumbnail)
+      test_contest = create(:poll_contest, poll: test_poll, title: source_contest.title, position: 2)
+      test_options = 2.times.map do |index|
+        create(
+          :poll_option,
+          poll: test_poll,
+          poll_contest: test_contest,
+          number: index + 9,
+          name: source_options.first.name
+        )
+      end
+
+      expect(test_options.map { |option| helper.poll_option_photo_source(option, variant: :thumbnail) }).to eq(
+        source_options.map { |option| helper.poll_option_photo_source(option, variant: :thumbnail) }
       )
     end
   end
