@@ -12,12 +12,14 @@
                       class: "inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" %>
         </div>
       <% end %>
+      <% showing_next_participant = current_participation.present? && next_pending_participant.present? %>
+      <% displayed_participant = showing_next_participant ? next_pending_participant : current_participant %>
       <section class="rounded-xl border border-stone-200 bg-white px-6 py-10 text-center shadow-sm"
                data-testid="poll-session-current-participant">
-        <p class="text-base font-semibold uppercase tracking-wide text-stone-500">현재 투표자</p>
-        <% if current_participant.present? %>
+        <p class="text-base font-semibold uppercase tracking-wide text-stone-500"><%= showing_next_participant ? "다음 투표자" : "현재 투표자" %></p>
+        <% if displayed_participant.present? %>
           <p class="mt-5 break-words text-5xl font-bold tracking-tight text-stone-900 sm:text-6xl">
-            <%= current_participant.number %>번 <%= current_participant.name %>
+            <%= displayed_participant.number %>번 <%= displayed_participant.name %>
           </p>
         <% else %>
           <p class="mt-5 text-xl font-medium text-stone-600">현재 투표자가 지정되지 않았습니다.</p>
@@ -80,7 +82,7 @@
               <% if status_check.progress_valid? && poll_session.archived_at.blank? && can_operate %>
                 <div class="mt-5 flex flex-wrap justify-center gap-3">
                   <% if poll_session.poll.teacher_confirmed? %>
-                    <%= button_to "다음 투표자는 #{next_pending_participant.number}번 #{next_pending_participant.name} 학생입니다.",
+                    <%= button_to "다음 학생 진행",
                                   advance_participant_poll_poll_session_path(
                                     poll_session.poll,
                                     poll_session

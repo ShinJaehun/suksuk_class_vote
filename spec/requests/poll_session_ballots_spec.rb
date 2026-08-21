@@ -572,7 +572,9 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(operation.text).to include(
       "#{current.number}번 #{current.name} 학생이",
       "투표를 완료했습니다.",
-      "다음 투표자는 #{waiting.number}번 #{waiting.name} 학생입니다.",
+      "다음 투표자",
+      "#{waiting.number}번 #{waiting.name}",
+      "다음 학생 진행",
       "미참여 처리"
     )
     expect(response.body).to include("투표 진행 상황", "투표 완료")
@@ -952,7 +954,9 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(response.body).to include(
       "#{current.number}번 #{current.name} 학생이",
       "투표를 완료했습니다.",
-      "다음 투표자는 #{waiting.number}번 #{waiting.name} 학생입니다.",
+      "다음 투표자",
+      "#{waiting.number}번 #{waiting.name}",
+      "다음 학생 진행",
       "미참여 처리",
       "학생 투표 화면 열기"
     )
@@ -988,7 +992,9 @@ RSpec.describe "PollSession ballots", type: :request do
     expect(response.body).to include(
       "#{current.number}번 #{current.name} 학생이",
       "미참여 처리되었습니다.",
-      "다음 투표자는 #{waiting.number}번 #{waiting.name} 학생입니다.",
+      "다음 투표자",
+      "#{waiting.number}번 #{waiting.name}",
+      "다음 학생 진행",
       "미참여 처리"
     )
   end
@@ -1019,7 +1025,11 @@ RSpec.describe "PollSession ballots", type: :request do
     get poll_poll_session_path(poll, poll_session)
 
     expect(response.body).to include(
-      "다음 투표자는 #{following.number}번 #{following.name} 학생입니다.",
+      "#{current.number}번 #{current.name} 학생이",
+      "투표를 완료했습니다.",
+      "다음 투표자",
+      "#{following.number}번 #{following.name}",
+      "다음 학생 진행",
       "미참여 처리"
     )
   end

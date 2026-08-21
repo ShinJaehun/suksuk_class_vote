@@ -4,13 +4,13 @@ RSpec.describe "PollSession operations", type: :request do
   include Devise::Test::IntegrationHelpers
   include ActionView::RecordIdentifier
 
-  def create_operations_session(status: :in_progress)
+  def create_operations_session(status: :in_progress, poll_attributes: {})
     school = create(:school)
     teacher = create(:user, name: "김교사")
     create(:school_membership, school: school, user: teacher)
     teacher.reload
     classroom = create(:classroom, school: school, teacher: teacher)
-    poll = create(:poll, user: teacher, school: school, title: "우리 반 의견 투표")
+    poll = create(:poll, user: teacher, school: school, title: "우리 반 의견 투표", **poll_attributes)
     started_at = 1.hour.ago
     poll_session = create(
       :poll_session,
@@ -69,6 +69,67 @@ RSpec.describe "PollSession operations", type: :request do
       "처리 완료",
       "새학생",
       secret_option.name
+    )
+  end
+
+  it "shows the next pending participant after the current participant completes" do
+    poll, poll_session, teacher = create_operations_session
+    current = add_participant(
+      poll: poll, poll_session: poll_session, number: 1, name: "카이사르", participation: :completed
+    )
+    add_participant(
+      poll: poll, poll_session: poll_session, number: 2, name: "아우구스투스", participation: :absent
+    )
+    next_pending = add_participant(poll: poll, poll_session: poll_session, number: 3, name: "프리드리히")
+    option = create(:poll_option, poll: poll, poll_contest: poll.default_poll_contest)
+    create(
+      :poll_contest_completion,
+      poll_participant: current,
+      poll_contest: poll.default_poll_contest
+    )
+    create(
+      :poll_option_tally,
+      poll: poll,
+      poll_session: poll_session,
+      poll_option: option,
+      votes_count: 1
+    )
+    create(
+      :poll_contest_tally,
+      poll: poll,
+      poll_session: poll_session,
+      poll_contest: poll.default_poll_contest,
+      abstentions_count: 0
+    )
+    create(
+      :poll_progress,
+      poll: poll,
+      poll_session: poll_session,
+      current_poll_participant: current,
+      ballot_status: :ballot_locked,
+      started_at: poll_session.started_at
+    )
+    sign_in teacher
+
+    get poll_poll_session_path(poll, poll_session)
+
+    page = Nokogiri::HTML(response.body)
+    operation = page.at_css('[data-testid="poll-session-current-participant"]')
+    expect(operation.text.squish).to include(
+      "다음 투표자",
+      "#{next_pending.number}번 #{next_pending.name}",
+      "#{current.number}번 #{current.name} 학생이 투표를 완료했습니다.",
+      "다음 학생 진행"
+    )
+    expect(operation.text.squish).not_to include(
+      "다음 투표자는 #{next_pending.number}번 #{next_pending.name} 학생입니다."
+    )
+    advance_form = operation.at_css("form[action='#{advance_participant_poll_poll_session_path(poll, poll_session)}']")
+    absent_form = operation.at_css("form[action='#{mark_next_participant_absent_poll_poll_session_path(poll, poll_session)}']")
+    expect(advance_form.at_css("input[name='expected_current_poll_participant_id']")['value']).to eq(current.id.to_s)
+    expect(absent_form.at_css("input[name='expected_current_poll_participant_id']")['value']).to eq(current.id.to_s)
+    expect(absent_form.at_css('[data-turbo-confirm]')['data-turbo-confirm']).to include(
+      "#{next_pending.number}번 #{next_pending.name}"
     )
   end
 
@@ -311,5 +372,44 @@ RSpec.describe "PollSession operations", type: :request do
     expect(printable_option["class"]).not_to include("grid-cols-[max-content_minmax(0,1fr)_max-content]")
     expect(printable.text.squish).to include("기권 0표")
     expect(page.at_css('[data-testid="poll-session-results"]').text.squish).to include("기호 1번 김리안", "1표", "기권 0표")
+  end
+
+  it "renders referendum approvals and rejections as equal printable result cards" do
+    poll, poll_session, teacher = create_operations_session(
+      status: :closed,
+      poll_attributes: { referendum_allowed: true }
+    )
+    option = create(
+      :poll_option,
+      poll: poll,
+      poll_contest: poll.default_poll_contest,
+      number: 1,
+      name: "급식 개선안"
+    )
+    create(
+      :poll_option_tally,
+      poll: poll,
+      poll_session: poll_session,
+      poll_option: option,
+      votes_count: 1
+    )
+    create(
+      :poll_contest_tally,
+      poll: poll,
+      poll_session: poll_session,
+      poll_contest: poll.default_poll_contest,
+      rejections_count: 3,
+      abstentions_count: 0
+    )
+    sign_in teacher
+
+    get results_poll_poll_session_path(poll, poll_session)
+
+    page = Nokogiri::HTML(response.body)
+    printable = page.at_css('[data-testid="poll-session-printable-results"]')
+    cards = printable.css('[data-testid="printable-option-result"]')
+    expect(cards.map { |card| card.text.squish }).to eq(["찬성 1표", "반대 3표"])
+    expect(printable.text.squish).to include("급식 개선안")
+    expect(printable.text.squish).not_to include("기권 0표")
   end
 end
