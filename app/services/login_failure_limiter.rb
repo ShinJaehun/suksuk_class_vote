@@ -3,10 +3,14 @@ require "digest"
 class LoginFailureLimiter
   LIMIT = 5
   WINDOW = 10.minutes
+  UNKNOWN_CREDENTIAL_GENERATION = "unknown_credential_generation"
 
-  def initialize(login_id:, remote_ip:, cache: Rails.cache)
+  def initialize(login_id:, remote_ip:, credential_generation: nil, cache: Rails.cache)
     normalized_login_id = login_id.to_s.strip.downcase
-    digest = Digest::SHA256.hexdigest("#{normalized_login_id}\0#{remote_ip}")
+    credential_fingerprint = Digest::SHA256.hexdigest(
+      credential_generation.presence || UNKNOWN_CREDENTIAL_GENERATION
+    )
+    digest = Digest::SHA256.hexdigest("#{normalized_login_id}\0#{remote_ip}\0#{credential_fingerprint}")
     @attempts_key = "login_failure_limiter:attempts:#{digest}"
     @blocked_key = "login_failure_limiter:blocked:#{digest}"
     @cache = cache
