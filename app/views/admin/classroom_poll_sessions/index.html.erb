@@ -1,0 +1,95 @@
+<div class="space-y-6">
+  <div>
+    <h1 class="text-2xl font-semibold">학급투표 운영 현황</h1>
+    <p class="mt-1 text-sm text-stone-600">전체 학교의 일반 학급투표 운영 기록을 읽기 전용으로 확인합니다.</p>
+  </div>
+
+  <%= form_with url: admin_classroom_poll_sessions_path,
+                method: :get,
+                class: "grid gap-3 rounded-xl border border-stone-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4",
+                data: { controller: "autosubmit", turbo_action: "advance", action: "change->autosubmit#submit" } do |form| %>
+    <div>
+      <%= form.label :school_id, "학교", class: "block text-sm font-medium" %>
+      <%= form.select :school_id,
+                      options_for_select([["전체", "all"]] + @schools.map { |school| [school.name, school.id] }, @school&.id || "all"),
+                      {},
+                      class: "mt-1 w-full rounded-md border-stone-300" %>
+    </div>
+    <div>
+      <%= form.label :grade, "학년", class: "block text-sm font-medium" %>
+      <%= form.select :grade,
+                      options_for_select([["전체", "all"]] + (1..6).map { |grade| ["#{grade}학년", grade] }, @grade),
+                      {},
+                      class: "mt-1 w-full rounded-md border-stone-300" %>
+    </div>
+    <div>
+      <%= form.label :classroom_id, "학급", class: "block text-sm font-medium" %>
+      <%= form.select :classroom_id,
+                      options_for_select(
+                        [["전체", "all"]] + @classroom_options.map { |classroom| ["#{classroom.grade}학년 #{classroom.formatted_class_label}", classroom.id] },
+                        @classroom&.id || "all"
+                      ),
+                      {},
+                      disabled: @school.blank?,
+                      class: "mt-1 w-full rounded-md border-stone-300 disabled:bg-stone-100" %>
+    </div>
+    <div>
+      <%= form.label :status, "상태", class: "block text-sm font-medium" %>
+      <%= form.select :status,
+                      options_for_select(
+                        [["전체", "all"]] + %w[draft in_progress stopped closed].map { |value| [Poll::DISPLAY_STATUSES.fetch(value), value] },
+                        @status
+                      ),
+                      {},
+                      class: "mt-1 w-full rounded-md border-stone-300" %>
+    </div>
+  <% end %>
+
+  <div class="overflow-x-auto rounded-xl border border-stone-200 bg-white shadow-sm">
+    <table class="min-w-full divide-y divide-stone-200 text-sm">
+      <thead class="bg-stone-50 text-left text-stone-600">
+        <tr>
+          <th class="px-4 py-3 font-medium">상태</th>
+          <th class="px-4 py-3 font-medium">학교 / 학급</th>
+          <th class="px-4 py-3 font-medium">운영 선생님</th>
+          <th class="px-4 py-3 font-medium">투표</th>
+          <th class="px-4 py-3 font-medium">대표 활동 시각</th>
+          <th class="px-4 py-3 font-medium">참여 운영 집계</th>
+          <th class="px-4 py-3 font-medium"><span class="sr-only">상세</span></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-stone-100">
+        <% @poll_sessions.each do |poll_session| %>
+          <% counts = @participation_counts.fetch(poll_session.id, { total: 0, completed: 0, absent: 0, abstained: 0, pending: 0 }) %>
+          <tr data-poll-session-id="<%= poll_session.id %>">
+            <td class="whitespace-nowrap px-4 py-3">
+              <%= poll_session_status_badge(poll_session) %>
+              <% if classroom_poll_monitor_archived?(poll_session) %>
+                <span class="ml-1 rounded-md border border-stone-300 bg-stone-100 px-2 py-1 text-xs font-medium">보관됨</span>
+              <% end %>
+            </td>
+            <td class="px-4 py-3">
+              <p class="font-medium"><%= poll_session.classroom.school.name %></p>
+              <p class="text-stone-600"><%= poll_session_classroom_label(poll_session) %></p>
+            </td>
+            <td class="px-4 py-3"><%= classroom_poll_monitor_operator_name(poll_session) %></td>
+            <td class="px-4 py-3">
+              <p class="font-medium"><%= poll_session.poll.title %></p>
+              <p class="text-stone-600"><%= poll_session.poll.activity_label %></p>
+            </td>
+            <td class="whitespace-nowrap px-4 py-3"><%= kst_datetime(classroom_poll_monitor_activity_at(poll_session)) %></td>
+            <td class="whitespace-nowrap px-4 py-3"><%= classroom_poll_monitor_counts(poll_session, counts) %></td>
+            <td class="px-4 py-3 text-right">
+              <%= link_to "상세", admin_classroom_poll_session_path(poll_session), class: "font-medium text-stone-700 underline" %>
+            </td>
+          </tr>
+        <% end %>
+        <% if @poll_sessions.empty? %>
+          <tr>
+            <td colspan="7" class="px-4 py-10 text-center text-stone-500">조건에 맞는 학급투표가 없습니다.</td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

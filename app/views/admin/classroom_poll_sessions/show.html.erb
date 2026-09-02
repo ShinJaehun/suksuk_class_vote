@@ -1,0 +1,65 @@
+<div class="space-y-6">
+  <%= link_to "학급투표 운영 현황으로 돌아가기",
+              admin_classroom_poll_sessions_path,
+              class: "inline-block text-sm font-medium text-stone-700 underline" %>
+
+  <section class="space-y-4 rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+    <div class="flex flex-wrap items-center gap-2">
+      <h1 class="text-2xl font-semibold"><%= @poll_session.poll.title %></h1>
+      <%= poll_session_status_badge(@poll_session) %>
+      <% if classroom_poll_monitor_archived?(@poll_session) %>
+        <span class="rounded-md border border-stone-300 bg-stone-100 px-2 py-1 text-sm font-medium">보관됨</span>
+      <% end %>
+    </div>
+
+    <dl class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+      <% {
+           "Poll ID" => @poll_session.poll_id,
+           "PollSession ID" => @poll_session.id,
+           "종류" => @poll_session.poll.activity_label,
+           "현재 학교" => @poll_session.classroom.school.name,
+           "학년 / 학급" => poll_session_classroom_label(@poll_session),
+           "운영 선생님" => classroom_poll_monitor_operator_name(@poll_session),
+           "생성" => kst_datetime(@poll_session.created_at),
+           "대표 활동" => kst_datetime(classroom_poll_monitor_activity_at(@poll_session)),
+           "시작" => @poll_session.started_at && kst_datetime(@poll_session.started_at),
+           "종료" => @poll_session.closed_at && kst_datetime(@poll_session.closed_at),
+           "중단" => @poll_session.stopped_at && kst_datetime(@poll_session.stopped_at)
+         }.each do |label, value| %>
+        <div>
+          <dt class="text-stone-500"><%= label %></dt>
+          <dd class="mt-1 font-medium"><%= value.presence || "-" %></dd>
+        </div>
+      <% end %>
+    </dl>
+  </section>
+
+  <section class="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+    <h2 class="text-lg font-semibold">참여 운영 집계</h2>
+    <p class="mt-3 text-sm text-stone-700">
+      <%= classroom_poll_monitor_counts(@poll_session, @participation_counts) %>
+    </p>
+  </section>
+
+  <% if @poll_session.replacement_of || @poll_session.replacement_session %>
+    <section class="space-y-3 rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+      <h2 class="text-lg font-semibold">재투표 관계</h2>
+      <% if @poll_session.replacement_of %>
+        <p><%= link_to "중단된 원투표 ##{@poll_session.replacement_of_id}",
+                       admin_classroom_poll_session_path(@poll_session.replacement_of),
+                       class: "text-sm font-medium text-stone-700 underline" %></p>
+      <% end %>
+      <% if @poll_session.replacement_session %>
+        <p><%= link_to "재투표 ##{@poll_session.replacement_session.id}",
+                       admin_classroom_poll_session_path(@poll_session.replacement_session),
+                       class: "text-sm font-medium text-stone-700 underline" %></p>
+      <% end %>
+    </section>
+  <% end %>
+
+  <% if @poll_session.closed? %>
+    <%= link_to "익명 결과 보기",
+                results_admin_classroom_poll_session_path(@poll_session),
+                class: "inline-flex rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white" %>
+  <% end %>
+</div>

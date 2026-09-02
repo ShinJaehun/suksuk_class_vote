@@ -16,6 +16,10 @@ RSpec.describe "Management navigation", type: :request do
 
     expect(response.body).to include("로그아웃", %(action="#{destroy_user_session_path}"))
     expect(response.body).to include(%(href="#{schools_path}"), %(href="#{classrooms_path}"), %(href="#{teachers_path}"))
+    navigation_labels = header.css("a").map { |link| link.text.squish }
+    expect(navigation_labels).to include("학급투표")
+    expect(navigation_labels.index("학급투표")).to eq(navigation_labels.index("전교투표") + 1)
+    expect(header.to_html).to include(%(href="#{admin_classroom_poll_sessions_path}"))
     header_text = Nokogiri::HTML(response.body).at_css("header").text.squish
     expect(header_text).not_to include("내 투표", "내 교실")
     expect(header.text.squish).not_to include("내 투표", "내 교실")
@@ -41,6 +45,7 @@ RSpec.describe "Management navigation", type: :request do
       %(href="#{classrooms_path}"),
       %(href="#{teachers_path}")
     )
+    expect(response.body).not_to include(%(href="#{admin_classroom_poll_sessions_path}"))
     expect(Nokogiri::HTML(response.body).css('[data-testid="navigation-divider"]').size).to eq(2)
   end
 
@@ -57,6 +62,7 @@ RSpec.describe "Management navigation", type: :request do
     expect(response.body).to include("로그아웃", %(action="#{destroy_user_session_path}"))
     expect(response.body).to include("내 교실", %(href="#{classroom_students_path(classroom)}"))
     expect(response.body).not_to include(%(href="#{schools_path}"), %(href="#{classrooms_path}"), "선생님")
+    expect(response.body).not_to include(%(href="#{admin_classroom_poll_sessions_path}"))
     expect(Nokogiri::HTML(response.body).css('[data-testid="navigation-divider"]')).to be_empty
   end
 end

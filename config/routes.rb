@@ -116,6 +116,9 @@ Rails.application.routes.draw do
   end
   namespace :admin do
     resources :schools, only: %i[new create]
+    resources :classroom_poll_sessions, only: %i[index show] do
+      get :results, on: :member
+    end
   end
 
   root "dashboards#show"

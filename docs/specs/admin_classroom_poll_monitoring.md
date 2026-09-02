@@ -58,8 +58,10 @@ global admin의 상단 navigation은 다음 순서로 표시한다.
 - 잘못된 ID, 학년, 상태는 허용 목록 밖 값으로 query하지 않는다. 독립적으로 잘못된 값은 `전체`로
   처리하되, 다른 유효한 조건을 제거하거나 그 범위 밖으로 결과를 넓히지 않는다.
 
-현재 `classrooms` 관리 화면의 GET/autosubmit/Turbo 패턴을 재사용할 수 있다. 새로운 JavaScript
-filter framework는 도입하지 않는다.
+필터는 `school_polls/index`와 `classrooms/index`의 관리 화면을 우선 참고하여 `rounded-md`,
+`border border-stone-200`, `bg-white`, `p-4`와 같은 visual language, spacing, label/select typography를
+맞춘다. 4개 필터에 필요한 반응형 배치는 유지하되 별도 dashboard panel처럼 과도하게 강조하지 않는다.
+기존 GET/autosubmit 패턴을 재사용하며 새로운 JavaScript나 filter component/framework는 도입하지 않는다.
 
 ## Ordering
 
@@ -82,18 +84,17 @@ schema를 추가하지 않는다.
 
 ## List fields
 
-목록은 고밀도 운영 목록이며 각 PollSession에 다음을 표시한다.
+목록은 운영 기록을 빠르게 식별할 수 있도록 다음 정보만 표시한다.
 
 - 상태 badge: 준비, 진행, 중단, 종료
 - 보관된 경우 `보관됨` 보조 표시
-- 학교
-- 학년 / 학급
+- 학교 / 학년·학급
 - 운영 선생님
-- 투표 제목
-- 투표 종류: 선거, 설문조사, 토의, 토론
-- 대표 활동 시각
-- 실행된 투표의 참여 운영 집계
+- 투표 제목 / 종류: 선거, 설문조사, 토의, 토론
 - admin 전용 상세 링크
+
+대표 활동 시각과 참여 운영 집계는 목록에 표시하지 않고 admin 상세에서 표시한다. 대표 활동 시각
+계산과 최신 활동순 ordering은 목록 내부 기준으로 계속 사용한다.
 
 과거 실행 기록은 `classroom_name_snapshot`, `operator_name_snapshot`을 우선 표시한다. snapshot이
 없을 때만 현재 Classroom/User 값을 fallback으로 사용하며 현재 값으로 snapshot을 덮어쓰지 않는다.
@@ -103,7 +104,8 @@ schema를 추가하지 않는다.
 
 ## Status-specific behavior
 
-`in_progress`, `closed`, `stopped`는 현재 DB의 PollParticipant/PollParticipation 상태를 집계한다.
+admin 상세에서 `in_progress`, `closed`, `stopped`는 현재 DB의 PollParticipant/PollParticipation
+상태를 집계한다.
 
 - 전체: PollParticipant snapshot 수
 - 완료: `completed` 수
@@ -120,7 +122,7 @@ schema를 추가하지 않는다.
 
 partial ballot은 별도 목록 지표로 추가하지 않으며 participation이 없는 참가자는 `대기`에 포함한다.
 
-`draft`는 참가 snapshot과 실행 집계를 추정하지 않는다. 현재 active Student 수를 참가자 수처럼
+`draft` 상세는 참가 snapshot과 실행 집계를 추정하지 않는다. 현재 active Student 수를 참가자 수처럼
 표시하지 않고 실행 집계 전체를 `-` 또는 `아직 실행되지 않음`으로 표시한다.
 
 ## Read-only detail / revote relationship
@@ -159,9 +161,9 @@ route와 controller를 우선한다. 교사용 `/polls`와 `PollSessionsControll
 
 ## Performance constraints
 
-- 학교, 학급, 운영자, 참여 상태 count, replacement 관계를 row마다 별도 query하지 않는다.
+- 학교, 학급, 운영자와 replacement 관계를 목록 row마다 별도 query하지 않는다.
 - 현재 규모에 맞는 includes/preload와 group aggregate를 사용한다.
-- 목록용 집계에서 각 row마다 `SessionStatusCheck`를 호출해 추가 query를 반복하지 않는다.
+- 상세 참여 집계는 group aggregate를 사용하고 `SessionStatusCheck`로 추가 query를 반복하지 않는다.
 - pagination gem이나 analytics infrastructure를 추가하지 않는다. pagination은 이번 MVP 필수가 아니다.
 
 ## Acceptance criteria
@@ -174,7 +176,8 @@ school manager와 일반 teacher에게 이 항목은 표시되지 않는다.
 ### B. 기본 전체 목록
 
 filter 없이 진입하면 모든 학교의 `school_managed: false` PollSession을 보관 여부와 무관하게 조회한다.
-네 lifecycle 상태를 모두 포함하고 전교투표는 제외하며 대표 활동 시각순으로 표시한다.
+네 lifecycle 상태를 모두 포함하고 전교투표는 제외하며 대표 활동 시각순으로 표시한다. 목록 열은
+상태·보관 여부, 학교/학급, 운영 선생님, 제목/종류와 상세 링크로 제한한다.
 
 ### C. 계층 필터
 
@@ -184,14 +187,15 @@ PollSession만 표시한다. 학교가 `전체`이면 학급 선택과 `classroo
 
 ### D. draft
 
-draft도 metadata와 함께 목록에 표시한다. 실행 집계는 `-` 등으로 표시하고 active Student 수를
-snapshot 수로 추정하지 않으며 준비·수정 form이나 mutation action을 제공하지 않는다.
+draft도 metadata와 함께 목록에 표시한다. 목록에는 실행 집계를 표시하지 않는다. 상세에서도 active
+Student 수를 snapshot 수로 추정하지 않고 실행 집계를 `-` 등으로 표시하며, 준비·수정 form이나
+mutation action을 제공하지 않는다.
 
 ### E. 진행/종료/중단
 
-각 상태의 lifecycle 시각과 PollParticipant/PollParticipation 기반 전체·완료·미참여·기권·대기를
-현재 DB 상태대로 표시한다. 중단 상태의 대기를 숨기지 않으며 종료 상태의 대기가 0이 아니어도
-그 값을 그대로 표시한다.
+상세에서 각 상태의 lifecycle 시각과 PollParticipant/PollParticipation 기반
+전체·완료·미참여·기권·대기를 현재 DB 상태대로 표시한다. 중단 상태의 대기를 숨기지 않으며 종료
+상태의 대기가 0이 아니어도 그 값을 그대로 표시한다. 목록에는 시각과 참여 집계를 표시하지 않는다.
 
 ### F. 재투표
 

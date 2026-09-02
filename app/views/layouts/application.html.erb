@@ -55,6 +55,11 @@
                 <%= link_to "전교투표",
                             school_polls_path,
                             class: "text-sm text-stone-600 hover:text-stone-900" %>
+                <% if current_user.admin? %>
+                  <%= link_to "학급투표",
+                              admin_classroom_poll_sessions_path,
+                              class: "text-sm text-stone-600 hover:text-stone-900" %>
+                <% end %>
                 <span class="mx-1 hidden h-5 border-l border-stone-300 sm:inline-block" data-testid="navigation-divider"></span>
                 <%= link_to "학교",
                             schools_path,
