@@ -110,12 +110,12 @@ RSpec.describe "PollSession lifecycle", type: :request do
     sign_in admin
 
     patch stop_poll_poll_session_path(schoolwide.poll, schoolwide)
-    expect(response).to redirect_to(teachers_path)
+    expect(response).to redirect_to(school_polls_path)
     expect(schoolwide.reload).to be_in_progress
 
     schoolwide.update!(status: :stopped, stopped_at: Time.current)
     post revote_poll_poll_session_path(schoolwide.poll, schoolwide)
-    expect(response).to redirect_to(teachers_path)
+    expect(response).to redirect_to(school_polls_path)
     expect(schoolwide.reload.replacement_session).to be_nil
   end
 

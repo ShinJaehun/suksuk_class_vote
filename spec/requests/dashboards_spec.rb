@@ -26,12 +26,22 @@ RSpec.describe "Dashboards", type: :request do
       expect(response).to redirect_to(polls_path)
     end
 
-    it "redirects admins to teacher management" do
+    it "redirects admins to schoolwide polls" do
       sign_in create(:user, :admin)
 
       get root_path
 
-      expect(response).to redirect_to(teachers_path)
+      expect(response).to redirect_to(school_polls_path)
+    end
+
+    it "redirects school managers to the poll list" do
+      manager = create(:user)
+      create(:school_membership, :manager, user: manager)
+      sign_in manager
+
+      get root_path
+
+      expect(response).to redirect_to(polls_path)
     end
   end
 
@@ -56,12 +66,12 @@ RSpec.describe "Dashboards", type: :request do
       expect(response.body).to include("value=\"delete\"")
     end
 
-    it "redirects admins to teacher management" do
+    it "redirects admins to schoolwide polls" do
       sign_in create(:user, :admin)
 
       get dashboard_path
 
-      expect(response).to redirect_to(teachers_path)
+      expect(response).to redirect_to(school_polls_path)
     end
   end
 end

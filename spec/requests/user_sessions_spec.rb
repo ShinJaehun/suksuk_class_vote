@@ -16,7 +16,7 @@ RSpec.describe "User sessions", type: :request do
 
     post user_session_path, params: { user: { login_id: "ADMIN@EXAMPLE.COM", password: "password123!" } }
 
-    expect(response).to redirect_to(teachers_path)
+    expect(response).to redirect_to(school_polls_path)
   end
 
   it "signs in a teacher with a login id" do

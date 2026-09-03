@@ -708,7 +708,7 @@ RSpec.describe "Classroom students", type: :request do
       }
     end.not_to change(Student, :count)
 
-    expect(response).to redirect_to(teachers_path)
+    expect(response).to redirect_to(school_polls_path)
   end
 
   it "returns 404 when the Student does not belong to the parent Classroom" do
