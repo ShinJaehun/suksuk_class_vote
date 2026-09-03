@@ -9,10 +9,6 @@ module Admin::ClassroomPollSessionsHelper
     poll_session.archived_at.present? || poll_session.poll.archived_at.present?
   end
 
-  def classroom_poll_monitor_activity_at(poll_session)
-    poll_session[:representative_activity_at]
-  end
-
   def classroom_poll_monitor_counts(poll_session, counts)
     return "-" if poll_session.draft?
 

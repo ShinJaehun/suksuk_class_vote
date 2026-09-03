@@ -7,9 +7,5 @@ module Admin
     def show?
       user&.admin?
     end
-
-    def results?
-      show?
-    end
   end
 end

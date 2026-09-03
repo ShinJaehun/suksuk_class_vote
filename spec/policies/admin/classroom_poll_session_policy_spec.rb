@@ -1,29 +1,26 @@
 require "rails_helper"
 
 RSpec.describe Admin::ClassroomPollSessionPolicy do
-  subject(:policy) { described_class.new(user, PollSession) }
+  it "allows a global admin to view the monitoring index and detail" do
+    admin = create(:user, :admin)
+    policy = described_class.new(admin, PollSession)
 
-  context "with a global admin" do
-    let(:user) { create(:user, :admin) }
-
-    it { is_expected.to be_index }
-    it { is_expected.to be_show }
-    it { is_expected.to be_results }
+    expect(policy).to be_index
+    expect(policy).to be_show
   end
 
-  context "with a teacher" do
-    let(:user) { create(:user) }
+  it "rejects a teacher from the monitoring index and detail" do
+    teacher = create(:user)
+    policy = described_class.new(teacher, PollSession)
 
-    it { is_expected.not_to be_index }
-    it { is_expected.not_to be_show }
-    it { is_expected.not_to be_results }
+    expect(policy).not_to be_index
+    expect(policy).not_to be_show
   end
 
-  context "without a user" do
-    let(:user) { nil }
+  it "rejects a missing user from the monitoring index and detail" do
+    policy = described_class.new(nil, PollSession)
 
-    it { is_expected.not_to be_index }
-    it { is_expected.not_to be_show }
-    it { is_expected.not_to be_results }
+    expect(policy).not_to be_index
+    expect(policy).not_to be_show
   end
 end

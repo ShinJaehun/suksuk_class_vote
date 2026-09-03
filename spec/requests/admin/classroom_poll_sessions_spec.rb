@@ -5,8 +5,9 @@ RSpec.describe "Admin classroom PollSession monitoring", type: :request do
 
   let(:admin) { create(:user, :admin) }
 
-  def create_classroom_session(school:, classroom:, operator:, title:, status: :draft, activity_at: Time.current)
-    poll = create(:poll, school: school, user: operator, title: title)
+  def create_classroom_session(school:, classroom:, operator:, title:, status: :draft, activity_at: Time.current,
+                               referendum_allowed: false)
+    poll = create(:poll, school: school, user: operator, title: title, referendum_allowed: referendum_allowed)
     session = create(:poll_session, poll: poll, classroom: classroom, operator: operator)
 
     case status.to_sym
@@ -52,8 +53,6 @@ RSpec.describe "Admin classroom PollSession monitoring", type: :request do
         get admin_classroom_poll_sessions_path
         expect(response).to redirect_to(polls_path)
         get admin_classroom_poll_session_path(session)
-        expect(response).to redirect_to(polls_path)
-        get results_admin_classroom_poll_session_path(session)
         expect(response).to redirect_to(polls_path)
         sign_out user
       end
@@ -139,7 +138,7 @@ RSpec.describe "Admin classroom PollSession monitoring", type: :request do
       expect(row_ids).to eq([second.id, first.id])
     end
 
-    it "applies hierarchical school, grade, classroom, and status filters" do
+    it "applies school, grade, and status filters" do
       sign_in admin
       first_school = create(:school)
       second_school = create(:school)
@@ -174,12 +173,9 @@ RSpec.describe "Admin classroom PollSession monitoring", type: :request do
       get admin_classroom_poll_sessions_path,
           params: { school_id: first_school.id, grade: 4, status: :closed }
       expect(row_ids).to eq([first.id])
-      get admin_classroom_poll_sessions_path,
-          params: { school_id: first_school.id, grade: 4, classroom_id: first_grade_four.id, status: :closed }
-      expect(row_ids).to eq([first.id])
     end
 
-    it "ignores classroom without a school and safely handles invalid or mismatched filters" do
+    it "safely handles invalid filters" do
       sign_in admin
       first_school = create(:school)
       second_school = create(:school)
@@ -194,41 +190,66 @@ RSpec.describe "Admin classroom PollSession monitoring", type: :request do
         title: "둘째 투표", status: :stopped
       )
 
-      get admin_classroom_poll_sessions_path, params: { classroom_id: first_classroom.id }
-      expect(row_ids).to match_array([first.id, second.id])
       get admin_classroom_poll_sessions_path,
-          params: { school_id: first_school.id, grade: 4, classroom_id: second_classroom.id, status: :closed }
-      expect(row_ids).to eq([first.id])
-      get admin_classroom_poll_sessions_path,
-          params: { school_id: "bad", grade: 99, classroom_id: second_classroom.id, status: "bad" }
+          params: { school_id: "bad", grade: 99, status: "bad" }
       expect(row_ids).to match_array([first.id, second.id])
     end
 
-    it "shows snapshots and aggregate counts without estimating draft participants" do
+    it "searches Poll titles and combines the search with other filters" do
+      sign_in admin
+      first_school = create(:school)
+      second_school = create(:school)
+      matching_classroom = create(:classroom, :with_teacher, school: first_school, grade: 4)
+      other_classroom = create(:classroom, :with_teacher, school: second_school, grade: 5)
+      matching = create_classroom_session(
+        school: first_school, classroom: matching_classroom, operator: matching_classroom.teacher,
+        title: "가을 학급회장 선거", status: :closed
+      )
+      other_title = create_classroom_session(
+        school: first_school, classroom: matching_classroom, operator: matching_classroom.teacher,
+        title: "봄 토론", status: :closed
+      )
+      other_scope = create_classroom_session(
+        school: second_school, classroom: other_classroom, operator: other_classroom.teacher,
+        title: "학급회장 후보 추천", status: :stopped
+      )
+
+      get admin_classroom_poll_sessions_path, params: { poll_title: "  학급회장  " }
+      expect(row_ids).to match_array([matching.id, other_scope.id])
+      expect(row_ids).not_to include(other_title.id)
+
+      get admin_classroom_poll_sessions_path, params: {
+        school_id: first_school.id, grade: 4, status: :closed, poll_title: "학급회장"
+      }
+      expect(row_ids).to eq([matching.id])
+
+      get admin_classroom_poll_sessions_path, params: { poll_title: "   " }
+      expect(row_ids).to match_array([matching.id, other_title.id, other_scope.id])
+    end
+
+    it "shows compact monitoring metadata without list activity or participation columns" do
       sign_in admin
       classroom = create(:classroom, :with_teacher)
       draft = create_classroom_session(
         school: classroom.school, classroom: classroom, operator: classroom.teacher, title: "준비 투표"
       )
+      poll_created_at = Time.find_zone!("Asia/Seoul").local(2025, 4, 3, 9, 15)
+      draft.poll.update_columns(created_at: poll_created_at)
       stopped = create_classroom_session(
         school: classroom.school, classroom: classroom, operator: classroom.teacher,
         title: "중단 투표", status: :stopped
       )
-      completed = create(:poll_participant, poll_session: stopped)
-      absent = create(:poll_participant, poll_session: stopped)
-      abstained = create(:poll_participant, poll_session: stopped)
-      create(:poll_participant, poll_session: stopped, name: "대기 학생")
-      create(:poll_participation, poll_participant: completed, status: :completed)
-      create(:poll_participation, poll_participant: absent, status: :absent)
-      create(:poll_participation, poll_participant: abstained, status: :abstained)
       stopped.update_columns(classroom_name_snapshot: "2025학년도 4학년 별반", operator_name_snapshot: "당시 선생님")
 
       get admin_classroom_poll_sessions_path
 
-      expect(response.body).to include("전체 4 · 완료 1 · 미참여 1 · 기권 1 · 대기 1", "4학년 별반", "당시 선생님")
+      page = Nokogiri::HTML(response.body)
+      expect(page.css("thead th").map { |heading| heading.text.squish }).to eq(
+        ["상태", "학교 / 학급", "운영 선생님", "투표", "생성 시각", "상세"]
+      )
+      expect(response.body).to include("준비 투표", "중단 투표", "4학년 별반", "당시 선생님", "선거")
       draft_row = Nokogiri::HTML(response.body).at_css("tr[data-poll-session-id='#{draft.id}']")
-      expect(draft_row.text.squish).to include("-")
-      expect(draft_row.text.squish).not_to include("전체")
+      expect(draft_row.text).to include("2025-04-03 09:15")
       expect(draft_row.css("form, button")).to be_empty
       expect(draft_row.css("a").map { |link| link["href"] }).to eq([admin_classroom_poll_session_path(draft)])
     end
@@ -240,9 +261,11 @@ RSpec.describe "Admin classroom PollSession monitoring", type: :request do
       classroom = create(:classroom, :with_teacher)
       source = create_classroom_session(
         school: classroom.school, classroom: classroom, operator: classroom.teacher,
-        title: "원투표", status: :stopped
+        title: "학급회장 선거", status: :stopped
       )
-      replacement_poll = create(:poll, school: classroom.school, user: classroom.teacher, title: "재투표")
+      replacement_poll = create(
+        :poll, school: classroom.school, user: classroom.teacher, title: "학급회장 선거 (재투표)"
+      )
       replacement = create(
         :poll_session,
         poll: replacement_poll,
@@ -252,9 +275,15 @@ RSpec.describe "Admin classroom PollSession monitoring", type: :request do
       )
 
       get admin_classroom_poll_session_path(source)
-      expect(response.body).to include("재투표 ##{replacement.id}", admin_classroom_poll_session_path(replacement))
+      expect(response.body).to include(
+        "재투표: 학급회장 선거 (재투표)", admin_classroom_poll_session_path(replacement)
+      )
+      metadata_labels = Nokogiri::HTML(response.body).css("dt").map { |label| label.text.squish }
+      expect(metadata_labels).to include("종류", "현재 학교", "학년 / 학급", "운영 선생님", "생성", "시작", "종료", "중단")
+      expect(response.body).not_to include("Poll ID", "PollSession ID", "대표 활동", "재투표 ##")
       get admin_classroom_poll_session_path(replacement)
-      expect(response.body).to include("중단된 원투표 ##{source.id}", admin_classroom_poll_session_path(source))
+      expect(response.body).to include("중단된 원투표: 학급회장 선거", admin_classroom_poll_session_path(source))
+      expect(response.body).not_to include("중단된 원투표 ##")
       expect(response.body).not_to include("투표 시작", "투표 중단", "재투표 실행", "투표 삭제", "투표 화면")
     end
 
@@ -273,7 +302,7 @@ RSpec.describe "Admin classroom PollSession monitoring", type: :request do
       expect(response.body).not_to include("표시하지 않을 학생")
     end
 
-    it "shows only count tallies for closed results and rejects other states" do
+    it "shows only count tallies on a closed detail" do
       sign_in admin
       classroom = create(:classroom, :with_teacher)
       closed = create_classroom_session(
@@ -286,15 +315,77 @@ RSpec.describe "Admin classroom PollSession monitoring", type: :request do
       create(:poll_contest_tally, poll_session: closed, poll: closed.poll, poll_contest: contest, abstentions_count: 1)
       create(:poll_participant, poll_session: closed, name: "비공개 학생")
 
-      get results_admin_classroom_poll_session_path(closed)
+      get admin_classroom_poll_session_path(closed)
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("후보 A", "3표", "기권", "1표")
-      expect(response.body).not_to include("비공개 학생", "투표 시작", "투표 중단")
+      expect(response.body).to include("투표 결과", contest.title, "후보 A", "3표", "기권", "1표")
+      expect(response.body).not_to include("익명 결과", "익명 결과 보기", "비공개 학생", "투표 시작", "투표 중단")
+    end
 
-      draft = create(:poll_session)
-      get results_admin_classroom_poll_session_path(draft)
-      expect(response).to have_http_status(:not_found)
+    it "shows referendum tallies as subject, approval, rejection, and abstention" do
+      sign_in admin
+      classroom = create(:classroom, :with_teacher)
+      session = create_classroom_session(
+        school: classroom.school,
+        classroom: classroom,
+        operator: classroom.teacher,
+        title: "찬반 투표",
+        status: :closed,
+        referendum_allowed: true
+      )
+      contest = session.poll.poll_contests.first
+      option = create(:poll_option, poll: session.poll, poll_contest: contest, name: "학교 축제 개최")
+      create(:poll_option_tally, poll_session: session, poll: session.poll, poll_option: option, votes_count: 7)
+      create(
+        :poll_contest_tally,
+        poll_session: session,
+        poll: session.poll,
+        poll_contest: contest,
+        rejections_count: 2,
+        abstentions_count: 1
+      )
+
+      get admin_classroom_poll_session_path(session)
+
+      expect(response.body).to include("학교 축제 개최", "찬성", "7표", "반대", "2표", "기권", "1표")
+      expect(response.body).not_to include("1번 학교 축제 개최")
+    end
+
+    it "does not mix partial tallies into an incomplete result" do
+      sign_in admin
+      classroom = create(:classroom, :with_teacher)
+      session = create_classroom_session(
+        school: classroom.school, classroom: classroom, operator: classroom.teacher,
+        title: "불완전 결과", status: :closed
+      )
+      contest = session.poll.poll_contests.first
+      option = create(:poll_option, poll: session.poll, poll_contest: contest, name: "후보 B")
+      create(:poll_option_tally, poll_session: session, poll: session.poll, poll_option: option, votes_count: 4)
+
+      get admin_classroom_poll_session_path(session)
+
+      expect(response.body).to include("이 투표 세션의 집계 정보를 확인할 수 없습니다.")
+      expect(response.body).not_to include("후보 B", "4표")
+    end
+
+    it "does not show results for non-closed details" do
+      sign_in admin
+      classroom = create(:classroom, :with_teacher)
+      sessions = %i[draft stopped].map do |status|
+        create_classroom_session(
+          school: classroom.school,
+          classroom: classroom,
+          operator: classroom.teacher,
+          title: "#{status} 상태",
+          status: status
+        )
+      end
+
+      sessions.each do |session|
+        get admin_classroom_poll_session_path(session)
+
+        expect(response.body).not_to include("투표 결과")
+      end
     end
 
     it "does not expose school-managed sessions through direct URLs" do

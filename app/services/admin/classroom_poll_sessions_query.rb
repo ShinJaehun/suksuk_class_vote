@@ -3,7 +3,7 @@ module Admin
     GRADES = (1..6).map(&:to_s).freeze
     STATUSES = PollSession.statuses.keys.freeze
 
-    attr_reader :school, :grade, :classroom, :status, :classroom_options
+    attr_reader :school, :grade, :status, :poll_title
 
     def self.with_representative_activity(scope)
       draft_activity = <<~SQL.squish
@@ -48,8 +48,13 @@ module Admin
       filtered_scope = @scope
       filtered_scope = filtered_scope.where(classrooms: { school_id: school.id }) if school
       filtered_scope = filtered_scope.where(classrooms: { grade: grade.to_i }) unless grade == "all"
-      filtered_scope = filtered_scope.where(classroom_id: classroom.id) if classroom
       filtered_scope = filtered_scope.where(status: status) unless status == "all"
+      if poll_title.present?
+        filtered_scope = filtered_scope.where(
+          "polls.title ILIKE ?",
+          "%#{Poll.sanitize_sql_like(poll_title)}%"
+        )
+      end
 
       self.class.with_representative_activity(filtered_scope)
     end
@@ -60,16 +65,7 @@ module Admin
       @school = School.find_by(id: valid_id(@params[:school_id]))
       @grade = GRADES.include?(@params[:grade].to_s) ? @params[:grade].to_s : "all"
       @status = STATUSES.include?(@params[:status].to_s) ? @params[:status].to_s : "all"
-      @classroom_options = available_classrooms
-      @classroom = school && @classroom_options.find_by(id: valid_id(@params[:classroom_id]))
-    end
-
-    def available_classrooms
-      return Classroom.none unless school
-
-      classrooms = Classroom.where(school: school)
-      classrooms = classrooms.where(grade: grade.to_i) unless grade == "all"
-      classrooms.in_school_order
+      @poll_title = @params[:poll_title].to_s.strip
     end
 
     def valid_id(value)
